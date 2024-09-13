@@ -1313,21 +1313,19 @@ public class DataNetwork extends StateMachine {
                         getHandler(), EVENT_VOICE_CALL_ENDED, null);
             }
 
-            if (mFlags.forceIwlanMms()) {
-                if (mDataProfile.canSatisfy(NetworkCapabilities.NET_CAPABILITY_MMS)) {
-                    mAccessNetworksManagerCallback = new AccessNetworksManagerCallback(
-                            getHandler()::post) {
-                        @Override
-                        public void onPreferredTransportChanged(
-                                @NetCapability int networkCapability, boolean forceReconnect) {
-                            if (networkCapability == NetworkCapabilities.NET_CAPABILITY_MMS) {
-                                log("MMS preference changed.");
-                                updateNetworkCapabilities();
-                            }
+            if (mDataProfile.canSatisfy(NetworkCapabilities.NET_CAPABILITY_MMS)) {
+                mAccessNetworksManagerCallback = new AccessNetworksManagerCallback(
+                        getHandler()::post) {
+                    @Override
+                    public void onPreferredTransportChanged(
+                            @NetCapability int networkCapability, boolean forceReconnect) {
+                        if (networkCapability == NetworkCapabilities.NET_CAPABILITY_MMS) {
+                            log("MMS preference changed.");
+                            updateNetworkCapabilities();
                         }
-                    };
-                    mAccessNetworksManager.registerCallback(mAccessNetworksManagerCallback);
-                }
+                    }
+                };
+                mAccessNetworksManager.registerCallback(mAccessNetworksManagerCallback);
             }
 
             // Only add symmetric code here, for example, registering and unregistering.
@@ -1339,7 +1337,7 @@ public class DataNetwork extends StateMachine {
         @Override
         public void exit() {
             logv("Unregistering all events.");
-            if (mFlags.forceIwlanMms() && mAccessNetworksManagerCallback != null) {
+            if (mAccessNetworksManagerCallback != null) {
                 mAccessNetworksManager.unregisterCallback(mAccessNetworksManagerCallback);
             }
 
@@ -2419,14 +2417,7 @@ public class DataNetwork extends StateMachine {
                     DataSpecificRegistrationInfo dsri = nri.getDataSpecificInfo();
                     // Check if the network is non-VoPS.
                     if (dsri != null && dsri.getVopsSupportInfo() != null
-                            && !dsri.getVopsSupportInfo().isVopsSupported()
-                            // Reflect the actual MMTEL if flag on.
-                            && (mFlags.allowMmtelInNonVops()
-                            // Deceive Connectivity service to satisfy an MMTEL request, this should
-                            // be useless because we reach here if no MMTEL request, then removing
-                            // MMTEL capability shouldn't have any impacts.
-                            || !mDataConfigManager.shouldKeepNetworkUpInNonVops(
-                                    nri.getNetworkRegistrationState()))) {
+                            && !dsri.getVopsSupportInfo().isVopsSupported()) {
                         builder.removeCapability(NetworkCapabilities.NET_CAPABILITY_MMTEL);
                     }
                     log("updateNetworkCapabilities: dsri=" + dsri);
@@ -2554,8 +2545,7 @@ public class DataNetwork extends StateMachine {
         // Check if the feature force MMS on IWLAN is enabled. When the feature is enabled, MMS
         // will be attempted on IWLAN if possible, even if existing cellular networks already
         // supports IWLAN.
-        if (mFlags.forceIwlanMms() && builder.build()
-                .hasCapability(NetworkCapabilities.NET_CAPABILITY_MMS)) {
+        if (builder.build().hasCapability(NetworkCapabilities.NET_CAPABILITY_MMS)) {
             // If QNS sets MMS preferred on IWLAN, and it is possible to setup an MMS network on
             // IWLAN, then we need to remove the MMS capability on the cellular network. This will
             // allow the new MMS network to be brought up on IWLAN when MMS network request arrives.
