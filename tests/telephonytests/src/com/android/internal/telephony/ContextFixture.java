@@ -695,6 +695,9 @@ public class ContextFixture implements TestFixture<Context> {
         public Context getApplicationContext() {
             return null;
         }
+
+        @Override
+        public void startActivityAsUser(Intent intent, UserHandle user) {}
     }
 
     private final Multimap<String, ComponentName> mComponentNamesByAction =
