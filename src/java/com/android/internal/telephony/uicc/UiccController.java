@@ -35,6 +35,7 @@ import android.os.Build;
 import android.os.Handler;
 import android.os.Message;
 import android.os.RegistrantList;
+import android.os.UserHandle;
 import android.preference.PreferenceManager;
 import android.sysprop.TelephonyProperties;
 import android.telephony.AnomalyReporter;
@@ -64,6 +65,7 @@ import com.android.internal.telephony.PhoneConstants;
 import com.android.internal.telephony.PhoneFactory;
 import com.android.internal.telephony.RadioConfig;
 import com.android.internal.telephony.TelephonyIntents;
+import com.android.internal.telephony.flags.FeatureFlags;
 import com.android.internal.telephony.metrics.TelephonyMetrics;
 import com.android.internal.telephony.subscription.SubscriptionManagerService;
 import com.android.internal.telephony.uicc.euicc.EuiccCard;
@@ -246,22 +248,26 @@ public class UiccController extends Handler {
     // LocalLog buffer to hold important SIM related events for debugging
     private static LocalLog sLocalLog = new LocalLog(TelephonyUtils.IS_DEBUGGABLE ? 256 : 64);
 
+    @NonNull
+    private final FeatureFlags mFeatureFlags;
+
     /**
      * API to make UiccController singleton if not already created.
      */
-    public static UiccController make(Context c) {
+    public static UiccController make(@NonNull Context c, @NonNull FeatureFlags flags) {
         synchronized (mLock) {
             if (mInstance != null) {
                 throw new RuntimeException("UiccController.make() should only be called once");
             }
-            mInstance = new UiccController(c);
+            mInstance = new UiccController(c, flags);
             return mInstance;
         }
     }
 
-    private UiccController(Context c) {
+    private UiccController(@NonNull Context c, @NonNull FeatureFlags flags) {
         if (DBG) log("Creating UiccController");
         mContext = c;
+        mFeatureFlags = flags;
         mCis = PhoneFactory.getCommandsInterfaces();
         int numPhysicalSlots = c.getResources().getInteger(
                 com.android.internal.R.integer.config_num_physical_slots);
@@ -293,7 +299,7 @@ public class UiccController extends Handler {
             mCis[i].registerForIccRefresh(this, EVENT_SIM_REFRESH, i);
         }
 
-        mLauncher = new UiccStateChangedLauncher(c, this);
+        mLauncher = new UiccStateChangedLauncher(c, this, mFeatureFlags);
         mCardStrings = loadCardStrings();
         mDefaultEuiccCardId = UNINITIALIZED_CARD_ID;
 
@@ -825,7 +831,12 @@ public class UiccController extends Handler {
                     + TelephonyManager.simStateToString(state) + " for phone: " + phoneId
                     + " slot: " + slotId + " port: "
                     + (slot != null ? portIndex : null) + " sub: " + subId);
-            mContext.sendBroadcast(intent, Manifest.permission.READ_PRIVILEGED_PHONE_STATE);
+            if (mFeatureFlags.hsumBroadcast()) {
+                mContext.sendBroadcastAsUser(intent, UserHandle.ALL,
+                        Manifest.permission.READ_PRIVILEGED_PHONE_STATE);
+            } else {
+                mContext.sendBroadcast(intent, Manifest.permission.READ_PRIVILEGED_PHONE_STATE);
+            }
             TelephonyMetrics.getInstance().updateSimState(phoneId, state);
         }
     }
@@ -865,7 +876,12 @@ public class UiccController extends Handler {
                     + TelephonyManager.simStateToString(state)
                     + " for phone: " + phoneId + " slot: " + slotId + "port: "
                     + (slot != null ? slot.getPortIndexFromPhoneId(phoneId) : null) + " sub: " + subId);
-            mContext.sendBroadcast(intent, Manifest.permission.READ_PRIVILEGED_PHONE_STATE);
+            if (mFeatureFlags.hsumBroadcast()) {
+                mContext.sendBroadcastAsUser(intent, UserHandle.ALL,
+                        Manifest.permission.READ_PRIVILEGED_PHONE_STATE);
+            } else {
+                mContext.sendBroadcast(intent, Manifest.permission.READ_PRIVILEGED_PHONE_STATE);
+            }
             TelephonyMetrics.getInstance().updateSimState(phoneId, state);
         }
     }
@@ -1467,8 +1483,13 @@ public class UiccController extends Handler {
         options.setBackgroundActivityStartsAllowed(true);
         Intent intent = new Intent(TelephonyManager.ACTION_SIM_SLOT_STATUS_CHANGED);
         intent.addFlags(Intent.FLAG_RECEIVER_REGISTERED_ONLY_BEFORE_BOOT);
-        mContext.sendBroadcast(intent, android.Manifest.permission.READ_PRIVILEGED_PHONE_STATE,
-                options.toBundle());
+        if (mFeatureFlags.hsumBroadcast()) {
+            mContext.sendBroadcastAsUser(intent, UserHandle.ALL,
+                    android.Manifest.permission.READ_PRIVILEGED_PHONE_STATE, options.toBundle());
+        } else {
+            mContext.sendBroadcast(intent, android.Manifest.permission.READ_PRIVILEGED_PHONE_STATE,
+                    options.toBundle());
+        }
     }
 
     private boolean hasActivePort(IccSimPortInfo[] simPortInfos) {
