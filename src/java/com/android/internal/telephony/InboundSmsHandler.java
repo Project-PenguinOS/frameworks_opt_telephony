@@ -806,7 +806,12 @@ public abstract class InboundSmsHandler extends StateMachine {
             Intent intent = new Intent(Intents.SMS_REJECTED_ACTION);
             intent.putExtra("result", result);
             intent.putExtra("subId", mPhone.getSubId());
-            mContext.sendBroadcast(intent, android.Manifest.permission.RECEIVE_SMS);
+            if (mFeatureFlags.hsumBroadcast()) {
+                mContext.sendBroadcastAsUser(intent, UserHandle.ALL,
+                        android.Manifest.permission.RECEIVE_SMS);
+            } else {
+                mContext.sendBroadcast(intent, android.Manifest.permission.RECEIVE_SMS);
+            }
         }
         acknowledgeLastIncomingSms(success, result, response);
     }
@@ -2149,8 +2154,9 @@ public abstract class InboundSmsHandler extends StateMachine {
                 UserManager userManager =
                         (UserManager) context.getSystemService(Context.USER_SERVICE);
                 if (userManager.isUserUnlocked()) {
-                    context.startActivity(context.getPackageManager().getLaunchIntentForPackage(
-                            Telephony.Sms.getDefaultSmsPackage(context)));
+                    context.startActivityAsUser(context.getPackageManager()
+                            .getLaunchIntentForPackage(Telephony.Sms.getDefaultSmsPackage(context)),
+                            UserHandle.CURRENT);
                 }
             }
         }
