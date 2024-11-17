@@ -327,9 +327,9 @@ public class TelephonyComponentFactory {
         return new SmsStorageMonitor(phone, flags);
     }
 
-    public SmsUsageMonitor makeSmsUsageMonitor(Context context) {
-        Rlog.d(LOG_TAG, "makeSmsUsageMonitor");
-        return new SmsUsageMonitor(context);
+    public SmsUsageMonitor makeSmsUsageMonitor(Context context, FeatureFlags flags) {
+        Rlog.d(LOG_TAG, "makeSmsUsageMonitor");        
+        return new SmsUsageMonitor(context, flags);
     }
 
     public ServiceStateTracker makeServiceStateTracker(GsmCdmaPhone phone, CommandsInterface ci,
