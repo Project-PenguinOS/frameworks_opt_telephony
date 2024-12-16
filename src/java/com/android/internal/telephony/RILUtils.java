@@ -388,6 +388,7 @@ import com.android.internal.telephony.cdma.sms.CdmaSmsSubaddress;
 import com.android.internal.telephony.cdma.sms.SmsEnvelope;
 import com.android.internal.telephony.data.KeepaliveStatus;
 import com.android.internal.telephony.data.KeepaliveStatus.KeepaliveStatusCode;
+import com.android.internal.telephony.flags.Flags;
 import com.android.internal.telephony.imsphone.ImsCallInfo;
 import com.android.internal.telephony.uicc.AdnCapacity;
 import com.android.internal.telephony.uicc.IccCardApplicationStatus;
@@ -1174,6 +1175,10 @@ public class RILUtils {
          * 2 - erase NV reset (SCRTN)
          * 3 - factory reset (RTN)
          */
+        if (Flags.cleanupCdma()) {
+            if (resetType == 1) return android.hardware.radio.V1_0.ResetNvType.RELOAD;
+            return -1;
+        }
         switch (resetType) {
             case 1: return android.hardware.radio.V1_0.ResetNvType.RELOAD;
             case 2: return android.hardware.radio.V1_0.ResetNvType.ERASE;
@@ -1194,6 +1199,10 @@ public class RILUtils {
          * 2 - erase NV reset (SCRTN)
          * 3 - factory reset (RTN)
          */
+        if (Flags.cleanupCdma()) {
+            if (resetType == 1) return android.hardware.radio.modem.ResetNvType.RELOAD;
+            return -1;
+        }
         switch (resetType) {
             case 1: return android.hardware.radio.modem.ResetNvType.RELOAD;
             case 2: return android.hardware.radio.modem.ResetNvType.ERASE;
@@ -1691,6 +1700,9 @@ public class RILUtils {
         }
         if ((networkTypeBitmask & TelephonyManager.NETWORK_TYPE_BITMASK_NR) != 0) {
             raf |= android.hardware.radio.RadioAccessFamily.NR;
+        }
+        if ((networkTypeBitmask & TelephonyManager.NETWORK_TYPE_BITMASK_NB_IOT_NTN) != 0) {
+            raf |= android.hardware.radio.RadioAccessFamily.NB_IOT_NTN;
         }
         return (raf == 0) ? android.hardware.radio.RadioAccessFamily.UNKNOWN : raf;
     }
