@@ -218,9 +218,6 @@ public class DataNetworkController extends Handler {
     /** Event for tracking area code changed. */
     private static final int EVENT_TAC_CHANGED = 25;
 
-    /** Event for tracking data phone switch. */
-    private static final int EVENT_ACTIVE_PHONE_SWITCH = 26;
-
     /** The supported IMS features. This is for IMS graceful tear down support. */
     private static final Collection<Integer> SUPPORTED_IMS_FEATURES =
             List.of(ImsFeature.FEATURE_MMTEL, ImsFeature.FEATURE_RCS);
@@ -1177,8 +1174,6 @@ public class DataNetworkController extends Handler {
                     }
                 }
         );
-        PhoneSwitcher.getInstance()
-                .registerForActivePhoneSwitch(this, EVENT_ACTIVE_PHONE_SWITCH, null);
     }
 
     @Override
@@ -1326,11 +1321,6 @@ public class DataNetworkController extends Handler {
                 } else {
                     loge("Unknown override mask: " + overrideMask);
                 }
-                break;
-            case EVENT_ACTIVE_PHONE_SWITCH:
-                log("EVENT_ACTIVE_PHONE_SWITCH");
-                sendMessage(obtainMessage(EVENT_REEVALUATE_UNSATISFIED_NETWORK_REQUESTS,
-                        DataEvaluationReason.DDS_SWITCHED));
                 break;
             default:
                 loge("Unexpected event " + msg.what);
@@ -2673,53 +2663,27 @@ public class DataNetworkController extends Handler {
     }
 
     private void onRemoveNetworkRequest(@NonNull TelephonyNetworkRequest request) {
-        if (mFeatureFlags.supportNetworkProvider()) {
-            if (!mAllNetworkRequestList.remove(request)) {
-                loge("onRemoveNetworkRequest: Network request does not exist. " + request);
-                return;
-            }
-
-            if (request.hasCapability(NetworkCapabilities.NET_CAPABILITY_IMS)) {
-                mImsThrottleCounter.addOccurrence();
-                mLastReleasedImsRequestCapabilities = request.getCapabilities();
-                mLastImsOperationIsRelease = true;
-            }
-
-            if (request.getAttachedNetwork() != null) {
-                request.getAttachedNetwork().detachNetworkRequest(
-                        request, false /* shouldRetry */);
-            }
-
-            request.setState(TelephonyNetworkRequest.REQUEST_STATE_UNSATISFIED);
-            request.setEvaluation(null);
-
-            log("onRemoveNetworkRequest: Removed " + request);
+        if (!mAllNetworkRequestList.remove(request)) {
+            loge("onRemoveNetworkRequest: Network request does not exist. " + request);
             return;
         }
 
-        // The request generated from telephony network factory does not contain the information
-        // the original request has, for example, attached data network. We need to find the
-        // original one.
-        TelephonyNetworkRequest networkRequest = mAllNetworkRequestList.stream()
-                .filter(r -> r.equals(request))
-                .findFirst()
-                .orElse(null);
-        if (networkRequest == null || !mAllNetworkRequestList.remove(networkRequest)) {
-            loge("onRemoveNetworkRequest: Network request does not exist. " + networkRequest);
-            return;
-        }
-
-        if (networkRequest.hasCapability(NetworkCapabilities.NET_CAPABILITY_IMS)) {
+        if (request.hasCapability(NetworkCapabilities.NET_CAPABILITY_IMS)) {
             mImsThrottleCounter.addOccurrence();
-            mLastReleasedImsRequestCapabilities = networkRequest.getCapabilities();
+            mLastReleasedImsRequestCapabilities = request.getCapabilities();
             mLastImsOperationIsRelease = true;
         }
 
-        if (networkRequest.getAttachedNetwork() != null) {
-            networkRequest.getAttachedNetwork().detachNetworkRequest(
-                    networkRequest, false /* shouldRetry */);
-            log("onRemoveNetworkRequest: Network request Removed: " + networkRequest);
+        if (request.getAttachedNetwork() != null) {
+            request.getAttachedNetwork().detachNetworkRequest(
+                    request, false /* shouldRetry */);
+            log("onRemoveNetworkRequest: Network request Removed: " + request);
         }
+
+        request.setState(TelephonyNetworkRequest.REQUEST_STATE_UNSATISFIED);
+        request.setEvaluation(null);
+
+        return;
     }
 
     /**
