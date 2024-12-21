@@ -164,7 +164,6 @@ import android.telephony.satellite.ISatelliteCapabilitiesCallback;
 import android.telephony.satellite.ISatelliteDatagramCallback;
 import android.telephony.satellite.ISatelliteModemStateCallback;
 import android.telephony.satellite.ISatelliteProvisionStateCallback;
-import android.telephony.satellite.ISatelliteSupportedStateCallback;
 import android.telephony.satellite.ISatelliteTransmissionUpdateCallback;
 import android.telephony.satellite.ISelectedNbIotSatelliteSubscriptionCallback;
 import android.telephony.satellite.NtnSignalStrength;
@@ -187,6 +186,7 @@ import android.util.SparseArray;
 import android.util.SparseBooleanArray;
 
 import com.android.internal.R;
+import com.android.internal.telephony.IBooleanConsumer;
 import com.android.internal.telephony.IIntegerConsumer;
 import com.android.internal.telephony.IVoidConsumer;
 import com.android.internal.telephony.Phone;
@@ -679,6 +679,8 @@ public class SatelliteControllerTest extends TelephonyTest {
                 .when(mMockSessionMetricsStats).setIsDemoMode(anyBoolean());
         doReturn(mMockSessionMetricsStats)
                 .when(mMockSessionMetricsStats).setCarrierId(anyInt());
+        doReturn(mMockSessionMetricsStats)
+                .when(mMockSessionMetricsStats).setIsNtnOnlyCarrier(anyBoolean());
         doNothing().when(mMockSessionMetricsStats).reportSessionMetrics();
 
         doReturn(mMockProvisionMetricsStats).when(mMockProvisionMetricsStats)
@@ -687,6 +689,8 @@ public class SatelliteControllerTest extends TelephonyTest {
                 .setIsProvisionRequest(anyBoolean());
         doReturn(mMockProvisionMetricsStats).when(mMockProvisionMetricsStats)
                 .setCarrierId(anyInt());
+        doReturn(mMockProvisionMetricsStats).when(mMockProvisionMetricsStats)
+                .setIsNtnOnlyCarrier(anyBoolean());
         doNothing().when(mMockProvisionMetricsStats).reportProvisionMetrics();
         doNothing().when(mMockControllerMetricsStats).reportDeprovisionCount(anyInt());
         when(mFeatureFlags.oemEnabledSatelliteFlag()).thenReturn(true);
@@ -3769,8 +3773,8 @@ public class SatelliteControllerTest extends TelephonyTest {
                 enableSatelliteResponse.capture());
         SatelliteModemEnableRequestAttributes request = enableSatelliteRequest.getValue();
         assertTrue(request.isEnabled());
-        assertFalse(request.isDemoMode());
-        assertFalse(request.isEmergencyMode());
+        assertFalse(request.isForDemoMode());
+        assertFalse(request.isForEmergencyMode());
 
         clearInvocations(mMockSatelliteModemInterface);
         moveTimeForward(TEST_WAIT_FOR_SATELLITE_ENABLING_RESPONSE_TIMEOUT_MILLIS);
@@ -3928,10 +3932,10 @@ public class SatelliteControllerTest extends TelephonyTest {
 
         Semaphore semaphore = new Semaphore(0);
         final boolean[] isSupported  = new boolean[1];
-        ISatelliteSupportedStateCallback callback =
-                new ISatelliteSupportedStateCallback.Stub() {
+        IBooleanConsumer callback =
+                new IBooleanConsumer.Stub() {
                     @Override
-                    public void onSatelliteSupportedStateChanged(boolean supported) {
+                    public void accept(boolean supported) {
                         logd("onSatelliteSupportedStateChanged: supported=" + supported);
                         isSupported[0] = supported;
                         try {
@@ -4020,10 +4024,10 @@ public class SatelliteControllerTest extends TelephonyTest {
         when(mFeatureFlags.oemEnabledSatelliteFlag()).thenReturn(false);
 
         Semaphore semaphore = new Semaphore(0);
-        ISatelliteSupportedStateCallback callback =
-                new ISatelliteSupportedStateCallback.Stub() {
+        IBooleanConsumer callback =
+                new IBooleanConsumer.Stub() {
                     @Override
-                    public void onSatelliteSupportedStateChanged(boolean supported) {
+                    public void accept(boolean supported) {
                         logd("onSatelliteSupportedStateChanged: supported=" + supported);
                         try {
                             semaphore.release();
@@ -4336,6 +4340,7 @@ public class SatelliteControllerTest extends TelephonyTest {
         // 2 minutes later and hysteresis timeout is 1 minute
         mSatelliteControllerUT.elapsedRealtime = 2 * 60 * 1000;
         moveTimeForward(2 * 60 * 1000);
+        mSatelliteControllerUT.selectedSatelliteSubId = SUB_ID1;
         processAllMessages();
         assertTrue(mSatelliteControllerUT.isCarrierRoamingNtnEligible(mPhone));
         verify(mPhone, times(1)).notifyCarrierRoamingNtnEligibleStateChanged(eq(true));
@@ -4891,10 +4896,10 @@ public class SatelliteControllerTest extends TelephonyTest {
         List<SatelliteSubscriberInfo> list = new ArrayList<>();
         list.add(new SatelliteSubscriberInfo.Builder().setSubscriberId(mSubscriberId).setCarrierId(
                 mCarrierId).setNiddApn(mNiddApn).setSubId(SUB_ID).setSubscriberIdType(
-                SatelliteSubscriberInfo.IMSI_MSISDN).build());
+                SatelliteSubscriberInfo.SUBSCRIBER_ID_TYPE_IMSI_MSISDN).build());
         list.add(new SatelliteSubscriberInfo.Builder().setSubscriberId(mSubscriberId2).setCarrierId(
                 mCarrierId).setNiddApn(mNiddApn).setSubId(SUB_ID1).setSubscriberIdType(
-                SatelliteSubscriberInfo.ICCID).build());
+                SatelliteSubscriberInfo.SUBSCRIBER_ID_TYPE_ICCID).build());
         return list;
     }
 
@@ -5044,6 +5049,7 @@ public class SatelliteControllerTest extends TelephonyTest {
                         getKeyPriority(testSubscriptionInfo2), k -> new ArrayList<>())
                 .add(testSubscriptionInfo2);
 
+        mSatelliteControllerUT.selectedSatelliteSubId = SUB_ID1;
         mSatelliteControllerUT.evaluateESOSProfilesPrioritizationTest();
         processAllMessages();
         assertEquals(oemSubId, mSatelliteControllerUT.getSelectedSatelliteSubId());
@@ -5060,6 +5066,7 @@ public class SatelliteControllerTest extends TelephonyTest {
                         getKeyPriority(testSubscriptionInfo2), k -> new ArrayList<>())
                 .add(testSubscriptionInfo2);
 
+        mSatelliteControllerUT.selectedSatelliteSubId = SUB_ID;
         mSatelliteControllerUT.evaluateESOSProfilesPrioritizationTest();
         processAllMessages();
         assertEquals(carrierSubId, mSatelliteControllerUT.getSelectedSatelliteSubId());
@@ -6165,6 +6172,7 @@ public class SatelliteControllerTest extends TelephonyTest {
         public String packageName = "com.example.app";
         public boolean isSatelliteBeingDisabled = false;
         public boolean mIsApplicationSupportsP2P = false;
+        public int selectedSatelliteSubId = -1;
 
         TestSatelliteController(
                 Context context, Looper looper, @NonNull FeatureFlags featureFlags) {
@@ -6267,6 +6275,10 @@ public class SatelliteControllerTest extends TelephonyTest {
             return new int[]{3, 5};
         }
 
+        @Override
+        public int getSelectedSatelliteSubId() {
+            return selectedSatelliteSubId;
+        }
 
         void setSatelliteProvisioned(@Nullable Boolean isProvisioned) {
             synchronized (mDeviceProvisionLock) {
