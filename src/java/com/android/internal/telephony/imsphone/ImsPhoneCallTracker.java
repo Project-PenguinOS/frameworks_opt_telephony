@@ -841,7 +841,6 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
     private String mLastDialString = null;
     private ImsDialArgs mLastDialArgs = null;
     private Executor mExecutor = Runnable::run;
-    private TelephonyManager mTelephonyManager;
 
     private final ImsCallInfoTracker mImsCallInfoTracker;
 
@@ -1314,8 +1313,6 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
         super(featureFlags);
 
         this.mPhone = phone;
-        mTelephonyManager = (TelephonyManager) mPhone.getContext()
-                .getSystemService(Context.TELEPHONY_SERVICE);
         mConnectorFactory = factory;
         if (executor != null) {
             mExecutor = executor;
@@ -2397,7 +2394,7 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
         if (DBG) log("acceptCall");
         mOperationLocalLog.log("accepted incoming call");
 
-        if (!isDsdaOrDsdsTransitionMode() && (mForegroundCall.getState().isAlive()
+        if (!isInDsdaMode() && (mForegroundCall.getState().isAlive()
                 && mBackgroundCall.getState().isAlive())) {
             throw new CallStateException("cannot accept call");
         } else if (hasMaximumLiveCalls()) {
@@ -6735,8 +6732,8 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
         mBackgroundCall.getFirstConnection().hangup(); //hangup first held call
     }
 
-    private boolean isDsdaOrDsdsTransitionMode() {
-        return mTelephonyManager.isDsdaOrDsdsTransitionMode();
+    private boolean isInDsdaMode() {
+        return TelephonyManager.isConcurrentCallsPossible();
     }
 
     /* For non-DSDA, max call limit is reached if there is a foreground and a background call.
