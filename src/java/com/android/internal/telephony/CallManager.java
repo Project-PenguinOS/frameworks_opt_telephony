@@ -27,7 +27,6 @@ import android.os.RegistrantList;
 import android.telephony.PhoneNumberUtils;
 import android.telephony.PhoneStateListener;
 import android.telephony.ServiceState;
-import android.telephony.TelephonyManager;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.telephony.imsphone.ImsPhoneConnection;
@@ -36,7 +35,6 @@ import com.android.telephony.Rlog;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 
 /**
@@ -2005,26 +2003,6 @@ public class CallManager {
         return null;
     }
 
-    /**
-     * @return true if more than maximum allowed ringing calls exist.
-     * Maximum ringing calls in case of SS/DSDS is one and two in case of
-     * DSDA (one per active sub).
-     */
-    private boolean hasMoreThanMaxRingingCalls() {
-        int count = 0;
-        int maxAllowedRingingCalls = TelephonyManager.isConcurrentCallsPossible()
-                ? 2 /* DSDA */: 1 /* SS/DSDS */;
-        HashSet<Integer> ringingSubs = new HashSet<Integer>();
-        for (Call call : mRingingCalls) {
-            if (call.getState().isRinging()) {
-                int subId = call.getPhone().getSubId();
-                //check if subId is present in ringingSubs or max ringing calls limit is reached.
-                if (!ringingSubs.add(subId) || ++count > maxAllowedRingingCalls) return true;
-            }
-        }
-        return false;
-    }
-
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     private boolean hasMoreThanOneRingingCall() {
         int count = 0;
@@ -2091,7 +2069,7 @@ public class CallManager {
                             && ((ImsPhoneConnection) c).isIncomingCallAutoRejected()) {
                         incomingRejected = true;
                     }
-                    if ((getActiveFgCallState(subId).isDialing() || hasMoreThanMaxRingingCalls())
+                    if ((getActiveFgCallState(subId).isDialing() || hasMoreThanOneRingingCall())
                             && (!incomingRejected)) {
                         try {
                             Rlog.d(LOG_TAG, "silently drop incoming call: " + c.getCall());
