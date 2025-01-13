@@ -56,6 +56,7 @@ import static android.telephony.satellite.SatelliteManager.KEY_NTN_SIGNAL_STRENG
 import static android.telephony.satellite.SatelliteManager.SATELLITE_COMMUNICATION_RESTRICTION_REASON_ENTITLEMENT;
 import static android.telephony.satellite.SatelliteManager.SATELLITE_COMMUNICATION_RESTRICTION_REASON_USER;
 import static android.telephony.satellite.SatelliteManager.SATELLITE_RESULT_INVALID_ARGUMENTS;
+import static android.telephony.satellite.SatelliteManager.SATELLITE_RESULT_INVALID_TELEPHONY_STATE;
 import static android.telephony.satellite.SatelliteManager.SATELLITE_RESULT_MODEM_ERROR;
 import static android.telephony.satellite.SatelliteManager.SATELLITE_RESULT_MODEM_TIMEOUT;
 import static android.telephony.satellite.SatelliteManager.SATELLITE_RESULT_NO_VALID_SATELLITE_SUBSCRIPTION;
@@ -4338,9 +4339,10 @@ public class SatelliteController extends Handler {
                 mEntitlementPlmnListPerCarrier.put(subId, allowedPlmnList);
                 mEntitlementBarredPlmnListPerCarrier.put(subId, barredPlmnList);
                 mEntitlementDataPlanMapPerCarrier.put(subId, plmnDataPlanMap);
-                mEntitlementServiceTypeMapPerCarrier.put(subId, plmnServiceTypeMap);
                 mEntitlementDataServicePolicyMapPerCarrier.put(subId, plmnDataServicePolicyMap);
                 mEntitlementVoiceServicePolicyMapPerCarrier.put(subId, plmnVoiceServicePolicyMap);
+                updateAndNotifyChangesInCarrierRoamingNtnAvailableServices(subId,
+                        plmnServiceTypeMap);
                 updatePlmnListPerCarrier(subId);
                 configureSatellitePlmnForCarrier(subId);
                 mSubscriptionManagerService.setSatelliteEntitlementPlmnList(subId, allowedPlmnList);
@@ -5297,15 +5299,21 @@ public class SatelliteController extends Handler {
             logd("configureSatellitePlmnForCarrier: carrierEnabledSatelliteFlag is disabled");
             return;
         }
+
+        Phone phone = SatelliteServiceUtils.getPhone(subId);
+        if (phone == null) {
+            ploge("configureSatellitePlmnForCarrier: phone is null for subId=" + subId);
+            return;
+        }
+
         synchronized (mSupportedSatelliteServicesLock) {
             List<String> carrierPlmnList = mMergedPlmnListPerCarrier.get(subId,
                     new ArrayList<>()).stream().toList();
             List<String> barredPlmnList = mEntitlementBarredPlmnListPerCarrier.get(subId,
                     new ArrayList<>()).stream().toList();
             int slotId = SubscriptionManager.getSlotIndex(subId);
-            mSatelliteModemInterface.setSatellitePlmn(slotId, carrierPlmnList,
-                    SatelliteServiceUtils.mergeStrLists(
-                            carrierPlmnList, mSatellitePlmnListFromOverlayConfig, barredPlmnList),
+            phone.setSatellitePlmn(slotId, carrierPlmnList, SatelliteServiceUtils.mergeStrLists(
+                    carrierPlmnList, mSatellitePlmnListFromOverlayConfig, barredPlmnList),
                     obtainMessage(EVENT_SET_SATELLITE_PLMN_INFO_DONE));
         }
     }
@@ -5893,6 +5901,13 @@ public class SatelliteController extends Handler {
             return;
         }
 
+        Phone phone = SatelliteServiceUtils.getPhone(subId);
+        if (phone == null) {
+            ploge("evaluateEnablingSatelliteForCarrier: phone is null for subId=" + subId);
+            callback.accept(SATELLITE_RESULT_INVALID_TELEPHONY_STATE);
+            return;
+        }
+
         /* Request to enable or disable the satellite in the cellular modem only when the desired
         state and the current state are different. */
         boolean isSatelliteExpectedToBeEnabled = !isSatelliteRestrictedForCarrier(subId);
@@ -5907,7 +5922,7 @@ public class SatelliteController extends Handler {
                                 SatelliteServiceUtils.getPhone(subId));
                 Message onCompleted = obtainMessage(
                         EVENT_EVALUATE_SATELLITE_ATTACH_RESTRICTION_CHANGE_DONE, request);
-                mSatelliteModemInterface.requestSetSatelliteEnabledForCarrier(simSlot,
+                phone.setSatelliteEnabledForCarrier(simSlot,
                         isSatelliteExpectedToBeEnabled, onCompleted);
             } else {
                 callback.accept(SatelliteManager.SATELLITE_RESULT_INVALID_TELEPHONY_STATE);
@@ -8237,6 +8252,31 @@ public class SatelliteController extends Handler {
                         .build();
     }
 
+    /**
+     * The method will notify the change in the services update the
+     * mEntitlementServiceTypeMapPerCarrier.
+     *
+     * @param subId              : SubscriptionId
+     * @param plmnServiceTypeMap : entitlement service map.
+     */
+    private void updateAndNotifyChangesInCarrierRoamingNtnAvailableServices(int subId,
+            Map<String, List<Integer>> plmnServiceTypeMap) {
+        // If a service list is already cached, check it for changes
+        int[] existingServices = getSupportedServicesOnCarrierRoamingNtn(subId);
+        synchronized (mSupportedSatelliteServicesLock) {
+            mEntitlementServiceTypeMapPerCarrier.put(subId, plmnServiceTypeMap);
+        }
+        int[] updatedServices = getSupportedServicesOnCarrierRoamingNtn(subId);
+        if (existingServices.length > 0 && Arrays.equals(existingServices, updatedServices)) {
+            plogd("No change in Entitlement service support data");
+            return;
+        }
+        if (mFeatureFlags.carrierRoamingNbIotNtn()) {
+            updateLastNotifiedNtnAvailableServicesAndNotify(subId);
+            evaluateCarrierRoamingNtnEligibilityChange();
+        }
+    }
+
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PRIVATE)
     protected void handleCarrierRoamingNtnAvailableServicesChanged(int subId) {
         if (!mFeatureFlags.carrierRoamingNbIotNtn()) {
@@ -8263,11 +8303,47 @@ public class SatelliteController extends Handler {
         phone.notifyCarrierRoamingNtnAvailableServicesChanged(services);
     }
 
-    /** Return services that are supported on carrier roaming non-terrestrial network. */
+    private int[] getAvailableServicesWithEntitlementForSubId(int subId) {
+        synchronized (mSupportedSatelliteServicesLock) {
+            Map<String, List<Integer>> allowedServicesList =
+                    mEntitlementServiceTypeMapPerCarrier.get(subId);
+            if (allowedServicesList != null && !allowedServicesList.isEmpty()) {
+                Set<Integer> serviceTypes = new HashSet<>();
+                for (List<Integer> values : allowedServicesList.values()) {
+                    serviceTypes.addAll(values);
+                }
+
+                int[] result = new int[serviceTypes.size()];
+                int i = 0;
+                for (int value : serviceTypes) {
+                    result[i++] = value;
+                }
+                return result;
+            } else {
+                return new int[0]; // Return an empty array if the map is null or empty
+            }
+        }
+    }
+
+    /**
+     * Given a subscription ID, this returns the carriers' supported services on
+     * non-terrestrial networks.
+     *
+     * @param subId Associated subscription ID.
+     * return supported services at entitlement for the available carriers. Note: If available
+     *        services/allowed service type field is empty at entitlement, information from
+     *        {@link
+     *        CarrierConfigManager#KEY_CARRIER_ROAMING_SATELLITE_DEFAULT_SERVICES_INT_ARRAY}
+     *        will be returned.
+     */
     public int[] getSupportedServicesOnCarrierRoamingNtn(int subId) {
-        if (isSatelliteSupportedViaCarrier(subId)) {
-            // TODO: b/377367448 Cleanup get supported satellite services to align with starlink.
-            int[] services = getSupportedSatelliteServicesForCarrier(subId);
+        if (isValidSubscriptionId(subId) && isSatelliteSupportedViaCarrier(subId)) {
+            // check available services supported at entitlement for sub id
+            int[] services = getAvailableServicesWithEntitlementForSubId(subId);
+            logd("getAvailableServicesWithEntitlementForSubId: " + Arrays.toString(services));
+            if (services.length == 0) {
+                services = getSupportedSatelliteServicesForCarrier(subId);
+            }
             if (isP2PSmsDisallowedOnCarrierRoamingNtn(subId)) {
                 services = Arrays.stream(services).filter(
                         value -> value != NetworkRegistrationInfo.SERVICE_TYPE_SMS).toArray();
