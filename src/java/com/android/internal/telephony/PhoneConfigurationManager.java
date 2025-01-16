@@ -140,11 +140,6 @@ public class PhoneConfigurationManager {
     private final String EXTRAS_MSIM_VOICE_CAPABILITY = "MsimVoiceCapability";
     private final String EXTRAS_DSDS_TRANSITION_SUPPORTED = "DsdsTransitionSupported";
 
-    private static final String ACTION_MSIM_VOICE_CAPABILITY_CHANGED =
-            "org.codeaurora.intent.action.MSIM_VOICE_CAPABILITY_CHANGED";
-    private static final String PERMISSION_MSIM_VOICE_CAPABILITY_CHANGED =
-            "com.qti.permission.RECEIVE_MSIM_VOICE_CAPABILITY_CHANGED";
-
     /**
      * Init method to instantiate the object
      * Should only be called once.
@@ -209,7 +204,6 @@ public class PhoneConfigurationManager {
                     " + isDsdsTransitionSupported : " + isDsdsTransitionSupported);
             TelephonyProperties.multi_sim_voice_capability(voiceCapability);
             TelephonyProperties.dsds_transition_supported(isDsdsTransitionSupported);
-            broadcastMsimVoiceCapabilityChanged();
         }
     };
 
@@ -871,12 +865,6 @@ public class PhoneConfigurationManager {
         }
 
         return mPhones[0].mCi.getModemService();
-    }
-
-    private void broadcastMsimVoiceCapabilityChanged() {
-        log("broadcastMsimVoiceCapabilityChanged");
-        Intent intent = new Intent(ACTION_MSIM_VOICE_CAPABILITY_CHANGED);
-        mContext.sendBroadcast(intent, PERMISSION_MSIM_VOICE_CAPABILITY_CHANGED);
     }
 
     /**
