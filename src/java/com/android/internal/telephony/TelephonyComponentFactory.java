@@ -44,6 +44,8 @@ import com.android.ims.ImsManager;
 import com.android.internal.telephony.cdma.CdmaSubscriptionSourceManager;
 import com.android.internal.telephony.cdma.EriManager;
 import com.android.internal.telephony.data.AccessNetworksManager;
+import com.android.internal.telephony.data.AutoDataSwitchController;
+import com.android.internal.telephony.data.AutoDataSwitchController.AutoDataSwitchControllerCallback;
 import com.android.internal.telephony.data.DataConfigManager;
 import com.android.internal.telephony.data.DataNetwork;
 import com.android.internal.telephony.data.DataNetworkController;
@@ -101,7 +103,7 @@ public class TelephonyComponentFactory {
     private static final String TAG = TelephonyComponentFactory.class.getSimpleName();
 
     private static TelephonyComponentFactory sInstance;
-    private final TelephonyFacade mTelephonyFacade = new TelephonyFacade();
+    protected final TelephonyFacade mTelephonyFacade = new TelephonyFacade();
 
     private InjectedComponents mInjectedComponents;
 
@@ -723,5 +725,16 @@ public class TelephonyComponentFactory {
     public NullCipherNotifier makeNullCipherNotifier(
             CellularNetworkSecuritySafetySource safetySource) {
         return NullCipherNotifier.getInstance(safetySource);
+    }
+
+    /**
+     * Create a new AutoDataSwitchController.
+     */
+    public AutoDataSwitchController makeAutoDataSwitchController(@NonNull Context context,
+            @NonNull Looper looper, @NonNull PhoneSwitcher phoneSwitcher,
+            @NonNull FeatureFlags featureFlags,
+            @NonNull AutoDataSwitchControllerCallback phoneSwitcherCallback) {
+        return new AutoDataSwitchController(context, looper, phoneSwitcher,
+            featureFlags, phoneSwitcherCallback);
     }
 }

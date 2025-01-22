@@ -3573,16 +3573,6 @@ public class DataNetwork extends StateMachine {
                 .build();
     }
 
-    static PreciseDataConnectionState
-            getPreciseDisconnectedDataConnectionState(ApnSetting apnSetting) {
-        return new PreciseDataConnectionState.Builder()
-                .setTransportType(AccessNetworkConstants.TRANSPORT_TYPE_WWAN)
-                .setId(INVALID_CID)
-                .setState(TelephonyManager.DATA_DISCONNECTED)
-                .setApnSetting(apnSetting)
-                .build();
-    }
-
     /**
      * Send the precise data connection state to the listener of
      * {@link android.telephony.TelephonyCallback.PreciseDataConnectionStateListener}.
