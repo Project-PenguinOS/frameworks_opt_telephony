@@ -3176,16 +3176,8 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
         mOperationLocalLog.log("hangup: " + logResult + ", connId="
                 + System.identityHashCode(conn));
 
-        if (call.getConnections().size() > 1 && call == mBackgroundCall) {
-            // separate two connections from same imsphonecall object
-            mBackgroundCall.detach(conn);
-            mForegroundCall.attach(conn);
-            conn.changeParent(mForegroundCall);
-            mForegroundCall.onHangupLocal();
-        } else {
-            call.onHangupLocal();
-        }
-        mImsCallInfoTracker.updateImsCallStatus(conn);
+        call.onHangupLocal();
+        ImsCall imsCall = conn.getImsCall();
 
         try {
             if (imsCall != null) {
