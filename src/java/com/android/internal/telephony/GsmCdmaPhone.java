@@ -179,8 +179,6 @@ public class GsmCdmaPhone extends Phone {
     public static final String CURR_SUBID = "curr_subid";
     private RegistrantList mSsnRegistrants = new RegistrantList();
 
-    private static final int IMEI_14_DIGIT = 14;
-
     //CDMA
     private static final String VM_NUMBER_CDMA = "vm_number_key_cdma";
     private CdmaSubscriptionSourceManager mCdmaSSM;
@@ -283,8 +281,6 @@ public class GsmCdmaPhone extends Phone {
     private boolean mBroadcastEmergencyCallStateChanges = false;
     private @ServiceState.RegState int mTelecomVoiceServiceStateOverride =
             ServiceState.STATE_OUT_OF_SERVICE;
-
-    private boolean mEnable14DigitImei = false;
 
     private CarrierKeyDownloadManager mCDM;
     private CarrierInfoManager mCIM;
@@ -436,10 +432,7 @@ public class GsmCdmaPhone extends Phone {
             Rlog.d(LOG_TAG, "mBroadcastReceiver: action " + intent.getAction());
             String action = intent.getAction();
             if ((CarrierConfigManager.ACTION_CARRIER_CONFIG_CHANGED.equals(action) ||
-                    CarrierConfigManager.ACTION_ESSENTIAL_RECORDS_LOADED.equals(action)) &&
-                    intent.getExtras() != null &&
-                    intent.getExtras().getInt(CarrierConfigManager.EXTRA_SLOT_INDEX,
-                    SubscriptionManager.INVALID_SIM_SLOT_INDEX) == mPhoneId) {
+                    CarrierConfigManager.ACTION_ESSENTIAL_RECORDS_LOADED.equals(action))) {
                 // Only handle carrier config changes for this phone id.
                 if (mPhoneId == intent.getIntExtra(CarrierConfigManager.EXTRA_SLOT_INDEX, -1)) {
                     sendMessage(obtainMessage(EVENT_CARRIER_CONFIG_CHANGED));
@@ -1756,12 +1749,9 @@ public class GsmCdmaPhone extends Phone {
                 return mCT.dialGsm(mmi.mDialingNumber, mmi.getCLIRMode(), dialArgs.uusInfo,
                         dialArgs.intentExtras);
             } else {
-                UserHandle currentUserHandle = UserHandle.of(ActivityManager.getCurrentUser());
                 // Must be primary user to use supplementary service.
-                if(!currentUserHandle.isSystem()) {
-                    loge("dialInternal: Supplementary service not allowed in non-primary mode");
-                    throw new CallStateException(
-                           "Supplementary service is not allowed for non-primary user");
+                if(!QtiImsUtils.isSystemUser()) {
+                    QtiImsUtils.throwExceptionForSupplementaryService();
                 }
                 mPendingMMIs.add(mmi);
                 mMmiRegistrants.notifyRegistrants(new AsyncResult(null, mmi, null));
@@ -2061,13 +2051,13 @@ public class GsmCdmaPhone extends Phone {
     @Override
     public String getDeviceId() {
         if (isPhoneTypeGsm()) {
-            return getImei();
+            return this.getImei();
         } else {
             CarrierConfigManager configManager = (CarrierConfigManager)
                     mContext.getSystemService(Context.CARRIER_CONFIG_SERVICE);
             boolean force_imei = configManager.getConfigForSubId(getSubId())
                     .getBoolean(CarrierConfigManager.KEY_FORCE_IMEI_BOOL);
-            if (force_imei) return getImei();
+            if (force_imei) return this.getImei();
 
             String id = getMeid();
             if ((id == null) || id.matches("^0*$")) {
@@ -2095,10 +2085,6 @@ public class GsmCdmaPhone extends Phone {
 
     @Override
     public String getImei() {
-        if (mEnable14DigitImei && !TextUtils.isEmpty(mImei)
-                && mImei.length() > IMEI_14_DIGIT) {
-            return mImei.substring(0, IMEI_14_DIGIT);
-        }
         return mImei;
     }
 
@@ -2299,14 +2285,6 @@ public class GsmCdmaPhone extends Phone {
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     @Override
     public String getLine1Number() {
-        String number = getMsisdnNumber();
-        if (!TextUtils.isEmpty(number)) {
-            return number;
-        }
-        return mImsPhone != null ? mImsPhone.getSubscriberUriNumber() : null;
-    }
-
-    private String getMsisdnNumber() {
         if (isPhoneTypeGsm()) {
             IccRecords r = mIccRecords.get();
             return (r != null) ? r.getMsisdnNumber() : null;
@@ -3394,12 +3372,10 @@ public class GsmCdmaPhone extends Phone {
                     mCi.getVoiceRadioTechnology(obtainMessage(EVENT_REQUEST_VOICE_RADIO_TECH_DONE));
                 }
 
-                // Cache the config value for displaying 14 digit IMEI
                 CarrierConfigManager configMgr = (CarrierConfigManager)
                         getContext().getSystemService(Context.CARRIER_CONFIG_SERVICE);
                 PersistableBundle b = configMgr.getConfigForSubId(getSubId());
                 if (b != null) {
-                    mEnable14DigitImei = b.getBoolean("config_enable_display_14digit_imei");
                     updateBroadcastEmergencyCallStateChangesAfterCarrierConfigChanged(b);
                     updateCdmaRoamingSettingsAfterCarrierConfigChanged(b);
                     if (hasCalling()) {
@@ -4825,11 +4801,7 @@ public class GsmCdmaPhone extends Phone {
         if (subInfo == null || TextUtils.isEmpty(subInfo.getCountryIso())) {
             return null;
         }
-        final String country = subInfo.getCountryIso();
-        if (country == null) {
-            return null;
-        }
-        return country.toUpperCase(Locale.ROOT);
+        return subInfo.getCountryIso().toUpperCase(Locale.ROOT);
     }
 
     public void notifyEcbmTimerReset(Boolean flag) {
