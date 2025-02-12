@@ -242,6 +242,9 @@ flag {
     namespace: "telephony"
     description: "Make No Emergency Wifi Calling Do Not Ask Again text translatable"
     bug:"382006472"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
 }
 
 # OWNER=jackyu,boullanger TARGET=25Q3
@@ -251,7 +254,7 @@ flag {
     description: "Use the newly introduced MCC to country table, from the time zone mainline module"
     bug:"381070025"
 }
-#
+
 # OWNER=nharold TARGET=25Q4
 flag {
     name: "thread_shred"
