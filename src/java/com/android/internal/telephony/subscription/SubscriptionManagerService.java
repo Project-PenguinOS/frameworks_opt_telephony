@@ -4140,6 +4140,9 @@ public class SubscriptionManagerService extends ISub.Stub {
      * Returns whether the given subscription is associated with the calling user.
      *
      * @param subscriptionId the subscription ID of the subscription
+     * @param callingPackage The package making the call
+     * @param callingFeatureId The feature in the package
+     *
      * @return {@code true} if the subscription is associated with the user that the calling process
      *         is running in; {@code false} otherwise.
      *
@@ -4147,9 +4150,13 @@ public class SubscriptionManagerService extends ISub.Stub {
      * @throws SecurityException if the caller doesn't have permissions required.
      */
     @Override
-    public boolean isSubscriptionAssociatedWithCallingUser(int subscriptionId) {
-        enforcePermissions("isSubscriptionAssociatedWithCallingUser",
-                Manifest.permission.READ_PHONE_STATE);
+    public boolean isSubscriptionAssociatedWithCallingUser(int subscriptionId,
+            @NonNull String callingPackage, @Nullable String callingFeatureId) {
+        if (!TelephonyPermissions.checkCallingOrSelfReadPhoneState(mContext, subscriptionId,
+                callingPackage, callingFeatureId, "isSubscriptionAssociatedWithCallingUser")) {
+            throw new SecurityException("Need READ_PHONE_STATE, READ_PRIVILEGED_PHONE_STATE, or "
+                    + "carrier privilege");
+        }
 
         UserHandle myUserHandle = UserHandle.of(UserHandle.getCallingUserId());
         return mFeatureFlags.subscriptionUserAssociationQuery()
