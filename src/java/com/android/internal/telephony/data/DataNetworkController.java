@@ -1640,8 +1640,7 @@ public class DataNetworkController extends Handler {
                 networkRequest.getHighestPriorityApnTypeNetworkCapability());
 
         // Check if the request can be satisfied by cellular network or satellite network.
-        if (mFeatureFlags.satelliteInternet()
-                && !canConnectivityTransportSatisfyNetworkRequest(networkRequest, transport)) {
+        if (!canConnectivityTransportSatisfyNetworkRequest(networkRequest, transport)) {
             evaluation.addDataDisallowedReason(
                     DataDisallowedReason.DATA_NETWORK_TRANSPORT_NOT_ALLOWED);
         }
@@ -2068,15 +2067,13 @@ public class DataNetworkController extends Handler {
         }
 
         // If the network is satellite, then the network must be restricted.
-        if (mFeatureFlags.satelliteInternet()) {
-            // The IWLAN data network should remain intact even when satellite is connected.
-            if (dataNetwork.getTransport() != AccessNetworkConstants.TRANSPORT_TYPE_WLAN
-                    && mServiceState.isUsingNonTerrestrialNetwork() != dataNetwork.isSatellite()) {
-                // Since we don't support satellite/cellular network handover, we should always
-                // tear down the network when transport changes.
-                evaluation.addDataDisallowedReason(
-                        DataDisallowedReason.DATA_NETWORK_TRANSPORT_NOT_ALLOWED);
-            }
+        // The IWLAN data network should remain intact even when satellite is connected.
+        if (dataNetwork.getTransport() != AccessNetworkConstants.TRANSPORT_TYPE_WLAN
+                && mServiceState.isUsingNonTerrestrialNetwork() != dataNetwork.isSatellite()) {
+            // Since we don't support satellite/cellular network handover, we should always
+            // tear down the network when transport changes.
+            evaluation.addDataDisallowedReason(
+                    DataDisallowedReason.DATA_NETWORK_TRANSPORT_NOT_ALLOWED);
         }
 
         // Check whether data limit reached for bootstrap sim, else re-evaluate based on the timer
@@ -2361,24 +2358,17 @@ public class DataNetworkController extends Handler {
      * that can bypass any soft disallowed reasons, otherwise {@code false}.
      */
     private boolean isValidRestrictedRequest(@NonNull TelephonyNetworkRequest networkRequest) {
-
-        if (!mFeatureFlags.satelliteInternet()) {
-            return !(networkRequest.hasCapability(NetworkCapabilities.NET_CAPABILITY_DUN)
-                    || networkRequest.hasCapability(NetworkCapabilities.NET_CAPABILITY_ENTERPRISE));
-        } else {
-            // tethering, enterprise and mms with restricted capabilities always honor soft
-            // disallowed reasons and not respected as restricted request
-            if (networkRequest.hasCapability(NetworkCapabilities.NET_CAPABILITY_DUN)
-                    || networkRequest.hasCapability(NetworkCapabilities.NET_CAPABILITY_ENTERPRISE)
-                    || networkRequest.hasCapability(NetworkCapabilities.NET_CAPABILITY_MMS)) {
-                return false;
-            }
-            // When the device is on satellite, internet with restricted capabilities always honor
-            // soft disallowed reasons and not respected as restricted request
-            return !(mServiceState.isUsingNonTerrestrialNetwork()
-                    && networkRequest.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET));
-
+        // tethering, enterprise and mms with restricted capabilities always honor soft
+        // disallowed reasons and not respected as restricted request
+        if (networkRequest.hasCapability(NetworkCapabilities.NET_CAPABILITY_DUN)
+                || networkRequest.hasCapability(NetworkCapabilities.NET_CAPABILITY_ENTERPRISE)
+                || networkRequest.hasCapability(NetworkCapabilities.NET_CAPABILITY_MMS)) {
+            return false;
         }
+        // When the device is on satellite, internet with restricted capabilities always honor
+        // soft disallowed reasons and not respected as restricted request
+        return !(mServiceState.isUsingNonTerrestrialNetwork()
+                && networkRequest.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET));
     }
 
     /**

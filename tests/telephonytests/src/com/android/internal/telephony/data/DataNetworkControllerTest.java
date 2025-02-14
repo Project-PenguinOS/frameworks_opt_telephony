@@ -892,7 +892,6 @@ public class DataNetworkControllerTest extends TelephonyTest {
         doReturn(new SubscriptionInfoInternal.Builder().setId(1).build())
                 .when(mSubscriptionManagerService).getSubscriptionInfoInternal(anyInt());
         doReturn(true).when(mFeatureFlags).carrierEnabledSatelliteFlag();
-        doReturn(true).when(mFeatureFlags).satelliteInternet();
         doReturn(true).when(mFeatureFlags).incallHandoverPolicy();
 
         when(mContext.getPackageManager()).thenReturn(mMockPackageManager);

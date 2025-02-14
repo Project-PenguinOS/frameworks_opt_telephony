@@ -330,31 +330,29 @@ public class TelephonyNetworkRequest {
         if ((hasAttribute(CAPABILITY_ATTRIBUTE_APN_SETTING)
                 || hasAttribute(CAPABILITY_ATTRIBUTE_TRAFFIC_DESCRIPTOR_DNN))
                 && dataProfile.getApnSetting() != null) {
-            if (mFeatureFlags.satelliteInternet()) {
-                if (mNativeNetworkRequest.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)
-                        && !mNativeNetworkRequest.hasTransport(
-                                NetworkCapabilities.TRANSPORT_SATELLITE)) {
-                    if (mDataConfigManager != null) {
-                        if (Arrays.stream(getCapabilities()).noneMatch(mDataConfigManager
-                                .getForcedCellularTransportCapabilities()::contains)) {
-                            // If the request is explicitly for the cellular, then the data profile
-                            // needs to support cellular.
-                            if (!dataProfile.getApnSetting().isForInfrastructure(
-                                    ApnSetting.INFRASTRUCTURE_CELLULAR)) {
-                                return false;
-                            }
+            if (mNativeNetworkRequest.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)
+                    && !mNativeNetworkRequest.hasTransport(
+                            NetworkCapabilities.TRANSPORT_SATELLITE)) {
+                if (mDataConfigManager != null) {
+                    if (Arrays.stream(getCapabilities()).noneMatch(mDataConfigManager
+                            .getForcedCellularTransportCapabilities()::contains)) {
+                        // If the request is explicitly for the cellular, then the data profile
+                        // needs to support cellular.
+                        if (!dataProfile.getApnSetting().isForInfrastructure(
+                                ApnSetting.INFRASTRUCTURE_CELLULAR)) {
+                            return false;
                         }
                     }
-                } else if (mNativeNetworkRequest.hasTransport(
-                        NetworkCapabilities.TRANSPORT_SATELLITE)
-                        && !mNativeNetworkRequest.hasTransport(
-                                NetworkCapabilities.TRANSPORT_CELLULAR)) {
-                    // If the request is explicitly for the satellite, then the data profile needs
-                    // to support satellite.
-                    if (!dataProfile.getApnSetting().isForInfrastructure(
-                            ApnSetting.INFRASTRUCTURE_SATELLITE)) {
-                        return false;
-                    }
+                }
+            } else if (mNativeNetworkRequest.hasTransport(
+                    NetworkCapabilities.TRANSPORT_SATELLITE)
+                    && !mNativeNetworkRequest.hasTransport(
+                            NetworkCapabilities.TRANSPORT_CELLULAR)) {
+                // If the request is explicitly for the satellite, then the data profile needs
+                // to support satellite.
+                if (!dataProfile.getApnSetting().isForInfrastructure(
+                        ApnSetting.INFRASTRUCTURE_SATELLITE)) {
+                    return false;
                 }
             }
             // Fallback to the legacy APN type matching.

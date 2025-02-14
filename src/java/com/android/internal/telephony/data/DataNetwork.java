@@ -2359,8 +2359,7 @@ public class DataNetwork extends StateMachine {
     private void updateNetworkCapabilities() {
         final NetworkCapabilities.Builder builder = new NetworkCapabilities.Builder();
 
-        if (mFlags.satelliteInternet() && mIsSatellite
-                && mDataConfigManager.getForcedCellularTransportCapabilities().stream()
+        if (mIsSatellite && mDataConfigManager.getForcedCellularTransportCapabilities().stream()
                 .noneMatch(this::hasNetworkCapabilityInNetworkRequests)) {
             builder.addTransportType(NetworkCapabilities.TRANSPORT_SATELLITE);
         } else {
@@ -2569,8 +2568,8 @@ public class DataNetwork extends StateMachine {
         builder.setLinkUpstreamBandwidthKbps(mNetworkBandwidth.uplinkBandwidthKbps);
 
         // Configure the network as restricted/constrained for unrestricted satellite network.
-        if (mFlags.satelliteInternet() && mIsSatellite && builder.build()
-                .hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_RESTRICTED)) {
+        if (mIsSatellite && builder.build().hasCapability(
+                NetworkCapabilities.NET_CAPABILITY_NOT_RESTRICTED)) {
 
             int dataPolicy;
             if (mFlags.dataServiceCheck()) {

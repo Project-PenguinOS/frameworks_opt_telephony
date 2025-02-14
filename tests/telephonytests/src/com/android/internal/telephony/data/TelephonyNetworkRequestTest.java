@@ -19,7 +19,6 @@ package com.android.internal.telephony.data;
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.when;
 
 import android.net.ConnectivityManager;
 import android.net.NetworkCapabilities;
@@ -405,7 +404,6 @@ public class TelephonyNetworkRequestTest extends TelephonyTest {
 
     @Test
     public void testSatelliteNetworkRequest() {
-        when(mFeatureFlags.satelliteInternet()).thenReturn(true);
         TelephonyNetworkRequest satelliteRequest = new TelephonyNetworkRequest(
                 new NetworkRequest.Builder()
                         .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
@@ -449,7 +447,6 @@ public class TelephonyNetworkRequestTest extends TelephonyTest {
 
     @Test
     public void testCellularNetworkRequest() {
-        doReturn(true).when(mFeatureFlags).satelliteInternet();
         TelephonyNetworkRequest cellularRequest = new TelephonyNetworkRequest(
                 new NetworkRequest.Builder()
                         .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
