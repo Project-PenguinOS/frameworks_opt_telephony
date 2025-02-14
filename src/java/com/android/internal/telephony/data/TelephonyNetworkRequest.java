@@ -33,6 +33,7 @@ import android.telephony.data.TrafficDescriptor;
 import android.telephony.data.TrafficDescriptor.OsAppId;
 
 import com.android.internal.telephony.Phone;
+import com.android.internal.telephony.PhoneFactory;
 import com.android.internal.telephony.flags.FeatureFlags;
 
 import java.lang.annotation.Retention;
@@ -42,6 +43,7 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -451,7 +453,11 @@ public class TelephonyNetworkRequest {
     @NonNull
     @NetCapability
     public static List<Integer> getAllSupportedNetworkCapabilities() {
-        return CAPABILITY_ATTRIBUTE_MAP.keySet().stream().toList();
+        Set<Integer> unsupportedCaps = PhoneFactory.getDefaultPhone()
+                .getDataNetworkController().getDataConfigManager()
+                .getUnsupportedNetworkCapabilities();
+        return CAPABILITY_ATTRIBUTE_MAP.keySet().stream()
+                .filter(cap -> !unsupportedCaps.contains(cap)).toList();
     }
 
     /**
