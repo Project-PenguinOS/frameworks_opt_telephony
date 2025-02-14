@@ -3007,15 +3007,6 @@ public class GsmCdmaPhoneTest extends TelephonyTest {
     }
 
     @Test
-    public void testSecurityAlgorithmUpdateFlagOff() {
-        when(mFeatureFlags.enableModemCipherTransparency()).thenReturn(false);
-
-        makeNewPhoneUT();
-
-        verify(mMockCi, never()).registerForSecurityAlgorithmUpdates(any(), anyInt(), any());
-    }
-
-    @Test
     public void testSecurityAlgorithmUpdateFlagOn() {
         when(mFeatureFlags.enableModemCipherTransparencyUnsolEvents()).thenReturn(true);
 
@@ -3106,21 +3097,7 @@ public class GsmCdmaPhoneTest extends TelephonyTest {
     }
 
     @Test
-    public void testNullCipherNotification_noModemCallOnRadioAvailable_FlagOff() {
-        when(mFeatureFlags.enableModemCipherTransparency()).thenReturn(false);
-        GsmCdmaPhone phoneUT = makeNewPhoneUT();
-        assertFalse(phoneUT.isNullCipherNotificationSupported());
-
-        sendRadioAvailableToPhone(phoneUT);
-
-        verify(mMockCi, never()).setSecurityAlgorithmsUpdatedEnabled(anyBoolean(),
-                any(Message.class));
-        assertFalse(phoneUT.isNullCipherNotificationSupported());
-    }
-
-    @Test
     public void testNullCipherNotification_unsupportedByModemOnRadioAvailable() {
-        when(mFeatureFlags.enableModemCipherTransparency()).thenReturn(true);
         GsmCdmaPhone phoneUT = makeNewPhoneUT();
         assertFalse(phoneUT.isNullCipherNotificationSupported());
 
@@ -3134,7 +3111,6 @@ public class GsmCdmaPhoneTest extends TelephonyTest {
 
     @Test
     public void testNullCipherNotification_supportedByModem() {
-        when(mFeatureFlags.enableModemCipherTransparency()).thenReturn(true);
         GsmCdmaPhone phoneUT = makeNewPhoneUT();
         assertFalse(phoneUT.isNullCipherNotificationSupported());
 
@@ -3148,7 +3124,6 @@ public class GsmCdmaPhoneTest extends TelephonyTest {
 
     @Test
     public void testNullCipherNotification_preferenceEnabled() {
-        when(mFeatureFlags.enableModemCipherTransparency()).thenReturn(true);
         when(mFeatureFlags.enableModemCipherTransparencyUnsolEvents()).thenReturn(true);
         GsmCdmaPhone phoneUT = makeNewPhoneUT();
 
@@ -3162,7 +3137,6 @@ public class GsmCdmaPhoneTest extends TelephonyTest {
 
     @Test
     public void testNullCipherNotification_preferenceDisabled() {
-        when(mFeatureFlags.enableModemCipherTransparency()).thenReturn(true);
         when(mFeatureFlags.enableModemCipherTransparencyUnsolEvents()).thenReturn(true);
         GsmCdmaPhone phoneUT = makeNewPhoneUT();
 
