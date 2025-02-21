@@ -1479,7 +1479,7 @@ public class PhoneSwitcher extends Handler {
      * anyway.
      * @return {@code true} if should switch data to the phone in voice call
      */
-    private boolean shouldSwitchDataDueToInCall() {
+    protected boolean shouldSwitchDataDueToInCall() {
         Phone voicePhone = findPhoneById(mPhoneIdInVoiceCall);
         Phone defaultDataPhone = getPhoneBySubId(mPrimaryDataSubId);
         return defaultDataPhone != null // check user enabled data
