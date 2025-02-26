@@ -6224,6 +6224,22 @@ public class SatelliteController extends Handler {
         }
     }
 
+    /** Return last notified ntn eligibility. */
+    public boolean getLastNotifiedNtnEligibility(@NonNull Phone phone) {
+        int selectedSatelliteSubId = getSelectedSatelliteSubId();
+        int subId = phone.getSubId();
+        if (subId != selectedSatelliteSubId) {
+            plogd("getLastNotifiedNtnEligibility: subId=" + subId
+                    +  " does not match selectedSatelliteSubId=" + selectedSatelliteSubId);
+            return false;
+        }
+
+        synchronized (mSatellitePhoneLock) {
+            plogd("getLastNotifiedNtnEligibility: return " + mLastNotifiedNtnEligibility);
+            return mLastNotifiedNtnEligibility;
+        }
+    }
+
     private long getSatelliteConnectionHysteresisTimeMillis(int subId) {
         PersistableBundle config = getPersistableBundle(subId);
         return (config.getInt(
