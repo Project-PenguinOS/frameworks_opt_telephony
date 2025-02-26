@@ -10,6 +10,14 @@ flag {
   is_fixed_read_only: true
 }
 
+# OWNER=tnd TARGET=24Q1
+flag {
+  name: "log_mms_sms_database_access_info"
+  namespace: "telephony"
+  description: "Whether to log MMS/SMS database access info and report anomaly when getting exception."
+  bug: "275225402"
+}
+
 # OWNER=tjstuart TARGET=24Q3
 flag {
   name: "stop_spamming_emergency_notification"
@@ -35,14 +43,6 @@ flag {
   bug: "309655251"
 }
 
-# OWNER=nagendranb TARGET=24Q3
-flag {
-  name: "enable_telephony_analytics"
-  namespace: "telephony"
-  description: "Enable Telephony Analytics information of Service State , Sms and Call scenarios"
-  bug: "309896524"
-}
-
 # OWNER=rambowang TARGET=24Q3
 flag {
     name: "reset_mobile_network_settings"
@@ -50,17 +50,6 @@ flag {
     namespace: "telephony"
     description: "Allows applications to launch Reset Mobile Network Settings page in Settings app."
     bug:"271921464"
-}
-
-# OWNER=sangyun TARGET=24Q3
-flag {
-    name: "roaming_notification_for_single_data_network"
-    namespace: "telephony"
-    description: "Fix bug where roaming notification was not shown on a single data network."
-    bug:"249908996"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
 }
 
 # OWNER=joonhunshin TARGET=24Q3
