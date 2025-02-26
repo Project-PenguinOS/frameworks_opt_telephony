@@ -336,7 +336,7 @@ public class SatelliteController extends Handler {
     @GuardedBy("mSatellitePhoneLock")
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PRIVATE)
     protected Phone mSatellitePhone = null;
-
+    private SatelliteOptimizedApplicationsTracker mSatelliteOptimizedApplicationsTracker;
     private final Object mRadioStateLock = new Object();
 
     /** Flags to indicate whether the respective radio is enabled */
@@ -986,6 +986,11 @@ public class SatelliteController extends Handler {
         if (android.hardware.devicestate.feature.flags.Flags.deviceStatePropertyMigration()) {
             mDeviceStates = getSupportedDeviceStates();
         }
+
+        mSatelliteOptimizedApplicationsTracker = new SatelliteOptimizedApplicationsTracker(
+                getLooper(), mContext
+        );
+        logd("Satellite Tracker is created");
     }
 
     class SatelliteSubscriptionsChangedListener
@@ -8816,5 +8821,21 @@ public class SatelliteController extends Handler {
         // TODO (Replace below code with related enum value, when voice service policy support mode
         // is added)
         return 0; // Restricted
+    }
+
+    /**
+     * Get list of applications that are optimized for low bandwidth satellite data.
+     *
+     * @param userId is Identifier of user
+     *
+     * @return List of Application Name with data optimized network property.
+     * {@link #PROPERTY_SATELLITE_DATA_OPTIMIZED}
+     */
+    public List<String> getSatelliteDataOptimizedApps(int userId) {
+        if (mFeatureFlags.carrierRoamingNbIotNtn()) {
+            return mSatelliteOptimizedApplicationsTracker.getSatelliteOptimizedApplications(userId);
+        } else {
+            return new ArrayList<>();
+        }
     }
 }
