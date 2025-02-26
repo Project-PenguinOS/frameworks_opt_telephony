@@ -32,6 +32,7 @@ import static android.telephony.CarrierConfigManager.KEY_EMERGENCY_CALL_TO_SATEL
 import static android.telephony.CarrierConfigManager.KEY_EMERGENCY_MESSAGING_SUPPORTED_BOOL;
 import static android.telephony.CarrierConfigManager.KEY_REGIONAL_SATELLITE_EARFCN_BUNDLE;
 import static android.telephony.CarrierConfigManager.KEY_SATELLITE_ATTACH_SUPPORTED_BOOL;
+import static android.telephony.CarrierConfigManager.KEY_SATELLITE_CONNECTED_NOTIFICATION_THROTTLE_MILLIS_INT;
 import static android.telephony.CarrierConfigManager.KEY_SATELLITE_CONNECTION_HYSTERESIS_SEC_INT;
 import static android.telephony.CarrierConfigManager.KEY_SATELLITE_DATA_SUPPORT_MODE_INT;
 import static android.telephony.CarrierConfigManager.KEY_SATELLITE_DISPLAY_NAME_STRING;
@@ -169,6 +170,7 @@ import com.android.internal.telephony.configupdate.ConfigParser;
 import com.android.internal.telephony.configupdate.ConfigProviderAdaptor;
 import com.android.internal.telephony.configupdate.TelephonyConfigUpdateInstallReceiver;
 import com.android.internal.telephony.flags.FeatureFlags;
+import com.android.internal.telephony.flags.Flags;
 import com.android.internal.telephony.satellite.metrics.CarrierRoamingSatelliteControllerStats;
 import com.android.internal.telephony.satellite.metrics.CarrierRoamingSatelliteSessionStats;
 import com.android.internal.telephony.satellite.metrics.ControllerMetricsStats;
@@ -640,9 +642,6 @@ public class SatelliteController extends Handler {
             "satellite_system_notification_done_key";
     private static final String SATELLITE_SYSTEM_NOTIFICATION_TIME =
             "satellite_system_notification_time";
-    // 30 days in milliseconds
-    private static final long THIRTY_DAYS_IN_MILLIS = 30L * 24L * 60L * 60L * 1000L;
-
     // The notification tag used when showing a notification. The combination of notification tag
     // and notification id should be unique within the phone app.
     private static final String NOTIFICATION_TAG = "SatelliteController";
@@ -5461,7 +5460,8 @@ public class SatelliteController extends Handler {
                         KEY_SATELLITE_SOS_MAX_DATAGRAM_SIZE_BYTES_INT,
                         KEY_SATELLITE_SUPPORTED_MSG_APPS_STRING_ARRAY,
                         KEY_REGIONAL_SATELLITE_EARFCN_BUNDLE,
-                        KEY_SATELLITE_DATA_SUPPORT_MODE_INT
+                        KEY_SATELLITE_DATA_SUPPORT_MODE_INT,
+                        KEY_SATELLITE_CONNECTED_NOTIFICATION_THROTTLE_MILLIS_INT
                 );
             } catch (Exception e) {
                 logw("getConfigForSubId: " + e);
@@ -5671,6 +5671,20 @@ public class SatelliteController extends Handler {
     @CarrierConfigManager.SATELLITE_DATA_SUPPORT_MODE
     private int getCarrierSatelliteDataSupportedModeFromConfig(int subId) {
         return getConfigForSubId(subId).getInt(KEY_SATELLITE_DATA_SUPPORT_MODE_INT);
+    }
+
+    /**
+     * Satellite notification display restriction timeout. Default value is 7 days in millis.
+     * @param subId : subscription Id.
+     * @return : Notification throttle timeout in millis.
+     */
+    private long getNotificationDisplayThrottleTimeout(int subId) {
+        if (Flags.starlinkDataBugfix()) {
+            return getConfigForSubId(subId).getLong(
+                    KEY_SATELLITE_CONNECTED_NOTIFICATION_THROTTLE_MILLIS_INT);
+        } else {
+            return TimeUnit.DAYS.toMillis(7);
+        }
     }
 
     /**
@@ -6582,7 +6596,12 @@ public class SatelliteController extends Handler {
                     SATELLITE_SYSTEM_NOTIFICATION_TIME, 0L);
             logv("determineAutoConnectSystemNotification lastSetTimestamp = " + lastSetTimestamp);
             long currentTime = System.currentTimeMillis();
-            if (lastSetTimestamp == 0L || currentTime - lastSetTimestamp >= THIRTY_DAYS_IN_MILLIS) {
+            int subId;
+            synchronized (mSatellitePhoneLock) {
+                subId = mSatellitePhone.getSubId();
+            }
+            long throttleTime = getNotificationDisplayThrottleTimeout(subId);
+            if (lastSetTimestamp == 0L || currentTime - lastSetTimestamp >= throttleTime) {
                 // Reset the flag and update the timestamp
                 logd("determineAutoConnectSystemNotification: reset preference data");
                 suppressSatelliteNotification = false;
