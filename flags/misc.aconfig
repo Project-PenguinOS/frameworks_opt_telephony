@@ -43,22 +43,6 @@ flag {
   bug: "309655251"
 }
 
-# OWNER=sangyun TARGET=24Q2
-flag {
-  name: "reorganize_roaming_notification"
-  namespace: "telephony"
-  description: "Reorganize conditions to show and dismiss roaming notifications."
-  bug: "310594087"
-}
-
-# OWNER=sangyun TARGET=24Q2
-flag {
-  name: "dismiss_network_selection_notification_on_sim_disable"
-  namespace: "telephony"
-  description: "Fix to dismiss network selection notification when disable sim."
-  bug: "310594186"
-}
-
 # OWNER=nagendranb TARGET=24Q3
 flag {
   name: "enable_telephony_analytics"
@@ -261,6 +245,17 @@ flag {
     namespace: "telephony"
     description: "Consolidate a bunch of unneeded worker threads to save resources"
     bug:"390244513"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+# OWNER=jackyu TARGET=25Q2
+flag {
+    name: "carrier_config_changed_callback_fix"
+    namespace: "telephony"
+    description: "Carrier config callback race condition fix"
+    bug:"375526692"
     metadata {
         purpose: PURPOSE_BUGFIX
     }

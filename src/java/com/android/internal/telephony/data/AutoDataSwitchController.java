@@ -276,8 +276,8 @@ public class AutoDataSwitchController extends Handler {
          */
         private UsableState getUsableState() {
             ServiceState serviceState = mPhone.getServiceState();
-            boolean isUsingNonTerrestrialNetwork = sFeatureFlags.carrierEnabledSatelliteFlag()
-                    && (serviceState != null) && serviceState.isUsingNonTerrestrialNetwork();
+            boolean isUsingNonTerrestrialNetwork =
+                    (serviceState != null) && serviceState.isUsingNonTerrestrialNetwork();
 
             return switch (mDataRegState) {
                 case NetworkRegistrationInfo.REGISTRATION_STATE_HOME -> {
@@ -460,7 +460,7 @@ public class AutoDataSwitchController extends Handler {
     public void readDeviceResourceConfig() {
         Phone phone = PhoneFactory.getDefaultPhone();
         DataConfigManager dataConfig = phone.getDataNetworkController().getDataConfigManager();
-        mScoreTolerance =  dataConfig.getAutoDataSwitchScoreTolerance();
+        mScoreTolerance = dataConfig.getAutoDataSwitchScoreTolerance();
         mRequirePingTestBeforeSwitch = dataConfig.isPingTestBeforeAutoDataSwitchRequired();
         mAllowNddsRoaming = dataConfig.doesAutoDataSwitchAllowRoaming();
         mAutoDataSwitchAvailabilityStabilityTimeThreshold =

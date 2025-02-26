@@ -3125,14 +3125,8 @@ public class SatelliteController extends Handler {
     public void addAttachRestrictionForCarrier(int subId,
             @SatelliteManager.SatelliteCommunicationRestrictionReason int reason,
             @NonNull IIntegerConsumer callback) {
-        if (DBG) logd("addAttachRestrictionForCarrier(" + subId + ", " + reason + ")");
+        logd("addAttachRestrictionForCarrier(" + subId + ", " + reason + ")");
         Consumer<Integer> result = FunctionalUtils.ignoreRemoteException(callback::accept);
-        if (!mFeatureFlags.carrierEnabledSatelliteFlag()) {
-            result.accept(SatelliteManager.SATELLITE_RESULT_REQUEST_NOT_SUPPORTED);
-            logd("addAttachRestrictionForCarrier: carrierEnabledSatelliteFlag is "
-                    + "disabled");
-            return;
-        }
 
         synchronized (mIsSatelliteEnabledLock) {
             if (mSatelliteAttachRestrictionForCarrierArray.getOrDefault(
@@ -3164,14 +3158,8 @@ public class SatelliteController extends Handler {
     public void removeAttachRestrictionForCarrier(int subId,
             @SatelliteManager.SatelliteCommunicationRestrictionReason int reason,
             @NonNull IIntegerConsumer callback) {
-        if (DBG) logd("removeAttachRestrictionForCarrier(" + subId + ", " + reason + ")");
+        logd("removeAttachRestrictionForCarrier(" + subId + ", " + reason + ")");
         Consumer<Integer> result = FunctionalUtils.ignoreRemoteException(callback::accept);
-        if (!mFeatureFlags.carrierEnabledSatelliteFlag()) {
-            result.accept(SatelliteManager.SATELLITE_RESULT_REQUEST_NOT_SUPPORTED);
-            logd("removeAttachRestrictionForCarrier: carrierEnabledSatelliteFlag is "
-                    + "disabled");
-            return;
-        }
 
         synchronized (mIsSatelliteEnabledLock) {
             if (mSatelliteAttachRestrictionForCarrierArray.getOrDefault(
@@ -3198,11 +3186,6 @@ public class SatelliteController extends Handler {
      * @return Set of reasons for disallowing satellite attach for carrier.
      */
     @NonNull public Set<Integer> getAttachRestrictionReasonsForCarrier(int subId) {
-        if (!mFeatureFlags.carrierEnabledSatelliteFlag()) {
-            logd("getAttachRestrictionReasonsForCarrier: carrierEnabledSatelliteFlag is "
-                    + "disabled");
-            return new HashSet<>();
-        }
         synchronized (mIsSatelliteEnabledLock) {
             Set<Integer> resultSet =
                     mSatelliteAttachRestrictionForCarrierArray.get(subId);
@@ -3775,11 +3758,6 @@ public class SatelliteController extends Handler {
      */
     @NonNull
     public List<String> getSatellitePlmnsForCarrier(int subId) {
-        if (!mFeatureFlags.carrierEnabledSatelliteFlag()) {
-            logd("getSatellitePlmnsForCarrier: carrierEnabledSatelliteFlag is disabled");
-            return new ArrayList<>();
-        }
-
         if (!isSatelliteSupportedViaCarrier(subId)) {
             logd("Satellite for carrier is not supported.");
             return new ArrayList<>();
@@ -3884,10 +3862,6 @@ public class SatelliteController extends Handler {
      */
     @NonNull
     public List<Integer> getSupportedSatelliteServicesForPlmn(int subId, String plmn) {
-        if (!mFeatureFlags.carrierEnabledSatelliteFlag()) {
-            logd("getSupportedSatelliteServices: carrierEnabledSatelliteFlag is disabled");
-            return new ArrayList<>();
-        }
         synchronized (mSupportedSatelliteServicesLock) {
             Map<String, List<Integer>> allowedServicesList
                     = mEntitlementServiceTypeMapPerCarrier.get(subId);
@@ -3935,10 +3909,6 @@ public class SatelliteController extends Handler {
      * {@code false} otherwise.
      */
     public boolean isSatelliteSupportedViaCarrier() {
-        if (!mFeatureFlags.carrierEnabledSatelliteFlag()) {
-            logd("isSatelliteSupportedViaCarrier: carrierEnabledSatelliteFlag is disabled");
-            return false;
-        }
         for (Phone phone : PhoneFactory.getPhones()) {
             if (isSatelliteSupportedViaCarrier(phone.getSubId())) {
                 return true;
@@ -3952,11 +3922,6 @@ public class SatelliteController extends Handler {
      * subscription on the device, {@code false} otherwise.
      */
     public boolean isSatelliteEmergencyMessagingSupportedViaCarrier() {
-        if (!mFeatureFlags.carrierEnabledSatelliteFlag()) {
-            logd("isSatelliteEmergencyMessagingSupportedViaCarrier: carrierEnabledSatelliteFlag is"
-                    + " disabled");
-            return false;
-        }
         for (Phone phone : PhoneFactory.getPhones()) {
             if (isSatelliteEmergencyMessagingSupportedViaCarrier(phone.getSubId())) {
                 return true;
@@ -3978,10 +3943,6 @@ public class SatelliteController extends Handler {
      * satellite, {@code Pair<false, null>} otherwise.
      */
     Pair<Boolean, Integer> isUsingNonTerrestrialNetworkViaCarrier() {
-        if (!mFeatureFlags.carrierEnabledSatelliteFlag()) {
-            logd("isUsingNonTerrestrialNetwork: carrierEnabledSatelliteFlag is disabled");
-            return new Pair<>(false, null);
-        }
         for (Phone phone : PhoneFactory.getPhones()) {
             ServiceState serviceState = phone.getServiceState();
             if (serviceState != null && serviceState.isUsingNonTerrestrialNetwork()) {
@@ -3998,11 +3959,6 @@ public class SatelliteController extends Handler {
      * duration, {@code false} and null otherwise.
      */
     public Pair<Boolean, Integer> isSatelliteConnectedViaCarrierWithinHysteresisTime() {
-        if (!mFeatureFlags.carrierEnabledSatelliteFlag()) {
-            logd("isSatelliteConnectedViaCarrierWithinHysteresisTime: carrierEnabledSatelliteFlag"
-                    + " is disabled");
-            return new Pair<>(false, null);
-        }
         Pair<Boolean, Integer> ntnConnectedState = isUsingNonTerrestrialNetworkViaCarrier();
         if (ntnConnectedState.first) {
             return ntnConnectedState;
@@ -4027,11 +3983,6 @@ public class SatelliteController extends Handler {
      * duration, {@code false} otherwise.
      */
     public boolean isInSatelliteModeForCarrierRoaming(@Nullable Phone phone) {
-        if (!mFeatureFlags.carrierEnabledSatelliteFlag()) {
-            logd("isInSatelliteModeForCarrierRoaming: carrierEnabledSatelliteFlag is disabled");
-            return false;
-        }
-
         if (phone == null) {
             return false;
         }
@@ -4161,12 +4112,6 @@ public class SatelliteController extends Handler {
      */
     @NonNull
     public List<Integer> getCapabilitiesForCarrierRoamingSatelliteMode(Phone phone) {
-        if (!mFeatureFlags.carrierEnabledSatelliteFlag()) {
-            logd("getCapabilitiesForCarrierRoamingSatelliteMode: carrierEnabledSatelliteFlag"
-                    + " is disabled");
-            return new ArrayList<>();
-        }
-
         synchronized (mSatelliteConnectedLock) {
             int subId = phone.getSubId();
             if (mSatModeCapabilitiesForCarrierRoaming.containsKey(subId)) {
@@ -4270,11 +4215,6 @@ public class SatelliteController extends Handler {
             @Nullable Map<String,Integer> plmnDataServicePolicyMap,
             @Nullable Map<String,Integer> plmnVoiceServicePolicyMap,
             @Nullable IIntegerConsumer callback) {
-        if (!mFeatureFlags.carrierEnabledSatelliteFlag()) {
-            logd("onSatelliteEntitlementStatusUpdated: carrierEnabledSatelliteFlag is not enabled");
-            return;
-        }
-
         if (callback == null) {
             callback = new IIntegerConsumer.Stub() {
                 @Override
@@ -5275,11 +5215,6 @@ public class SatelliteController extends Handler {
 
     private void configureSatellitePlmnForCarrier(int subId) {
         logd("configureSatellitePlmnForCarrier");
-        if (!mFeatureFlags.carrierEnabledSatelliteFlag()) {
-            logd("configureSatellitePlmnForCarrier: carrierEnabledSatelliteFlag is disabled");
-            return;
-        }
-
         Phone phone = SatelliteServiceUtils.getPhone(subId);
         if (phone == null) {
             ploge("configureSatellitePlmnForCarrier: phone is null for subId=" + subId);
@@ -5304,12 +5239,6 @@ public class SatelliteController extends Handler {
     }
 
     private void updateSupportedSatelliteServicesForActiveSubscriptions() {
-        if (!mFeatureFlags.carrierEnabledSatelliteFlag()) {
-            logd("updateSupportedSatelliteServicesForActiveSubscriptions: "
-                    + "carrierEnabledSatelliteFlag is disabled");
-            return;
-        }
-
         synchronized (mSupportedSatelliteServicesLock) {
             mSatelliteServicesSupportedByCarriersFromConfig.clear();
             mMergedPlmnListPerCarrier.clear();
@@ -5414,11 +5343,6 @@ public class SatelliteController extends Handler {
 
     @NonNull
     private List<String> readSatellitePlmnsFromOverlayConfig() {
-        if (!mFeatureFlags.carrierEnabledSatelliteFlag()) {
-            logd("readSatellitePlmnsFromOverlayConfig: carrierEnabledSatelliteFlag is disabled");
-            return new ArrayList<>();
-        }
-
         String[] devicePlmns = readStringArrayFromOverlayConfig(
                 R.array.config_satellite_providers);
         return Arrays.stream(devicePlmns).toList();
@@ -6009,9 +5933,6 @@ public class SatelliteController extends Handler {
     }
 
     private void registerForServiceStateChanged() {
-        if (!mFeatureFlags.carrierEnabledSatelliteFlag()) {
-            return;
-        }
         for (Phone phone : PhoneFactory.getPhones()) {
             phone.registerForServiceStateChanged(this, EVENT_SERVICE_STATE_CHANGED, null);
         }
@@ -6096,7 +6017,6 @@ public class SatelliteController extends Handler {
     }
 
     private void updateLastNotifiedNtnModeAndNotify(@Nullable Phone phone) {
-        if (!mFeatureFlags.carrierEnabledSatelliteFlag()) return;
         if (phone == null) {
             return;
         }
@@ -6586,11 +6506,6 @@ public class SatelliteController extends Handler {
     }
 
     private void determineAutoConnectSystemNotification() {
-        if (!mFeatureFlags.carrierEnabledSatelliteFlag()) {
-            logd("determineSystemNotification: carrierEnabledSatelliteFlag is disabled");
-            return;
-        }
-
         Pair<Boolean, Integer> isNtn = isUsingNonTerrestrialNetworkViaCarrier();
         boolean suppressSatelliteNotification = mSharedPreferences.getBoolean(
                 SATELLITE_SYSTEM_NOTIFICATION_DONE_KEY, false);
@@ -6857,16 +6772,12 @@ public class SatelliteController extends Handler {
     }
 
     private void resetCarrierRoamingSatelliteModeParams() {
-        if (!mFeatureFlags.carrierEnabledSatelliteFlag()) return;
-
         for (Phone phone : PhoneFactory.getPhones()) {
             resetCarrierRoamingSatelliteModeParams(phone.getSubId());
         }
     }
 
     private void resetCarrierRoamingSatelliteModeParams(int subId) {
-        if (!mFeatureFlags.carrierEnabledSatelliteFlag()) return;
-
         synchronized (mSatelliteConnectedLock) {
             mLastSatelliteDisconnectedTimesMillis.put(subId, null);
             mSatModeCapabilitiesForCarrierRoaming.remove(subId);
