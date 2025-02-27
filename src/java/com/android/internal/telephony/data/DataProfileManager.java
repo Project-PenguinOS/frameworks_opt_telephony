@@ -764,7 +764,6 @@ public class DataProfileManager extends Handler {
 
         // if esim bootstrap provisioning in progress, do not apply preferred data profile
         if (!isEsimBootStrapProvisioning) {
-            if (mFeatureFlags.carrierEnabledSatelliteFlag()) {
                 // If the preferred data profile can be used, always use it if it can satisfy the
                 // network request with current network type (even though it's been marked as
                 // permanent failed.)
@@ -784,24 +783,6 @@ public class DataProfileManager extends Handler {
                             + "retry can happen.");
                     return null;
                 }
-            } else {
-                // If the preferred data profile can be used, always use it if it can satisfy the
-                // network request with current network type (even though it's been marked as
-                // permanent failed.)
-                if (mPreferredDataProfile != null
-                        && networkRequest.canBeSatisfiedBy(mPreferredDataProfile)
-                        && mPreferredDataProfile.getApnSetting() != null
-                        && mPreferredDataProfile.getApnSetting()
-                        .canSupportNetworkType(networkType)) {
-                    if (ignorePermanentFailure || !mPreferredDataProfile.getApnSetting()
-                            .getPermanentFailed()) {
-                        return mPreferredDataProfile.getApnSetting();
-                    }
-                    log("The preferred data profile is permanently failed. Only condition based "
-                            + "retry can happen.");
-                    return null;
-                }
-            }
         }
 
         // Filter out the data profile that can't satisfy the request.
@@ -828,26 +809,18 @@ public class DataProfileManager extends Handler {
                     if (!dp.getApnSetting().canSupportNetworkType(networkType)) return false;
                     if (isEsimBootStrapProvisioning
                             != dp.getApnSetting().isEsimBootstrapProvisioning()) return false;
-                    if (mFeatureFlags.carrierEnabledSatelliteFlag()) {
-                        if (isNtn && !dp.getApnSetting().isForInfrastructure(
-                                ApnSetting.INFRASTRUCTURE_SATELLITE)) {
-                            return false;
-                        }
-                        return isNtn || dp.getApnSetting().isForInfrastructure(
-                                ApnSetting.INFRASTRUCTURE_CELLULAR);
+                    if (isNtn && !dp.getApnSetting().isForInfrastructure(
+                            ApnSetting.INFRASTRUCTURE_SATELLITE)) {
+                        return false;
                     }
-
-                    return true;
+                    return isNtn || dp.getApnSetting().isForInfrastructure(
+                            ApnSetting.INFRASTRUCTURE_CELLULAR);
                 })
                 .collect(Collectors.toList());
         if (dataProfiles.isEmpty()) {
-            String ntnReason = "";
-            if (mFeatureFlags.carrierEnabledSatelliteFlag()) {
-                ntnReason = " and infrastructure for "
-                        + NetworkRegistrationInfo.isNonTerrestrialNetworkToString(isNtn);
-            }
             log("Can't find any data profile for network type "
-                    + TelephonyManager.getNetworkTypeName(networkType) + ntnReason);
+                    + TelephonyManager.getNetworkTypeName(networkType) + " and infrastructure for "
+                    + NetworkRegistrationInfo.isNonTerrestrialNetworkToString(isNtn));
             return null;
         }
 
