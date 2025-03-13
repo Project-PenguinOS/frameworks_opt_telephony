@@ -1051,6 +1051,15 @@ public class SatelliteController extends Handler {
     }
 
     /**
+     * This API should be used by only CTS/unit tests to reset the telephony configs set through
+     * config updater
+     */
+    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PRIVATE)
+    public void cleanUpTelephonyConfigs() {
+        TelephonyConfigUpdateInstallReceiver.getInstance().cleanUpTelephonyConfigs();
+    }
+
+    /**
      * Get SatelliteConfigParser from TelephonyConfigUpdateInstallReceiver
      */
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PRIVATE)
@@ -8335,7 +8344,6 @@ public class SatelliteController extends Handler {
      * return {@code true} when the phone does not support P2P SMS over carrier roaming satellite
      *        {@code false} otherwise
      */
-    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PRIVATE)
     public boolean isP2PSmsDisallowedOnCarrierRoamingNtn(int subId) {
         int carrierRoamingNtnConnectType = getCarrierRoamingNtnConnectType(subId);
         if (carrierRoamingNtnConnectType == CARRIER_ROAMING_NTN_CONNECT_MANUAL) {
