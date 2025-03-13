@@ -161,10 +161,7 @@ public class SatelliteOptimizedApplicationsTracker {
     }
 
     private void handlePackageRemoved(String packageName) {
-        ApplicationInfo applicationInfo = getApplicationInfo(packageName);
-        if (applicationInfo != null && isOptimizedSatelliteApplication(applicationInfo)) {
-            removeCacheOptimizedSatelliteApplication(packageName);
-        }
+        removeCacheOptimizedSatelliteApplication(packageName);
     }
 
     private void handlePackageMonitor(String packageName) {
