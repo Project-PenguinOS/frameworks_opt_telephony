@@ -203,6 +203,8 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
         doReturn(true).when(mUiccSlot).isActive();
         doReturn(FAKE_ICCID1).when(mUiccController).convertToCardString(eq(1));
         doReturn(FAKE_ICCID2).when(mUiccController).convertToCardString(eq(2));
+        doReturn(true).when(mPackageManager).hasSystemFeature(
+                eq(PackageManager.FEATURE_TELEPHONY_SUBSCRIPTION));
 
         mBinder = Mockito.mock(BinderWrapper.class);
         doReturn(FAKE_USER_HANDLE).when(mBinder).getCallingUserHandle();
@@ -242,8 +244,6 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
         doReturn(true).when(mUserManager)
                 .isManagedProfile(eq(FAKE_MANAGED_PROFILE_USER_HANDLE.getIdentifier()));
 
-        doReturn(true).when(mPackageManager).hasSystemFeature(
-                eq(PackageManager.FEATURE_TELEPHONY_SUBSCRIPTION));
         logd("SubscriptionManagerServiceTest -Setup!");
     }
 
@@ -326,6 +326,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testBroadcastOnInitialization() {
         ArgumentCaptor<Intent> captorIntent = ArgumentCaptor.forClass(Intent.class);
         verify(mContext, times(3)).sendBroadcastAsUser(
@@ -337,6 +338,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testAddSubInfo() {
         mContextFixture.addCallingOrSelfPermission(Manifest.permission.MODIFY_PHONE_STATE);
         mSubscriptionManagerServiceUT.addSubInfo(FAKE_ICCID1, FAKE_CARRIER_NAME1,
@@ -360,6 +362,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testSetMccMnc() {
         mContextFixture.addCallingOrSelfPermission(Manifest.permission.MODIFY_PHONE_STATE);
         mSubscriptionManagerServiceUT.addSubInfo(FAKE_ICCID1, FAKE_CARRIER_NAME1,
@@ -380,6 +383,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testSetCountryIso() {
         mContextFixture.addCallingOrSelfPermission(Manifest.permission.MODIFY_PHONE_STATE);
         mSubscriptionManagerServiceUT.addSubInfo(FAKE_ICCID1, FAKE_CARRIER_NAME1,
@@ -399,6 +403,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testSetCarrierId() {
         mContextFixture.addCallingOrSelfPermission(Manifest.permission.MODIFY_PHONE_STATE);
         mSubscriptionManagerServiceUT.addSubInfo(FAKE_ICCID1, FAKE_CARRIER_NAME1,
@@ -418,6 +423,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testSetAdminOwned() {
         mContextFixture.addCallingOrSelfPermission(Manifest.permission.MODIFY_PHONE_STATE);
         mSubscriptionManagerServiceUT.addSubInfo(FAKE_ICCID1, FAKE_CARRIER_NAME1, 0,
@@ -435,6 +441,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testSetGroupOwner_callerMissingpPermission_throws() {
         mContextFixture.addCallingOrSelfPermission(Manifest.permission.MODIFY_PHONE_STATE);
         mSubscriptionManagerServiceUT.addSubInfo(FAKE_ICCID1, FAKE_CARRIER_NAME1, 0,
@@ -467,8 +474,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
         replaceInstance(SubscriptionManagerService.class, "mVendorApiLevel",
                 mSubscriptionManagerServiceUT, vendorApiLevel);
 
-        // Enabled FeatureFlags and ENABLE_FEATURE_MAPPING, telephony features are defined
-        doReturn(true).when(mFeatureFlags).enforceTelephonyFeatureMappingForPublicApis();
+        // Enabled ENABLE_FEATURE_MAPPING, telephony features are defined
         doReturn(true).when(mPackageManager).hasSystemFeature(
                 eq(PackageManager.FEATURE_TELEPHONY_SUBSCRIPTION));
         try {
@@ -489,6 +495,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testGetAllSubInfoList() {
         mContextFixture.addCallingOrSelfPermission(Manifest.permission.MODIFY_PHONE_STATE);
         insertSubscription(FAKE_SUBSCRIPTION_INFO1);
@@ -619,6 +626,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testGetAvailableSubscriptionInfoList() {
         insertSubscription(FAKE_SUBSCRIPTION_INFO1);
         SubscriptionInfoInternal anotherSubInfo =
@@ -654,6 +662,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testSetDefaultVoiceSubId() throws Exception {
         clearInvocations(mContext);
         insertSubscription(FAKE_SUBSCRIPTION_INFO1);
@@ -696,6 +705,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testSetDefaultDataSubId() throws Exception {
         clearInvocations(mContext);
         doReturn(false).when(mTelephonyManager).isVoiceCapable();
@@ -742,6 +752,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testSingleSimSetDefaultDataSubId() {
         mContextFixture.addCallingOrSelfPermission(Manifest.permission.READ_PRIVILEGED_PHONE_STATE);
         mContextFixture.addCallingOrSelfPermission(Manifest.permission.MODIFY_PHONE_STATE);
@@ -762,6 +773,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testSetDefaultSmsSubId() throws Exception {
         clearInvocations(mContext);
         insertSubscription(FAKE_SUBSCRIPTION_INFO1);
@@ -793,6 +805,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testIsActiveSubId() {
         insertSubscription(FAKE_SUBSCRIPTION_INFO1);
         insertSubscription(new SubscriptionInfoInternal.Builder(FAKE_SUBSCRIPTION_INFO2)
@@ -811,6 +824,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testGetActiveSubscriptionInfoList() {
         // Grant MODIFY_PHONE_STATE permission for insertion.
         mContextFixture.addCallingOrSelfPermission(Manifest.permission.MODIFY_PHONE_STATE);
@@ -849,6 +863,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testGetActiveSubscriptionInfoForSimSlotIndex() {
         insertSubscription(FAKE_SUBSCRIPTION_INFO1);
         insertSubscription(FAKE_SUBSCRIPTION_INFO2);
@@ -880,6 +895,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testUpdateEmbeddedSubscriptions() {
         EuiccProfileInfo profileInfo1 = new EuiccProfileInfo.Builder(FAKE_ICCID1)
                 .setIccid(FAKE_ICCID1)
@@ -955,6 +971,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testUpdateEmbeddedSubscriptionsNullResult() {
         // Grant READ_PHONE_STATE permission.
         mContextFixture.addCallingOrSelfPermission(Manifest.permission.READ_PHONE_STATE);
@@ -974,6 +991,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testGetActiveSubscriptionInfo() {
         insertSubscription(FAKE_SUBSCRIPTION_INFO1);
 
@@ -1004,6 +1022,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testSetDisplayNameUsingSrc() {
         insertSubscription(FAKE_SUBSCRIPTION_INFO1);
 
@@ -1031,6 +1050,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testGetActiveSubInfoCount() {
         insertSubscription(FAKE_SUBSCRIPTION_INFO1);
         insertSubscription(FAKE_SUBSCRIPTION_INFO2);
@@ -1045,6 +1065,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testSetIconTint() {
         insertSubscription(FAKE_SUBSCRIPTION_INFO1);
 
@@ -1064,6 +1085,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testGetActiveSubscriptionInfoForIccId() {
         insertSubscription(FAKE_SUBSCRIPTION_INFO1);
 
@@ -1078,6 +1100,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testGetAccessibleSubscriptionInfoList() {
         doReturn(true).when(mEuiccManager).isEnabled();
         insertSubscription(FAKE_SUBSCRIPTION_INFO2);
@@ -1116,6 +1139,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testIsSubscriptionEnabled() {
         insertSubscription(FAKE_SUBSCRIPTION_INFO1);
 
@@ -1129,6 +1153,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testGetEnabledSubscriptionId() {
         insertSubscription(FAKE_SUBSCRIPTION_INFO1);
 
@@ -1148,12 +1173,14 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testGetActiveDataSubscriptionId() {
         doReturn(12345).when(mPhoneSwitcher).getActiveDataSubId();
         assertThat(mSubscriptionManagerServiceUT.getActiveDataSubscriptionId()).isEqualTo(12345);
     }
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testSetGetSubscriptionUserHandle() {
         insertSubscription(FAKE_SUBSCRIPTION_INFO1);
 
@@ -1187,6 +1214,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testGetSubscriptionUserHandleUnknownSubscription() {
         mContextFixture.addCallingOrSelfPermission(
                 Manifest.permission.MANAGE_SUBSCRIPTION_USER_ASSOCIATION);
@@ -1200,6 +1228,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testIsSubscriptionAssociatedWithUser() {
         // Should fail without MANAGE_SUBSCRIPTION_USER_ASSOCIATION
         assertThrows(SecurityException.class, () -> mSubscriptionManagerServiceUT
@@ -1577,6 +1606,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testSetUsageSetting() {
         insertSubscription(FAKE_SUBSCRIPTION_INFO1);
 
@@ -1601,6 +1631,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testSetDisplayNumber() {
         insertSubscription(new SubscriptionInfoInternal.Builder(FAKE_SUBSCRIPTION_INFO1)
                 .setNumberFromCarrier("")
@@ -1623,6 +1654,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testSetOpportunistic() {
         insertSubscription(FAKE_SUBSCRIPTION_INFO1);
 
@@ -1642,6 +1674,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testGetOpportunisticSubscriptions() {
         testSetOpportunistic();
         insertSubscription(FAKE_SUBSCRIPTION_INFO2);
@@ -1669,6 +1702,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testSetPreferredDataSubscriptionId() {
         // Should fail without MODIFY_PHONE_STATE
         assertThrows(SecurityException.class, () -> mSubscriptionManagerServiceUT
@@ -1681,6 +1715,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testGetPreferredDataSubscriptionId() {
         // Should fail without READ_PRIVILEGED_PHONE_STATE
         assertThrows(SecurityException.class, () -> mSubscriptionManagerServiceUT
@@ -1693,6 +1728,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testAddSubscriptionsIntoGroup() {
         insertSubscription(FAKE_SUBSCRIPTION_INFO1);
         insertSubscription(FAKE_SUBSCRIPTION_INFO2);
@@ -1717,6 +1753,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testSetDeviceToDeviceStatusSharing() {
         insertSubscription(FAKE_SUBSCRIPTION_INFO1);
 
@@ -1740,6 +1777,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testSetDeviceToDeviceStatusSharingContacts() {
         insertSubscription(FAKE_SUBSCRIPTION_INFO1);
 
@@ -1760,6 +1798,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testGetPhoneNumberFromFirstAvailableSource() {
         insertSubscription(FAKE_SUBSCRIPTION_INFO1);
 
@@ -1774,6 +1813,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testGetPhoneNumberSourcePriority() throws Exception {
         mContextFixture.addCallingOrSelfPermission(Manifest.permission.READ_PHONE_NUMBERS);
 
@@ -1813,6 +1853,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testSetUiccApplicationsEnabled() {
         insertSubscription(FAKE_SUBSCRIPTION_INFO1);
 
@@ -1842,6 +1883,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testCanDisablePhysicalSubscription() {
         // Should fail without READ_PRIVILEGED_PHONE_STATE
         assertThrows(SecurityException.class, () -> mSubscriptionManagerServiceUT
@@ -1857,6 +1899,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testSetGetEnhanced4GModeEnabled() throws Exception {
         insertSubscription(FAKE_SUBSCRIPTION_INFO1);
 
@@ -1882,6 +1925,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testSetGetVideoTelephonyEnabled() throws Exception {
         insertSubscription(FAKE_SUBSCRIPTION_INFO1);
 
@@ -1907,6 +1951,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testSetGetWifiCallingEnabled() throws Exception {
         insertSubscription(FAKE_SUBSCRIPTION_INFO1);
 
@@ -1932,6 +1977,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testSetGetWifiCallingMode() throws Exception {
         insertSubscription(FAKE_SUBSCRIPTION_INFO1);
 
@@ -1957,6 +2003,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testSetGetWifiCallingModeForRoaming() throws Exception {
         insertSubscription(FAKE_SUBSCRIPTION_INFO1);
 
@@ -1982,6 +2029,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testSetGetEnabledMobileDataPolicies() throws Exception {
         insertSubscription(FAKE_SUBSCRIPTION_INFO1);
 
@@ -2008,6 +2056,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testSetGetRcsUceEnabled() {
         insertSubscription(FAKE_SUBSCRIPTION_INFO1);
 
@@ -2036,6 +2085,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testSetGetCrossSimCallingEnabled() {
         insertSubscription(FAKE_SUBSCRIPTION_INFO1);
 
@@ -2062,6 +2112,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testSetGetRcsConfig() {
         insertSubscription(FAKE_SUBSCRIPTION_INFO1);
 
@@ -2088,6 +2139,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testSetGetDeviceToDeviceStatusSharingPreference() {
         insertSubscription(FAKE_SUBSCRIPTION_INFO1);
 
@@ -2113,6 +2165,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testSetGetVoImsOptInEnabled() {
         insertSubscription(FAKE_SUBSCRIPTION_INFO1);
 
@@ -2138,6 +2191,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testSetGetDeviceToDeviceStatusSharingContacts() {
         insertSubscription(FAKE_SUBSCRIPTION_INFO1);
 
@@ -2165,6 +2219,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testSetGetNrAdvancedCallingEnabled() {
         insertSubscription(FAKE_SUBSCRIPTION_INFO1);
 
@@ -2191,6 +2246,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testSetSubscriptionPropertyInvalidField() {
         insertSubscription(FAKE_SUBSCRIPTION_INFO1);
         mContextFixture.addCallingOrSelfPermission(Manifest.permission.MODIFY_PHONE_STATE);
@@ -2200,6 +2256,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testGetNumberWithCarrierNumber() {
         insertSubscription(FAKE_SUBSCRIPTION_INFO1);
 
@@ -2233,6 +2290,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testGetNonAccessibleFields() throws Exception {
         insertSubscription(FAKE_SUBSCRIPTION_INFO1);
 
@@ -2256,6 +2314,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testSyncToGroup() {
         insertSubscription(FAKE_SUBSCRIPTION_INFO1);
         insertSubscription(FAKE_SUBSCRIPTION_INFO2);
@@ -2340,6 +2399,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testRemoveSubInfo() {
         insertSubscription(FAKE_SUBSCRIPTION_INFO1);
         insertSubscription(FAKE_SUBSCRIPTION_INFO2);
@@ -2361,6 +2421,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testUserUnlockUpdateEmbeddedSubscriptions() {
         doReturn(true).when(mUiccSlot).isEuicc();
         doReturn(1).when(mUiccController).convertToPublicCardId(FAKE_ICCID1);
@@ -2405,6 +2466,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testInsertNewSim() {
         mContextFixture.addCallingOrSelfPermission(Manifest.permission.MODIFY_PHONE_STATE);
         mContextFixture.addCallingOrSelfPermission(Manifest.permission.READ_PRIVILEGED_PHONE_STATE);
@@ -2466,6 +2528,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testGroupDisable() {
         insertSubscription(FAKE_SUBSCRIPTION_INFO1);
         insertSubscription(new SubscriptionInfoInternal.Builder(FAKE_SUBSCRIPTION_INFO2)
@@ -2512,6 +2575,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testGetPhoneNumberFromInactiveSubscription() {
         mContextFixture.addCallingOrSelfPermission(Manifest.permission.READ_PRIVILEGED_PHONE_STATE);
         testInactiveSimRemoval();
@@ -2530,6 +2594,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testGetPhoneNumberFromDefaultSubscription() {
         mContextFixture.addCallingOrSelfPermission(Manifest.permission.READ_PRIVILEGED_PHONE_STATE);
         mContextFixture.addCallingOrSelfPermission(Manifest.permission.MODIFY_PHONE_STATE);
@@ -2561,6 +2626,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testEsimActivation() {
         mContextFixture.addCallingOrSelfPermission(Manifest.permission.READ_PRIVILEGED_PHONE_STATE);
         mContextFixture.addCallingOrSelfPermission(Manifest.permission.MODIFY_PHONE_STATE);
@@ -2642,6 +2708,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testDeleteEsim() {
         mContextFixture.addCallingOrSelfPermission(Manifest.permission.READ_PRIVILEGED_PHONE_STATE);
         // pSIM with ICCID2
@@ -2700,6 +2767,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testEsimSwitch() {
         setIdentifierAccess(true);
         mContextFixture.addCallingOrSelfPermission(Manifest.permission.READ_PRIVILEGED_PHONE_STATE);
@@ -2750,6 +2818,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testDump() {
         insertSubscription(FAKE_SUBSCRIPTION_INFO1);
         insertSubscription(FAKE_SUBSCRIPTION_INFO2);
@@ -2767,6 +2836,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testOnSubscriptionChanged() {
         CountDownLatch latch = new CountDownLatch(1);
         SubscriptionManagerServiceCallback callback =
@@ -2784,6 +2854,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testOnUiccApplicationsEnabled() {
         CountDownLatch latch = new CountDownLatch(1);
         Executor executor = Runnable::run;
@@ -2813,6 +2884,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testDeactivatePsim() {
         mContextFixture.addCallingOrSelfPermission(Manifest.permission.MODIFY_PHONE_STATE);
         testInsertNewSim();
@@ -2831,6 +2903,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testRemoteSim() {
         mContextFixture.addCallingOrSelfPermission(Manifest.permission.MODIFY_PHONE_STATE);
         mContextFixture.addCallingOrSelfPermission(Manifest.permission.READ_PRIVILEGED_PHONE_STATE);
@@ -2870,6 +2943,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testRemoveSubscriptionsFromGroup() {
         testAddSubscriptionsIntoGroup();
 
@@ -2898,6 +2972,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testUpdateSimStateForInactivePort() {
         testSetUiccApplicationsEnabled();
 
@@ -2911,6 +2986,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testInactiveSimInserted() {
         doReturn(0).when(mUiccSlot).getPortIndexFromIccId(eq(FAKE_ICCID1));
 
@@ -2928,6 +3004,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testRestoreAllSimSpecificSettingsFromBackup() throws Exception {
         assertThrows(SecurityException.class, ()
                 -> mSubscriptionManagerServiceUT.restoreAllSimSpecificSettingsFromBackup(
@@ -2965,6 +3042,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testSubscriptionMap() {
         SubscriptionMap<Integer, Integer> map = new SubscriptionMap<>();
         map.put(1, 1);
@@ -2978,6 +3056,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testSimNotReady() {
         mContextFixture.addCallingOrSelfPermission(Manifest.permission.READ_PRIVILEGED_PHONE_STATE);
         mSubscriptionManagerServiceUT.updateSimState(
@@ -2988,6 +3067,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testSimNotReadyBySimDeactivate() {
         insertSubscription(FAKE_SUBSCRIPTION_INFO1);
 
@@ -3001,6 +3081,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testInactiveSimRemoval() {
         insertSubscription(FAKE_SUBSCRIPTION_INFO2);
 
@@ -3036,6 +3117,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testEmbeddedProfilesUpdateFailed() {
         insertSubscription(FAKE_SUBSCRIPTION_INFO1);
 
@@ -3079,6 +3161,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
 
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testNonNullSubInfoBuilderFromEmbeddedProfile() {
         EuiccProfileInfo profileInfo1 = new EuiccProfileInfo.Builder(FAKE_ICCID1)
                 .setIccid(FAKE_ICCID1) //can't build profile with null iccid.
@@ -3136,6 +3219,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testGetActiveSubscriptionInfoListNoSecurityException() {
         // Grant MODIFY_PHONE_STATE permission for insertion.
         mContextFixture.addCallingOrSelfPermission(Manifest.permission.MODIFY_PHONE_STATE);
@@ -3162,6 +3246,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testUpdateGroupDisabled() {
         insertSubscription(FAKE_SUBSCRIPTION_INFO1);
         insertSubscription(new SubscriptionInfoInternal
@@ -3175,6 +3260,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testIsSatelliteSpn() {
         mContextFixture.putResource(R.string.config_satellite_sim_spn_identifier,
                 FAKE_CARRIER_NAME1);
@@ -3211,6 +3297,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testIsSatelliteSpnWithEmptySpn() {
         mContextFixture.putResource(R.string.config_satellite_sim_spn_identifier, ""); // Empty
         System.setProperty("persist.radio.allow_mock_modem", "true");
@@ -3272,6 +3359,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testIsSatelliteSpnWithNullCarrierIdentifier() {
         mContextFixture.putResource(R.string.config_satellite_sim_spn_identifier,
                 FAKE_CARRIER_NAME1);
@@ -3307,6 +3395,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testIsSatelliteSpnWithWrongSpn() {
         mContextFixture.putResource(R.string.config_satellite_sim_spn_identifier,
                 FAKE_CARRIER_NAME1);
@@ -3343,6 +3432,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testGetSatelliteEntitlementPlmnList() throws Exception {
         mContextFixture.addCallingOrSelfPermission(Manifest.permission.MODIFY_PHONE_STATE);
 
