@@ -5813,12 +5813,6 @@ public class SatelliteController extends Handler {
                     + "SetSatelliteAttachEnableForCarrier error code =" + errorCode);
         }
 
-        if (!isSatelliteSupportedViaCarrier(subId)) {
-            plogd("Satellite for carrier is not supported. Only user setting is stored");
-            callback.accept(SATELLITE_RESULT_SUCCESS);
-            return;
-        }
-
         Phone phone = SatelliteServiceUtils.getPhone(subId);
         if (phone == null) {
             ploge("evaluateEnablingSatelliteForCarrier: phone is null for subId=" + subId);
@@ -5828,23 +5822,20 @@ public class SatelliteController extends Handler {
 
         /* Request to enable or disable the satellite in the cellular modem only when the desired
         state and the current state are different. */
-        boolean isSatelliteExpectedToBeEnabled = !isSatelliteRestrictedForCarrier(subId);
+        boolean isSatelliteExpectedToBeEnabled = !isSatelliteRestrictedForCarrier(subId)
+                && isSatelliteSupportedViaCarrier(subId);
         if (isSatelliteExpectedToBeEnabled != isSatelliteEnabledForCarrierAtModem(subId)) {
-            if (mSatelliteModemInterface.isSatelliteServiceSupported()) {
-                int simSlot = SubscriptionManager.getSlotIndex(subId);
-                RequestHandleSatelliteAttachRestrictionForCarrierArgument argument =
-                        new RequestHandleSatelliteAttachRestrictionForCarrierArgument(subId,
-                                reason, callback);
-                SatelliteControllerHandlerRequest request =
-                        new SatelliteControllerHandlerRequest(argument,
-                                SatelliteServiceUtils.getPhone(subId));
-                Message onCompleted = obtainMessage(
-                        EVENT_EVALUATE_SATELLITE_ATTACH_RESTRICTION_CHANGE_DONE, request);
-                phone.setSatelliteEnabledForCarrier(simSlot,
-                        isSatelliteExpectedToBeEnabled, onCompleted);
-            } else {
-                callback.accept(SatelliteManager.SATELLITE_RESULT_INVALID_TELEPHONY_STATE);
-            }
+            int simSlot = SubscriptionManager.getSlotIndex(subId);
+            RequestHandleSatelliteAttachRestrictionForCarrierArgument argument =
+                    new RequestHandleSatelliteAttachRestrictionForCarrierArgument(subId,
+                            reason, callback);
+            SatelliteControllerHandlerRequest request =
+                    new SatelliteControllerHandlerRequest(argument,
+                            SatelliteServiceUtils.getPhone(subId));
+            Message onCompleted = obtainMessage(
+                    EVENT_EVALUATE_SATELLITE_ATTACH_RESTRICTION_CHANGE_DONE, request);
+            phone.setSatelliteEnabledForCarrier(simSlot,
+                    isSatelliteExpectedToBeEnabled, onCompleted);
         } else {
             callback.accept(SATELLITE_RESULT_SUCCESS);
         }

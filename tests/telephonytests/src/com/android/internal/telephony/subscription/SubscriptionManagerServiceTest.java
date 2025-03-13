@@ -118,7 +118,6 @@ import com.android.internal.telephony.subscription.SubscriptionManagerService.Su
 import com.android.internal.telephony.uicc.IccCardStatus;
 import com.android.internal.telephony.uicc.UiccSlot;
 
-import libcore.junit.util.compat.CoreCompatChangeRule.DisableCompatChanges;
 import libcore.junit.util.compat.CoreCompatChangeRule.EnableCompatChanges;
 
 import org.junit.After;
@@ -450,51 +449,8 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
-    @DisableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
-    public void testSetPhoneNumber() {
-        doReturn(false).when(mFeatureFlags).enforceTelephonyFeatureMapping();
-        doReturn(true).when(mPackageManager).hasSystemFeature(
-                eq(PackageManager.FEATURE_TELEPHONY_SUBSCRIPTION));
-
-        mContextFixture.addCallingOrSelfPermission(Manifest.permission.MODIFY_PHONE_STATE);
-        mSubscriptionManagerServiceUT.addSubInfo(FAKE_ICCID1, FAKE_CARRIER_NAME1,
-                0, SubscriptionManager.SUBSCRIPTION_TYPE_LOCAL_SIM);
-        processAllMessages();
-
-        verify(mMockedSubscriptionManagerServiceCallback).onSubscriptionChanged(eq(1));
-        Mockito.clearInvocations(mMockedSubscriptionManagerServiceCallback);
-
-        // Caller does not have carrier privilege
-        assertThrows(SecurityException.class,
-                () -> mSubscriptionManagerServiceUT.setPhoneNumber(1,
-                        SubscriptionManager.PHONE_NUMBER_SOURCE_CARRIER, FAKE_PHONE_NUMBER2,
-                        CALLING_PACKAGE, CALLING_FEATURE));
-
-        // Grant carrier privilege
-        setCarrierPrivilegesForSubId(true, 1);
-
-        // Source IMS is not acceptable
-        assertThrows(IllegalArgumentException.class,
-                () -> mSubscriptionManagerServiceUT.setPhoneNumber(1,
-                        SubscriptionManager.PHONE_NUMBER_SOURCE_IMS, FAKE_PHONE_NUMBER2,
-                        CALLING_PACKAGE, CALLING_FEATURE));
-
-        mSubscriptionManagerServiceUT.setPhoneNumber(1,
-                SubscriptionManager.PHONE_NUMBER_SOURCE_CARRIER, FAKE_PHONE_NUMBER2,
-                CALLING_PACKAGE, CALLING_FEATURE);
-        processAllMessages();
-
-        SubscriptionInfoInternal subInfo = mSubscriptionManagerServiceUT
-                .getSubscriptionInfoInternal(1);
-        assertThat(subInfo).isNotNull();
-        assertThat(subInfo.getNumberFromCarrier()).isEqualTo(FAKE_PHONE_NUMBER2);
-        verify(mMockedSubscriptionManagerServiceCallback).onSubscriptionChanged(eq(1));
-    }
-
-    @Test
     @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
-    public void testSetPhoneNumber_EnabledEnforceTelephonyFeatureMappingForPublicApis()
-            throws Exception {
+    public void testSetPhoneNumber() throws Exception {
         mContextFixture.addCallingOrSelfPermission(Manifest.permission.MODIFY_PHONE_STATE);
         mSubscriptionManagerServiceUT.addSubInfo(FAKE_ICCID1, FAKE_CARRIER_NAME1,
                 0, SubscriptionManager.SUBSCRIPTION_TYPE_LOCAL_SIM);
@@ -2520,10 +2476,12 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
-    @DisableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
-    public void testGetPhoneNumber() {
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
+    public void testGetPhoneNumber() throws Exception {
         mContextFixture.addCallingOrSelfPermission(Manifest.permission.READ_PRIVILEGED_PHONE_STATE);
         testSetPhoneNumber();
+        doReturn(true).when(mPackageManager).hasSystemFeature(
+                eq(PackageManager.FEATURE_TELEPHONY_SUBSCRIPTION));
         assertThat(mSubscriptionManagerServiceUT.getPhoneNumber(1,
                 SubscriptionManager.PHONE_NUMBER_SOURCE_CARRIER, CALLING_PACKAGE, CALLING_FEATURE))
                 .isEqualTo(FAKE_PHONE_NUMBER2);
@@ -2534,9 +2492,12 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     }
 
     @Test
-    public void testGetPhoneNumberFromUicc() {
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
+    public void testGetPhoneNumberFromUicc() throws Exception {
         mContextFixture.addCallingOrSelfPermission(Manifest.permission.READ_PRIVILEGED_PHONE_STATE);
         testSetPhoneNumber();
+        doReturn(true).when(mPackageManager).hasSystemFeature(
+                eq(PackageManager.FEATURE_TELEPHONY_SUBSCRIPTION));
         // Number from line1Number should be FAKE_PHONE_NUMBER1 instead of FAKE_PHONE_NUMBER2
         assertThat(mSubscriptionManagerServiceUT.getPhoneNumber(1,
                 SubscriptionManager.PHONE_NUMBER_SOURCE_UICC, CALLING_PACKAGE, CALLING_FEATURE))
