@@ -265,6 +265,8 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
     private Optional<Integer> mCurrentlyConnectedSubId = Optional.empty();
 
     private final MmTelFeatureListener mMmTelFeatureListener = new MmTelFeatureListener();
+    private com.android.server.telecom.flags.FeatureFlags mTelecomFlags =
+            new com.android.server.telecom.flags.FeatureFlagsImpl();
     private class MmTelFeatureListener extends MmTelFeature.Listener {
 
         private IImsCallSessionListener processIncomingCall(@NonNull IImsCallSession c,
@@ -4627,6 +4629,13 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
                 }
                 mForegroundCall.switchWith(mBackgroundCall);
 // QTI_END: 2021-04-06: Telephony: IMS: Restore proper FG, BG calls after resume failure.
+            }
+            ImsPhoneConnection conn = findConnection(imsCall);
+            // Send connection event so that Telecom can unhold the call the bg call that was held
+            // for calls across phone accounts.
+            if (mTelecomFlags.enableCallSequencing() && conn != null
+                    && conn.getState() != ImsPhoneCall.State.DISCONNECTED) {
+                conn.onConnectionEvent(android.telecom.Connection.EVENT_CALL_RESUME_FAILED, null);
             }
             mPhone.notifySuppServiceFailed(Phone.SuppService.RESUME);
             mMetrics.writeOnImsCallResumeFailed(mPhone.getPhoneId(), imsCall.getCallSession(),
