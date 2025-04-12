@@ -177,3 +177,14 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+# OWNER=grantmenke TARGET=25Q4
+flag {
+    name: "reuse_original_conn_remote_conf_behavior"
+    namespace: "telephony"
+    description: "Used to reuse the original Telephony Connection when a remotely hosted IMS conference is created."
+    bug:"391889544"
+    metadata {
+        purpose: PURPOSE_FEATURE
+    }
+}
