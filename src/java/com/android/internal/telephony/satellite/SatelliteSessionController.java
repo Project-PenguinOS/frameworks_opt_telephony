@@ -79,6 +79,7 @@ import com.android.internal.telephony.PhoneFactory;
 import com.android.internal.telephony.flags.FeatureFlags;
 import com.android.internal.telephony.satellite.metrics.SessionMetricsStats;
 import com.android.internal.telephony.util.ArrayUtils;
+import com.android.internal.util.IState;
 import com.android.internal.util.State;
 import com.android.internal.util.StateMachine;
 import com.android.telephony.Rlog;
@@ -623,8 +624,15 @@ public class SatelliteSessionController extends StateMachine {
      * @return {@code true} if state machine is in enabling state and {@code false} otherwise.
      */
     public boolean isInEnablingState() {
-        if (DBG) plogd("isInEnablingState: getCurrentState=" + getCurrentState());
-        return getCurrentState() == mEnablingState;
+        try {
+            IState currentState = getCurrentState();
+            if (DBG) plogd("isInEnablingState: getCurrentState=" + currentState);
+            return currentState == mEnablingState;
+        } catch (Exception e) {
+            plogw("isInEnablingState: Exception: " + e
+                + ", mCurrentState=" + mCurrentState);
+            return mCurrentState == SatelliteManager.SATELLITE_MODEM_STATE_ENABLING_SATELLITE;
+        }
     }
 
     /**
@@ -633,8 +641,15 @@ public class SatelliteSessionController extends StateMachine {
      * @return {@code true} if state machine is in disabling state and {@code false} otherwise.
      */
     public boolean isInDisablingState() {
-        if (DBG) plogd("isInDisablingState: getCurrentState=" + getCurrentState());
-        return getCurrentState() == mDisablingState;
+        try {
+            IState currentState = getCurrentState();
+            if (DBG) plogd("isInDisablingState: getCurrentState=" + currentState);
+            return currentState == mDisablingState;
+        } catch (Exception e) {
+            plogw("isInDisablingState: Exception: " + e
+                + ", mCurrentState=" + mCurrentState);
+            return mCurrentState == SatelliteManager.SATELLITE_MODEM_STATE_DISABLING_SATELLITE;
+        }
     }
 
     /**
