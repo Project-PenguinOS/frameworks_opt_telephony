@@ -789,14 +789,18 @@ public class AutoDataSwitchController extends Handler {
                                     .getRatSignalScore();
                             int currentScore = mPhonesSignalStatus[preferredPhoneId]
                                     .getRatSignalScore();
-                            if (defaultScore >= currentScore) {
+                            if ((currentScore - defaultScore) <= mScoreTolerance) {
                                 debugMessage
-                                        .append(", back to default for higher or equal score ")
+                                        .append(", back to default for score ")
                                         .append(defaultScore).append(" versus current ")
                                         .append(currentScore);
                                 backToDefault = true;
                                 switchType = STABILITY_CHECK_PERFORMANCE_SWITCH;
                                 needValidation = mRequirePingTestBeforeSwitch;
+                            } else {
+                                debugMessage.append(", default's score ").append(defaultScore)
+                                        .append(" doesn't justify the switch given the current ")
+                                        .append(currentScore);
                             }
                         } else {
                             // Only OOS/in service switch is enabled, switch back.
@@ -813,8 +817,8 @@ public class AutoDataSwitchController extends Handler {
                 }
             }
 
+            log(debugMessage.toString());
             if (backToDefault) {
-                log(debugMessage.toString());
                 mSelectedTargetPhoneId = defaultDataPhoneId;
                 startStabilityCheck(DEFAULT_PHONE_INDEX, switchType, needValidation);
             } else {

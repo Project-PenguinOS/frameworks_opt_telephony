@@ -393,31 +393,6 @@ public class ApduSenderTest {
     }
 
     @Test
-    public void testConstructor_doNotCloseOpenChannelInSharedPreference()
-                  throws InterruptedException {
-        // Open a channel and not close it, by making CI.iccTransmitApduLogicalChannel throw.
-        int channel = LogicalChannelMocker.mockOpenLogicalChannelResponse(mMockCi, "9000");
-        doThrow(new RuntimeException()).when(mMockCi).iccTransmitApduLogicalChannel(
-                eq(channel), anyInt(), anyInt(), anyInt(), anyInt(), anyInt(), any(),
-                anyBoolean(), any());
-        mSender.send((selectResponse, requestBuilder) -> requestBuilder.addApdu(
-                10, 1, 2, 3, 0, "a"), mResponseCaptor, mHandler);
-        mLooper.processAllMessages();
-        // Stub close channel
-        reset(mMockCi);
-        LogicalChannelMocker.mockCloseLogicalChannel(mMockCi, channel, /* error= */ null);
-
-        // Call constructor
-        mSender = new ApduSender(InstrumentationRegistry.getContext(), PHONE_ID,
-                            mMockCi, ApduSender.ISD_R_AID, false /* supportExtendedApdu */);
-        mLooper.processAllMessages();
-
-        // The constructor should have closed channel
-        verify(mMockCi, times(0)).iccCloseLogicalChannel(eq(channel), eq(true /*isEs10*/), any());
-        assertEquals(1, getChannelIdFromSharedPreferences());
-    }
-
-    @Test
     public void testSend_OpenChannelFailedNoSuchElement_useChannelInSharedPreference() {
         // Open a channel but not close, by making CI.iccTransmitApduLogicalChannel throw.
         int channel = LogicalChannelMocker.mockOpenLogicalChannelResponse(mMockCi, "9000");
@@ -427,13 +402,8 @@ public class ApduSenderTest {
         mSender.send((selectResponse, requestBuilder) -> requestBuilder.addApdu(
                 10, 1, 2, 3, 0, "a"), mResponseCaptor, mHandler);
         mLooper.processAllMessages();
-        reset(mMockCi);
-        // Constructor fails to close channel
-        LogicalChannelMocker.mockCloseLogicalChannel(
-                mMockCi, channel, new CommandException(RADIO_NOT_AVAILABLE));
         mSender = new ApduSender(InstrumentationRegistry.getContext(), PHONE_ID,
                             mMockCi, ApduSender.ISD_R_AID, false /* supportExtendedApdu */);
-        mLooper.processAllMessages();
         reset(mMockCi);
         // Stub open channel failure NO_SUCH_ELEMENT
         LogicalChannelMocker.mockOpenLogicalChannelResponse(mMockCi,

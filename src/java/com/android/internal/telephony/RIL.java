@@ -2192,7 +2192,7 @@ public class RIL extends BaseCommands implements CommandsInterface {
                 riljLog(rr.serialString() + "> iccIO: " + RILUtils.requestToString(rr.mRequest)
                         + " command = 0x" + Integer.toHexString(command) + " fileId = 0x"
                         + Integer.toHexString(fileId) + " path = " + path + " p1 = " + p1
-                        + " p2 = " + p2 + " p3 = " + " data = " + data + " aid = " + aid);
+                        + " p2 = " + p2 + " p3 = " + p3 + " data = " + data + " aid = " + aid);
             } else {
                 riljLog(rr.serialString() + "> iccIO: "
                         + RILUtils.requestToString(rr.mRequest));

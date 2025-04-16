@@ -5787,6 +5787,7 @@ public class RILUtils {
             case ImsRegistrationImplBase.REGISTRATION_TECH_LTE:
                 return android.hardware.radio.AccessNetwork.EUTRAN;
             case ImsRegistrationImplBase.REGISTRATION_TECH_IWLAN:
+            case ImsRegistrationImplBase.REGISTRATION_TECH_CROSS_SIM:
                 return android.hardware.radio.AccessNetwork.IWLAN;
             case ImsRegistrationImplBase.REGISTRATION_TECH_NR:
                 return android.hardware.radio.AccessNetwork.NGRAN;

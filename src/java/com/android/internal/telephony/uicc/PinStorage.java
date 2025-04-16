@@ -79,6 +79,7 @@ import java.security.KeyStore;
 import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.concurrent.Executors;
 
 import javax.crypto.Cipher;
 import javax.crypto.KeyGenerator;
@@ -145,6 +146,7 @@ public class PinStorage extends Handler {
     private final int mBootCount;
     private final KeyStore mKeyStore;
 
+    @Nullable
     private SecretKey mLongTermSecretKey;
     private SecretKey mShortTermSecretKey;
 
@@ -208,7 +210,9 @@ public class PinStorage extends Handler {
         // The short term key is retrieved later when needed.
         String alias = (!mIsDeviceSecure || mIsDeviceLocked)
                 ? KEYSTORE_ALIAS_LONG_TERM_ALWAYS : KEYSTORE_ALIAS_LONG_TERM_USER_AUTH;
-        mLongTermSecretKey = initializeSecretKey(alias, /*createIfAbsent=*/ true);
+        // This is the main thread, so accessing keystore in a separate thread to prevent ANR.
+        Executors.newSingleThreadExecutor().execute(() -> mLongTermSecretKey = initializeSecretKey(
+                alias, /*createIfAbsent=*/ true));
 
         // If the device is not securee or is unlocked, we can start logic. Otherwise we need to
         // wait for the device to be unlocked and store any temporary PIN in RAM.
@@ -807,7 +811,7 @@ public class PinStorage extends Handler {
      * @return true if the operation was successful, false otherwise
      */
     private boolean savePinInformation(SharedPreferences.Editor editor, int slotId,
-            StoredPin storedPin, String baseKey, SecretKey secretKey) {
+            StoredPin storedPin, String baseKey, @Nullable SecretKey secretKey) {
         if (secretKey == null) {
             // Secret key for encryption is missing
             return false;
@@ -1150,7 +1154,7 @@ public class PinStorage extends Handler {
     }
 
     /** Returns the encrypted version of {@code input}, or an empty array in case of error. */
-    private byte[] encrypt(SecretKey secretKey, byte[] input) {
+    private byte[] encrypt(@Nullable SecretKey secretKey, byte[] input) {
         if (secretKey == null) {
             loge("Encrypt: Secret key is null");
             return new byte[0];
