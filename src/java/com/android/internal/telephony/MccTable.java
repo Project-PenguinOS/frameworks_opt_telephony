@@ -336,7 +336,8 @@ public final class MccTable {
     public static final Map<Locale, Locale> FALLBACKS = new HashMap<Locale, Locale>();
 
     public static boolean isNewMccTableEnabled() {
-        return com.android.internal.telephony.flags.Flags.useI18nForMccMapping();
+        return com.android.icu.Flags.telephonyLookupMccExtension()
+                && com.android.internal.telephony.flags.Flags.useI18nForMccMapping();
     }
 
     static {

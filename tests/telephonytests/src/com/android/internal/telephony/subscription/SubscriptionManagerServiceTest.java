@@ -28,6 +28,8 @@ import static com.android.internal.telephony.subscription.SubscriptionDatabaseMa
 import static com.android.internal.telephony.subscription.SubscriptionDatabaseManagerTest.FAKE_HPLMNS1;
 import static com.android.internal.telephony.subscription.SubscriptionDatabaseManagerTest.FAKE_ICCID1;
 import static com.android.internal.telephony.subscription.SubscriptionDatabaseManagerTest.FAKE_ICCID2;
+import static com.android.internal.telephony.subscription.SubscriptionDatabaseManagerTest.FAKE_ICCID3;
+import static com.android.internal.telephony.subscription.SubscriptionDatabaseManagerTest.FAKE_ICCID4;
 import static com.android.internal.telephony.subscription.SubscriptionDatabaseManagerTest.FAKE_IMSI1;
 import static com.android.internal.telephony.subscription.SubscriptionDatabaseManagerTest.FAKE_MAC_ADDRESS1;
 import static com.android.internal.telephony.subscription.SubscriptionDatabaseManagerTest.FAKE_MAC_ADDRESS2;
@@ -3741,5 +3743,14 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
         mContextFixture.addCallingOrSelfPermission(Manifest.permission.READ_PRIVILEGED_PHONE_STATE);
         assertThat(mSubscriptionManagerServiceUT.getActiveSubscriptionInfoList(
                 CALLING_PACKAGE, CALLING_FEATURE, true)).isEmpty();
+    }
+
+    @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
+    public void testIccIdStripping() {
+        assertThat(SubscriptionManagerService.getStrippedIccid(FAKE_ICCID1)).isEqualTo(FAKE_ICCID1);
+        assertThat(SubscriptionManagerService.getStrippedIccid(FAKE_ICCID2)).isEqualTo(FAKE_ICCID2);
+        assertThat(SubscriptionManagerService.getStrippedIccid(FAKE_ICCID3)).isEqualTo("12345");
+        assertThat(SubscriptionManagerService.getStrippedIccid(FAKE_ICCID4)).isEqualTo(FAKE_ICCID4);
     }
 }
