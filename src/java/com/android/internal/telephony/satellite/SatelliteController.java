@@ -3719,10 +3719,23 @@ public class SatelliteController extends Handler {
      * {@code false} otherwise.
      */
     public boolean setSatelliteGatewayServicePackageName(@Nullable String servicePackageName) {
+        if (!isMockModemAllowed()) {
+            plogd("setSatelliteGatewayServicePackageName: mock modem is not allowed");
+            return false;
+        }
         if (mSatelliteSessionController == null) {
             ploge("mSatelliteSessionController is not initialized yet");
             return false;
         }
+
+        if (servicePackageName == null || servicePackageName.equals("null")) {
+            mSatelliteGatewayServicePackageName = getConfigSatelliteGatewayServicePackage();
+        } else {
+            mSatelliteGatewayServicePackageName = servicePackageName;
+        }
+        plogd("setSatelliteGatewayServicePackageName: mSatelliteGatewayServicePackageName="
+                + mSatelliteGatewayServicePackageName);
+
         return mSatelliteSessionController.setSatelliteGatewayServicePackageName(
                 servicePackageName);
     }
