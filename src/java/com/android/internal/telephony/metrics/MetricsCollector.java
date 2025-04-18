@@ -1203,7 +1203,8 @@ public class MetricsCollector implements StatsManager.StatsPullAtomCallback {
                 sms.isEmergency,
                 sms.isNtn,
                 sms.isMtSmsPolling,
-                sms.isNbIotNtn);
+                sms.isNbIotNtn,
+                sms.pduLength);
     }
 
     private static StatsEvent buildStatsEvent(DataCallSession dataCallSession) {

@@ -265,7 +265,8 @@ public class ImsSmsDispatcher extends SMSDispatcher {
                         tracker.isFromDefaultSmsApplication(mContext),
                         tracker.getInterval(),
                         mTelephonyManager.isEmergencyNumber(tracker.mDestAddress),
-                        tracker.isMtSmsPollingMessage(mContext));
+                        tracker.isMtSmsPollingMessage(mContext),
+                        tracker.getPduLength());
                 if (mPhone != null) {
                     TelephonyAnalytics telephonyAnalytics = mPhone.getTelephonyAnalytics();
                     if (telephonyAnalytics != null) {
@@ -714,7 +715,8 @@ public class ImsSmsDispatcher extends SMSDispatcher {
                     tracker.isFromDefaultSmsApplication(mContext),
                     tracker.getInterval(),
                     mTelephonyManager.isEmergencyNumber(tracker.mDestAddress),
-                    tracker.isMtSmsPollingMessage(mContext));
+                    tracker.isMtSmsPollingMessage(mContext),
+                    tracker.getPduLength());
             if (mPhone != null) {
                 TelephonyAnalytics telephonyAnalytics = mPhone.getTelephonyAnalytics();
                 if (telephonyAnalytics != null) {
