@@ -1,17 +1,6 @@
 package: "com.android.internal.telephony.flags"
 container: "system"
 
-# OWNER=linggm TARGET=25Q2
-flag {
-  name: "auto_data_switch_enhanced"
-  namespace: "telephony"
-  description: "Ramp up RAT signal strength based auto data switch"
-  bug: "287132491"
-  metadata {
-    purpose: PURPOSE_BUGFIX
-  }
-}
-
 # OWNER=sarahchin TARGET=24Q3
 flag {
   name: "slicing_additional_error_codes"

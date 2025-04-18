@@ -195,8 +195,6 @@ public class AutoDataSwitchControllerTest extends TelephonyTest {
                 "mEventsToAlarmListener", Map.class);
         mScheduledEventsToExtras = getPrivateField(mAutoDataSwitchControllerUT,
                 "mScheduledEventsToExtras", Map.class);
-
-        doReturn(true).when(mFeatureFlags).autoDataSwitchEnhanced();
     }
 
     @After

@@ -939,8 +939,7 @@ public class AutoDataSwitchController extends Handler {
      */
     private boolean isRatSignalStrengthBasedSwitchEnabled() {
         return mScoreTolerance >= 0
-                && STABILITY_CHECK_TIMER_MAP.get(STABILITY_CHECK_PERFORMANCE_SWITCH) >= 0
-                && sFeatureFlags.autoDataSwitchEnhanced();
+                && STABILITY_CHECK_TIMER_MAP.get(STABILITY_CHECK_PERFORMANCE_SWITCH) >= 0;
     }
 
     /**
