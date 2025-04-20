@@ -381,6 +381,7 @@ message OutgoingSms {
     optional bool is_ntn = 20;
     optional bool is_mt_sms_polling = 21;
     optional bool is_nb_iot_ntn = 22;
+    optional int32 pdu_length = 23;
 
     // Internal use only
     optional int32 hashCode = 10001;

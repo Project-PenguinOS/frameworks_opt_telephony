@@ -160,19 +160,20 @@ public class SmsStats {
     /** Create a new atom when an outgoing SMS is sent. */
     public void onOutgoingSms(boolean isOverIms, boolean is3gpp2, boolean fallbackToCs,
             @SmsManager.Result int sendErrorCode, long messageId, boolean isFromDefaultApp,
-            long intervalMillis, boolean isEmergency, boolean isMtSmsPolling) {
+            long intervalMillis, boolean isEmergency, boolean isMtSmsPolling, int pduLength) {
         onOutgoingSms(isOverIms, is3gpp2, fallbackToCs, sendErrorCode, NO_ERROR_CODE,
-                messageId, isFromDefaultApp, intervalMillis, isEmergency, isMtSmsPolling);
+                messageId, isFromDefaultApp, intervalMillis, isEmergency, isMtSmsPolling,
+                pduLength);
     }
 
     /** Create a new atom when an outgoing SMS is sent. */
     public void onOutgoingSms(boolean isOverIms, boolean is3gpp2, boolean fallbackToCs,
             @SmsManager.Result int sendErrorCode, int networkErrorCode, long messageId,
             boolean isFromDefaultApp, long intervalMillis, boolean isEmergency,
-            boolean isMtSmsPolling) {
+            boolean isMtSmsPolling, int pduLength) {
         OutgoingSms proto =
                 getOutgoingDefaultProto(is3gpp2, isOverIms, messageId, isFromDefaultApp,
-                        intervalMillis, isEmergency, isMtSmsPolling);
+                        intervalMillis, isEmergency, isMtSmsPolling, pduLength);
 
         // The field errorCode is used for up-to-Android-13 devices. From Android 14, sendErrorCode
         // and networkErrorCode will be used. The field errorCode will be deprecated when most
@@ -250,7 +251,7 @@ public class SmsStats {
     /** Create a proto for a normal {@code OutgoingSms} with default values. */
     private OutgoingSms getOutgoingDefaultProto(boolean is3gpp2, boolean isOverIms,
             long messageId, boolean isFromDefaultApp, long intervalMillis, boolean isEmergency,
-            boolean isMtSmsPolling) {
+            boolean isMtSmsPolling, int pduLength) {
         OutgoingSms proto = new OutgoingSms();
         proto.smsFormat = getSmsFormat(is3gpp2);
         proto.smsTech = getSmsTech(isOverIms, is3gpp2);
@@ -275,6 +276,7 @@ public class SmsStats {
         proto.isNtn = isNonTerrestrialNetwork();
         proto.isMtSmsPolling = isMtSmsPolling;
         proto.isNbIotNtn = isNbIotNtn(mPhone);
+        proto.pduLength = pduLength;
         return proto;
     }
 
@@ -348,7 +350,8 @@ public class SmsStats {
     static int getSmsHashCode(OutgoingSms sms) {
         return Objects.hash(sms.smsFormat, sms.smsTech, sms.rat, sms.sendResult, sms.errorCode,
                 sms.isRoaming, sms.isFromDefaultApp, sms.simSlotIndex, sms.isMultiSim, sms.isEsim,
-                sms.carrierId, sms.isEmergency, sms.isNtn, sms.isMtSmsPolling, sms.isNbIotNtn);
+                sms.carrierId, sms.isEmergency, sms.isNtn, sms.isMtSmsPolling, sms.isNbIotNtn,
+                sms.pduLength);
     }
 
     /**
