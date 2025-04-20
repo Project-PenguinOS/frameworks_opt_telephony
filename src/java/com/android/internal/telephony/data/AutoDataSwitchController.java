@@ -433,26 +433,104 @@ public class AutoDataSwitchController extends Handler {
      * sub to reduce unnecessary tracking.
      */
     private void onSubscriptionsChanged() {
-        Set<Integer> activePhoneIds = Arrays.stream(mSubscriptionManagerService
-                .getActiveSubIdList(true /*visibleOnly*/))
-                .map(mSubscriptionManagerService::getPhoneId)
-                .boxed()
-                .collect(Collectors.toSet());
-        // Track events only if there are at least two active visible subscriptions.
-        if (activePhoneIds.size() < 2) activePhoneIds.clear();
+        if (sFeatureFlags.autoDataPruneListener()) {
+            boolean changed = updateListenerRegistrations();
+            if (changed) logl("onSubscriptionChanged: " + Arrays.toString(mPhonesSignalStatus));
+        } else {
+            Set<Integer> activePhoneIds = Arrays.stream(mSubscriptionManagerService
+                            .getActiveSubIdList(true /*visibleOnly*/))
+                    .map(mSubscriptionManagerService::getPhoneId)
+                    .boxed()
+                    .collect(Collectors.toSet());
+            // Track events only if there are at least two active visible subscriptions.
+            if (activePhoneIds.size() < 2) activePhoneIds.clear();
+            boolean changed = false;
+            for (int phoneId = 0; phoneId < mPhonesSignalStatus.length; phoneId++) {
+                if (activePhoneIds.contains(phoneId)
+                        && !mPhonesSignalStatus[phoneId].mListeningForEvents) {
+                    registerAllEventsForPhone(phoneId);
+                    changed = true;
+                } else if (!activePhoneIds.contains(phoneId)
+                        && mPhonesSignalStatus[phoneId].mListeningForEvents) {
+                    unregisterAllEventsForPhone(phoneId);
+                    changed = true;
+                }
+            }
+            if (changed) logl("onSubscriptionChanged: " + Arrays.toString(mPhonesSignalStatus));
+        }
+    }
+
+    /**
+     * Updates network event listener registrations based on conditions.
+     *
+     * Unregisters listeners for *all* phones if:
+     * 1. <2 active subscriptions (auto-switching requires 2+).
+     * 2. Non-cellular default network (auto-switching not relevant).
+     * 3. Default data disabled (no need to monitor for switching).
+     * 4. No eligible auto-switch candidates (all other phones' data
+     *    disabled, preventing switching).
+     *
+     * Registers listeners if none of the above apply and a phone's
+     * listeners are currently unregistered.
+     *
+     * @return `true` if any registration changed; `false` otherwise.
+     */
+    private boolean updateListenerRegistrations() {
+        if (!sFeatureFlags.autoDataPruneListener()) {
+            return false;
+        }
+        boolean shouldUnregister = false;
+        String reason = "";
+
+        if (mSubscriptionManagerService.getActiveSubIdList(true).length < 2) {
+            shouldUnregister = true;
+            reason = "only have one active subscription";
+        } else if (mDefaultNetworkIsOnNonCellular) {
+            shouldUnregister = true;
+            reason = "default network is on non-cellular network";
+        } else {
+            int defaultDataPhoneId = mSubscriptionManagerService.getPhoneId(
+                    mSubscriptionManagerService.getDefaultDataSubId());
+            Phone defaultDataPhone = PhoneFactory.getPhone(defaultDataPhoneId);
+
+            if (defaultDataPhone != null && !defaultDataPhone.isUserDataEnabled()) {
+                shouldUnregister = true;
+                reason = "default data is disabled";
+            } else {
+                boolean anyCandidateEnabled = false;
+                for (int phoneId = 0; phoneId < mPhonesSignalStatus.length; phoneId++) {
+                    if (phoneId != defaultDataPhoneId) {
+                        Phone phone = PhoneFactory.getPhone(phoneId);
+                        if (phone != null && phone.getDataSettingsManager().isDataEnabled()) {
+                            anyCandidateEnabled = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (!anyCandidateEnabled) {
+                    shouldUnregister = true;
+                    reason = "no candidate enabled auto data switch feature";
+                }
+            }
+        }
+
+        if (shouldUnregister) {
+            log("updateListenerRegistrations: " + reason);
+        }
+
+        // Register or unregister as needed
         boolean changed = false;
         for (int phoneId = 0; phoneId < mPhonesSignalStatus.length; phoneId++) {
-            if (activePhoneIds.contains(phoneId)
-                    && !mPhonesSignalStatus[phoneId].mListeningForEvents) {
-                registerAllEventsForPhone(phoneId);
-                changed = true;
-            } else if (!activePhoneIds.contains(phoneId)
-                    && mPhonesSignalStatus[phoneId].mListeningForEvents) {
+            if (shouldUnregister && mPhonesSignalStatus[phoneId].mListeningForEvents) {
                 unregisterAllEventsForPhone(phoneId);
+                changed = true;
+            } else if (!shouldUnregister && !mPhonesSignalStatus[phoneId].mListeningForEvents) {
+                registerAllEventsForPhone(phoneId);
                 changed = true;
             }
         }
-        if (changed) logl("onSubscriptionChanged: " + Arrays.toString(mPhonesSignalStatus));
+        return changed;
     }
 
     /**
@@ -470,6 +548,7 @@ public class AutoDataSwitchController extends Handler {
             phone.getServiceStateTracker().registerForServiceStateChanged(this,
                     EVENT_SERVICE_STATE_CHANGED, phoneId);
             mPhonesSignalStatus[phoneId].mListeningForEvents = true;
+            log("registerAllEventsForPhone: registered listeners for phone " + phoneId);
         } else {
             loge("Unexpected null phone " + phoneId + " when register all events");
         }
@@ -486,6 +565,7 @@ public class AutoDataSwitchController extends Handler {
             phone.getSignalStrengthController().unregisterForSignalStrengthChanged(this);
             phone.getServiceStateTracker().unregisterForServiceStateChanged(this);
             mPhonesSignalStatus[phoneId].mListeningForEvents = false;
+            log("unregisterAllEventsForPhone: unregistered listeners for phone " + phoneId);
         } else {
             loge("Unexpected out of bound phone " + phoneId + " when unregister all events");
         }
@@ -510,8 +590,7 @@ public class AutoDataSwitchController extends Handler {
                 dataConfig.getAutoDataSwitchAvailabilitySwitchbackStabilityTimeThreshold() >= 0
                         ? dataConfig.getAutoDataSwitchAvailabilitySwitchbackStabilityTimeThreshold()
                         : dataConfig.getAutoDataSwitchAvailabilityStabilityTimeThreshold());
-        mAutoDataSwitchValidationMaxRetry =
-                dataConfig.getAutoDataSwitchValidationMaxRetry();
+        mAutoDataSwitchValidationMaxRetry = dataConfig.getAutoDataSwitchValidationMaxRetry();
     }
 
     @Override
@@ -677,7 +756,14 @@ public class AutoDataSwitchController extends Handler {
                 ? STABILITY_CHECK_TIMER_MAP.get(STABILITY_CHECK_AVAILABILITY_SWITCH)
                 << mAutoSwitchValidationFailedCount
                 : 0;
-        if (!mScheduledEventsToExtras.containsKey(EVENT_EVALUATE_AUTO_SWITCH)) {
+        if (reason == EVALUATION_REASON_DATA_SETTINGS_CHANGED
+                || reason == EVALUATION_REASON_DEFAULT_NETWORK_CHANGED) {
+            // In some conditions, listeners are paused to reduce unnecessary tracking.
+            updateListenerRegistrations();
+            // Always reevaluate with those critical condition change.
+            scheduleEventWithTimer(EVENT_EVALUATE_AUTO_SWITCH, new EvaluateEventExtra(reason),
+                    delayMs);
+        } else if (!mScheduledEventsToExtras.containsKey(EVENT_EVALUATE_AUTO_SWITCH)) {
             scheduleEventWithTimer(EVENT_EVALUATE_AUTO_SWITCH, new EvaluateEventExtra(reason),
                     delayMs);
         }

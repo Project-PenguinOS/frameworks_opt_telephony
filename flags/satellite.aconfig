@@ -103,3 +103,15 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+# OWNER=amallampati TARGET=25Q3
+flag {
+    name: "satellite_improve_multi_thread_design"
+    is_exported: false
+    namespace: "telephony"
+    description: "Improve multi-thread design in satellite module"
+    bug:"398227332"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
