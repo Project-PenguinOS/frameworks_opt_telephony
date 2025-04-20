@@ -126,3 +126,11 @@ flag {
     description: "This flag controls to launch sim preference page in Setting"
     bug:"381319469"
 }
+
+# OWNER=arunvoddu TARGET=25Q3
+flag {
+    name: "sim_phonebook_cache_fix"
+    namespace: "telephony"
+    description: "This flag reset the cache if the sim phonebook is empty"
+    bug:"404094844"
+}

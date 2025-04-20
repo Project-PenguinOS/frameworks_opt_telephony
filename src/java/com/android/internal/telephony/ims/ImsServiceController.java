@@ -1004,13 +1004,11 @@ public class ImsServiceController {
 
     @Override
     public String toString() {
-        synchronized (mLock) {
-            return "[ImsServiceController: componentName=" + getComponentName() + ", boundUser="
-                    + mBoundUser + ", features=" + mImsFeatures + ", isBinding=" + mIsBinding
-                    + ", isBound=" + mIsBound + ", serviceController=" + getImsServiceController()
-                    + ", rebindDelay=" + getRebindDelay() + ", slotToSubIdMap=" + mSlotIdToSubIdMap
-                    + "]";
-        }
+        return "[ImsServiceController: componentName=" + getComponentName() + ", boundUser="
+                + mBoundUser + ", features=" + mImsFeatures + ", isBinding=" + mIsBinding
+                + ", isBound=" + mIsBound + ", serviceController=" + getImsServiceController()
+                + ", rebindDelay=" + getRebindDelay() + ", slotToSubIdMap=" + mSlotIdToSubIdMap
+                + "]";
     }
 
     public void dump(PrintWriter printWriter) {

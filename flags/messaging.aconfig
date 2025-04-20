@@ -18,17 +18,6 @@ flag {
   bug: "305062594"
 }
 
-# OWNER=linggm TARGET=24Q4
-flag {
-  name: "mms_get_apn_from_pdsc"
-  namespace: "telephony"
-  description: "This flag controls get APN details from PDSC instead of telephony provider."
-  bug: "324280016"
-  metadata {
-    purpose: PURPOSE_BUGFIX
-  }
-}
-
 # OWNER=stevestatia TARGET=24Q3
 flag {
     name: "unregister_sms_broadcast_receiver_from_cat_service"
