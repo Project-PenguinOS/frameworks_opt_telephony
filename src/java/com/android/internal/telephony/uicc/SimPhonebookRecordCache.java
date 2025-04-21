@@ -23,22 +23,19 @@ import android.os.Handler;
 import android.os.Message;
 import android.telephony.Rlog;
 import android.telephony.TelephonyManager;
-import android.text.TextUtils;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.telephony.CommandsInterface;
 import com.android.internal.telephony.RadioInterfaceCapabilityController;
-import com.android.internal.telephony.uicc.AdnCapacity;
-import com.android.internal.telephony.uicc.IccConstants;
+import com.android.internal.telephony.flags.Flags;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.concurrent.ConcurrentSkipListMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentSkipListMap;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 
@@ -453,6 +450,9 @@ public class SimPhonebookRecordCache extends Handler {
 // QTI_BEGIN: 2023-03-24: Telephony: Fix SIM Contact not shown in hotswap scenario.
             } else {
 // QTI_END: 2023-03-24: Telephony: Fix SIM Contact not shown in hotswap scenario.
+                if(Flags.simPhonebookCacheFix()) {
+                    mIsCacheInvalidated.set(false);
+                }
                 notifyAdnLoadingWaiters();
                 tryFireUpdatePendingList();
             }
