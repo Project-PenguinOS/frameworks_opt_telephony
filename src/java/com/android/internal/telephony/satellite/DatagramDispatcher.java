@@ -90,8 +90,8 @@ public class DatagramDispatcher extends Handler {
     @NonNull private final SessionMetricsStats mSessionMetricsStats;
     @NonNull private final FeatureFlags mFeatureFlags;
 
-    private boolean mIsDemoMode = false;
-    private boolean mIsAligned = false;
+    private AtomicBoolean mIsDemoMode = new AtomicBoolean(false);
+    private AtomicBoolean mIsAligned = new AtomicBoolean(false);
     private DatagramDispatcherHandlerRequest mSendSatelliteDatagramRequest = null;
 
     private static AtomicLong mNextDatagramId = new AtomicLong(0);
@@ -266,7 +266,7 @@ public class DatagramDispatcher extends Handler {
 
         switch(msg.what) {
             case CMD_SEND_SATELLITE_DATAGRAM: {
-                plogd("CMD_SEND_SATELLITE_DATAGRAM mIsDemoMode=" + mIsDemoMode
+                plogd("CMD_SEND_SATELLITE_DATAGRAM mIsDemoMode=" + mIsDemoMode.get()
                         + ", shouldSendDatagramToModemInDemoMode="
                         + shouldSendDatagramToModemInDemoMode());
                 request = (DatagramDispatcherHandlerRequest) msg.obj;
@@ -276,7 +276,7 @@ public class DatagramDispatcher extends Handler {
                 onCompleted = obtainMessage(EVENT_SEND_SATELLITE_DATAGRAM_DONE, request);
 
                 synchronized (mLock) {
-                    if (mIsDemoMode && !shouldSendDatagramToModemInDemoMode()) {
+                    if (mIsDemoMode.get() && !shouldSendDatagramToModemInDemoMode()) {
                         AsyncResult.forMessage(onCompleted, SATELLITE_RESULT_SUCCESS, null);
                         sendMessageDelayed(onCompleted, getDemoTimeoutDuration());
                     } else {
@@ -297,18 +297,19 @@ public class DatagramDispatcher extends Handler {
                         (SendSatelliteDatagramArgument) request.argument;
 
                 synchronized (mLock) {
-                    if (mIsDemoMode && (error == SatelliteManager.SATELLITE_RESULT_SUCCESS)) {
+                    if (mIsDemoMode.get() && (error == SatelliteManager.SATELLITE_RESULT_SUCCESS)) {
                         if (argument.skipCheckingSatelliteAligned) {
                             plogd("Satellite was already aligned. "
                                 + "No need to check alignment again");
-                        } else if (mDatagramController.waitForAligningToSatellite(mIsAligned)) {
+                        } else if (mDatagramController.waitForAligningToSatellite(
+                                mIsAligned.get())) {
                             plogd("Satellite is not aligned in demo mode, wait for the alignment.");
                             startSatelliteAlignedTimer(request);
                             break;
                         }
                     }
                     plogd("EVENT_SEND_SATELLITE_DATAGRAM_DONE error: " + error
-                            + ", mIsDemoMode=" + mIsDemoMode);
+                            + ", mIsDemoMode=" + mIsDemoMode.get());
 
                     /*
                      * The response should be ignored if either of the following hold
@@ -511,8 +512,8 @@ public class DatagramDispatcher extends Handler {
      */
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
     protected void setDemoMode(boolean isDemoMode) {
-        mIsDemoMode = isDemoMode;
-        plogd("setDemoMode: mIsDemoMode=" + mIsDemoMode);
+        mIsDemoMode.set(isDemoMode);
+        plogd("setDemoMode: mIsDemoMode=" + isDemoMode);
     }
 
     /**
@@ -520,11 +521,10 @@ public class DatagramDispatcher extends Handler {
      */
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
     public void setDeviceAlignedWithSatellite(boolean isAligned) {
-        synchronized (mLock) {
-            mIsAligned = isAligned;
-            plogd("setDeviceAlignedWithSatellite: " + mIsAligned);
-            if (isAligned && mIsDemoMode) handleEventSatelliteAligned();
-        }
+        mIsAligned.set(isAligned);
+        plogd("setDeviceAlignedWithSatellite: " + isAligned);
+        if (isAligned && mIsDemoMode.get()) handleEventSatelliteAligned();
+
         if (allowMtSmsPolling()) {
             sendMessage(obtainMessage(CMD_SEND_MT_SMS_POLLING_MESSAGE));
         }
@@ -780,6 +780,7 @@ public class DatagramDispatcher extends Handler {
             @NonNull @SatelliteManager.SatelliteResult int resultCode) {
         long datagramTransmissionTime = argument.datagramStartTime > 0
                 ? (System.currentTimeMillis() - argument.datagramStartTime) : 0;
+        boolean isDemoMode = mIsDemoMode.get();
         SatelliteStats.getInstance().onSatelliteOutgoingDatagramMetrics(
                 new SatelliteStats.SatelliteOutgoingDatagramParams.Builder()
                         .setDatagramType(argument.datagramType)
@@ -788,18 +789,18 @@ public class DatagramDispatcher extends Handler {
                         /* In case pending datagram has not been attempted to send to modem
                         interface. transfer time will be 0. */
                         .setDatagramTransferTimeMillis(datagramTransmissionTime)
-                        .setIsDemoMode(mIsDemoMode)
+                        .setIsDemoMode(isDemoMode)
                         .setCarrierId(SatelliteController.getInstance().getSatelliteCarrierId())
                         .setIsNtnOnlyCarrier(SatelliteController.getInstance().isNtnOnlyCarrier())
                         .build());
         if (resultCode == SatelliteManager.SATELLITE_RESULT_SUCCESS) {
             mControllerMetricsStats.reportOutgoingDatagramSuccessCount(argument.datagramType,
-                    mIsDemoMode);
+                    isDemoMode);
             mSessionMetricsStats.addCountOfSuccessfulOutgoingDatagram(argument.datagramType,
                     datagramTransmissionTime);
         } else {
             mControllerMetricsStats.reportOutgoingDatagramFailCount(argument.datagramType,
-                    mIsDemoMode);
+                    isDemoMode);
             mSessionMetricsStats.addCountOfFailedOutgoingDatagram(argument.datagramType,
                     resultCode);
         }
@@ -885,9 +886,9 @@ public class DatagramDispatcher extends Handler {
         stopDatagramWaitForConnectedStateTimer();
         stopWaitForDatagramSendingResponseTimer();
         stopWaitForSimulatedPollDatagramsDelayTimer();
-        mIsDemoMode = false;
+        mIsDemoMode.set(false);
         mSendSatelliteDatagramRequest = null;
-        mIsAligned = false;
+        mIsAligned.set(false);
         mLastSendRequestDatagramType = DATAGRAM_TYPE_UNKNOWN;
         mModemState = SATELLITE_MODEM_STATE_UNKNOWN;
         mHasEnteredConnectedState = false;
@@ -1078,7 +1079,7 @@ public class DatagramDispatcher extends Handler {
 
     private void startWaitForSimulatedPollDatagramsDelayTimer(
             @NonNull DatagramDispatcherHandlerRequest request) {
-        if (mIsDemoMode) {
+        if (mIsDemoMode.get()) {
             plogd("startWaitForSimulatedPollDatagramsDelayTimer");
             sendMessageDelayed(
                     obtainMessage(EVENT_WAIT_FOR_SIMULATED_POLL_DATAGRAMS_DELAY_TIMED_OUT, request),
@@ -1094,7 +1095,7 @@ public class DatagramDispatcher extends Handler {
 
     private void handleEventWaitForSimulatedPollDatagramsDelayTimedOut(
             @NonNull SendSatelliteDatagramArgument argument) {
-        if (mIsDemoMode) {
+        if (mIsDemoMode.get()) {
             plogd("handleEventWaitForSimulatedPollDatagramsDelayTimedOut");
             mDatagramController.pushDemoModeDatagram(argument.datagramType, argument.datagram);
             Consumer<Integer> internalCallback = new Consumer<Integer>() {
@@ -1118,7 +1119,7 @@ public class DatagramDispatcher extends Handler {
      * This API is used by CTS tests to override the mDemoTimeoutDuration.
      */
     void setTimeoutDatagramDelayInDemoMode(boolean reset, long timeoutMillis) {
-        if (!mIsDemoMode) {
+        if (!mIsDemoMode.get()) {
             return;
         }
         if (reset) {
@@ -1392,11 +1393,10 @@ public class DatagramDispatcher extends Handler {
         }
 
         boolean isModemStateConnectedOrTransferring;
-        boolean isAligned;
+        boolean isAligned = mIsAligned.get();
         boolean isMtSmsPollingThrottled;
         synchronized (mLock) {
             isMtSmsPollingThrottled = mIsMtSmsPollingThrottled;
-            isAligned = mIsAligned;
             isModemStateConnectedOrTransferring =
                     mModemState == SATELLITE_MODEM_STATE_CONNECTED
                             || mModemState == SATELLITE_MODEM_STATE_DATAGRAM_TRANSFERRING;

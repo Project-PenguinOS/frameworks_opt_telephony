@@ -146,6 +146,9 @@ public class SmsDispatchersController extends Handler {
     protected ImsSmsDispatcher mImsSmsDispatcher;
 // QTI_END: 2023-01-26: Telephony: Make SmsDispatchersController injectable
 
+    /** Used for storing last TP - Message Reference used.*/
+    private int mMessageRef = -1;
+
     private GsmInboundSmsHandler mGsmInboundSmsHandler;
     private CdmaInboundSmsHandler mCdmaInboundSmsHandler = null;
 
@@ -2311,6 +2314,24 @@ public class SmsDispatchersController extends Handler {
         if (SatelliteController.getInstance().shouldSendSmsToDatagramDispatcher(mPhone)) {
             DatagramDispatcher.getInstance().sendSms(pendingRequest);
         }
+    }
+
+    public int getMessageReference() {
+        return mMessageRef;
+    }
+
+    public void setMessageReference(int messageReference) {
+        mMessageRef = messageReference;
+    }
+
+    /**
+     * Increment the value of the message reference by 1.
+     *
+     * @return The new value of the message reference.
+     */
+    public int incrementMessageReference() {
+        mMessageRef = (mMessageRef + 1) % 256;
+        return mMessageRef;
     }
 
     public interface SmsInjectionCallback {

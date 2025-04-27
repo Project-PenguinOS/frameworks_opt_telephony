@@ -31,10 +31,13 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.anyInt;
 import static org.mockito.Mockito.clearInvocations;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -53,6 +56,7 @@ import android.telephony.DomainSelectionService;
 import android.telephony.NetworkRegistrationInfo;
 import android.telephony.PhoneNumberUtils;
 import android.telephony.SmsManager;
+import android.telephony.ims.stub.ImsSmsImplBase;
 import android.test.FlakyTest;
 import android.testing.AndroidTestingRunner;
 import android.testing.TestableLooper;
@@ -60,7 +64,9 @@ import android.util.Singleton;
 
 import androidx.test.filters.SmallTest;
 
+import com.android.ims.FeatureConnector;
 import com.android.ims.ImsManager;
+import com.android.internal.telephony.GsmAlphabet.TextEncodingDetails;
 import com.android.internal.telephony.domainselection.DomainSelectionConnection;
 import com.android.internal.telephony.domainselection.EmergencySmsDomainSelectionConnection;
 import com.android.internal.telephony.domainselection.SmsDomainSelectionConnection;
@@ -138,7 +144,7 @@ public class SmsDispatchersControllerTest extends TelephonyTest {
     /**
      * Inherits the SMSDispatcher to verify the abstract or protected methods.
      */
-    protected abstract static class TestSmsDispatcher extends SMSDispatcher {
+    protected static class TestSmsDispatcher extends SMSDispatcher {
         public TestSmsDispatcher(Phone phone, SmsDispatchersController smsDispatchersController) {
             super(phone, smsDispatchersController);
         }
@@ -158,6 +164,45 @@ public class SmsDispatchersControllerTest extends TelephonyTest {
         @Override
         public String getFormat() {
             return SmsConstants.FORMAT_3GPP;
+        }
+
+        @Override
+        protected boolean shouldBlockSmsForEcbm() {
+            return false;
+        }
+
+        @Override
+        protected SmsMessageBase.SubmitPduBase getSubmitPdu(String scAdd, String destAdd,
+                String message, boolean statusReportRequested, SmsHeader smsHeader,
+                int priority,
+                int validityPeriod) {
+            return null;
+        }
+
+        @Override
+        protected SmsMessageBase.SubmitPduBase getSubmitPdu(String scAdd, String destAdd,
+                int destPort, byte[] message, boolean statusReportRequested) {
+            return null;
+        }
+
+        @Override
+        protected SmsMessageBase.SubmitPduBase getSubmitPdu(String scAdd, String destAdd,
+                String message, boolean statusReportRequested, SmsHeader smsHeader,
+                int priority,
+                int validityPeriod, int messageRef) {
+            return null;
+        }
+
+        @Override
+        protected SmsMessageBase.SubmitPduBase getSubmitPdu(String scAdd, String destAdd,
+                int destPort, byte[] message, boolean statusReportRequested, int messageRef) {
+            return null;
+        }
+
+        @Override
+        protected TextEncodingDetails calculateLength(CharSequence messageBody,
+                boolean use7bitOnly) {
+            return null;
         }
     }
 
@@ -274,6 +319,124 @@ public class SmsDispatchersControllerTest extends TelephonyTest {
         verify(mSimulatedCommandsVerifier).sendImsGsmSms(eq("038122F2"),
                 eq("0100038111F100001CD3F69C989EC3C3F431BA2C9F0FDF6EBAFCCD6697E5D4F29C0E"), eq(0), eq(0),
                 any(Message.class));
+    }
+
+    @Test
+    @SmallTest
+    public void testSendTextMessageRefSequence() throws Exception {
+        setUpSpySmsDispatchers();
+        doReturn(true).when(mImsSmsDispatcher).isMessageRefIncrementViaTelephony();
+        doReturn(true).when(mGsmSmsDispatcher).isMessageRefIncrementViaTelephony();
+        int messageRef = mSmsDispatchersController.getMessageReference();
+
+        doReturn(true).when(mImsSmsDispatcher).isAvailable();
+        mSmsDispatchersController.sendText("1111", "2222", "text", mSentIntent, null, null,
+                "test-app", mCallingUserId, false, 0, false, 10, false, 1L, false);
+        assertEquals(messageRef + 1, mSmsDispatchersController.getMessageReference());
+        verify(mImsSmsDispatcher).sendText(eq("1111"), eq("2222"), eq("text"), eq(mSentIntent),
+                any(), any(), eq("test-app"), eq(mCallingUserId), eq(false),
+                eq(0), eq(false), eq(10), eq(false), eq(1L), eq(false), anyLong());
+        // PS->PS
+        mSmsDispatchersController.sendText("1112", "2222", "text", mSentIntent, null, null,
+                "test-app", mCallingUserId, false, 0, false, 10, false, 1L, false);
+        assertEquals(messageRef + 2, mSmsDispatchersController.getMessageReference());
+        verify(mImsSmsDispatcher).sendText(eq("1112"), eq("2222"), eq("text"), eq(mSentIntent),
+                any(), any(), eq("test-app"), eq(mCallingUserId), eq(false),
+                eq(0), eq(false), eq(10), eq(false), eq(1L), eq(false), anyLong());
+        // PS->CS
+        doReturn(false).when(mImsSmsDispatcher).isAvailable();
+        mSmsDispatchersController.sendText("1113", "2222", "text", mSentIntent, null, null,
+                "test-app", mCallingUserId, false, 0, false, 10, false, 1L, false);
+        assertEquals(messageRef + 3, mSmsDispatchersController.getMessageReference());
+        verify(mGsmSmsDispatcher).sendText(eq("1113"), eq("2222"), eq("text"), eq(mSentIntent),
+                any(), any(), eq("test-app"), eq(mCallingUserId), eq(false),
+                eq(0), eq(false), eq(10), eq(false), eq(1L), eq(false), anyLong());
+        // CS->CS
+        mSmsDispatchersController.sendText("1114", "2222", "text", mSentIntent, null, null,
+                "test-app", mCallingUserId, false, 0, false, 10, false, 1L, false);
+        assertEquals(messageRef + 4, mSmsDispatchersController.getMessageReference());
+        verify(mGsmSmsDispatcher).sendText(eq("1114"), eq("2222"), eq("text"), eq(mSentIntent),
+                any(), any(), eq("test-app"), eq(mCallingUserId), eq(false),
+                eq(0), eq(false), eq(10), eq(false), eq(1L), eq(false), anyLong());
+        // CS->PS
+        doReturn(true).when(mImsSmsDispatcher).isAvailable();
+        mSmsDispatchersController.sendText("1115", "2222", "text", mSentIntent, null, null,
+                "test-app", mCallingUserId, false, 0, false, 10, false, 1L, false);
+        assertEquals(messageRef + 5, mSmsDispatchersController.getMessageReference());
+        verify(mImsSmsDispatcher).sendText(eq("1115"), eq("2222"), eq("text"), eq(mSentIntent),
+                any(), any(), eq("test-app"), eq(mCallingUserId), eq(false),
+                eq(0), eq(false), eq(10), eq(false), eq(1L), eq(false), anyLong());
+    }
+
+    @Test
+    @SmallTest
+    public void testMessageReferenceIncrementDuringFallback() throws Exception {
+        setUpSpySmsDispatchers();
+        doReturn(true).when(mImsSmsDispatcher).isAvailable();
+        doReturn(true).when(mImsSmsDispatcher).isMessageRefIncrementViaTelephony();
+        doReturn(true).when(mGsmSmsDispatcher).isMessageRefIncrementViaTelephony();
+        int messageRef = mSmsDispatchersController.getMessageReference();
+
+        doAnswer(invocation -> {
+            mTracker = (SMSDispatcher.SmsTracker) invocation.getArgument(0);
+            int token = mImsSmsDispatcher.mNextToken.get();
+            mImsSmsDispatcher.mTrackers.put(token, mTracker);
+            // Verify TP-MR increment only by 1
+            assertEquals(messageRef + 1, mSmsDispatchersController.getMessageReference());
+            // Limit retries to 1
+            if (mTracker.mRetryCount < 1) {
+                doReturn(false).when(mImsSmsDispatcher).isAvailable();
+                mImsSmsDispatcher.getSmsListener().onSendSmsResult(token, 0,
+                        ImsSmsImplBase.SEND_STATUS_ERROR_FALLBACK, 0, SmsResponse.NO_ERROR_CODE);
+            }
+            return 0;
+        }).when(mImsSmsDispatcher).sendSms(any(SMSDispatcher.SmsTracker.class));
+
+        // Send SMS
+        mSmsDispatchersController.sendText("1113", "2222", "text", mSentIntent, null, null,
+                "test-app", mCallingUserId, false, 0, false, 10, false, 1L, false);
+
+        ArgumentCaptor<SMSDispatcher.SmsTracker> captor =
+                ArgumentCaptor.forClass(SMSDispatcher.SmsTracker.class);
+        verify(mImsSmsDispatcher).sendSms(captor.capture());
+        mTracker = captor.getValue();
+
+        verify(mGsmSmsDispatcher).sendSms(eq(mTracker));
+        // Verify TP-MR value is same as that was over IMS
+        assertEquals(messageRef + 1, mSmsDispatchersController.getMessageReference());
+    }
+
+    @Test
+    @SmallTest
+    public void testMessageReferenceIncrementDuringImsRetry() throws Exception {
+        setUpSpySmsDispatchers();
+        doReturn(true).when(mImsSmsDispatcher).isAvailable();
+        doReturn(true).when(mImsSmsDispatcher).isMessageRefIncrementViaTelephony();
+        doReturn(true).when(mGsmSmsDispatcher).isMessageRefIncrementViaTelephony();
+        int messageRef = mSmsDispatchersController.getMessageReference();
+
+        doAnswer(invocation -> {
+            mTracker = (SMSDispatcher.SmsTracker) invocation.getArgument(0);
+            int token = mImsSmsDispatcher.mNextToken.get();
+            mImsSmsDispatcher.mTrackers.put(token, mTracker);
+            // Verify TP-MR increment by 1 only
+            assertEquals(messageRef + 1, mSmsDispatchersController.getMessageReference());
+
+            // Limit retries to 1
+            if (mTracker.mRetryCount < 1) {
+                mImsSmsDispatcher.getSmsListener().onSendSmsResult(token, 0,
+                        ImsSmsImplBase.SEND_STATUS_ERROR_FALLBACK, 0, SmsResponse.NO_ERROR_CODE);
+            }
+            return 0;
+        }).when(mImsSmsDispatcher).sendSms(any(SMSDispatcher.SmsTracker.class));
+
+        // Send SMS
+        mSmsDispatchersController.sendText("1113", "2222", "text", mSentIntent, null, null,
+                "test-app", mCallingUserId, false, 0, false, 10, false, 1L, false);
+
+        // Verify SMS is sent over IMS twice
+        verify(mImsSmsDispatcher, times(2)).sendSms(any(SMSDispatcher.SmsTracker.class));
+        verify(mGsmSmsDispatcher, times(0)).sendSms(any(SMSDispatcher.SmsTracker.class));
     }
 
     @Test @SmallTest
@@ -1124,6 +1287,28 @@ public class SmsDispatchersControllerTest extends TelephonyTest {
         mSentIntent = PendingIntent.getBroadcast(TestApplication.getAppContext(), 0,
                 new Intent(ACTION_TEST_SMS_SENT), PendingIntent.FLAG_MUTABLE
                         | PendingIntent.FLAG_ALLOW_UNSAFE_IMPLICIT_INTENT);
+    }
+
+    private void setUpSpySmsDispatchers() throws Exception {
+        ImsSmsDispatcher.FeatureConnectorFactory mConnectorFactory = mock(
+                ImsSmsDispatcher.FeatureConnectorFactory.class);
+        FeatureConnector mMockConnector = mock(FeatureConnector.class);
+        when(mConnectorFactory.create(any(), anyInt(), anyString(), any(), any())).thenReturn(
+                mMockConnector);
+        mImsSmsDispatcher =
+            spy(new TestImsSmsDispatcher(mPhone, mSmsDispatchersController, mConnectorFactory));
+
+        mGsmSmsDispatcher = spy(new TestSmsDispatcher(mPhone, mSmsDispatchersController));
+
+        mCdmaSmsDispatcher = Mockito.mock(TestSmsDispatcher.class);
+        when(mCdmaSmsDispatcher.getFormat()).thenReturn(SmsConstants.FORMAT_3GPP2);
+
+        replaceInstance(SmsDispatchersController.class, "mImsSmsDispatcher",
+                mSmsDispatchersController, mImsSmsDispatcher);
+        replaceInstance(SmsDispatchersController.class, "mGsmDispatcher",
+                mSmsDispatchersController, mGsmSmsDispatcher);
+        replaceInstance(SmsDispatchersController.class, "mCdmaDispatcher",
+                mSmsDispatchersController, mCdmaSmsDispatcher);
     }
 
     private void setUpEmergencyStateTracker(int result) throws Exception {

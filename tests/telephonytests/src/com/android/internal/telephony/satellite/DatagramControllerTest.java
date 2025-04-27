@@ -29,6 +29,8 @@ import static android.telephony.satellite.SatelliteManager.SATELLITE_DATAGRAM_TR
 import static android.telephony.satellite.SatelliteManager.SATELLITE_DATAGRAM_TRANSFER_STATE_SENDING;
 import static android.telephony.satellite.SatelliteManager.SATELLITE_RESULT_SUCCESS;
 
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
@@ -37,9 +39,9 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
 
+import android.annotation.NonNull;
+import android.content.Context;
 import android.os.Looper;
 import android.telephony.satellite.SatelliteDatagram;
 import android.telephony.satellite.SatelliteManager;
@@ -48,6 +50,7 @@ import android.testing.TestableLooper;
 
 import com.android.internal.R;
 import com.android.internal.telephony.TelephonyTest;
+import com.android.internal.telephony.flags.FeatureFlags;
 
 import org.junit.After;
 import org.junit.Before;
@@ -63,7 +66,7 @@ import java.util.function.Consumer;
 public class DatagramControllerTest extends TelephonyTest {
     private static final String TAG = "DatagramControllerTest";
 
-    private DatagramController mDatagramControllerUT;
+    private TestDatagramController mDatagramControllerUT;
 
     @Mock private DatagramReceiver mMockDatagramReceiver;
     @Mock private DatagramDispatcher mMockDatagramDispatcher;
@@ -88,7 +91,7 @@ public class DatagramControllerTest extends TelephonyTest {
         replaceInstance(SatelliteSessionController.class, "sInstance", null,
                 mMockSatelliteSessionController);
         when(mMockSatelliteController.isSatelliteAttachRequired()).thenReturn(true);
-        mDatagramControllerUT = new DatagramController(
+        mDatagramControllerUT = new TestDatagramController(
                 mContext, Looper.myLooper(), mFeatureFlags, mMockPointingAppController);
 
         // Move both send and receive to IDLE state
@@ -335,5 +338,50 @@ public class DatagramControllerTest extends TelephonyTest {
         SatelliteDatagram datagram = new SatelliteDatagram(testMessage.getBytes());
         mDatagramControllerUT.setDemoMode(true);
         mDatagramControllerUT.pushDemoModeDatagram(datagramType, datagram);
+    }
+
+    public static class TestDatagramController extends DatagramController {
+
+        public TestDatagramController(@NonNull Context context, @NonNull Looper  looper,
+                @NonNull FeatureFlags featureFlags,
+                @NonNull PointingAppController pointingAppController) {
+            super(context, looper, featureFlags, pointingAppController);
+        }
+
+        @Override
+        protected void updateSendStatus(int subId, int datagramType, int datagramTransferState,
+                int sendPendingCount, int errorCode) {
+            super.updateSendStatus(subId, datagramType, datagramTransferState, sendPendingCount,
+                    errorCode);
+        }
+
+        @Override
+        protected void updateReceiveStatus(int subId,
+                @SatelliteManager.DatagramType int datagramType,
+                @SatelliteManager.SatelliteDatagramTransferState int datagramTransferState,
+                int receivePendingCount, int errorCode) {
+            super.updateReceiveStatus(subId, datagramType, datagramTransferState,
+                    receivePendingCount, errorCode);
+        }
+
+        @Override
+        protected boolean isSendingInIdleState() {
+            return super.isSendingInIdleState();
+        }
+
+        @Override
+        protected int getReceivePendingCount() {
+            return super.getReceivePendingCount();
+        }
+
+        @Override
+        protected boolean isReceivingDatagrams() {
+            return super.isReceivingDatagrams();
+        }
+
+        @Override
+        protected boolean isPollingInIdleState() {
+            return super.isPollingInIdleState();
+        }
     }
 }

@@ -246,9 +246,6 @@ public abstract class SMSDispatcher extends Handler {
     @VisibleForTesting
     public int mCarrierMessagingTimeout = 10 * 60 * 1000; //10 minutes
 
-    /** Used for storing last TP - Message Reference used*/
-    private int mMessageRef = -1;
-
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     protected static int getNextConcatenatedRef() {
         sConcatenatedRef += 1;
@@ -461,13 +458,14 @@ public abstract class SMSDispatcher extends Handler {
                    if sim was used on another device and inserted in a new device,
                    that device will start sending the next TPMR after reading from the SIM.
                  */
-                mMessageRef = getTpmrValueFromSIM();
-                if (mMessageRef == -1) {
+                mSmsDispatchersController.setMessageReference(getTpmrValueFromSIM());
+                if (mSmsDispatchersController.getMessageReference() == -1) {
 // QTI_BEGIN: 2023-11-10: Telephony: Remove legacy subscription code
                     SubscriptionInfoInternal subInfo = SubscriptionManagerService.getInstance()
                             .getSubscriptionInfoInternal(msg.arg1);
                     if (subInfo != null) {
-                        mMessageRef = subInfo.getLastUsedTPMessageReference();
+                        mSmsDispatchersController.setMessageReference(
+                                subInfo.getLastUsedTPMessageReference());
 // QTI_END: 2023-11-10: Telephony: Remove legacy subscription code
                     }
                 }
@@ -488,12 +486,13 @@ public abstract class SMSDispatcher extends Handler {
     }
 
     private void updateTPMessageReference() {
-        updateSIMLastTPMRValue(mMessageRef);
+        updateSIMLastTPMRValue(mSmsDispatchersController.getMessageReference());
         final long identity = Binder.clearCallingIdentity();
         try {
 // QTI_BEGIN: 2023-11-10: Telephony: Remove legacy subscription code
             SubscriptionManagerService.getInstance()
-                    .setLastUsedTPMessageReference(getSubId(), mMessageRef);
+                    .setLastUsedTPMessageReference(getSubId(),
+                    mSmsDispatchersController.getMessageReference());
 // QTI_END: 2023-11-10: Telephony: Remove legacy subscription code
         } catch (SecurityException e) {
             Rlog.e(TAG, "Security Exception caused on messageRef updation to DB " + e.getMessage());
@@ -536,9 +535,10 @@ public abstract class SMSDispatcher extends Handler {
             return 0;
         }
 
-        mMessageRef = (mMessageRef + 1) % 256;
+        int messageRef = mSmsDispatchersController.incrementMessageReference();
+        Rlog.d(TAG, "nextMessageRef: " + messageRef);
         updateTPMessageReference();
-        return mMessageRef;
+        return messageRef;
     }
 
     /**
@@ -893,17 +893,32 @@ public abstract class SMSDispatcher extends Handler {
                 Rlog.d(TAG, "processSendSmsResponse: Sending SMS by CarrierMessagingService failed."
                         + " Retry on carrier network. "
                         + SmsController.formatCrossStackMessageId(tracker.mMessageId));
+                // Reset the result code from carrier messaging service so that result code from
+                // RIL will be used.
+                resetResultCodeFromCarrierMessagingService(tracker);
                 sendSubmitPdu(tracker);
                 break;
             default:
                 Rlog.d(TAG, "processSendSmsResponse: Unknown result " + result + " Retry on carrier"
                         + " network. "
                         + SmsController.formatCrossStackMessageId(tracker.mMessageId));
+                // Reset the result code from carrier messaging service so that result code from
+                // RIL will be used.
+                resetResultCodeFromCarrierMessagingService(tracker);
                 sendSubmitPdu(tracker);
         }
     }
 
+    private void resetResultCodeFromCarrierMessagingService(SmsTracker tracker) {
+        if (Flags.temporaryFailuresInCarrierMessagingService()) {
+            tracker.mResultCodeFromCarrierMessagingService =
+                    CarrierMessagingService.SEND_STATUS_OK;
+        }
+    }
+
     private int toSmsManagerResultForSendSms(int carrierMessagingServiceResult) {
+        Rlog.d(TAG, "toSmsManagerResultForSendSms: carrierMessagingServiceResult="
+                + carrierMessagingServiceResult);
         switch (carrierMessagingServiceResult) {
             case CarrierMessagingService.SEND_STATUS_OK:
                 return Activity.RESULT_OK;
@@ -1313,6 +1328,7 @@ public abstract class SMSDispatcher extends Handler {
     @SmsManager.Result
     private int rilErrorToSmsManagerResult(CommandException.Error rilError,
             SmsTracker tracker) {
+        Rlog.d(TAG, "rilErrorToSmsManagerResult: rilError=" + rilError + ", tracker=" + tracker);
         mSmsOutgoingErrorCodes.log("rilError: " + rilError
                 + ", MessageId: " + SmsController.formatCrossStackMessageId(tracker.mMessageId));
 

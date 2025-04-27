@@ -48,6 +48,7 @@ import com.android.internal.telephony.flags.FeatureFlags;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
 /**
@@ -81,27 +82,23 @@ public class DatagramController {
 
     /** Variables used to update onSendDatagramStateChanged(). */
     private final Object mLock = new Object();
-    @GuardedBy("mLock")
-    private int mSendSubId;
-    @GuardedBy("mLock")
-    private @SatelliteManager.DatagramType int mDatagramType = DATAGRAM_TYPE_UNKNOWN;
-    @GuardedBy("mLock")
-    private @SatelliteManager.SatelliteDatagramTransferState int mSendDatagramTransferState =
-            SATELLITE_DATAGRAM_TRANSFER_STATE_IDLE;
-    @GuardedBy("mLock")
-    private int mSendPendingCount = 0;
-    @GuardedBy("mLock")
-    private int mSendErrorCode = SatelliteManager.SATELLITE_RESULT_SUCCESS;
+
+    private AtomicInteger mSendSubId = new AtomicInteger(0);
+    private @SatelliteManager.DatagramType AtomicInteger mDatagramType =
+            new AtomicInteger(DATAGRAM_TYPE_UNKNOWN);
+    private @SatelliteManager.SatelliteDatagramTransferState AtomicInteger
+            mSendDatagramTransferState = new AtomicInteger(SATELLITE_DATAGRAM_TRANSFER_STATE_IDLE);
+    private AtomicInteger mSendPendingCount = new AtomicInteger(0);
+    private AtomicInteger mSendErrorCode =
+            new AtomicInteger(SatelliteManager.SATELLITE_RESULT_SUCCESS);
     /** Variables used to update onReceiveDatagramStateChanged(). */
-    @GuardedBy("mLock")
-    private int mReceiveSubId;
-    @GuardedBy("mLock")
-    private @SatelliteManager.SatelliteDatagramTransferState int mReceiveDatagramTransferState =
-            SATELLITE_DATAGRAM_TRANSFER_STATE_IDLE;
-    @GuardedBy("mLock")
-    private int mReceivePendingCount = 0;
-    @GuardedBy("mLock")
-    private int mReceiveErrorCode = SatelliteManager.SATELLITE_RESULT_SUCCESS;
+    private AtomicInteger mReceiveSubId = new AtomicInteger(0);
+    private @SatelliteManager.SatelliteDatagramTransferState AtomicInteger
+            mReceiveDatagramTransferState = new AtomicInteger(
+                    SATELLITE_DATAGRAM_TRANSFER_STATE_IDLE);
+    private AtomicInteger mReceivePendingCount = new AtomicInteger(0);
+    private AtomicInteger mReceiveErrorCode =
+            new AtomicInteger(SatelliteManager.SATELLITE_RESULT_SUCCESS);
     @GuardedBy("mLock")
     private final List<SatelliteDatagram> mDemoModeDatagramList;
     private boolean mIsDemoMode = false;
@@ -258,31 +255,32 @@ public class DatagramController {
      * @param datagramTransferState The new send datagram transfer state.
      * @param sendPendingCount number of datagrams that are currently being sent
      * @param errorCode If datagram transfer failed, the reason for failure.
+     *
+     * This method is only used by {@link DatagramDispatcher}.
      */
-    public void updateSendStatus(int subId, @SatelliteManager.DatagramType int datagramType,
+    @VisibleForTesting(visibility =  VisibleForTesting.Visibility.PACKAGE)
+    protected void updateSendStatus(int subId, @SatelliteManager.DatagramType int datagramType,
             @SatelliteManager.SatelliteDatagramTransferState int datagramTransferState,
             int sendPendingCount, int errorCode) {
-        synchronized (mLock) {
-            plogd("updateSendStatus"
-                    + " subId: " + subId
-                    + " datagramType: " + datagramType
-                    + " datagramTransferState: " + datagramTransferState
-                    + " sendPendingCount: " + sendPendingCount + " errorCode: " + errorCode);
-            if (shouldSuppressDatagramTransferStateUpdate(datagramType)) {
-                plogd("Ignore the request to update send status");
-                return;
-            }
-
-            mSendSubId = subId;
-            mDatagramType = datagramType;
-            mSendDatagramTransferState = datagramTransferState;
-            mSendPendingCount = sendPendingCount;
-            mSendErrorCode = errorCode;
-            notifyDatagramTransferStateChangedToSessionController(mDatagramType);
-            mPointingAppController.updateSendDatagramTransferState(mSendSubId, mDatagramType,
-                    mSendDatagramTransferState, mSendPendingCount, mSendErrorCode);
-            retryPollPendingDatagramsInDemoMode();
+        plogd("updateSendStatus"
+                + " subId: " + subId
+                + " datagramType: " + datagramType
+                + " datagramTransferState: " + datagramTransferState
+                + " sendPendingCount: " + sendPendingCount + " errorCode: " + errorCode);
+        if (shouldSuppressDatagramTransferStateUpdate(datagramType)) {
+            plogd("Ignore the request to update send status");
+            return;
         }
+
+        mSendSubId.set(subId);
+        mDatagramType.set(datagramType);
+        mSendDatagramTransferState.set(datagramTransferState);
+        mSendPendingCount.set(sendPendingCount);
+        mSendErrorCode.set(errorCode);
+        notifyDatagramTransferStateChangedToSessionController(datagramType);
+        mPointingAppController.updateSendDatagramTransferState(subId, datagramType,
+                datagramTransferState, sendPendingCount, errorCode);
+        retryPollPendingDatagramsInDemoMode();
     }
 
     private boolean shouldSuppressDatagramTransferStateUpdate(
@@ -306,28 +304,29 @@ public class DatagramController {
      * @param datagramTransferState The new receive datagram transfer state.
      * @param receivePendingCount The number of datagrams that are currently pending to be received.
      * @param errorCode If datagram transfer failed, the reason for failure.
+     *
+     * This method is only used by {@link DatagramReceiver}.
      */
-    public void updateReceiveStatus(int subId, @SatelliteManager.DatagramType int datagramType,
+    @VisibleForTesting(visibility =  VisibleForTesting.Visibility.PACKAGE)
+    protected void updateReceiveStatus(int subId, @SatelliteManager.DatagramType int datagramType,
             @SatelliteManager.SatelliteDatagramTransferState int datagramTransferState,
             int receivePendingCount, int errorCode) {
-        synchronized (mLock) {
-            plogd("updateReceiveStatus"
-                    + " subId: " + subId
-                    + " datagramType: " + datagramType
-                    + " datagramTransferState: " + datagramTransferState
-                    + " receivePendingCount: " + receivePendingCount + " errorCode: " + errorCode);
+        plogd("updateReceiveStatus"
+                + " subId: " + subId
+                + " datagramType: " + datagramType
+                + " datagramTransferState: " + datagramTransferState
+                + " receivePendingCount: " + receivePendingCount + " errorCode: " + errorCode);
 
-            mReceiveSubId = subId;
-            mDatagramType = datagramType;
-            mReceiveDatagramTransferState = datagramTransferState;
-            mReceivePendingCount = receivePendingCount;
-            mReceiveErrorCode = errorCode;
+        mReceiveSubId.set(subId);
+        mDatagramType.set(datagramType);
+        mReceiveDatagramTransferState.set(datagramTransferState);
+        mReceivePendingCount.set(receivePendingCount);
+        mReceiveErrorCode.set(errorCode);
 
-            notifyDatagramTransferStateChangedToSessionController(mDatagramType);
-            mPointingAppController.updateReceiveDatagramTransferState(mReceiveSubId,
-                    mReceiveDatagramTransferState, mReceivePendingCount, mReceiveErrorCode);
-            retryPollPendingDatagramsInDemoMode();
-        }
+        notifyDatagramTransferStateChangedToSessionController(datagramType);
+        mPointingAppController.updateReceiveDatagramTransferState(subId,
+                datagramTransferState, receivePendingCount, errorCode);
+        retryPollPendingDatagramsInDemoMode();
 
         if (isPollingInIdleState()) {
             mDatagramDispatcher.retrySendingDatagrams();
@@ -338,8 +337,9 @@ public class DatagramController {
      * Return receive pending datagram count
      * @return receive pending datagram count.
      */
-    public int getReceivePendingCount() {
-        return mReceivePendingCount;
+    @VisibleForTesting(visibility =  VisibleForTesting.Visibility.PACKAGE)
+    protected int getReceivePendingCount() {
+        return mReceivePendingCount.get();
     }
 
 
@@ -392,12 +392,10 @@ public class DatagramController {
         }
     }
 
-    @VisibleForTesting
-    public boolean isReceivingDatagrams() {
-        synchronized (mLock) {
-            return (mReceiveDatagramTransferState
-                    == SatelliteManager.SATELLITE_DATAGRAM_TRANSFER_STATE_RECEIVING);
-        }
+    @VisibleForTesting(visibility =  VisibleForTesting.Visibility.PACKAGE)
+    protected boolean isReceivingDatagrams() {
+        return mReceiveDatagramTransferState.get()
+                == SatelliteManager.SATELLITE_DATAGRAM_TRANSFER_STATE_RECEIVING;
     }
 
     /**
@@ -432,18 +430,14 @@ public class DatagramController {
         }
     }
 
-    public boolean isSendingInIdleState() {
-        synchronized (mLock) {
-            return (mSendDatagramTransferState
-                    == SATELLITE_DATAGRAM_TRANSFER_STATE_IDLE);
-        }
+    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
+    protected boolean isSendingInIdleState() {
+        return mSendDatagramTransferState.get() == SATELLITE_DATAGRAM_TRANSFER_STATE_IDLE;
     }
 
-    public boolean isPollingInIdleState() {
-        synchronized (mLock) {
-            return (mReceiveDatagramTransferState
-                    == SATELLITE_DATAGRAM_TRANSFER_STATE_IDLE);
-        }
+    @VisibleForTesting(visibility =  VisibleForTesting.Visibility.PACKAGE)
+    protected boolean isPollingInIdleState() {
+        return mReceiveDatagramTransferState.get() == SATELLITE_DATAGRAM_TRANSFER_STATE_IDLE;
     }
 
     /**
@@ -596,10 +590,8 @@ public class DatagramController {
             ploge("notifyDatagramTransferStateChangeToSessionController: SatelliteSessionController"
                     + " is not initialized yet");
         } else {
-            synchronized (mLock) {
-                sessionController.onDatagramTransferStateChanged(
-                        mSendDatagramTransferState, mReceiveDatagramTransferState, datagramType);
-            }
+            sessionController.onDatagramTransferStateChanged(mSendDatagramTransferState.get(),
+                    mReceiveDatagramTransferState.get(), datagramType);
         }
     }
 

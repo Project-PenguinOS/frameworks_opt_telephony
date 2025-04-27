@@ -42,10 +42,9 @@ import com.android.internal.telephony.subscription.SubscriptionManagerService;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.time.Instant;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
+import java.util.Calendar;
+import java.util.Date;
 import java.util.HashMap;
-import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Stream;
@@ -307,7 +306,7 @@ public class CellularNetworkSecuritySafetySource {
                         context.getString(R.string.scIdentifierDisclosureIssueTitle),
                         context.getString(
                                 R.string.scIdentifierDisclosureIssueSummaryNotification,
-                                getCurrentTime(),
+                                getCurrentTime(context),
                                 subInfo.getDisplayName())).build();
         SafetySourceIssue.Builder builder =
                 new SafetySourceIssue.Builder(
@@ -315,7 +314,7 @@ public class CellularNetworkSecuritySafetySource {
                         context.getString(R.string.scIdentifierDisclosureIssueTitle),
                         context.getString(
                                 R.string.scIdentifierDisclosureIssueSummary,
-                                getCurrentTime(),
+                                getCurrentTime(context),
                                 subInfo.getDisplayName()),
                         SEVERITY_LEVEL_RECOMMENDATION,
                         IDENTIFIER_DISCLOSURE_ISSUE_ID)
@@ -347,10 +346,9 @@ public class CellularNetworkSecuritySafetySource {
         return Optional.of(builder.build());
     }
 
-    private String getCurrentTime() {
-        String pattern = DateFormat.getBestDateTimePattern(Locale.getDefault(), "hh:mm");
-        return Instant.now().atZone(ZoneId.systemDefault())
-              .format(DateTimeFormatter.ofPattern(pattern)).toString();
+    private String getCurrentTime(Context context) {
+        Date today = Calendar.getInstance().getTime();
+        return DateFormat.getTimeFormat(context).format(today);
     }
 
     /**

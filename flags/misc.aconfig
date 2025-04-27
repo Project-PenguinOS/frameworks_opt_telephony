@@ -35,14 +35,6 @@ flag {
   bug: "304272356"
 }
 
-# OWNER=grantmenke TARGET=24Q3
-flag {
-  name: "ensure_access_to_call_settings_is_restricted"
-  namespace: "telephony"
-  description: "Check if access to mobile network configs restricted before displaying call options"
-  bug: "309655251"
-}
-
 # OWNER=rambowang TARGET=24Q3
 flag {
     name: "reset_mobile_network_settings"

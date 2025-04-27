@@ -58,6 +58,7 @@ import com.android.internal.telephony.satellite.metrics.SessionMetricsStats;
 import com.android.internal.util.FunctionalUtils;
 
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
@@ -87,10 +88,9 @@ public class DatagramReceiver extends Handler {
     @NonNull private final Looper mLooper;
     @NonNull private final FeatureFlags mFeatureFlags;
 
-    private long mDatagramTransferStartTime = 0;
-    private boolean mIsDemoMode = false;
-    @GuardedBy("mLock")
-    private boolean mIsAligned = false;
+    private AtomicLong mDatagramTransferStartTime = new AtomicLong(0);
+    private AtomicBoolean mIsDemoMode = new AtomicBoolean(false);
+    private AtomicBoolean mIsAligned = new AtomicBoolean(false);
     @Nullable
     private DatagramReceiverHandlerRequest mDemoPollPendingSatelliteDatagramsRequest = null;
     @Nullable
@@ -452,7 +452,7 @@ public class DatagramReceiver extends Handler {
                 int error = SatelliteServiceUtils.getSatelliteError(ar,
                         "pollPendingSatelliteDatagrams");
 
-                if (mIsDemoMode && error == SatelliteManager.SATELLITE_RESULT_SUCCESS) {
+                if (mIsDemoMode.get() && error == SatelliteManager.SATELLITE_RESULT_SUCCESS) {
                     SatelliteDatagram datagram = mDatagramController.popDemoModeDatagram();
                     final int validSubId = SubscriptionManager.DEFAULT_SUBSCRIPTION_ID;
                     SatelliteDatagramListenerHandler listenerHandler =
@@ -630,14 +630,14 @@ public class DatagramReceiver extends Handler {
                 SatelliteManager.SATELLITE_DATAGRAM_TRANSFER_STATE_RECEIVING,
                 mDatagramController.getReceivePendingCount(),
                 SatelliteManager.SATELLITE_RESULT_SUCCESS);
-        mDatagramTransferStartTime = System.currentTimeMillis();
+        mDatagramTransferStartTime.set(System.currentTimeMillis());
         Phone phone = SatelliteServiceUtils.getPhone();
 
-        if (mIsDemoMode) {
+        if (mIsDemoMode.get()) {
             DatagramReceiverHandlerRequest request = new DatagramReceiverHandlerRequest(
                     callback, phone, subId);
             synchronized (mLock) {
-                if (!mDatagramController.waitForAligningToSatellite(mIsAligned)) {
+                if (!mDatagramController.waitForAligningToSatellite(mIsAligned.get())) {
                     Message msg = obtainMessage(EVENT_POLL_PENDING_SATELLITE_DATAGRAMS_DONE,
                             request);
                     AsyncResult.forMessage(msg, null, null);
@@ -682,9 +682,9 @@ public class DatagramReceiver extends Handler {
                 callback.accept(SatelliteManager.SATELLITE_RESULT_REQUEST_ABORTED);
             }
         }
-        mIsDemoMode = false;
+        mIsDemoMode.set(false);
         mDemoPollPendingSatelliteDatagramsRequest = null;
-        mIsAligned = false;
+        mIsAligned.set(false);
     }
 
     @GuardedBy("mLock")
@@ -743,21 +743,21 @@ public class DatagramReceiver extends Handler {
                 datagramSizeRoundedBytes =
                         (int) (Math.round((double) sizeBytes / ROUNDING_UNIT) * ROUNDING_UNIT);
             }
-            datagramTransferTime = (System.currentTimeMillis() - mDatagramTransferStartTime);
+            datagramTransferTime = (System.currentTimeMillis() - mDatagramTransferStartTime.get());
         }
-        mDatagramTransferStartTime = 0;
+        mDatagramTransferStartTime.set(0);
 
         SatelliteStats.getInstance().onSatelliteIncomingDatagramMetrics(
                 new SatelliteStats.SatelliteIncomingDatagramParams.Builder()
                         .setResultCode(resultCode)
                         .setDatagramSizeBytes(datagramSizeRoundedBytes)
                         .setDatagramTransferTimeMillis(datagramTransferTime)
-                        .setIsDemoMode(mIsDemoMode)
+                        .setIsDemoMode(mIsDemoMode.get())
                         .setCarrierId(SatelliteController.getInstance().getSatelliteCarrierId())
                         .setIsNtnOnlyCarrier(SatelliteController.getInstance().isNtnOnlyCarrier())
                         .build());
 
-        mControllerMetricsStats.reportIncomingDatagramCount(resultCode, mIsDemoMode);
+        mControllerMetricsStats.reportIncomingDatagramCount(resultCode, mIsDemoMode.get());
         if (resultCode == SATELLITE_RESULT_SUCCESS) {
             mSessionMetricsStats.addCountOfSuccessfulIncomingDatagram();
         } else {
@@ -771,15 +771,15 @@ public class DatagramReceiver extends Handler {
      */
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
     protected void setDemoMode(boolean isDemoMode) {
-        mIsDemoMode = isDemoMode;
+        mIsDemoMode.set(isDemoMode);
     }
 
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
     public void setDeviceAlignedWithSatellite(boolean isAligned) {
         synchronized (mLock) {
-            mIsAligned = isAligned;
-            plogd("setDeviceAlignedWithSatellite: " + mIsAligned);
-            if (isAligned && mIsDemoMode) handleEventSatelliteAligned();
+            mIsAligned.set(isAligned);
+            plogd("setDeviceAlignedWithSatellite: " + isAligned);
+            if (isAligned && mIsDemoMode.get()) handleEventSatelliteAligned();
         }
     }
 

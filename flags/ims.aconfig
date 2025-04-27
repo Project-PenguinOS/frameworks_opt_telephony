@@ -59,14 +59,6 @@ flag {
     bug:"312101946"
 }
 
-# OWNER=apsankar TARGET=24Q3
-flag {
-    name: "call_extra_for_non_hold_supported_carriers"
-    namespace: "telephony"
-    description: "For DSDA devices, controls whether the existing call will be dropped when an incoming call on a different sub is answered, when either sub does not support hold capability."
-    bug:"315993953"
-}
-
 # OWNER=joonhunshin TARGET=24Q3
 flag {
     name: "update_roaming_state_to_set_wfc_mode"
