@@ -91,7 +91,7 @@ public class DatagramReceiverTest extends TelephonyTest {
     private TestDatagramReceiver mTestDemoModeDatagramReceiver;
 
     @Mock private SatelliteController mMockSatelliteController;
-    @Mock private DatagramController mMockDatagramController;
+    @Mock private DatagramControllerTest.TestDatagramController mMockDatagramController;
     @Mock private SatelliteModemInterface mMockSatelliteModemInterface;
     @Mock private ControllerMetricsStats mMockControllerMetricsStats;
     @Mock private SatelliteSessionController mMockSatelliteSessionController;
@@ -129,6 +129,7 @@ public class DatagramReceiverTest extends TelephonyTest {
         replaceInstance(SessionMetricsStats.class, "sInstance", null,
                 mMockSessionMetricsStats);
 
+        doReturn(true).when(mFeatureFlags).satelliteImproveMultiThreadDesign();
         mDatagramReceiverUT = DatagramReceiver.make(mContext, Looper.myLooper(), mFeatureFlags,
                 mMockDatagramController);
         mTestDemoModeDatagramReceiver = new TestDatagramReceiver(mContext, Looper.myLooper(),

@@ -106,6 +106,7 @@ public class PointingAppControllerTest extends TelephonyTest {
                 mMockSatelliteModemInterface);
         replaceInstance(SatelliteController.class, "sInstance", null,
                 mMockSatelliteController);
+        doReturn(true).when(mFeatureFlags).satelliteImproveMultiThreadDesign();
         mPointingAppController = new PointingAppController(mContext, mFeatureFlags);
         mContextFixture.putResource(R.string.config_pointing_ui_package,
                 KEY_POINTING_UI_PACKAGE_NAME);

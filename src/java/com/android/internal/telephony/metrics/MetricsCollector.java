@@ -1611,7 +1611,17 @@ public class MetricsCollector implements StatsManager.StatsPullAtomCallback {
                 stats.serviceDataPolicy,
                 stats.satelliteDataConsumedBytes,
                 stats.isMultiSim,
-                stats.isNbIotNtn);
+                stats.isNbIotNtn,
+                stats.countOfDataConnections,
+                stats.lastFailCauses,
+                stats.countOfDataDisconnections,
+                stats.countOfDataStalls,
+                stats.averageUplinkBandwidthKbps,
+                stats.averageDownlinkBandwidthKbps,
+                stats.minUplinkBandwidthKbps,
+                stats.maxUplinkBandwidthKbps,
+                stats.minDownlinkBandwidthKbps,
+                stats.maxDownlinkBandwidthKbps);
     }
 
     private static StatsEvent buildStatsEvent(CarrierRoamingSatelliteControllerStats stats) {

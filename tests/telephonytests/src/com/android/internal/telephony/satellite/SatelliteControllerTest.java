@@ -263,7 +263,7 @@ public class SatelliteControllerTest extends TelephonyTest {
     private SubscriptionInfo testSubscriptionInfo2;
 
     @Mock private SatelliteController mMockSatelliteController;
-    @Mock private DatagramController mMockDatagramController;
+    @Mock private DatagramControllerTest.TestDatagramController mMockDatagramController;
     @Mock private SatelliteModemInterface mMockSatelliteModemInterface;
     @Mock private SatelliteSessionController mMockSatelliteSessionController;
     @Mock private PointingAppController mMockPointingAppController;
@@ -729,6 +729,8 @@ public class SatelliteControllerTest extends TelephonyTest {
         doReturn(mSubscriptionInfo).when(mMockSubscriptionManagerService).getSubscriptionInfo(
                 anyInt());
         doReturn("").when(mSubscriptionInfo).getIccId();
+
+        doReturn(true).when(mFeatureFlags).satelliteImproveMultiThreadDesign();
     }
 
     @After
@@ -1432,6 +1434,7 @@ public class SatelliteControllerTest extends TelephonyTest {
         // Verify satellite enabled for emergency
         assertTrue(mSatelliteControllerUT.getRequestIsEmergency());
         mSatelliteControllerUT.requestIsEmergencyModeEnabled(mRequestIsEmergencyReceiver);
+        processAllMessages();
         assertTrue(mRequestIsEmergency);
     }
 
@@ -1595,6 +1598,7 @@ public class SatelliteControllerTest extends TelephonyTest {
         mIsDemoModeEnabledSemaphore.drainPermits();
         resetSatelliteControllerUT();
         mSatelliteControllerUT.requestIsDemoModeEnabled(mIsDemoModeEnabledReceiver);
+        processAllMessages();
         assertTrue(waitForRequestIsDemoModeEnabledResult(1));
         assertEquals(SATELLITE_RESULT_INVALID_TELEPHONY_STATE, mQueriedIsDemoModeEnabledResultCode);
         assertFalse(mQueriedIsDemoModeEnabled);
@@ -1603,6 +1607,7 @@ public class SatelliteControllerTest extends TelephonyTest {
         setUpResponseForRequestIsSatelliteSupported(false, SATELLITE_RESULT_SUCCESS);
         verifySatelliteSupported(false, SATELLITE_RESULT_SUCCESS);
         mSatelliteControllerUT.requestIsDemoModeEnabled(mIsDemoModeEnabledReceiver);
+        processAllMessages();
         assertTrue(waitForRequestIsDemoModeEnabledResult(1));
         assertEquals(SATELLITE_RESULT_NOT_SUPPORTED, mQueriedIsDemoModeEnabledResultCode);
         assertFalse(mQueriedIsDemoModeEnabled);
@@ -1611,6 +1616,7 @@ public class SatelliteControllerTest extends TelephonyTest {
         setUpResponseForRequestIsSatelliteSupported(true, SATELLITE_RESULT_SUCCESS);
         verifySatelliteSupported(true, SATELLITE_RESULT_SUCCESS);
         mSatelliteControllerUT.requestIsDemoModeEnabled(mIsDemoModeEnabledReceiver);
+        processAllMessages();
         assertTrue(waitForRequestIsDemoModeEnabledResult(1));
         assertEquals(SATELLITE_RESULT_SERVICE_NOT_PROVISIONED, mQueriedIsDemoModeEnabledResultCode);
         assertFalse(mQueriedIsDemoModeEnabled);
@@ -1621,6 +1627,7 @@ public class SatelliteControllerTest extends TelephonyTest {
         verifySatelliteSupported(true, SATELLITE_RESULT_SUCCESS);
         verifySatelliteProvisioned(false, SATELLITE_RESULT_SUCCESS);
         mSatelliteControllerUT.requestIsDemoModeEnabled(mIsDemoModeEnabledReceiver);
+        processAllMessages();
         assertTrue(waitForRequestIsDemoModeEnabledResult(1));
         assertEquals(SATELLITE_RESULT_SERVICE_NOT_PROVISIONED, mQueriedIsDemoModeEnabledResultCode);
         assertFalse(mQueriedIsDemoModeEnabled);
@@ -1629,6 +1636,7 @@ public class SatelliteControllerTest extends TelephonyTest {
         boolean isDemoModeEnabled = mSatelliteControllerUT.isDemoModeEnabled();
         provisionSatelliteService();
         mSatelliteControllerUT.requestIsDemoModeEnabled(mIsDemoModeEnabledReceiver);
+        processAllMessages();
         assertTrue(waitForRequestIsDemoModeEnabledResult(1));
         assertEquals(SATELLITE_RESULT_SUCCESS, mQueriedIsDemoModeEnabledResultCode);
         assertEquals(isDemoModeEnabled, mQueriedIsDemoModeEnabled);

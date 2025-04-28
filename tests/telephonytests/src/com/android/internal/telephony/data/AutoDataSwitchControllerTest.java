@@ -420,6 +420,7 @@ public class AutoDataSwitchControllerTest extends TelephonyTest {
 
         // 4.1.2 Display info and signal strength on secondary phone became bad,
         // but primary become service, then don't switch.
+        logd("4.1.2 Display info and signal strength on secondary became bad, don't switch.");
         prepareIdealUsesNonDdsCondition();
         processAllFutureMessages();
         clearInvocations(mMockedPhoneSwitcherCallback, mMockedAlarmManager);
@@ -433,6 +434,7 @@ public class AutoDataSwitchControllerTest extends TelephonyTest {
                 EVENT_STABILITY_CHECK_PASSED));
 
         // 4.2 Display info on default phone became good just as the secondary
+        logd("4.2 Display info on default phone became good just as the secondary.");
         prepareIdealUsesNonDdsCondition();
         processAllFutureMessages();
         clearInvocations(mMockedPhoneSwitcherCallback, mMockedAlarmManager);
@@ -445,6 +447,7 @@ public class AutoDataSwitchControllerTest extends TelephonyTest {
                 EVENT_STABILITY_CHECK_PASSED));
 
         // 4.3 Signal strength on default phone became just as good as the secondary
+        logd("4.3 Signal strength on default phone became just as good as the secondary.");
         prepareIdealUsesNonDdsCondition();
         processAllFutureMessages();
         clearInvocations(mMockedPhoneSwitcherCallback, mMockedAlarmManager);
@@ -906,13 +909,37 @@ public class AutoDataSwitchControllerTest extends TelephonyTest {
 
     @Test
     public void testRatSignalStrengthSkipEvaluation() {
-        // Verify the secondary phone is OOS and its score(0) is too low to justify the evaluation
+        // Score NOT significantly better to justify the evaluation
         clearInvocations(mMockedPhoneSwitcherCallback);
         displayInfoChanged(PHONE_2, mBadTelephonyDisplayInfo);
         processAllFutureMessages();
         verify(mMockedPhoneSwitcherCallback, never())
                 .onRequireCancelAnyPendingAutoSwitchValidation();
         verify(mMockedPhoneSwitcherCallback, never()).onRequireValidation(anyInt(), anyBoolean());
+    }
+
+    /**
+     * Scenario 2: On Default, Candidate score IS better, BUT Candidate is NOT HOME.
+     */
+    @Test
+    public void testBetterCandidate_onDefault_nonHome_scoreHigh_noEval() {
+        doReturn(PHONE_1).when(mPhoneSwitcher).getPreferredDataPhoneId();
+
+        // Setup state: Low score for default, high score for backup
+        displayInfoChanged(PHONE_1, mBadTelephonyDisplayInfo);
+        signalStrengthChanged(PHONE_1, SignalStrength.SIGNAL_STRENGTH_POOR);
+        displayInfoChanged(PHONE_2, mGoodTelephonyDisplayInfo); // High score inputs
+        signalStrengthChanged(PHONE_2, SignalStrength.SIGNAL_STRENGTH_GREAT);
+        serviceStateChanged(PHONE_2, NetworkRegistrationInfo.REGISTRATION_STATE_ROAMING);
+        processAllMessages();
+
+        // Trigger internal call via another display info change
+        displayInfoChanged(PHONE_2, mGoodTelephonyDisplayInfo);
+        processAllMessages();
+
+        // Verify no evaluation scheduled (skipped because not HOME)
+        assertThat(mAutoDataSwitchControllerUT.hasMessages(EVENT_EVALUATE_AUTO_SWITCH)).isFalse();
+        mAutoDataSwitchControllerUT.removeMessages(EVENT_EVALUATE_AUTO_SWITCH);
     }
 
     /**

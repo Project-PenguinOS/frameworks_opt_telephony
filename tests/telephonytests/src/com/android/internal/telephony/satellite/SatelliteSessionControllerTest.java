@@ -119,7 +119,7 @@ public class SatelliteSessionControllerTest extends TelephonyTest {
     @Mock private SatelliteController mMockSatelliteController;
     @Mock private DatagramReceiver mMockDatagramReceiver;
     @Mock private DatagramDispatcher mMockDatagramDispatcher;
-    @Mock private DatagramController mMockDatagramController;
+    @Mock private DatagramControllerTest.TestDatagramController mMockDatagramController;
     @Mock private ServiceState mMockServiceState;
     @Mock private SessionMetricsStats mMockSessionMetricsStats;
     @Mock private AlarmManager mAlarmManager;

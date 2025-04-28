@@ -114,7 +114,7 @@ public class DatagramDispatcherTest extends TelephonyTest {
     private TestDatagramDispatcher mDatagramDispatcherUT;
 
     @Mock private SatelliteController mMockSatelliteController;
-    @Mock private DatagramController mMockDatagramController;
+    @Mock private DatagramControllerTest.TestDatagramController mMockDatagramController;
     @Mock private DatagramReceiver mMockDatagramReceiver;
     @Mock private SatelliteModemInterface mMockSatelliteModemInterface;
     @Mock private ControllerMetricsStats mMockControllerMetricsStats;
@@ -166,6 +166,7 @@ public class DatagramDispatcherTest extends TelephonyTest {
                 mMockSessionMetricsStats);
 
         when(mFeatureFlags.carrierRoamingNbIotNtn()).thenReturn(true);
+        doReturn(true).when(mFeatureFlags).satelliteImproveMultiThreadDesign();
         mDatagramDispatcherUT = new TestDatagramDispatcher(mContext, Looper.myLooper(),
                 mFeatureFlags,
                 mMockDatagramController);

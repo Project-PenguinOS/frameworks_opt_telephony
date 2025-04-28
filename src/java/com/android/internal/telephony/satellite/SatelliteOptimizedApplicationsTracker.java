@@ -36,11 +36,10 @@ import android.util.Log;
 import com.android.internal.telephony.PackageChangeReceiver;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * SatelliteOptimizedApplicationsTracker will track the packages if they are Satellite optimized or
@@ -48,7 +47,8 @@ import java.util.Set;
  */
 public class SatelliteOptimizedApplicationsTracker {
 
-    @NonNull private final Map<Integer, Set<String>> mSatelliteApplications = new HashMap<>();
+    @NonNull private final ConcurrentHashMap<Integer, Set<String>> mSatelliteApplications =
+            new ConcurrentHashMap<>();
 
     /** Action used to initialize the state of the Tracker. */
     private static final int ACTION_INITIALIZE_TRACKER = 0;

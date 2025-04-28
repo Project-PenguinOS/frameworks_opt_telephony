@@ -52,6 +52,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
 /**
@@ -66,10 +67,10 @@ public class PointingAppController {
     private static PointingAppController sInstance;
     @NonNull private final Context mContext;
     @NonNull private final FeatureFlags mFeatureFlags;
-    private boolean mStartedSatelliteTransmissionUpdates;
-    private boolean mLastNeedFullScreenPointingUI;
-    private boolean mLastIsDemoMode;
-    private boolean mLastIsEmergency;
+    private AtomicBoolean mStartedSatelliteTransmissionUpdates = new AtomicBoolean(false);
+    private AtomicBoolean mLastNeedFullScreenPointingUI = new AtomicBoolean(false);
+    private AtomicBoolean mLastIsDemoMode = new AtomicBoolean(false);
+    private AtomicBoolean mLastIsEmergency = new AtomicBoolean(false);
 
     private final Object mListenerForPointingUIRegisteredLock = new Object();
     @GuardedBy("mListenerForPointingUIRegisteredLock")
@@ -119,10 +120,6 @@ public class PointingAppController {
             @NonNull FeatureFlags featureFlags) {
         mContext = context;
         mFeatureFlags = featureFlags;
-        mStartedSatelliteTransmissionUpdates = false;
-        mLastNeedFullScreenPointingUI = false;
-        mLastIsDemoMode = false;
-        mLastIsEmergency = false;
         mListenerForPointingUIRegistered = false;
         mActivityManager = mContext.getSystemService(ActivityManager.class);
         mPersistentLogger = SatelliteServiceUtils.getPersistentLogger(context);
@@ -136,7 +133,7 @@ public class PointingAppController {
     @VisibleForTesting
     public void setStartedSatelliteTransmissionUpdates(
             boolean startedSatelliteTransmissionUpdates) {
-        mStartedSatelliteTransmissionUpdates = startedSatelliteTransmissionUpdates;
+        mStartedSatelliteTransmissionUpdates.set(startedSatelliteTransmissionUpdates);
     }
 
     /**
@@ -145,7 +142,7 @@ public class PointingAppController {
      */
     @VisibleForTesting
     public boolean getStartedSatelliteTransmissionUpdates() {
-        return mStartedSatelliteTransmissionUpdates;
+        return mStartedSatelliteTransmissionUpdates.get();
     }
 
     /**
@@ -163,8 +160,8 @@ public class PointingAppController {
             if (callerPackages != null) {
                 if (Arrays.stream(callerPackages).anyMatch(pointingUiPackage::contains)) {
                     plogd("Restarting pointingUI");
-                    startPointingUI(mLastNeedFullScreenPointingUI, mLastIsDemoMode,
-                            mLastIsEmergency);
+                    startPointingUI(mLastNeedFullScreenPointingUI.get(), mLastIsDemoMode.get(),
+                            mLastIsEmergency.get());
                 }
             }
         }
@@ -366,7 +363,7 @@ public class PointingAppController {
      * #onSatellitePositionChanged(pointingInfo)}.
      */
     public void startSatelliteTransmissionUpdates(@NonNull Message message) {
-        if (mStartedSatelliteTransmissionUpdates) {
+        if (mStartedSatelliteTransmissionUpdates.get()) {
             plogd("startSatelliteTransmissionUpdates: already started");
             AsyncResult.forMessage(message, null, new SatelliteManager.SatelliteException(
                     SatelliteManager.SATELLITE_RESULT_SUCCESS));
@@ -374,7 +371,7 @@ public class PointingAppController {
             return;
         }
         SatelliteModemInterface.getInstance().startSendingSatellitePointingInfo(message);
-        mStartedSatelliteTransmissionUpdates = true;
+        mStartedSatelliteTransmissionUpdates.set(true);
     }
 
     /**
@@ -426,9 +423,9 @@ public class PointingAppController {
                     mListenerForPointingUIRegistered = true;
                 }
             }
-            mLastNeedFullScreenPointingUI = needFullScreenPointingUI;
-            mLastIsDemoMode = isDemoMode;
-            mLastIsEmergency = isEmergency;
+            mLastNeedFullScreenPointingUI.set(needFullScreenPointingUI);
+            mLastIsDemoMode.set(isDemoMode);
+            mLastIsEmergency.set(isEmergency);
             mContext.startActivityAsUser(launchIntent, UserHandle.CURRENT);
         } catch (ActivityNotFoundException | IllegalArgumentException ex) {
             ploge("startPointingUI: Unable to start Pointing UI activity due to an exception, ex="

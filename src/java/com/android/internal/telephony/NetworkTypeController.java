@@ -247,37 +247,27 @@ public class NetworkTypeController extends StateMachine {
     private final ConnectivityManager.NetworkCallback mNetworkCallback =
             new ConnectivityManager.NetworkCallback() {
                 @Override
-                public void onAvailable(Network network) {
-                    log("On Available: " + network);
-                    if (network != null) {
-                        if (mConnectivityManager != null) {
-                            NetworkCapabilities capabilities =
-                                    mConnectivityManager.getNetworkCapabilities(network);
-                            updateBandwidthConstrainedStatus(capabilities);
-                        } else {
-                            log("network is null");
+                public void onAvailable(@NonNull Network network) {
+                    if (mConnectivityManager != null) {
+                        NetworkCapabilities capabilities =
+                                mConnectivityManager.getNetworkCapabilities(network);
+                        if (capabilities != null) {
+                            updateBandwidthConstrainedStatus(
+                                    isBandwidthConstrainedCapabilitySupported(capabilities));
                         }
                     }
                 }
 
                 @Override
-                public void onCapabilitiesChanged(Network network,
-                        NetworkCapabilities networkCapabilities) {
-                    log("onCapabilitiesChanged: " + network);
-                    if (network != null) {
-                        updateBandwidthConstrainedStatus(networkCapabilities);
-                    } else {
-                        log("network is null");
-                    }
+                public void onCapabilitiesChanged(@NonNull Network network,
+                        @NonNull NetworkCapabilities networkCapabilities) {
+                    updateBandwidthConstrainedStatus(
+                            isBandwidthConstrainedCapabilitySupported(networkCapabilities));
                 }
 
                 @Override
-                public void onLost(Network network) {
-                    log("Network Lost");
-                    if (mIsSatelliteConstrainedData) {
-                        mIsSatelliteConstrainedData = false;
-                        mDisplayInfoController.updateTelephonyDisplayInfo();
-                    }
+                public void onLost(@NonNull Network network) {
+                    updateBandwidthConstrainedStatus(false);
                 }
             };
 
@@ -296,14 +286,13 @@ public class NetworkTypeController extends StateMachine {
         }
     }
 
-    private void updateBandwidthConstrainedStatus(NetworkCapabilities capabilities) {
-        if (capabilities != null) {
-            mIsSatelliteConstrainedData
-                    = isBandwidthConstrainedCapabilitySupported(capabilities);
-            log("satellite constrained data status : " + mIsSatelliteConstrainedData);
-            mDisplayInfoController.updateTelephonyDisplayInfo();
-        } else {
-            log("capabilities is null");
+    private void updateBandwidthConstrainedStatus(boolean isConstrained) {
+        if (isConstrained != mIsSatelliteConstrainedData) {
+            mIsSatelliteConstrainedData = isConstrained;
+            log("Reset timers because satellite constrained data status changed to "
+                    + mIsSatelliteConstrainedData);
+            resetAllTimers();
+            transitionToCurrentState();
         }
     }
 

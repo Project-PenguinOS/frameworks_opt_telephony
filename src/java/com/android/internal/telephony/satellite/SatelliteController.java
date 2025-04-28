@@ -161,6 +161,7 @@ import android.view.WindowManager;
 import com.android.internal.R;
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.internal.os.SomeArgs;
 import com.android.internal.telephony.CommandsInterface;
 import com.android.internal.telephony.DeviceStateMonitor;
 import com.android.internal.telephony.IBooleanConsumer;
@@ -323,6 +324,12 @@ public class SatelliteController extends Handler {
         EVENT_WAIT_FOR_UPDATE_SYSTEM_SELECTION_CHANNELS_RESPONSE_TIMED_OUT = 63;
     private static final int CMD_GET_SATELLITE_ENABLED_FOR_CARRIER = 64;
     private static final int EVENT_GET_SATELLITE_ENABLED_FOR_CARRIER_DONE = 65;
+    private static final int REQUEST_SATELLITE_ENABLED = 66;
+    private static final int REQUEST_IS_SATELLITE_ENABLED = 67;
+    private static final int REQUEST_IS_DEMO_MODE_ENABLED = 68;
+    private static final int REQUEST_IS_EMERGENCY_MODE_ENABLED = 69;
+    private static final int REQUEST_IS_SATELLITE_SUPPORTED = 70;
+    private static final int REQUEST_SATELLITE_CAPABILITIES = 71;
 
     @NonNull private static SatelliteController sInstance;
     @NonNull private final Context mContext;
@@ -2319,6 +2326,82 @@ public class SatelliteController extends Handler {
                 break;
             }
 
+            case REQUEST_SATELLITE_ENABLED: {
+                plogd("REQUEST_SATELLITE_ENABLED");
+                SomeArgs args = (SomeArgs) msg.obj;
+                boolean enableSatellite = (boolean) args.arg1;
+                boolean enableDemoMode = (boolean) args.arg2;
+                boolean isEmergency = (boolean) args.arg3;
+                IIntegerConsumer callback = (IIntegerConsumer) args.arg4;
+                try {
+                    handleRequestSatelliteEnabled(
+                            enableSatellite, enableDemoMode, isEmergency, callback);
+                } finally {
+                    args.recycle();
+                }
+                break;
+            }
+
+            case REQUEST_IS_SATELLITE_ENABLED: {
+                plogd("REQUEST_IS_SATELLITE_ENABLED");
+                SomeArgs args = (SomeArgs) msg.obj;
+                ResultReceiver result = (ResultReceiver) args.arg1;
+                try {
+                    handleRequestIsSatelliteEnabled(result);
+                } finally {
+                    args.recycle();
+                }
+                break;
+            }
+
+            case REQUEST_IS_DEMO_MODE_ENABLED: {
+                plogd("REQUEST_IS_DEMO_MODE_ENABLED");
+                SomeArgs args = (SomeArgs) msg.obj;
+                ResultReceiver result = (ResultReceiver) args.arg1;
+                try {
+                    handleRequestIsDemoModeEnabled(result);
+                } finally {
+                    args.recycle();
+                }
+                break;
+            }
+
+            case REQUEST_IS_EMERGENCY_MODE_ENABLED: {
+                plogd("REQUEST_IS_EMERGENCY_MODE_ENABLED");
+                SomeArgs args = (SomeArgs) msg.obj;
+                ResultReceiver result = (ResultReceiver) args.arg1;
+                try {
+                    handleRequestIsEmergencyModeEnabled(result);
+                } finally {
+                    args.recycle();
+                }
+                break;
+            }
+
+            case REQUEST_IS_SATELLITE_SUPPORTED: {
+                plogd("REQUEST_IS_SATELLITE_SUPPORTED");
+                SomeArgs args = (SomeArgs) msg.obj;
+                ResultReceiver result = (ResultReceiver) args.arg1;
+                try {
+                    handleRequestIsSatelliteSupported(result);
+                } finally {
+                    args.recycle();
+                }
+                break;
+            }
+
+            case REQUEST_SATELLITE_CAPABILITIES: {
+                plogd("REQUEST_SATELLITE_CAPABILITIES");
+                SomeArgs args = (SomeArgs) msg.obj;
+                ResultReceiver result = (ResultReceiver) args.arg1;
+                try {
+                    handleRequestSatelliteCapabilities(result);
+                } finally {
+                    args.recycle();
+                }
+                break;
+            }
+
             default:
                 Log.w(TAG, "SatelliteControllerHandler: unexpected message code: " +
                         msg.what);
@@ -2386,6 +2469,24 @@ public class SatelliteController extends Handler {
             boolean isEmergency, @NonNull IIntegerConsumer callback) {
         plogd("requestSatelliteEnabled enableSatellite: " + enableSatellite
                 + " enableDemoMode: " + enableDemoMode + " isEmergency: " + isEmergency);
+        if (mFeatureFlags.satelliteImproveMultiThreadDesign()) {
+            SomeArgs args = SomeArgs.obtain();
+            args.arg1 = enableSatellite;
+            args.arg2 = enableDemoMode;
+            args.arg3 = isEmergency;
+            args.arg4 = callback;
+            sendMessage(obtainMessage(REQUEST_SATELLITE_ENABLED, args));
+            return;
+        }
+
+        handleRequestSatelliteEnabled(enableSatellite, enableDemoMode, isEmergency, callback);
+    }
+
+    private void handleRequestSatelliteEnabled(boolean enableSatellite, boolean enableDemoMode,
+            boolean isEmergency, @NonNull IIntegerConsumer callback) {
+        plogd("handleRequestSatelliteEnabled: enableSatellite: " + enableSatellite
+                + " enableDemoMode: " + enableDemoMode + " isEmergency: " + isEmergency);
+
         Consumer<Integer> result = FunctionalUtils.ignoreRemoteException(callback::accept);
         int error = evaluateOemSatelliteRequestAllowed(true);
         if (error != SATELLITE_RESULT_SUCCESS) {
@@ -2683,6 +2784,18 @@ public class SatelliteController extends Handler {
      *               if the request is successful or an error code if the request failed.
      */
     public void requestIsSatelliteEnabled(@NonNull ResultReceiver result) {
+        if (mFeatureFlags.satelliteImproveMultiThreadDesign()) {
+            SomeArgs args = SomeArgs.obtain();
+            args.arg1 = result;
+            sendMessage(obtainMessage(REQUEST_IS_SATELLITE_ENABLED, args));
+            return;
+        }
+
+        handleRequestIsSatelliteEnabled(result);
+    }
+
+    private void handleRequestIsSatelliteEnabled(@NonNull ResultReceiver result) {
+        plogd("handleRequestIsSatelliteEnabled");
         int error = evaluateOemSatelliteRequestAllowed(false);
         if (error != SATELLITE_RESULT_SUCCESS) {
             result.send(error, null);
@@ -2765,6 +2878,18 @@ public class SatelliteController extends Handler {
      *               if the request is successful or an error code if the request failed.
      */
     public void requestIsDemoModeEnabled(@NonNull ResultReceiver result) {
+        if (mFeatureFlags.satelliteImproveMultiThreadDesign()) {
+            SomeArgs args = SomeArgs.obtain();
+            args.arg1 = result;
+            sendMessage(obtainMessage(REQUEST_IS_DEMO_MODE_ENABLED, args));
+            return;
+        }
+
+        handleRequestIsDemoModeEnabled(result);
+    }
+
+    private void handleRequestIsDemoModeEnabled(@NonNull ResultReceiver result) {
+        plogd("handleRequestIsDemoModeEnabled");
         int error = evaluateOemSatelliteRequestAllowed(true);
         if (error != SATELLITE_RESULT_SUCCESS) {
             result.send(error, null);
@@ -2792,6 +2917,18 @@ public class SatelliteController extends Handler {
      *               if the request is successful or an error code if the request failed.
      */
     public void requestIsEmergencyModeEnabled(@NonNull ResultReceiver result) {
+        if (mFeatureFlags.satelliteImproveMultiThreadDesign()) {
+            SomeArgs args = SomeArgs.obtain();
+            args.arg1 = result;
+            sendMessage(obtainMessage(REQUEST_IS_EMERGENCY_MODE_ENABLED, args));
+            return;
+        }
+
+        handleRequestIsEmergencyModeEnabled(result);
+    }
+
+    private void handleRequestIsEmergencyModeEnabled(@NonNull ResultReceiver result) {
+        plogd("handleRequestIsEmergencyModeEnabled");
         synchronized (mSatelliteEnabledRequestLock) {
             Bundle bundle = new Bundle();
             bundle.putBoolean(SatelliteManager.KEY_EMERGENCY_MODE_ENABLED,
@@ -2807,6 +2944,18 @@ public class SatelliteController extends Handler {
      *               the device if the request is successful or an error code if the request failed.
      */
     public void requestIsSatelliteSupported(@NonNull ResultReceiver result) {
+        if (mFeatureFlags.satelliteImproveMultiThreadDesign()) {
+            SomeArgs args = SomeArgs.obtain();
+            args.arg1 = result;
+            sendMessage(obtainMessage(REQUEST_IS_SATELLITE_SUPPORTED, args));
+            return;
+        }
+
+        handleRequestIsSatelliteSupported(result);
+    }
+
+    private void handleRequestIsSatelliteSupported(@NonNull ResultReceiver result) {
+        plogd("handleRequestIsSatelliteSupported");
         int subId = getSelectedSatelliteSubId();
         Boolean isSatelliteSupported = getIsSatelliteSupported();
         if (isSatelliteSupported != null) {
@@ -2828,6 +2977,18 @@ public class SatelliteController extends Handler {
      *               if the request is successful or an error code if the request failed.
      */
     public void requestSatelliteCapabilities(@NonNull ResultReceiver result) {
+        if (mFeatureFlags.satelliteImproveMultiThreadDesign()) {
+            SomeArgs args = SomeArgs.obtain();
+            args.arg1 = result;
+            sendMessage(obtainMessage(REQUEST_SATELLITE_CAPABILITIES, args));
+            return;
+        }
+
+        handleRequestSatelliteCapabilities(result);
+    }
+
+    private void handleRequestSatelliteCapabilities(@NonNull ResultReceiver result) {
+        plogd("handleRequestSatelliteCapabilities");
         int error = evaluateOemSatelliteRequestAllowed(false);
         if (error != SATELLITE_RESULT_SUCCESS) {
             result.send(error, null);
@@ -6439,7 +6600,7 @@ public class SatelliteController extends Handler {
                         phone.getServiceState().getOperatorNumeric()));
 
                 sessionStats.onSessionStart(phone.getCarrierId(), phone,
-                        supported_satellite_services, dataPolicy);
+                        supported_satellite_services, dataPolicy, mFeatureFlags);
                 mCarrierRoamingSatelliteSessionStatsMap.put(subId, sessionStats);
                 mCarrierRoamingSatelliteControllerStats.onSessionStart(subId);
             } else if (lastNotifiedNtnMode && !currNtnMode) {

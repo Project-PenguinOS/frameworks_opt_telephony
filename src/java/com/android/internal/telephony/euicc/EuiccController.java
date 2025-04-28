@@ -625,6 +625,7 @@ public class EuiccController extends IEuiccController.Stub {
 
         boolean callerHasAdminPrivileges =
                 callerCanManageDevicePolicyManagedSubscriptions(callingPackage);
+
         if (callerHasAdminPrivileges && (switchAfterDownload && !shouldAllowSwitchAfterDownload(
                 callingPackage))) {
             // Throw error if calling admin does not have privileges to enable
@@ -739,14 +740,20 @@ public class EuiccController extends IEuiccController.Stub {
                     super.onGetMetadataComplete(cardId, result);
                     return;
                 }
+                boolean callerHasAdminPrivileges =
+                callerCanManageDevicePolicyManagedSubscriptions(mCallingPackage, mCallingToken);
+                // At this point, we already have the user's consent.
+                // So the following operations can be done with maximum privileges.
 
-                if (checkCarrierPrivilegeInMetadata(subscription, mCallingPackage)) {
+                if (checkCarrierPrivilegeInMetadata(subscription, mCallingPackage)
+                        || callerHasAdminPrivileges) {
                     // Caller can download this profile. Since we already have the user's consent,
                     // proceed to download.
-                    downloadSubscriptionPrivileged(cardId, mPortIndex,
-                            mCallingToken, subscription, mSwitchAfterDownload,  mForceDeactivateSim,
-                            mCallingPackage, null /* resolvedBundle */,
-                            mCallbackIntent);
+                  downloadSubscriptionPrivileged(cardId, mPortIndex,
+                            mCallingToken, subscription, mSwitchAfterDownload,
+                            mForceDeactivateSim, mCallingPackage, null /* resolvedBundle */,
+                            mCallbackIntent, callerHasAdminPrivileges,
+                      getCurrentEmbeddedSubscriptionIds(cardId));
                 } else {
                     Log.e(TAG, "Caller does not have carrier privilege in metadata.");
                     sendResult(mCallbackIntent, ERROR, null /* extrasIntent */);
@@ -2206,6 +2213,19 @@ public class EuiccController extends IEuiccController.Stub {
         return isAdmin || mContext.checkCallingOrSelfPermission(
                 Manifest.permission.MANAGE_DEVICE_POLICY_MANAGED_SUBSCRIPTIONS)
                 == PackageManager.PERMISSION_GRANTED;
+    }
+
+    // Does the same thing as callerCanManageDevicePolicyManagedSubscriptions
+    //but restores the calling identity before checking permissions.
+    private boolean callerCanManageDevicePolicyManagedSubscriptions(String callingPackage,
+      long callingToken) {
+        long previousCallingIdentity = Binder.clearCallingIdentity();
+        try {
+            Binder.restoreCallingIdentity(callingToken);
+            return callerCanManageDevicePolicyManagedSubscriptions(callingPackage);
+        } finally {
+            Binder.restoreCallingIdentity(previousCallingIdentity);
+        }
     }
 
     private boolean shouldAllowSwitchAfterDownload(String callingPackage) {
