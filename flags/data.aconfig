@@ -30,14 +30,6 @@ flag {
   bug:"286171724"
 }
 
-# OWNER=jackyu TARGET=24Q4
-flag {
-  name: "dds_callback"
-  namespace: "telephony"
-  description: "Adding new callback when DDS changed"
-  bug:"353723350"
-}
-
 # OWNER=jackyu TARGET=25Q2
 flag {
   name: "oem_paid_private"
