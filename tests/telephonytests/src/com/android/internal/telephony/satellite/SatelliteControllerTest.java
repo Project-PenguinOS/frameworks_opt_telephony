@@ -1539,6 +1539,7 @@ public class SatelliteControllerTest extends TelephonyTest {
         setUpResponseForStartSatelliteTransmissionUpdates(SATELLITE_RESULT_SUCCESS);
         mSatelliteControllerUT.startSatelliteTransmissionUpdates(mIIntegerConsumer,
                 mStartTransmissionUpdateCallback);
+        processAllMessages();
         verify(mMockPointingAppController).registerForSatelliteTransmissionUpdates(anyInt(),
                 eq(mStartTransmissionUpdateCallback));
         processAllMessages();
@@ -1570,6 +1571,7 @@ public class SatelliteControllerTest extends TelephonyTest {
         setUpResponseForStopSatelliteTransmissionUpdates(SATELLITE_RESULT_SUCCESS);
         mSatelliteControllerUT.stopSatelliteTransmissionUpdates(mIIntegerConsumer,
                 mStopTransmissionUpdateCallback);
+        processAllMessages();
         verify(mMockPointingAppController).unregisterForSatelliteTransmissionUpdates(anyInt(),
                 any(), eq(mStopTransmissionUpdateCallback));
         processAllMessages();
@@ -1583,6 +1585,7 @@ public class SatelliteControllerTest extends TelephonyTest {
         setUpResponseForStopSatelliteTransmissionUpdates(SATELLITE_RESULT_INVALID_TELEPHONY_STATE);
         mSatelliteControllerUT.stopSatelliteTransmissionUpdates(mIIntegerConsumer,
                 mStopTransmissionUpdateCallback);
+        processAllMessages();
         verify(mMockPointingAppController, times(2)).unregisterForSatelliteTransmissionUpdates(
                 anyInt(), any(), eq(mStopTransmissionUpdateCallback));
         processAllMessages();

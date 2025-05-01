@@ -314,7 +314,7 @@ public class DemoSimulator extends StateMachine {
      * Set whether the device is aligned with the satellite.
      */
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
-    public void setDeviceAlignedWithSatellite(boolean isAligned) {
+    protected void setDeviceAlignedWithSatellite(boolean isAligned) {
         if (mSatelliteController.isDemoModeEnabled()) {
             mIsAligned.set(isAligned);
             sendMessage(EVENT_DEVICE_ALIGNED_WITH_SATELLITE, isAligned);

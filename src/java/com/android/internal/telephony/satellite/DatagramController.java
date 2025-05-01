@@ -48,7 +48,9 @@ import com.android.internal.telephony.flags.FeatureFlags;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
 /**
@@ -102,11 +104,11 @@ public class DatagramController {
     @GuardedBy("mLock")
     private final List<SatelliteDatagram> mDemoModeDatagramList;
     private boolean mIsDemoMode = false;
-    private long mAlignTimeoutDuration = SATELLITE_ALIGN_TIMEOUT;
-    private long mDatagramWaitTimeForConnectedState;
-    private long mModemImageSwitchingDuration;
-    private boolean mWaitForDeviceAlignmentInDemoDatagram;
-    private long mDatagramWaitTimeForConnectedStateForLastMessage;
+    private AtomicLong mAlignTimeoutDuration = new AtomicLong(SATELLITE_ALIGN_TIMEOUT);
+    private AtomicLong mDatagramWaitTimeForConnectedState = new AtomicLong(0);
+    private AtomicLong mModemImageSwitchingDuration = new AtomicLong(0);
+    private AtomicBoolean mWaitForDeviceAlignmentInDemoDatagram = new AtomicBoolean(false);
+    private AtomicLong mDatagramWaitTimeForConnectedStateForLastMessage = new AtomicLong(0);
     @GuardedBy("mLock")
     @SatelliteManager.SatelliteModemState
     private int mSatelltieModemState = SatelliteManager.SATELLITE_MODEM_STATE_UNKNOWN;
@@ -169,12 +171,12 @@ public class DatagramController {
         mDatagramReceiver = DatagramReceiver.make(
                 mContext, looper, mFeatureFlags, this);
 
-        mDatagramWaitTimeForConnectedState = getDatagramWaitForConnectedStateTimeoutMillis();
-        mModemImageSwitchingDuration = getSatelliteModemImageSwitchingDurationMillis();
-        mWaitForDeviceAlignmentInDemoDatagram =
-                getWaitForDeviceAlignmentInDemoDatagramFromResources();
-        mDatagramWaitTimeForConnectedStateForLastMessage =
-                getDatagramWaitForConnectedStateForLastMessageTimeoutMillis();
+        mDatagramWaitTimeForConnectedState.set(getDatagramWaitForConnectedStateTimeoutMillis());
+        mModemImageSwitchingDuration.set(getSatelliteModemImageSwitchingDurationMillis());
+        mWaitForDeviceAlignmentInDemoDatagram.set(
+                getWaitForDeviceAlignmentInDemoDatagramFromResources());
+        mDatagramWaitTimeForConnectedStateForLastMessage.set(
+                getDatagramWaitForConnectedStateForLastMessageTimeoutMillis());
         mDemoModeDatagramList = new ArrayList<>();
         mPersistentLogger = SatelliteServiceUtils.getPersistentLogger(context);
     }
@@ -491,19 +493,20 @@ public class DatagramController {
     }
 
     long getSatelliteAlignedTimeoutDuration() {
-        return mAlignTimeoutDuration;
+        return mAlignTimeoutDuration.get();
     }
 
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
-    public long getDatagramWaitTimeForConnectedState(boolean isLastSosMessage) {
+    protected long getDatagramWaitTimeForConnectedState(boolean isLastSosMessage) {
         synchronized (mLock) {
-            long timeout = isLastSosMessage ? mDatagramWaitTimeForConnectedStateForLastMessage :
-                    mDatagramWaitTimeForConnectedState;
+            long timeout = isLastSosMessage
+                    ? mDatagramWaitTimeForConnectedStateForLastMessage.get()
+                    : mDatagramWaitTimeForConnectedState.get();
             logd("getDatagramWaitTimeForConnectedState: isLastSosMessage=" + isLastSosMessage
                     + ", timeout=" + timeout + ", modemState=" + mSatelltieModemState);
             if (mSatelltieModemState == SATELLITE_MODEM_STATE_OFF
                     || mSatelltieModemState == SATELLITE_MODEM_STATE_IDLE) {
-                return (timeout + mModemImageSwitchingDuration);
+                return (timeout + mModemImageSwitchingDuration.get());
             }
             return timeout;
         }
@@ -526,18 +529,18 @@ public class DatagramController {
                 + ", reset=" + reset + ", timeoutType=" + timeoutType);
         if (timeoutType == TIMEOUT_TYPE_ALIGN) {
             if (reset) {
-                mAlignTimeoutDuration = SATELLITE_ALIGN_TIMEOUT;
+                mAlignTimeoutDuration.set(SATELLITE_ALIGN_TIMEOUT);
             } else {
-                mAlignTimeoutDuration = timeoutMillis;
+                mAlignTimeoutDuration.set(timeoutMillis);
             }
         } else if (timeoutType == TIMEOUT_TYPE_DATAGRAM_WAIT_FOR_CONNECTED_STATE) {
             if (reset) {
-                mDatagramWaitTimeForConnectedState =
-                        getDatagramWaitForConnectedStateTimeoutMillis();
-                mModemImageSwitchingDuration = getSatelliteModemImageSwitchingDurationMillis();
+                mDatagramWaitTimeForConnectedState.set(
+                        getDatagramWaitForConnectedStateTimeoutMillis());
+                mModemImageSwitchingDuration.set(getSatelliteModemImageSwitchingDurationMillis());
             } else {
-                mDatagramWaitTimeForConnectedState = timeoutMillis;
-                mModemImageSwitchingDuration = 0;
+                mDatagramWaitTimeForConnectedState.set(timeoutMillis);
+                mModemImageSwitchingDuration.set(0);
             }
         } else if (timeoutType == TIMEOUT_TYPE_WAIT_FOR_DATAGRAM_SENDING_RESPONSE) {
             mDatagramDispatcher.setWaitTimeForDatagramSendingResponse(reset, timeoutMillis);
@@ -568,10 +571,10 @@ public class DatagramController {
                 + ", reset=" + reset + ", enable=" + enable);
         if (booleanType == BOOLEAN_TYPE_WAIT_FOR_DEVICE_ALIGNMENT_IN_DEMO_DATAGRAM) {
             if (reset) {
-                mWaitForDeviceAlignmentInDemoDatagram =
-                        getWaitForDeviceAlignmentInDemoDatagramFromResources();
+                mWaitForDeviceAlignmentInDemoDatagram.set(
+                        getWaitForDeviceAlignmentInDemoDatagramFromResources());
             } else {
-                mWaitForDeviceAlignmentInDemoDatagram = enable;
+                mWaitForDeviceAlignmentInDemoDatagram.set(enable);
             }
         } else {
             loge("Invalid boolean type " + booleanType);
@@ -658,7 +661,7 @@ public class DatagramController {
     }
 
     private boolean getWaitForDeviceAlignmentInDemoDatagram() {
-        return mWaitForDeviceAlignmentInDemoDatagram;
+        return mWaitForDeviceAlignmentInDemoDatagram.get();
     }
 
     private boolean getWaitForDeviceAlignmentInDemoDatagramFromResources() {

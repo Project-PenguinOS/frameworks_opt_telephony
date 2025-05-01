@@ -330,6 +330,8 @@ public class SatelliteController extends Handler {
     private static final int REQUEST_IS_EMERGENCY_MODE_ENABLED = 69;
     private static final int REQUEST_IS_SATELLITE_SUPPORTED = 70;
     private static final int REQUEST_SATELLITE_CAPABILITIES = 71;
+    private static final int REQUEST_START_SATELLITE_TRANSMISSION_UPDATES = 72;
+    private static final int REQUEST_STOP_SATELLITE_TRANSMISSION_UPDATES = 73;
 
     @NonNull private static SatelliteController sInstance;
     @NonNull private final Context mContext;
@@ -2402,6 +2404,34 @@ public class SatelliteController extends Handler {
                 break;
             }
 
+            case REQUEST_START_SATELLITE_TRANSMISSION_UPDATES: {
+                plogd("REQUEST_START_SATELLITE_TRANSMISSION_UPDATES");
+                SomeArgs args = (SomeArgs) msg.obj;
+                IIntegerConsumer errorCallback = (IIntegerConsumer) args.arg1;
+                ISatelliteTransmissionUpdateCallback callback =
+                        (ISatelliteTransmissionUpdateCallback) args.arg2;
+                try {
+                    handleRequestStartSatelliteTransmissionUpdates(errorCallback, callback);
+                } finally {
+                    args.recycle();
+                }
+                break;
+            }
+
+            case REQUEST_STOP_SATELLITE_TRANSMISSION_UPDATES: {
+                plogd("REQUEST_STOP_SATELLITE_TRANSMISSION_UPDATES");
+                SomeArgs args = (SomeArgs) msg.obj;
+                IIntegerConsumer errorCallback = (IIntegerConsumer) args.arg1;
+                ISatelliteTransmissionUpdateCallback callback =
+                        (ISatelliteTransmissionUpdateCallback) args.arg2;
+                try {
+                    handleRequestStopSatelliteTransmissionUpdates(errorCallback, callback);
+                } finally {
+                    args.recycle();
+                }
+                break;
+            }
+
             default:
                 Log.w(TAG, "SatelliteControllerHandler: unexpected message code: " +
                         msg.what);
@@ -3018,6 +3048,21 @@ public class SatelliteController extends Handler {
     public void startSatelliteTransmissionUpdates(
             @NonNull IIntegerConsumer errorCallback,
             @NonNull ISatelliteTransmissionUpdateCallback callback) {
+        if (mFeatureFlags.satelliteImproveMultiThreadDesign()) {
+            SomeArgs args = SomeArgs.obtain();
+            args.arg1 = errorCallback;
+            args.arg2 = callback;
+            sendMessage(obtainMessage(REQUEST_START_SATELLITE_TRANSMISSION_UPDATES, args));
+            return;
+        }
+
+        handleRequestStartSatelliteTransmissionUpdates(errorCallback, callback);
+    }
+
+    private void handleRequestStartSatelliteTransmissionUpdates(
+            @NonNull IIntegerConsumer errorCallback,
+            @NonNull ISatelliteTransmissionUpdateCallback callback) {
+        plogd("handleRequestStartSatelliteTransmissionUpdates");
         Consumer<Integer> result = FunctionalUtils.ignoreRemoteException(errorCallback::accept);
         int error = evaluateOemSatelliteRequestAllowed(true);
         if (error != SATELLITE_RESULT_SUCCESS) {
@@ -3041,6 +3086,21 @@ public class SatelliteController extends Handler {
      */
     public void stopSatelliteTransmissionUpdates(@NonNull IIntegerConsumer errorCallback,
             @NonNull ISatelliteTransmissionUpdateCallback callback) {
+        if (mFeatureFlags.satelliteImproveMultiThreadDesign()) {
+            SomeArgs args = SomeArgs.obtain();
+            args.arg1 = errorCallback;
+            args.arg2 = callback;
+            sendMessage(obtainMessage(REQUEST_STOP_SATELLITE_TRANSMISSION_UPDATES, args));
+            return;
+        }
+
+        handleRequestStopSatelliteTransmissionUpdates(errorCallback, callback);
+    }
+
+    private void handleRequestStopSatelliteTransmissionUpdates(
+            @NonNull IIntegerConsumer errorCallback,
+            @NonNull ISatelliteTransmissionUpdateCallback callback) {
+        plogd("handleRequestStopSatelliteTransmissionUpdates");
         Consumer<Integer> result = FunctionalUtils.ignoreRemoteException(errorCallback::accept);
         mPointingAppController.unregisterForSatelliteTransmissionUpdates(
                 getSelectedSatelliteSubId(), result, callback);

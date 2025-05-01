@@ -383,5 +383,10 @@ public class DatagramControllerTest extends TelephonyTest {
         protected boolean isPollingInIdleState() {
             return super.isPollingInIdleState();
         }
+
+        @Override
+        protected long getDatagramWaitTimeForConnectedState(boolean isLastSosMessage) {
+            return super.getDatagramWaitTimeForConnectedState(isLastSosMessage);
+        }
     }
 }

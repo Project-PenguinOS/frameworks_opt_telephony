@@ -53,5 +53,5 @@ flag {
     is_exported: true
     namespace: "telephony"
     description: "Guard system API for vendor-specific classifications of cellular ID disclosures"
-    bug: "355062720"
+    bug: "385338654"
 }
