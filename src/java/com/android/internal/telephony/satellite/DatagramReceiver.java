@@ -48,6 +48,7 @@ import android.util.Pair;
 import com.android.internal.R;
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.internal.os.SomeArgs;
 import com.android.internal.telephony.IIntegerConsumer;
 import com.android.internal.telephony.IVoidConsumer;
 import com.android.internal.telephony.Phone;
@@ -73,6 +74,9 @@ public class DatagramReceiver extends Handler {
     private static final int EVENT_POLL_PENDING_SATELLITE_DATAGRAMS_DONE = 2;
     private static final int EVENT_WAIT_FOR_DEVICE_ALIGNMENT_IN_DEMO_MODE_TIMED_OUT = 3;
     private static final int EVENT_DATAGRAM_WAIT_FOR_CONNECTED_STATE_TIMED_OUT = 4;
+    private static final int REQUEST_POLL_PENDING_SATELLITE_DATAGRAMS = 5;
+    private static final int EVENT_SATELLITE_MODEM_STATE_CHANGED = 6;
+    private static final int REQUEST_SET_DEVICE_ALIGNED_WITH_SATELLITE = 7;
 
     /** Key used to read/write satellite datagramId in shared preferences. */
     private static final String SATELLITE_DATAGRAM_ID_KEY = "satellite_datagram_id_key";
@@ -498,6 +502,43 @@ public class DatagramReceiver extends Handler {
                 handleEventDatagramWaitForConnectedStateTimedOut();
                 break;
 
+            case REQUEST_POLL_PENDING_SATELLITE_DATAGRAMS: {
+                plogd("REQUEST_POLL_PENDING_SATELLITE_DATAGRAMS");
+                SomeArgs args = (SomeArgs) msg.obj;
+                int subId = (int) args.arg1;
+                Consumer<Integer> callback = (Consumer<Integer>) args.arg2;
+                try {
+                    handleRequestPollPendingSatelliteDatagrams(subId, callback);
+                } finally {
+                    args.recycle();
+                }
+                break;
+            }
+
+            case EVENT_SATELLITE_MODEM_STATE_CHANGED: {
+                plogd("EVENT_SATELLITE_MODEM_STATE_CHANGED");
+                SomeArgs args = (SomeArgs) msg.obj;
+                int state = (int) args.arg1;
+                try {
+                    handleEventSatelliteModemStateChanged(state);
+                } finally {
+                    args.recycle();
+                }
+                break;
+            }
+
+            case REQUEST_SET_DEVICE_ALIGNED_WITH_SATELLITE: {
+                plogd("REQUEST_SET_DEVICE_ALIGNED_WITH_SATELLITE");
+                SomeArgs args = (SomeArgs) msg.obj;
+                boolean isAligned = (boolean) args.arg1;
+                try {
+                    handleRequestSetDeviceAlignedWithSatellite(isAligned);
+                } finally {
+                    args.recycle();
+                }
+                break;
+            }
+
             default:
                 plogw("DatagramDispatcherHandler: unexpected message code: " + msg.what);
                 break;
@@ -570,6 +611,20 @@ public class DatagramReceiver extends Handler {
      * @param callback The callback to get {@link SatelliteManager.SatelliteResult} of the request.
      */
     public void pollPendingSatelliteDatagrams(int subId, @NonNull Consumer<Integer> callback) {
+        if (mFeatureFlags.satelliteImproveMultiThreadDesign()) {
+            SomeArgs args = SomeArgs.obtain();
+            args.arg1 = subId;
+            args.arg2 = callback;
+            sendMessage(obtainMessage(REQUEST_POLL_PENDING_SATELLITE_DATAGRAMS, args));
+            return;
+        }
+
+        handleRequestPollPendingSatelliteDatagrams(subId, callback);
+    }
+
+    private void handleRequestPollPendingSatelliteDatagrams(int subId,
+            @NonNull Consumer<Integer> callback) {
+        plogd("handleRequestPollPendingSatelliteDatagrams");
         if (!mDatagramController.isPollingInIdleState()) {
             // Poll request should be sent to satellite modem only when it is free.
             plogd("pollPendingSatelliteDatagrams: satellite modem is busy receiving datagrams.");
@@ -658,6 +713,19 @@ public class DatagramReceiver extends Handler {
      * @param state Current satellite modem state.
      */
     public void onSatelliteModemStateChanged(@SatelliteManager.SatelliteModemState int state) {
+        if (mFeatureFlags.satelliteImproveMultiThreadDesign()) {
+            SomeArgs args = SomeArgs.obtain();
+            args.arg1 = state;
+            sendMessage(obtainMessage(EVENT_SATELLITE_MODEM_STATE_CHANGED, args));
+            return;
+        }
+
+        handleEventSatelliteModemStateChanged(state);
+    }
+
+    private void handleEventSatelliteModemStateChanged(
+            @SatelliteManager.SatelliteModemState int state) {
+        plogd("handleEventSatelliteModemStateChanged: state = " + state);
         synchronized (mLock) {
             if (state == SatelliteManager.SATELLITE_MODEM_STATE_OFF
                     || state == SatelliteManager.SATELLITE_MODEM_STATE_UNAVAILABLE) {
@@ -775,7 +843,18 @@ public class DatagramReceiver extends Handler {
     }
 
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
-    public void setDeviceAlignedWithSatellite(boolean isAligned) {
+    protected void setDeviceAlignedWithSatellite(boolean isAligned) {
+        if (mFeatureFlags.satelliteImproveMultiThreadDesign()) {
+            SomeArgs args = SomeArgs.obtain();
+            args.arg1 = isAligned;
+            sendMessage(obtainMessage(REQUEST_SET_DEVICE_ALIGNED_WITH_SATELLITE, args));
+            return;
+        }
+
+        handleRequestSetDeviceAlignedWithSatellite(isAligned);
+    }
+
+    private void handleRequestSetDeviceAlignedWithSatellite(boolean isAligned) {
         synchronized (mLock) {
             mIsAligned.set(isAligned);
             plogd("setDeviceAlignedWithSatellite: " + isAligned);
@@ -849,7 +928,7 @@ public class DatagramReceiver extends Handler {
     }
 
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PRIVATE)
-    public boolean isDatagramWaitForConnectedStateTimerStarted() {
+    protected boolean isDatagramWaitForConnectedStateTimerStarted() {
         return hasMessages(EVENT_DATAGRAM_WAIT_FOR_CONNECTED_STATE_TIMED_OUT);
     }
 

@@ -108,9 +108,9 @@ public class DatagramController {
     private AtomicLong mModemImageSwitchingDuration = new AtomicLong(0);
     private AtomicBoolean mWaitForDeviceAlignmentInDemoDatagram = new AtomicBoolean(false);
     private AtomicLong mDatagramWaitTimeForConnectedStateForLastMessage = new AtomicLong(0);
-    @GuardedBy("mLock")
     @SatelliteManager.SatelliteModemState
-    private int mSatelltieModemState = SatelliteManager.SATELLITE_MODEM_STATE_UNKNOWN;
+    private AtomicInteger mSatelltieModemState =
+            new AtomicInteger(SatelliteManager.SATELLITE_MODEM_STATE_UNKNOWN);
     @Nullable
     private PersistentLogger mPersistentLogger = null;
 
@@ -286,16 +286,14 @@ public class DatagramController {
 
     private boolean shouldSuppressDatagramTransferStateUpdate(
             @SatelliteManager.DatagramType int datagramType) {
-        synchronized (mLock) {
-            if (!SatelliteController.getInstance().isSatelliteAttachRequired()) {
-                return false;
-            }
-            if (datagramType == DATAGRAM_TYPE_KEEP_ALIVE
-                    && mSatelltieModemState == SATELLITE_MODEM_STATE_NOT_CONNECTED) {
-                return true;
-            }
+        if (!SatelliteController.getInstance().isSatelliteAttachRequired()) {
             return false;
         }
+        if (datagramType == DATAGRAM_TYPE_KEEP_ALIVE
+                && mSatelltieModemState.get() == SATELLITE_MODEM_STATE_NOT_CONNECTED) {
+            return true;
+        }
+        return false;
     }
 
     /**
@@ -355,10 +353,9 @@ public class DatagramController {
      *
      * @param state Current satellite modem state.
      */
-    public void onSatelliteModemStateChanged(@SatelliteManager.SatelliteModemState int state) {
-        synchronized (mLock) {
-            mSatelltieModemState = state;
-        }
+    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
+    protected void onSatelliteModemStateChanged(@SatelliteManager.SatelliteModemState int state) {
+        mSatelltieModemState.set(state);
         mDatagramDispatcher.onSatelliteModemStateChanged(state);
         mDatagramReceiver.onSatelliteModemStateChanged(state);
     }
@@ -404,31 +401,34 @@ public class DatagramController {
      * before transferring datagrams via satellite.
      */
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
-    public boolean needsWaitingForSatelliteConnected(
+    protected boolean needsWaitingForSatelliteConnected(
             @SatelliteManager.DatagramType int datagramType) {
-        synchronized (mLock) {
-            if (!SatelliteController.getInstance().isSatelliteAttachRequired()) {
-                return false;
-            }
-            if (datagramType == DATAGRAM_TYPE_KEEP_ALIVE
-                    && mSatelltieModemState == SATELLITE_MODEM_STATE_NOT_CONNECTED) {
-                return false;
-            }
-            boolean allowCheckMessageInNotConnected =
-                    mContext.getResources().getBoolean(
-                            R.bool.config_satellite_allow_check_message_in_not_connected);
-            if (datagramType == DATAGRAM_TYPE_CHECK_PENDING_INCOMING_SMS
-                    && mSatelltieModemState == SATELLITE_MODEM_STATE_NOT_CONNECTED
-                    && allowCheckMessageInNotConnected
-                    && mFeatureFlags.carrierRoamingNbIotNtn()) {
-                return false;
-            }
-            if (mSatelltieModemState != SATELLITE_MODEM_STATE_CONNECTED
-                    && mSatelltieModemState != SATELLITE_MODEM_STATE_DATAGRAM_TRANSFERRING) {
-                return true;
-            }
+        if (!SatelliteController.getInstance().isSatelliteAttachRequired()) {
             return false;
         }
+
+        int satelliteModemState = mSatelltieModemState.get();
+        plogd("needsWaitingForSatelliteConnected: datagramType=" + datagramType
+                + " satelliteModemState=" + satelliteModemState);
+
+        if (datagramType == DATAGRAM_TYPE_KEEP_ALIVE
+                && satelliteModemState == SATELLITE_MODEM_STATE_NOT_CONNECTED) {
+            return false;
+        }
+        boolean allowCheckMessageInNotConnected =
+                mContext.getResources().getBoolean(
+                        R.bool.config_satellite_allow_check_message_in_not_connected);
+        if (datagramType == DATAGRAM_TYPE_CHECK_PENDING_INCOMING_SMS
+                && satelliteModemState == SATELLITE_MODEM_STATE_NOT_CONNECTED
+                && allowCheckMessageInNotConnected
+                && mFeatureFlags.carrierRoamingNbIotNtn()) {
+            return false;
+        }
+        if (satelliteModemState != SATELLITE_MODEM_STATE_CONNECTED
+                && satelliteModemState != SATELLITE_MODEM_STATE_DATAGRAM_TRANSFERRING) {
+            return true;
+        }
+        return false;
     }
 
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
@@ -497,18 +497,17 @@ public class DatagramController {
 
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
     protected long getDatagramWaitTimeForConnectedState(boolean isLastSosMessage) {
-        synchronized (mLock) {
-            long timeout = isLastSosMessage
-                    ? mDatagramWaitTimeForConnectedStateForLastMessage.get()
-                    : mDatagramWaitTimeForConnectedState.get();
-            logd("getDatagramWaitTimeForConnectedState: isLastSosMessage=" + isLastSosMessage
-                    + ", timeout=" + timeout + ", modemState=" + mSatelltieModemState);
-            if (mSatelltieModemState == SATELLITE_MODEM_STATE_OFF
-                    || mSatelltieModemState == SATELLITE_MODEM_STATE_IDLE) {
-                return (timeout + mModemImageSwitchingDuration.get());
-            }
-            return timeout;
+        long timeout = isLastSosMessage
+                ? mDatagramWaitTimeForConnectedStateForLastMessage.get()
+                : mDatagramWaitTimeForConnectedState.get();
+        int satelliteModemState = mSatelltieModemState.get();
+        logd("getDatagramWaitTimeForConnectedState: isLastSosMessage=" + isLastSosMessage
+                + ", timeout=" + timeout + ", modemState=" + satelliteModemState);
+        if (satelliteModemState == SATELLITE_MODEM_STATE_OFF
+                || satelliteModemState == SATELLITE_MODEM_STATE_IDLE) {
+            return (timeout + mModemImageSwitchingDuration.get());
         }
+        return timeout;
     }
 
     /**

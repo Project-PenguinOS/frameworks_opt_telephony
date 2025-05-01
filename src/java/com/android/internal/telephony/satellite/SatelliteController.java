@@ -334,6 +334,7 @@ public class SatelliteController extends Handler {
     private static final int REQUEST_STOP_SATELLITE_TRANSMISSION_UPDATES = 73;
     private static final int REQUEST_IS_SATELLITE_PROVISIONED = 74;
     private static final int REQUEST_POLL_PENDING_DATAGRAMS = 75;
+    private static final int REQUEST_SEND_DATAGRAM = 76;
 
     @NonNull private static SatelliteController sInstance;
     @NonNull private final Context mContext;
@@ -2459,6 +2460,22 @@ public class SatelliteController extends Handler {
                 break;
             }
 
+            case REQUEST_SEND_DATAGRAM: {
+                plogd("REQUEST_SEND_DATAGRAM");
+                SomeArgs args = (SomeArgs) msg.obj;
+                int datagramType = (int) args.arg1;
+                SatelliteDatagram datagram = (SatelliteDatagram) args.arg2;
+                boolean needFullScreenPointingUI = (boolean) args.arg3;
+                IIntegerConsumer callback = (IIntegerConsumer) args.arg4;
+                try {
+                    handleRequestSendDatagram(
+                            datagramType, datagram, needFullScreenPointingUI, callback);
+                } finally {
+                    args.recycle();
+                }
+                break;
+            }
+
             default:
                 Log.w(TAG, "SatelliteControllerHandler: unexpected message code: " +
                         msg.what);
@@ -3464,6 +3481,22 @@ public class SatelliteController extends Handler {
      * @param callback The callback to get {@link SatelliteManager.SatelliteResult} of the request.
      */
     public void sendDatagram(@SatelliteManager.DatagramType int datagramType,
+            SatelliteDatagram datagram, boolean needFullScreenPointingUI,
+            @NonNull IIntegerConsumer callback) {
+        if (mFeatureFlags.satelliteImproveMultiThreadDesign()) {
+            SomeArgs args = SomeArgs.obtain();
+            args.arg1 = datagramType;
+            args.arg2 = datagram;
+            args.arg3 = needFullScreenPointingUI;
+            args.arg4 = callback;
+            sendMessage(obtainMessage(REQUEST_SEND_DATAGRAM, args));
+            return;
+        }
+
+        handleRequestSendDatagram(datagramType, datagram, needFullScreenPointingUI, callback);
+    }
+
+    private void handleRequestSendDatagram(@SatelliteManager.DatagramType int datagramType,
             SatelliteDatagram datagram, boolean needFullScreenPointingUI,
             @NonNull IIntegerConsumer callback) {
         plogd("sendSatelliteDatagram: datagramType: " + datagramType
@@ -6698,6 +6731,10 @@ public class SatelliteController extends Handler {
 
     private void logCarrierRoamingSatelliteSessionStats(@NonNull Phone phone,
             boolean lastNotifiedNtnMode, boolean currNtnMode) {
+        if (mIsDemoModeEnabled) {
+            plogd("logCarrierRoamingSatelliteSessionStats: return, demo mode is enabled");
+            return;
+        }
         synchronized (mSatelliteConnectedLock) {
             int subId = phone.getSubId();
             if (!lastNotifiedNtnMode && currNtnMode) {

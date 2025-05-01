@@ -68,7 +68,7 @@ public class DatagramControllerTest extends TelephonyTest {
 
     private TestDatagramController mDatagramControllerUT;
 
-    @Mock private DatagramReceiver mMockDatagramReceiver;
+    @Mock private DatagramReceiverTest.TestDatagramReceiver mMockDatagramReceiver;
     @Mock private DatagramDispatcher mMockDatagramDispatcher;
     @Mock private PointingAppController mMockPointingAppController;
     @Mock private SatelliteSessionController mMockSatelliteSessionController;
@@ -403,6 +403,18 @@ public class DatagramControllerTest extends TelephonyTest {
         protected void pushDemoModeDatagram(@SatelliteManager.DatagramType int datagramType,
                 SatelliteDatagram datagram) {
             super.pushDemoModeDatagram(datagramType, datagram);
+        }
+
+        @Override
+        protected void onSatelliteModemStateChanged(
+                @SatelliteManager.SatelliteModemState int state) {
+            super.onSatelliteModemStateChanged(state);
+        }
+
+        @Override
+        protected boolean needsWaitingForSatelliteConnected(
+                @SatelliteManager.DatagramType int datagramType) {
+            return super.needsWaitingForSatelliteConnected(datagramType);
         }
     }
 }

@@ -202,13 +202,3 @@ flag {
     }
 }
 
-# OWNER=jackyu TARGET=25Q2
-flag {
-    name: "carrier_config_changed_callback_fix"
-    namespace: "telephony"
-    description: "Carrier config callback race condition fix"
-    bug:"375526692"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}

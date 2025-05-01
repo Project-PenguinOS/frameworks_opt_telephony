@@ -46,6 +46,7 @@ import android.util.Log;
 import com.android.internal.R;
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.internal.os.SomeArgs;
 import com.android.internal.telephony.flags.FeatureFlags;
 
 import java.util.ArrayList;
@@ -58,10 +59,13 @@ import java.util.function.Consumer;
 /**
  * PointingApp controller to manage interactions with PointingUI app.
  */
-public class PointingAppController {
+public class PointingAppController extends Handler {
     private static final String TAG = "PointingAppController";
     private static final String ALLOW_MOCK_MODEM_PROPERTY = "persist.radio.allow_mock_modem";
     private static final boolean DEBUG = !"user".equals(Build.TYPE);
+
+    private static final int REQUEST_START_POINTING_UI = 1;
+    private static final int REQUEST_REMOVE_LISTENER_FOR_POINTING_UI = 2;
 
     @NonNull
     private static PointingAppController sInstance;
@@ -123,6 +127,34 @@ public class PointingAppController {
         mListenerForPointingUIRegistered = false;
         mActivityManager = mContext.getSystemService(ActivityManager.class);
         mPersistentLogger = SatelliteServiceUtils.getPersistentLogger(context);
+    }
+
+    @Override
+    public void handleMessage(Message msg) {
+        switch (msg.what) {
+            case REQUEST_START_POINTING_UI: {
+                plogd("REQUEST_START_POINTING_UI");
+                SomeArgs args = (SomeArgs) msg.obj;
+                boolean needFullScreenPointingUI = (boolean) args.arg1;
+                boolean isDemoMode = (boolean) args.arg2;
+                boolean isEmergency = (boolean) args.arg3;
+                try {
+                    handleRequestStartPointingUI(needFullScreenPointingUI, isDemoMode, isEmergency);
+                } finally {
+                    args.recycle();
+                }
+                break;
+            }
+
+            case REQUEST_REMOVE_LISTENER_FOR_POINTING_UI: {
+                handleRequestRemoveListenerForPointingUI();
+                break;
+            }
+
+            default:
+                ploge("PointingAppControllerHandler: unexpected message code: " + msg.what);
+                break;
+        }
     }
 
     /**
@@ -390,6 +422,20 @@ public class PointingAppController {
      */
     public void startPointingUI(boolean needFullScreenPointingUI, boolean isDemoMode,
             boolean isEmergency) {
+        if (mFeatureFlags.satelliteImproveMultiThreadDesign()) {
+            SomeArgs args = SomeArgs.obtain();
+            args.arg1 = needFullScreenPointingUI;
+            args.arg2 = isDemoMode;
+            args.arg3 = isEmergency;
+            sendMessage(obtainMessage(REQUEST_START_POINTING_UI, args));
+            return;
+        }
+
+        handleRequestStartPointingUI(needFullScreenPointingUI, isDemoMode, isEmergency);
+    }
+
+    private void handleRequestStartPointingUI(boolean needFullScreenPointingUI, boolean isDemoMode,
+            boolean isEmergency) {
         String packageName = getPointingUiPackageName();
         if (TextUtils.isEmpty(packageName)) {
             plogd("startPointingUI: config_pointing_ui_package is not set. Ignore the request");
@@ -437,6 +483,16 @@ public class PointingAppController {
      * Remove the Importance Listener For Pointing UI App once the satellite is disabled
      */
     public void removeListenerForPointingUI() {
+        if (mFeatureFlags.satelliteImproveMultiThreadDesign()) {
+            sendMessage(obtainMessage(REQUEST_REMOVE_LISTENER_FOR_POINTING_UI));
+            return;
+        }
+
+        handleRequestRemoveListenerForPointingUI();
+    }
+
+    private void handleRequestRemoveListenerForPointingUI() {
+        plogd("handleRequestRemoveListenerForPointingUI");
         synchronized (mListenerForPointingUIRegisteredLock) {
             if (mListenerForPointingUIRegistered) {
                 mActivityManager.removeOnUidImportanceListener(mUidImportanceListener);

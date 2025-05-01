@@ -322,6 +322,7 @@ public class PointingAppControllerTest extends TelephonyTest {
     public void testStartPointingUI() throws Exception {
         ArgumentCaptor<Intent> startedIntentCaptor = ArgumentCaptor.forClass(Intent.class);
         mPointingAppController.startPointingUI(true, true, true);
+        processAllMessages();
         verify(mContext).startActivityAsUser(startedIntentCaptor.capture(), eq(UserHandle.CURRENT));
         Intent intent = startedIntentCaptor.getValue();
         assertEquals(KEY_POINTING_UI_PACKAGE_NAME, intent.getComponent().getPackageName());
@@ -338,10 +339,12 @@ public class PointingAppControllerTest extends TelephonyTest {
     @Test
     public void testRestartPointingUi() throws Exception {
         mPointingAppController.startPointingUI(true, false, true);
+        processAllMessages();
         mInOrderForPointingUi.verify(mContext).startActivityAsUser(any(Intent.class),
                 eq(UserHandle.CURRENT));
         testRestartPointingUi(true, false, true);
         mPointingAppController.startPointingUI(false, true, false);
+        processAllMessages();
         mInOrderForPointingUi.verify(mContext).startActivityAsUser(any(Intent.class),
                 eq(UserHandle.CURRENT));
         testRestartPointingUi(false, true, false);
@@ -353,6 +356,7 @@ public class PointingAppControllerTest extends TelephonyTest {
         doReturn(new String[]{KEY_POINTING_UI_PACKAGE_NAME}).when(mPackageManager)
             .getPackagesForUid(anyInt());
         mPointingAppController.mUidImportanceListener.onUidImportance(1, IMPORTANCE_GONE);
+        processAllMessages();
         ArgumentCaptor<Intent> restartedIntentCaptor = ArgumentCaptor.forClass(Intent.class);
         mInOrderForPointingUi.verify(mContext).startActivityAsUser(restartedIntentCaptor.capture(),
                 eq(UserHandle.CURRENT));
