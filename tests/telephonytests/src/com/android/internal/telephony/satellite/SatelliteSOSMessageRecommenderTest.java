@@ -1198,12 +1198,22 @@ public class SatelliteSOSMessageRecommenderTest extends TelephonyTest {
             return isSatelliteAllowedByReasons;
         }
 
+        @Override
+        protected boolean isDeviceProvisioned() {
+            return super.isDeviceProvisioned();
+        }
+
+        @Override
+        protected int getEmergencyCallToSatelliteHandoverType() {
+            return super.getEmergencyCallToSatelliteHandoverType();
+        }
+
         public boolean isTimerStarted() {
             return hasMessages(EVENT_TIME_OUT);
         }
 
         public int getCountOfTimerStarted() {
-            return mCountOfTimerStarted;
+            return mCountOfTimerStarted.get();
         }
 
         public void sendServiceStateChangedEvent() {
@@ -1211,7 +1221,7 @@ public class SatelliteSOSMessageRecommenderTest extends TelephonyTest {
         }
 
         public long getTimeOutMillis() {
-            return mTimeoutMillis;
+            return mTimeoutMillis.get();
         }
 
         public boolean isDialerNotified() {

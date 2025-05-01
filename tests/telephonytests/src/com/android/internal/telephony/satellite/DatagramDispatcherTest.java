@@ -1384,6 +1384,11 @@ public class DatagramDispatcherTest extends TelephonyTest {
             super.setShouldSendDatagramToModemInDemoMode(shouldSendToModemInDemoMode);
         }
 
+        @Override
+        protected boolean isEmergencyCommunicationEstablished() {
+            return super.isEmergencyCommunicationEstablished();
+        }
+
         public void setDuration(long duration) {
             mLong = duration;
         }

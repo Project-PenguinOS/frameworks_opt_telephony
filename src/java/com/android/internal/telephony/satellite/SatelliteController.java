@@ -332,6 +332,8 @@ public class SatelliteController extends Handler {
     private static final int REQUEST_SATELLITE_CAPABILITIES = 71;
     private static final int REQUEST_START_SATELLITE_TRANSMISSION_UPDATES = 72;
     private static final int REQUEST_STOP_SATELLITE_TRANSMISSION_UPDATES = 73;
+    private static final int REQUEST_IS_SATELLITE_PROVISIONED = 74;
+    private static final int REQUEST_POLL_PENDING_DATAGRAMS = 75;
 
     @NonNull private static SatelliteController sInstance;
     @NonNull private final Context mContext;
@@ -701,6 +703,7 @@ public class SatelliteController extends Handler {
     private AtomicBoolean mOverrideNtnEligibility;
     private String mDefaultSmsPackageName = "";
     private String mSatelliteGatewayServicePackageName = "";
+    private String mOverriddenSatelliteGatewayServicePackageName = "";
     private Boolean mOverriddenDisableSatelliteWhileEnableInProgressSupported = null;
 
     private final Object mNtnSmsSupportedByMessagesAppLock = new Object();
@@ -2432,6 +2435,30 @@ public class SatelliteController extends Handler {
                 break;
             }
 
+            case REQUEST_IS_SATELLITE_PROVISIONED: {
+                plogd("REQUEST_IS_SATELLITE_PROVISIONED");
+                SomeArgs args = (SomeArgs) msg.obj;
+                ResultReceiver result = (ResultReceiver) args.arg1;
+                try {
+                    handleRequestIsSatelliteProvisioned(result);
+                } finally {
+                    args.recycle();
+                }
+                break;
+            }
+
+            case REQUEST_POLL_PENDING_DATAGRAMS: {
+                plogd("REQUEST_POLL_PENDING_DATAGRAMS");
+                SomeArgs args = (SomeArgs) msg.obj;
+                IIntegerConsumer callback = (IIntegerConsumer) args.arg1;
+                try {
+                    handleRequestPollPendingDatagrams(callback);
+                } finally {
+                    args.recycle();
+                }
+                break;
+            }
+
             default:
                 Log.w(TAG, "SatelliteControllerHandler: unexpected message code: " +
                         msg.what);
@@ -3275,6 +3302,18 @@ public class SatelliteController extends Handler {
      *               request failed.
      */
     public void requestIsSatelliteProvisioned(@NonNull ResultReceiver result) {
+        if (mFeatureFlags.satelliteImproveMultiThreadDesign()) {
+            SomeArgs args = SomeArgs.obtain();
+            args.arg1 = result;
+            sendMessage(obtainMessage(REQUEST_IS_SATELLITE_PROVISIONED, args));
+            return;
+        }
+
+        handleRequestIsSatelliteProvisioned(result);
+    }
+
+    private void handleRequestIsSatelliteProvisioned(@NonNull ResultReceiver result) {
+        plogd("handleRequestIsSatelliteProvisioned");
         int error = evaluateOemSatelliteRequestAllowed(false);
         if (error != SATELLITE_RESULT_SUCCESS) {
             result.send(error, null);
@@ -3386,6 +3425,18 @@ public class SatelliteController extends Handler {
      * @param callback The callback to get {@link SatelliteManager.SatelliteResult} of the request.
      */
     public void pollPendingDatagrams(@NonNull IIntegerConsumer callback) {
+        if (mFeatureFlags.satelliteImproveMultiThreadDesign()) {
+            SomeArgs args = SomeArgs.obtain();
+            args.arg1 = callback;
+            sendMessage(obtainMessage(REQUEST_POLL_PENDING_DATAGRAMS, args));
+            return;
+        }
+
+        handleRequestPollPendingDatagrams(callback);
+    }
+
+    private void handleRequestPollPendingDatagrams(@NonNull IIntegerConsumer callback) {
+        plogd("handleRequestPollPendingDatagrams");
         Consumer<Integer> result = FunctionalUtils.ignoreRemoteException(callback::accept);
         int error = evaluateOemSatelliteRequestAllowed(true);
         if (error != SATELLITE_RESULT_SUCCESS) {
@@ -3950,12 +4001,13 @@ public class SatelliteController extends Handler {
         }
 
         if (servicePackageName == null || servicePackageName.equals("null")) {
-            mSatelliteGatewayServicePackageName = getConfigSatelliteGatewayServicePackage();
+            mOverriddenSatelliteGatewayServicePackageName = null;
         } else {
-            mSatelliteGatewayServicePackageName = servicePackageName;
+            mOverriddenSatelliteGatewayServicePackageName = servicePackageName;
         }
-        plogd("setSatelliteGatewayServicePackageName: mSatelliteGatewayServicePackageName="
-                + mSatelliteGatewayServicePackageName);
+        plogd("setSatelliteGatewayServicePackageName: "
+                + "mOverriddenSatelliteGatewayServicePackageName="
+                + mOverriddenSatelliteGatewayServicePackageName);
 
         return mSatelliteSessionController.setSatelliteGatewayServicePackageName(
                 servicePackageName);
@@ -9116,13 +9168,22 @@ public class SatelliteController extends Handler {
             // Manual Connected
             plogd("isP2PSmsDisallowedOnCarrierRoamingNtn: manual connect");
             if (!isNtnSmsSupportedByMessagesApp()
-                    || !isApplicationSupportsP2P(mSatelliteGatewayServicePackageName)) {
+                    || !isApplicationSupportsP2P(getSatelliteGatewayServicePackageName())) {
                 plogd("isP2PSmsDisallowedOnCarrierRoamingNtn: APKs do not supports P2P");
                 return true;
             }
         }
         plogd("isP2PSmsDisallowedOnCarrierRoamingNtn: P2P is supported");
         return false;
+    }
+
+    private String getSatelliteGatewayServicePackageName() {
+        if (mOverriddenSatelliteGatewayServicePackageName != null) {
+            logd("getSatelliteGatewayServicePackageName: return overridden package name"
+                    + " for CTS test " + mOverriddenSatelliteGatewayServicePackageName);
+            return mOverriddenSatelliteGatewayServicePackageName;
+        }
+        return mSatelliteGatewayServicePackageName;
     }
 
     @NonNull

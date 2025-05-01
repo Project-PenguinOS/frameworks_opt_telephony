@@ -83,8 +83,6 @@ public class DatagramController {
     private static final boolean DEBUG = !"user".equals(Build.TYPE);
 
     /** Variables used to update onSendDatagramStateChanged(). */
-    private final Object mLock = new Object();
-
     private AtomicInteger mSendSubId = new AtomicInteger(0);
     private @SatelliteManager.DatagramType AtomicInteger mDatagramType =
             new AtomicInteger(DATAGRAM_TYPE_UNKNOWN);
@@ -101,9 +99,10 @@ public class DatagramController {
     private AtomicInteger mReceivePendingCount = new AtomicInteger(0);
     private AtomicInteger mReceiveErrorCode =
             new AtomicInteger(SatelliteManager.SATELLITE_RESULT_SUCCESS);
+    private final Object mLock = new Object();
     @GuardedBy("mLock")
     private final List<SatelliteDatagram> mDemoModeDatagramList;
-    private boolean mIsDemoMode = false;
+    private AtomicBoolean mIsDemoMode = new AtomicBoolean(false);
     private AtomicLong mAlignTimeoutDuration = new AtomicLong(SATELLITE_ALIGN_TIMEOUT);
     private AtomicLong mDatagramWaitTimeForConnectedState = new AtomicLong(0);
     private AtomicLong mModemImageSwitchingDuration = new AtomicLong(0);
@@ -154,7 +153,7 @@ public class DatagramController {
      *                              about datagram transfer state changes.
      */
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PRIVATE)
-    public DatagramController(@NonNull Context context, @NonNull Looper  looper,
+    protected DatagramController(@NonNull Context context, @NonNull Looper  looper,
             @NonNull FeatureFlags featureFlags,
             @NonNull PointingAppController pointingAppController) {
         mContext = context;
@@ -447,8 +446,8 @@ public class DatagramController {
      * @param isDemoMode {@code true} means demo mode is on, {@code false} otherwise.
      */
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
-    public void setDemoMode(boolean isDemoMode) {
-        mIsDemoMode = isDemoMode;
+    protected void setDemoMode(boolean isDemoMode) {
+        mIsDemoMode.set(isDemoMode);
         mDatagramDispatcher.setDemoMode(isDemoMode);
         mDatagramReceiver.setDemoMode(isDemoMode);
 
@@ -458,13 +457,13 @@ public class DatagramController {
             }
             setDeviceAlignedWithSatellite(false);
         }
-        plogd("setDemoMode: mIsDemoMode=" + mIsDemoMode);
+        plogd("setDemoMode: mIsDemoMode=" + isDemoMode);
     }
 
     /** Get the last sent datagram for demo mode */
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
-    public SatelliteDatagram popDemoModeDatagram() {
-        if (!mIsDemoMode) {
+    protected SatelliteDatagram popDemoModeDatagram() {
+        if (!mIsDemoMode.get()) {
             return null;
         }
 
@@ -482,9 +481,9 @@ public class DatagramController {
      * @param datagram datagram The last datagram saved when sendSatelliteDatagramForDemo is called
      */
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
-    public void pushDemoModeDatagram(@SatelliteManager.DatagramType int datagramType,
+    protected void pushDemoModeDatagram(@SatelliteManager.DatagramType int datagramType,
             SatelliteDatagram datagram) {
-        if (mIsDemoMode && SatelliteServiceUtils.isSosMessage(datagramType)) {
+        if (mIsDemoMode.get() && SatelliteServiceUtils.isSosMessage(datagramType)) {
             synchronized (mLock) {
                 mDemoModeDatagramList.add(datagram);
                 plogd("pushDemoModeDatagram size=" + mDemoModeDatagramList.size());
@@ -626,21 +625,25 @@ public class DatagramController {
     }
 
     private void retryPollPendingDatagramsInDemoMode() {
-        synchronized (mLock) {
-            if (mIsDemoMode && isSendingInIdleState() && isPollingInIdleState()
-                    && !mDemoModeDatagramList.isEmpty()) {
-                Consumer<Integer> internalCallback = new Consumer<Integer>() {
-                    @Override
-                    public void accept(Integer result) {
-                        if (result != SATELLITE_RESULT_SUCCESS) {
-                            plogd("retryPollPendingDatagramsInDemoMode result: " + result);
-                        }
+        if (mIsDemoMode.get() && isSendingInIdleState() && isPollingInIdleState()
+                && !isDemoModeDatagramListEmpty()) {
+            Consumer<Integer> internalCallback = new Consumer<Integer>() {
+                @Override
+                public void accept(Integer result) {
+                    if (result != SATELLITE_RESULT_SUCCESS) {
+                        plogd("retryPollPendingDatagramsInDemoMode result: " + result);
                     }
-                };
-                pollPendingSatelliteDatagrams(
-                        SatelliteController.getInstance().getSelectedSatelliteSubId(),
-                        internalCallback);
-            }
+                }
+            };
+            pollPendingSatelliteDatagrams(
+                    SatelliteController.getInstance().getSelectedSatelliteSubId(),
+                    internalCallback);
+        }
+    }
+
+    private boolean isDemoModeDatagramListEmpty() {
+        synchronized (mLock) {
+            return mDemoModeDatagramList.isEmpty();
         }
     }
 

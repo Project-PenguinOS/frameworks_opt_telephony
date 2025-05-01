@@ -388,5 +388,21 @@ public class DatagramControllerTest extends TelephonyTest {
         protected long getDatagramWaitTimeForConnectedState(boolean isLastSosMessage) {
             return super.getDatagramWaitTimeForConnectedState(isLastSosMessage);
         }
+
+        @Override
+        protected void setDemoMode(boolean isDemoMode) {
+            super.setDemoMode(isDemoMode);
+        }
+
+        @Override
+        protected SatelliteDatagram popDemoModeDatagram() {
+            return super.popDemoModeDatagram();
+        }
+
+        @Override
+        protected void pushDemoModeDatagram(@SatelliteManager.DatagramType int datagramType,
+                SatelliteDatagram datagram) {
+            super.pushDemoModeDatagram(datagramType, datagram);
+        }
     }
 }
