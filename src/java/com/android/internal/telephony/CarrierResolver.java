@@ -506,11 +506,7 @@ public class CarrierResolver extends Handler {
             intent.putExtra(TelephonyManager.EXTRA_SPECIFIC_CARRIER_ID, mSpecificCarrierId);
             intent.putExtra(TelephonyManager.EXTRA_SPECIFIC_CARRIER_NAME, mSpecificCarrierName);
             intent.putExtra(TelephonyManager.EXTRA_SUBSCRIPTION_ID, mPhone.getSubId());
-            if (mFeatureFlags.hsumBroadcast()) {
-                mContext.sendBroadcastAsUser(intent, UserHandle.ALL);
-            } else {
-                mContext.sendBroadcast(intent);
-            }
+            mContext.sendBroadcastAsUser(intent, UserHandle.ALL);
 
             // notify content observers for specific carrier id change event.
             ContentValues cv = new ContentValues();
@@ -545,11 +541,7 @@ public class CarrierResolver extends Handler {
             intent.putExtra(TelephonyManager.EXTRA_CARRIER_ID, mCarrierId);
             intent.putExtra(TelephonyManager.EXTRA_CARRIER_NAME, mCarrierName);
             intent.putExtra(TelephonyManager.EXTRA_SUBSCRIPTION_ID, mPhone.getSubId());
-            if (mFeatureFlags.hsumBroadcast()) {
-                mContext.sendBroadcastAsUser(intent, UserHandle.ALL);
-            } else {
-                mContext.sendBroadcast(intent);
-            }
+            mContext.sendBroadcastAsUser(intent, UserHandle.ALL);
 
             // notify content observers for carrier id change event
             ContentValues cv = new ContentValues();

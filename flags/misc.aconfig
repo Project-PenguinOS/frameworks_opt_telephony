@@ -101,17 +101,6 @@ flag {
     }
 }
 
-# OWNER=jackyu TARGET=25Q2
-flag {
-    name: "hsum_broadcast"
-    namespace: "telephony"
-    description: "Fixed the bug that broadcast intent is only sent to the system user."
-    bug:"362554272"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
 # OWNER=rambowang TARGET=25Q2
 flag {
     name: "support_carrier_services_for_hsum"

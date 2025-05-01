@@ -729,12 +729,8 @@ public class DataStallRecoveryManager extends Handler {
         // Put the bundled stats extras on the intent.
         intent.putExtra("EXTRA_DSRS_STATS_BUNDLE", bundle);
 
-        if (mFeatureFlags.hsumBroadcast()) {
-            mPhone.getContext().sendBroadcastAsUser(intent, UserHandle.ALL,
-                    READ_PRIVILEGED_PHONE_STATE);
-        } else {
-            mPhone.getContext().sendBroadcast(intent, READ_PRIVILEGED_PHONE_STATE);
-        }
+        mPhone.getContext().sendBroadcastAsUser(intent, UserHandle.ALL,
+                READ_PRIVILEGED_PHONE_STATE);
     }
 
     /** Recovery Action: RECOVERY_ACTION_GET_DATA_CALL_LIST */

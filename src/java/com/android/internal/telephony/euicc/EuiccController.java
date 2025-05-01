@@ -1868,12 +1868,8 @@ public class EuiccController extends IEuiccController.Stub {
         if (bestComponent != null) {
             intent.setPackage(bestComponent.packageName);
         }
-        if (mFeatureFlags.hsumBroadcast()) {
-            mContext.sendBroadcastAsUser(intent, UserHandle.ALL,
-                    permission.WRITE_EMBEDDED_SUBSCRIPTIONS);
-        } else {
-            mContext.sendBroadcast(intent, permission.WRITE_EMBEDDED_SUBSCRIPTIONS);
-        }
+        mContext.sendBroadcastAsUser(intent, UserHandle.ALL,
+                permission.WRITE_EMBEDDED_SUBSCRIPTIONS);
     }
 
     @Nullable
