@@ -98,6 +98,7 @@ public class SatelliteSOSMessageRecommender extends Handler {
     private static final int CMD_SEND_EVENT_DISPLAY_EMERGENCY_MESSAGE_FORCEFULLY = 6;
     private static final int EVENT_SATELLITE_ACCESS_RESTRICTION_CHECKING_RESULT = 7;
 
+    /** All the variables initialized inside the constructor are declared here. */
     @NonNull private final Context mContext;
     @NonNull
     private final SatelliteController mSatelliteController;
@@ -106,28 +107,30 @@ public class SatelliteSOSMessageRecommender extends Handler {
     private ImsManager mImsManager;
     @NonNull
     private final FeatureFlags mFeatureFlags;
-
-    private Connection mEmergencyConnection = null;
+    @Nullable private PersistentLogger mPersistentLogger = null;
     private final ISatelliteProvisionStateCallback mISatelliteProvisionStateCallback;
-    /** Key: Phone ID; Value: IMS RegistrationCallback */
-    private SparseArray<RegistrationManager.RegistrationCallback>
-            mImsRegistrationCallbacks = new SparseArray<>();
-    @GuardedBy("mLock")
-    private boolean mIsSatelliteAllowedForCurrentLocation = false;
-    @GuardedBy("mLock")
-    private boolean mCheckingAccessRestrictionInProgress = false;
-    protected long mTimeoutMillis = 0;
-    private final long mOemEnabledTimeoutMillis;
+
+    /** All the atomic variables are declared here. */
+    private AtomicBoolean mIsSatelliteAllowedForCurrentLocation = new AtomicBoolean(false);
+    private AtomicBoolean mCheckingAccessRestrictionInProgress = new AtomicBoolean(false);
     protected final AtomicBoolean mIsSatelliteConnectedViaCarrierWithinHysteresisTime =
             new AtomicBoolean(false);
     protected final AtomicInteger mSubIdOfSatelliteConnectedViaCarrierWithinHysteresisTime =
             new AtomicInteger(SubscriptionManager.INVALID_SUBSCRIPTION_ID);
+
+
+    private Connection mEmergencyConnection = null;
+    /** Key: Phone ID; Value: IMS RegistrationCallback */
+    private SparseArray<RegistrationManager.RegistrationCallback>
+            mImsRegistrationCallbacks = new SparseArray<>();
+
+    protected long mTimeoutMillis = 0;
+    private final long mOemEnabledTimeoutMillis;
+
     @GuardedBy("mLock")
     private boolean mIsTimerTimedOut = false;
     protected int mCountOfTimerStarted = 0;
     private final Object mLock = new Object();
-
-    @Nullable private PersistentLogger mPersistentLogger = null;
 
     private boolean mIsTestEmergencyNumber = false;
 
@@ -299,10 +302,8 @@ public class SatelliteSOSMessageRecommender extends Handler {
         mEmergencyConnection = connection;
         handleStateChangedEventForHysteresisTimer();
 
-        synchronized (mLock) {
-            mCheckingAccessRestrictionInProgress = false;
-            mIsSatelliteAllowedForCurrentLocation = false;
-        }
+        mCheckingAccessRestrictionInProgress.set(false);
+        mIsSatelliteAllowedForCurrentLocation.set(false);
     }
 
     private void handleSatelliteProvisionStateChangedEvent(boolean provisioned) {
@@ -326,10 +327,10 @@ public class SatelliteSOSMessageRecommender extends Handler {
                 return;
             }
 
-            if (!mIsTimerTimedOut || mCheckingAccessRestrictionInProgress) {
+            if (!mIsTimerTimedOut || mCheckingAccessRestrictionInProgress.get()) {
                 plogd("mIsTimerTimedOut=" + mIsTimerTimedOut
                         + ", mCheckingAccessRestrictionInProgress="
-                        + mCheckingAccessRestrictionInProgress);
+                        + mCheckingAccessRestrictionInProgress.get());
                 return;
             }
 
@@ -366,10 +367,8 @@ public class SatelliteSOSMessageRecommender extends Handler {
     }
 
     private boolean isSatelliteAllowed() {
-        synchronized (mLock) {
-            if (isSatelliteEmergencyMessagingViaCarrierAvailable()) return true;
-            return mIsSatelliteAllowedForCurrentLocation;
-        }
+        if (isSatelliteEmergencyMessagingViaCarrierAvailable()) return true;
+        return mIsSatelliteAllowedForCurrentLocation.get();
     }
 
     private void updateSatelliteViaCarrierAvailability() {
@@ -459,8 +458,8 @@ public class SatelliteSOSMessageRecommender extends Handler {
             mEmergencyConnection = null;
             mCountOfTimerStarted = 0;
             mIsTimerTimedOut = false;
-            mCheckingAccessRestrictionInProgress = false;
-            mIsSatelliteAllowedForCurrentLocation = false;
+            mCheckingAccessRestrictionInProgress.set(false);
+            mIsSatelliteAllowedForCurrentLocation.set(false);
             mIsTestEmergencyNumber = false;
         }
     }
@@ -564,11 +563,9 @@ public class SatelliteSOSMessageRecommender extends Handler {
     }
 
     private void handleSatelliteAccessRestrictionCheckingResult(boolean satelliteAllowed) {
-        synchronized (mLock) {
-            mIsSatelliteAllowedForCurrentLocation = satelliteAllowed;
-            mCheckingAccessRestrictionInProgress = false;
-            evaluateSendingConnectionEventDisplayEmergencyMessage();
-        }
+        mIsSatelliteAllowedForCurrentLocation.set(satelliteAllowed);
+        mCheckingAccessRestrictionInProgress.set(false);
+        evaluateSendingConnectionEventDisplayEmergencyMessage();
     }
 
     private void selectEmergencyCallWaitForConnectionTimeoutDuration() {
@@ -790,13 +787,11 @@ public class SatelliteSOSMessageRecommender extends Handler {
     }
 
     private void requestIsSatelliteAllowedForCurrentLocation() {
-        synchronized (mLock) {
-            if (mCheckingAccessRestrictionInProgress) {
-                plogd("requestIsSatelliteCommunicationAllowedForCurrentLocation was already sent");
-                return;
-            }
-            mCheckingAccessRestrictionInProgress = true;
+        if (mCheckingAccessRestrictionInProgress.get()) {
+            plogd("requestIsSatelliteCommunicationAllowedForCurrentLocation was already sent");
+            return;
         }
+        mCheckingAccessRestrictionInProgress.set(true);
 
         OutcomeReceiver<Boolean, SatelliteManager.SatelliteException> callback =
                 new OutcomeReceiver<>() {

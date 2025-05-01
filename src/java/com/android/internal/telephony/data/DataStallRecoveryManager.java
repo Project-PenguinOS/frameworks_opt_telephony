@@ -34,6 +34,7 @@ import android.os.Message;
 import android.os.SystemClock;
 import android.os.UserHandle;
 import android.provider.Settings;
+import android.telecom.TelecomManager;
 import android.telephony.Annotation.RadioPowerState;
 import android.telephony.Annotation.ValidationStatus;
 import android.telephony.CellSignalStrength;
@@ -818,6 +819,12 @@ public class DataStallRecoveryManager extends Handler {
             return false;
         }
 
+        // Skip recovery if it can cause an emergrncy call to drop
+        if (isInEmergencyCall()) {
+            logl("skip data stall recovery as there is in an emergency call");
+            return false;
+        }
+
         // Skip recovery if it can cause a call to drop
         if (!isPhoneStateIdle() && getRecoveryAction() > RECOVERY_ACTION_CLEANUP) {
             logl("skip data stall recovery as there is an active call");
@@ -878,6 +885,31 @@ public class DataStallRecoveryManager extends Handler {
             }
         }
         return true;
+    }
+
+    /**
+     * Checks if any of the available phones are currently in an emergency call
+     * or in Emergency Callback Mode (ECM).
+     *
+     * @return {@code true} if the device is currently in an emergency call
+     * or if at least one of the available phones is in ECM;
+     * {@code false} otherwise.
+     */
+    private boolean isInEmergencyCall() {
+        TelecomManager mTelecomManager = mPhone
+                .getContext().getSystemService(TelecomManager.class);
+        if (mTelecomManager != null && mTelecomManager.isInEmergencyCall()) {
+            logl("Emergency call detected on the device");
+            return true;
+        }
+
+        for (Phone phone : PhoneFactory.getPhones()) {
+            if (phone.isInEcm()) {
+                logl("ECM detected on phone" + phone.getPhoneId());
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
