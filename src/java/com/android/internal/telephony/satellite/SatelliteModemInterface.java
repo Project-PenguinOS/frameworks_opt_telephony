@@ -84,12 +84,10 @@ public class SatelliteModemInterface {
     /** All the atomic variables are declared here. */
     private AtomicBoolean mIsBound = new AtomicBoolean(false);
     private AtomicBoolean mIsBinding = new AtomicBoolean(false);
+    // {@code true} to use the vendor satellite service and {@code false} to use the HAL.
+    private AtomicBoolean mIsSatelliteServiceSupported = new AtomicBoolean(false);
 
     @NonNull private final Object mLock = new Object();
-    /**
-     * {@code true} to use the vendor satellite service and {@code false} to use the HAL.
-     */
-    private boolean mIsSatelliteServiceSupported;
     @Nullable private ISatellite mSatelliteService;
     @Nullable private SatelliteServiceConnection mSatelliteServiceConnection;
     @NonNull private String mVendorSatellitePackageName = "";
@@ -266,7 +264,7 @@ public class SatelliteModemInterface {
         mDemoSimulator = DemoSimulator.make(context, satelliteController);
         mVendorListener = new SatelliteListener(false);
         mDemoListener = new SatelliteListener(true);
-        mIsSatelliteServiceSupported = getSatelliteServiceSupport();
+        mIsSatelliteServiceSupported.set(getSatelliteServiceSupport());
         mSatelliteController = satelliteController;
         mExponentialBackoff = new ExponentialBackoff(REBIND_INITIAL_DELAY, REBIND_MAXIMUM_DELAY,
                 REBIND_MULTIPLIER, looper, () -> {
@@ -1299,7 +1297,7 @@ public class SatelliteModemInterface {
     }
 
     public boolean isSatelliteServiceSupported() {
-        return mIsSatelliteServiceSupported;
+        return mIsSatelliteServiceSupported.get();
     }
 
     /** Check if vendor satellite service is connected */
@@ -1360,7 +1358,7 @@ public class SatelliteModemInterface {
         } else {
             mVendorSatellitePackageName = servicePackageName;
         }
-        mIsSatelliteServiceSupported = getSatelliteServiceSupport();
+        mIsSatelliteServiceSupported.set(getSatelliteServiceSupport());
         bindService();
         mExponentialBackoff.start();
     }

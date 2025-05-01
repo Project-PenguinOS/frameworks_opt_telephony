@@ -48,6 +48,7 @@ flag {
     }
 }
 
+# OWNER=yomna TARGET=25Q4
 flag {
     name: "vendor_specific_cellular_identifier_disclosure_indications"
     is_exported: true

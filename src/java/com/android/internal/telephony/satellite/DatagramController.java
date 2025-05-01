@@ -65,6 +65,7 @@ public class DatagramController {
     @NonNull private final PointingAppController mPointingAppController;
     @NonNull private final DatagramDispatcher mDatagramDispatcher;
     @NonNull private final DatagramReceiver mDatagramReceiver;
+    @Nullable private PersistentLogger mPersistentLogger = null;
 
     public static final long MAX_DATAGRAM_ID = (long) Math.pow(2, 16);
     public static final int ROUNDING_UNIT = 10;
@@ -82,6 +83,7 @@ public class DatagramController {
     private static final String ALLOW_MOCK_MODEM_PROPERTY = "persist.radio.allow_mock_modem";
     private static final boolean DEBUG = !"user".equals(Build.TYPE);
 
+    /** All the atomic variables are declared here. */
     /** Variables used to update onSendDatagramStateChanged(). */
     private AtomicInteger mSendSubId = new AtomicInteger(0);
     private @SatelliteManager.DatagramType AtomicInteger mDatagramType =
@@ -99,9 +101,6 @@ public class DatagramController {
     private AtomicInteger mReceivePendingCount = new AtomicInteger(0);
     private AtomicInteger mReceiveErrorCode =
             new AtomicInteger(SatelliteManager.SATELLITE_RESULT_SUCCESS);
-    private final Object mLock = new Object();
-    @GuardedBy("mLock")
-    private final List<SatelliteDatagram> mDemoModeDatagramList;
     private AtomicBoolean mIsDemoMode = new AtomicBoolean(false);
     private AtomicLong mAlignTimeoutDuration = new AtomicLong(SATELLITE_ALIGN_TIMEOUT);
     private AtomicLong mDatagramWaitTimeForConnectedState = new AtomicLong(0);
@@ -111,13 +110,16 @@ public class DatagramController {
     @SatelliteManager.SatelliteModemState
     private AtomicInteger mSatelltieModemState =
             new AtomicInteger(SatelliteManager.SATELLITE_MODEM_STATE_UNKNOWN);
-    @Nullable
-    private PersistentLogger mPersistentLogger = null;
+
+    /** All the variables protected by lock are declared here. */
+    private final Object mLock = new Object();
+    @GuardedBy("mLock")
+    private final List<SatelliteDatagram> mDemoModeDatagramList;
 
     /**
      * @return The singleton instance of DatagramController.
      */
-    public static DatagramController getInstance() {
+    static DatagramController getInstance() {
         if (sInstance == null) {
             loge("DatagramController was not yet initialized.");
         }
@@ -133,7 +135,7 @@ public class DatagramController {
      *                              PointingApp about datagram transfer state changes.
      * @return The singleton instance of DatagramController.
      */
-    public static DatagramController make(@NonNull Context context, @NonNull Looper looper,
+    static DatagramController make(@NonNull Context context, @NonNull Looper looper,
             @NonNull FeatureFlags featureFlags,
             @NonNull PointingAppController pointingAppController) {
         if (sInstance == null) {
@@ -188,7 +190,8 @@ public class DatagramController {
      *
      * @return The {@link SatelliteManager.SatelliteResult} result of the operation.
      */
-    @SatelliteManager.SatelliteResult public int registerForSatelliteDatagram(int subId,
+    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
+    @SatelliteManager.SatelliteResult protected int registerForSatelliteDatagram(int subId,
             @NonNull ISatelliteDatagramCallback callback) {
         return mDatagramReceiver.registerForSatelliteDatagram(subId, callback);
     }
@@ -201,7 +204,8 @@ public class DatagramController {
      * @param callback The callback that was passed to
      *                 {@link #registerForSatelliteDatagram(int, ISatelliteDatagramCallback)}.
      */
-    public void unregisterForSatelliteDatagram(int subId,
+    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
+    protected void unregisterForSatelliteDatagram(int subId,
             @NonNull ISatelliteDatagramCallback callback) {
         mDatagramReceiver.unregisterForSatelliteDatagram(subId, callback);
     }
@@ -217,7 +221,8 @@ public class DatagramController {
      * @param subId The subId of the subscription used for receiving datagrams.
      * @param callback The callback to get {@link SatelliteManager.SatelliteResult} of the request.
      */
-    public void pollPendingSatelliteDatagrams(int subId, @NonNull Consumer<Integer> callback) {
+    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
+    protected void pollPendingSatelliteDatagrams(int subId, @NonNull Consumer<Integer> callback) {
         plogd("pollPendingSatelliteDatagrams");
         mDatagramReceiver.pollPendingSatelliteDatagrams(subId, callback);
     }
@@ -241,7 +246,8 @@ public class DatagramController {
      *                                 full screen mode.
      * @param callback The callback to get {@link SatelliteManager.SatelliteResult} of the request.
      */
-    public void sendSatelliteDatagram(int subId, @SatelliteManager.DatagramType int datagramType,
+    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
+    protected void sendSatelliteDatagram(int subId, @SatelliteManager.DatagramType int datagramType,
             @NonNull SatelliteDatagram datagram, boolean needFullScreenPointingUI,
             @NonNull Consumer<Integer> callback) {
         mDatagramDispatcher.sendSatelliteDatagram(subId, datagramType, datagram,
@@ -343,7 +349,8 @@ public class DatagramController {
 
 
     /** @return {@code true} if already sent an emergency datagram during a session. */
-    public boolean isEmergencyCommunicationEstablished() {
+    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
+    protected boolean isEmergencyCommunicationEstablished() {
         return mDatagramDispatcher.isEmergencyCommunicationEstablished();
     }
 
@@ -365,7 +372,7 @@ public class DatagramController {
      *
      * @param subId The subId of the subscription used to receive SMS
      */
-    public void onSmsReceived(int subId) {
+    void onSmsReceived(int subId) {
         // To keep exist notification flow, need to call with each state.
         updateReceiveStatus(subId, SatelliteManager.DATAGRAM_TYPE_SMS,
                 SatelliteManager.SATELLITE_DATAGRAM_TRANSFER_STATE_RECEIVING,
@@ -382,7 +389,7 @@ public class DatagramController {
      * Set whether the device is aligned with the satellite.
      */
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
-    public void setDeviceAlignedWithSatellite(boolean isAligned) {
+    protected void setDeviceAlignedWithSatellite(boolean isAligned) {
         mDatagramDispatcher.setDeviceAlignedWithSatellite(isAligned);
         mDatagramReceiver.setDeviceAlignedWithSatellite(isAligned);
         if (isAligned) {
@@ -654,7 +661,7 @@ public class DatagramController {
      * and it is required to wait for alignment else {@code false}
      */
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
-    public boolean waitForAligningToSatellite(boolean isAligned) {
+    protected boolean waitForAligningToSatellite(boolean isAligned) {
         if (isAligned) {
             return false;
         }
