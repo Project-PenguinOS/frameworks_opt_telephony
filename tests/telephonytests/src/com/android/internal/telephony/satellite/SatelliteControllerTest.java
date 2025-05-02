@@ -266,7 +266,7 @@ public class SatelliteControllerTest extends TelephonyTest {
     @Mock private DatagramControllerTest.TestDatagramController mMockDatagramController;
     @Mock private SatelliteModemInterface mMockSatelliteModemInterface;
     @Mock private SatelliteSessionController mMockSatelliteSessionController;
-    @Mock private PointingAppController mMockPointingAppController;
+    @Mock private PointingAppControllerTest.TestPointingAppController mMockPointingAppController;
     @Mock private ControllerMetricsStats mMockControllerMetricsStats;
     @Mock private ProvisionMetricsStats mMockProvisionMetricsStats;
     @Mock private SessionMetricsStats mMockSessionMetricsStats;
@@ -742,7 +742,8 @@ public class SatelliteControllerTest extends TelephonyTest {
 
     @Test
     public void testShouldTurnOffCarrierSatelliteForEmergencyCall() throws Exception {
-        DatagramController datagramController = mock(DatagramController.class);
+        DatagramControllerTest.TestDatagramController datagramController = mock(
+                DatagramControllerTest.TestDatagramController.class);
         replaceInstance(SatelliteController.class, "mDatagramController",
                 mSatelliteControllerUT, datagramController);
 
@@ -1539,6 +1540,7 @@ public class SatelliteControllerTest extends TelephonyTest {
         setUpResponseForStartSatelliteTransmissionUpdates(SATELLITE_RESULT_SUCCESS);
         mSatelliteControllerUT.startSatelliteTransmissionUpdates(mIIntegerConsumer,
                 mStartTransmissionUpdateCallback);
+        processAllMessages();
         verify(mMockPointingAppController).registerForSatelliteTransmissionUpdates(anyInt(),
                 eq(mStartTransmissionUpdateCallback));
         processAllMessages();
@@ -1570,6 +1572,7 @@ public class SatelliteControllerTest extends TelephonyTest {
         setUpResponseForStopSatelliteTransmissionUpdates(SATELLITE_RESULT_SUCCESS);
         mSatelliteControllerUT.stopSatelliteTransmissionUpdates(mIIntegerConsumer,
                 mStopTransmissionUpdateCallback);
+        processAllMessages();
         verify(mMockPointingAppController).unregisterForSatelliteTransmissionUpdates(anyInt(),
                 any(), eq(mStopTransmissionUpdateCallback));
         processAllMessages();
@@ -1583,6 +1586,7 @@ public class SatelliteControllerTest extends TelephonyTest {
         setUpResponseForStopSatelliteTransmissionUpdates(SATELLITE_RESULT_INVALID_TELEPHONY_STATE);
         mSatelliteControllerUT.stopSatelliteTransmissionUpdates(mIIntegerConsumer,
                 mStopTransmissionUpdateCallback);
+        processAllMessages();
         verify(mMockPointingAppController, times(2)).unregisterForSatelliteTransmissionUpdates(
                 anyInt(), any(), eq(mStopTransmissionUpdateCallback));
         processAllMessages();

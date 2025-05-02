@@ -1510,28 +1510,6 @@ public class RILUtils {
         if ((raf & android.hardware.radio.V1_0.RadioAccessFamily.EDGE) != 0) {
             networkTypeRaf |= TelephonyManager.NETWORK_TYPE_BITMASK_EDGE;
         }
-        // convert both IS95A/IS95B to CDMA as network mode doesn't support CDMA
-        if ((raf & android.hardware.radio.V1_0.RadioAccessFamily.IS95A) != 0) {
-            networkTypeRaf |= TelephonyManager.NETWORK_TYPE_BITMASK_CDMA;
-        }
-        if ((raf & android.hardware.radio.V1_0.RadioAccessFamily.IS95B) != 0) {
-            networkTypeRaf |= TelephonyManager.NETWORK_TYPE_BITMASK_CDMA;
-        }
-        if ((raf & android.hardware.radio.V1_0.RadioAccessFamily.ONE_X_RTT) != 0) {
-            networkTypeRaf |= TelephonyManager.NETWORK_TYPE_BITMASK_1xRTT;
-        }
-        if ((raf & android.hardware.radio.V1_0.RadioAccessFamily.EVDO_0) != 0) {
-            networkTypeRaf |= TelephonyManager.NETWORK_TYPE_BITMASK_EVDO_0;
-        }
-        if ((raf & android.hardware.radio.V1_0.RadioAccessFamily.EVDO_A) != 0) {
-            networkTypeRaf |= TelephonyManager.NETWORK_TYPE_BITMASK_EVDO_A;
-        }
-        if ((raf & android.hardware.radio.V1_0.RadioAccessFamily.EVDO_B) != 0) {
-            networkTypeRaf |= TelephonyManager.NETWORK_TYPE_BITMASK_EVDO_B;
-        }
-        if ((raf & android.hardware.radio.V1_0.RadioAccessFamily.EHRPD) != 0) {
-            networkTypeRaf |= TelephonyManager.NETWORK_TYPE_BITMASK_EHRPD;
-        }
         if ((raf & android.hardware.radio.V1_0.RadioAccessFamily.HSUPA) != 0) {
             networkTypeRaf |= TelephonyManager.NETWORK_TYPE_BITMASK_HSUPA;
         }
@@ -1584,25 +1562,6 @@ public class RILUtils {
         if ((networkTypeBitmask & TelephonyManager.NETWORK_TYPE_BITMASK_EDGE) != 0) {
             raf |= android.hardware.radio.V1_0.RadioAccessFamily.EDGE;
         }
-        // convert CDMA to IS95A, consistent with ServiceState.networkTypeToRilRadioTechnology
-        if ((networkTypeBitmask & TelephonyManager.NETWORK_TYPE_BITMASK_CDMA) != 0) {
-            raf |= android.hardware.radio.V1_0.RadioAccessFamily.IS95A;
-        }
-        if ((networkTypeBitmask & TelephonyManager.NETWORK_TYPE_BITMASK_1xRTT) != 0) {
-            raf |= android.hardware.radio.V1_0.RadioAccessFamily.ONE_X_RTT;
-        }
-        if ((networkTypeBitmask & TelephonyManager.NETWORK_TYPE_BITMASK_EVDO_0) != 0) {
-            raf |= android.hardware.radio.V1_0.RadioAccessFamily.EVDO_0;
-        }
-        if ((networkTypeBitmask & TelephonyManager.NETWORK_TYPE_BITMASK_EVDO_A) != 0) {
-            raf |= android.hardware.radio.V1_0.RadioAccessFamily.EVDO_A;
-        }
-        if ((networkTypeBitmask & TelephonyManager.NETWORK_TYPE_BITMASK_EVDO_B) != 0) {
-            raf |= android.hardware.radio.V1_0.RadioAccessFamily.EVDO_B;
-        }
-        if ((networkTypeBitmask & TelephonyManager.NETWORK_TYPE_BITMASK_EHRPD) != 0) {
-            raf |= android.hardware.radio.V1_0.RadioAccessFamily.EHRPD;
-        }
         if ((networkTypeBitmask & TelephonyManager.NETWORK_TYPE_BITMASK_HSUPA) != 0) {
             raf |= android.hardware.radio.V1_0.RadioAccessFamily.HSUPA;
         }
@@ -1654,25 +1613,6 @@ public class RILUtils {
         }
         if ((networkTypeBitmask & TelephonyManager.NETWORK_TYPE_BITMASK_EDGE) != 0) {
             raf |= android.hardware.radio.RadioAccessFamily.EDGE;
-        }
-        // convert CDMA to IS95A, consistent with ServiceState.networkTypeToRilRadioTechnology
-        if ((networkTypeBitmask & TelephonyManager.NETWORK_TYPE_BITMASK_CDMA) != 0) {
-            raf |= android.hardware.radio.RadioAccessFamily.IS95A;
-        }
-        if ((networkTypeBitmask & TelephonyManager.NETWORK_TYPE_BITMASK_1xRTT) != 0) {
-            raf |= android.hardware.radio.RadioAccessFamily.ONE_X_RTT;
-        }
-        if ((networkTypeBitmask & TelephonyManager.NETWORK_TYPE_BITMASK_EVDO_0) != 0) {
-            raf |= android.hardware.radio.RadioAccessFamily.EVDO_0;
-        }
-        if ((networkTypeBitmask & TelephonyManager.NETWORK_TYPE_BITMASK_EVDO_A) != 0) {
-            raf |= android.hardware.radio.RadioAccessFamily.EVDO_A;
-        }
-        if ((networkTypeBitmask & TelephonyManager.NETWORK_TYPE_BITMASK_EVDO_B) != 0) {
-            raf |= android.hardware.radio.RadioAccessFamily.EVDO_B;
-        }
-        if ((networkTypeBitmask & TelephonyManager.NETWORK_TYPE_BITMASK_EHRPD) != 0) {
-            raf |= android.hardware.radio.RadioAccessFamily.EHRPD;
         }
         if ((networkTypeBitmask & TelephonyManager.NETWORK_TYPE_BITMASK_HSUPA) != 0) {
             raf |= android.hardware.radio.RadioAccessFamily.HSUPA;

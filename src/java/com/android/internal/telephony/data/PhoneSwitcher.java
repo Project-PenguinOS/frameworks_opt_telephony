@@ -94,7 +94,6 @@ import com.android.internal.telephony.PhoneConstants;
 // QTI_END: 2022-04-18: Telephony: Fix modem DDS recommendation is ignored
 import com.android.internal.telephony.PhoneFactory;
 import com.android.internal.telephony.RadioConfig;
-import com.android.internal.telephony.TelephonyIntents;
 import com.android.internal.telephony.data.DataNetworkController.NetworkRequestList;
 import com.android.internal.telephony.data.DataSettingsManager.DataSettingsManagerCallback;
 import com.android.internal.telephony.flags.FeatureFlags;
@@ -726,19 +725,14 @@ public class PhoneSwitcher extends Handler {
                 AutoDataSwitchController.class.getName()).makeAutoDataSwitchController(context,
                         looper, this, mFlags, mAutoDataSwitchCallback);
 // QTI_END: 2025-02-07: Telephony: Telephony-Data: Decouple Qualcomm value adds.
-        if (!mFlags.ddsCallback()) {
-            mContext.registerReceiver(mDefaultDataChangedReceiver,
-                    new IntentFilter(TelephonyIntents.ACTION_DEFAULT_DATA_SUBSCRIPTION_CHANGED));
-        } else {
-            mSubscriptionManagerService.registerCallback(new SubscriptionManagerServiceCallback(
-                    this::post) {
-                @Override
-                public void onDefaultDataSubscriptionChanged(int subId) {
-                    evaluateIfImmediateDataSwitchIsNeeded("default data sub changed to " + subId,
-                            DataSwitch.Reason.DATA_SWITCH_REASON_MANUAL);
-                }
-            });
-        }
+        mSubscriptionManagerService.registerCallback(new SubscriptionManagerServiceCallback(
+                this::post) {
+            @Override
+            public void onDefaultDataSubscriptionChanged(int subId) {
+                evaluateIfImmediateDataSwitchIsNeeded("default data sub changed to " + subId,
+                        DataSwitch.Reason.DATA_SWITCH_REASON_MANUAL);
+            }
+        });
 
         PhoneConfigurationManager.registerForMultiSimConfigChange(
                 this, EVENT_MULTI_SIM_CONFIG_CHANGED, null);

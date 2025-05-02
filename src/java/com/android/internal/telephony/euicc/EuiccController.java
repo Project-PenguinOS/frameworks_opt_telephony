@@ -755,7 +755,9 @@ public class EuiccController extends IEuiccController.Stub {
                             mCallbackIntent, callerHasAdminPrivileges,
                       getCurrentEmbeddedSubscriptionIds(cardId));
                 } else {
-                    Log.e(TAG, "Caller does not have carrier privilege in metadata.");
+                    Log.e(TAG,
+                            "Caller does not have carrier privilege in metadata and is does not "
+                                    + "have admin privileges, mCallingPackage=" + mCallingPackage);
                     sendResult(mCallbackIntent, ERROR, null /* extrasIntent */);
                 }
             } else { // !mWithUserConsent
@@ -1082,7 +1084,6 @@ public class EuiccController extends IEuiccController.Stub {
     public void deleteSubscription(int cardId, int subscriptionId, String callingPackage,
             PendingIntent callbackIntent) {
         boolean callerCanWriteEmbeddedSubscriptions = callerCanWriteEmbeddedSubscriptions();
-        boolean callerIsAdmin = callerCanManageDevicePolicyManagedSubscriptions(callingPackage);
         mAppOpsManager.checkPackage(Binder.getCallingUid(), callingPackage);
 
         long token = Binder.clearCallingIdentity();
@@ -1093,14 +1094,17 @@ public class EuiccController extends IEuiccController.Stub {
                 sendResult(callbackIntent, ERROR, null /* extrasIntent */);
                 return;
             }
-            boolean adminOwned = callerIsAdmin && sub.getGroupOwner().equals(callingPackage);
+            boolean managedByCallingAdminPackage =
+                    callerCanManageDevicePolicyManagedSubscriptions(callingPackage)
+                            && isSubscriptionDevicePolicyManaged(
+                            sub, callingPackage);
             // For both single active SIM device and multi-active SIM device, if the caller is
             // system or the caller manage the target subscription, we let it continue. This is
             // because deleting subscription won't change status of any other subscriptions.
             if (!callerCanWriteEmbeddedSubscriptions
                     && !canManageSubscription(sub, callingPackage)
-                    && !adminOwned) {
-                Log.e(TAG, "No permissions: " + subscriptionId + " adminOwned=" + adminOwned);
+                    && !managedByCallingAdminPackage) {
+                Log.e(TAG, "No permissions to delete subscription: " + subscriptionId);
                 sendResult(callbackIntent, ERROR, null /* extrasIntent */);
                 return;
             }
@@ -1864,12 +1868,8 @@ public class EuiccController extends IEuiccController.Stub {
         if (bestComponent != null) {
             intent.setPackage(bestComponent.packageName);
         }
-        if (mFeatureFlags.hsumBroadcast()) {
-            mContext.sendBroadcastAsUser(intent, UserHandle.ALL,
-                    permission.WRITE_EMBEDDED_SUBSCRIPTIONS);
-        } else {
-            mContext.sendBroadcast(intent, permission.WRITE_EMBEDDED_SUBSCRIPTIONS);
-        }
+        mContext.sendBroadcastAsUser(intent, UserHandle.ALL,
+                permission.WRITE_EMBEDDED_SUBSCRIPTIONS);
     }
 
     @Nullable
@@ -2202,6 +2202,13 @@ public class EuiccController extends IEuiccController.Stub {
             Binder.restoreCallingIdentity(ident);
         }
         return userContext.getSystemService(DevicePolicyManager.class);
+    }
+
+    private boolean isSubscriptionDevicePolicyManaged(@NonNull SubscriptionInfo info,
+            @NonNull String callingPackage) {
+        DevicePolicyManager devicePolicyManager = getDevicePolicyManager();
+        return devicePolicyManager != null && devicePolicyManager.isSubscriptionEnterpriseManaged(
+                info, callingPackage);
     }
 
     private boolean callerCanManageDevicePolicyManagedSubscriptions(String callingPackage) {

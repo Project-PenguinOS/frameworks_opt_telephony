@@ -244,5 +244,10 @@ public class DemoSimulatorTest extends TelephonyTest {
         boolean isDeviceNotAlignedTimerStarted() {
             return hasMessages(EVENT_DEVICE_NOT_ALIGNED);
         }
+
+        @Override
+        protected void setDeviceAlignedWithSatellite(boolean isAligned) {
+            super.setDeviceAlignedWithSatellite(isAligned);
+        }
     }
 }

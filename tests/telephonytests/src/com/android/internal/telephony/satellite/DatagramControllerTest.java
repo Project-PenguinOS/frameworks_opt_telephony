@@ -43,6 +43,7 @@ import static org.mockito.Mockito.when;
 import android.annotation.NonNull;
 import android.content.Context;
 import android.os.Looper;
+import android.telephony.satellite.ISatelliteDatagramCallback;
 import android.telephony.satellite.SatelliteDatagram;
 import android.telephony.satellite.SatelliteManager;
 import android.testing.AndroidTestingRunner;
@@ -68,9 +69,9 @@ public class DatagramControllerTest extends TelephonyTest {
 
     private TestDatagramController mDatagramControllerUT;
 
-    @Mock private DatagramReceiver mMockDatagramReceiver;
+    @Mock private DatagramReceiverTest.TestDatagramReceiver mMockDatagramReceiver;
     @Mock private DatagramDispatcher mMockDatagramDispatcher;
-    @Mock private PointingAppController mMockPointingAppController;
+    @Mock private PointingAppControllerTest.TestPointingAppController mMockPointingAppController;
     @Mock private SatelliteSessionController mMockSatelliteSessionController;
     @Mock private SatelliteController mMockSatelliteController;
 
@@ -382,6 +383,81 @@ public class DatagramControllerTest extends TelephonyTest {
         @Override
         protected boolean isPollingInIdleState() {
             return super.isPollingInIdleState();
+        }
+
+        @Override
+        protected long getDatagramWaitTimeForConnectedState(boolean isLastSosMessage) {
+            return super.getDatagramWaitTimeForConnectedState(isLastSosMessage);
+        }
+
+        @Override
+        protected void setDemoMode(boolean isDemoMode) {
+            super.setDemoMode(isDemoMode);
+        }
+
+        @Override
+        protected SatelliteDatagram popDemoModeDatagram() {
+            return super.popDemoModeDatagram();
+        }
+
+        @Override
+        protected void pushDemoModeDatagram(@SatelliteManager.DatagramType int datagramType,
+                SatelliteDatagram datagram) {
+            super.pushDemoModeDatagram(datagramType, datagram);
+        }
+
+        @Override
+        protected void onSatelliteModemStateChanged(
+                @SatelliteManager.SatelliteModemState int state) {
+            super.onSatelliteModemStateChanged(state);
+        }
+
+        @Override
+        protected boolean needsWaitingForSatelliteConnected(
+                @SatelliteManager.DatagramType int datagramType) {
+            return super.needsWaitingForSatelliteConnected(datagramType);
+        }
+
+        @Override
+        @SatelliteManager.SatelliteResult protected int registerForSatelliteDatagram(int subId,
+                @NonNull ISatelliteDatagramCallback callback) {
+            return super.registerForSatelliteDatagram(subId, callback);
+        }
+
+        @Override
+        protected void unregisterForSatelliteDatagram(int subId,
+                @NonNull ISatelliteDatagramCallback callback) {
+            super.unregisterForSatelliteDatagram(subId, callback);
+        }
+
+        @Override
+        protected void pollPendingSatelliteDatagrams(int subId,
+                @NonNull Consumer<Integer> callback) {
+            super.pollPendingSatelliteDatagrams(subId, callback);
+        }
+
+        @Override
+        protected void sendSatelliteDatagram(int subId,
+                @SatelliteManager.DatagramType int datagramType,
+                @NonNull SatelliteDatagram datagram, boolean needFullScreenPointingUI,
+                @NonNull Consumer<Integer> callback) {
+            super.sendSatelliteDatagram(subId, datagramType, datagram, needFullScreenPointingUI,
+                    callback);
+        }
+
+        @Override
+        protected boolean isEmergencyCommunicationEstablished() {
+            return super.isEmergencyCommunicationEstablished();
+        }
+
+        @Override
+        protected void setDeviceAlignedWithSatellite(boolean isAligned) {
+            super.setDeviceAlignedWithSatellite(isAligned);
+        }
+
+        @Override
+        protected boolean waitForAligningToSatellite(boolean isAligned) {
+            return super.waitForAligningToSatellite(isAligned);
         }
     }
 }

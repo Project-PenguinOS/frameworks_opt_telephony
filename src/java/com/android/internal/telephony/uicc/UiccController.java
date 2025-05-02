@@ -853,12 +853,8 @@ public class UiccController extends Handler {
 // QTI_BEGIN: 2025-02-10: Telephony: Decouple Qualcomm value adds
                     + " slot: " + slotId + " port: " + portIndex + " sub: " + subId);
 // QTI_END: 2025-02-10: Telephony: Decouple Qualcomm value adds
-            if (mFeatureFlags.hsumBroadcast()) {
-                mContext.sendBroadcastAsUser(intent, UserHandle.ALL,
-                        Manifest.permission.READ_PRIVILEGED_PHONE_STATE);
-            } else {
-                mContext.sendBroadcast(intent, Manifest.permission.READ_PRIVILEGED_PHONE_STATE);
-            }
+            mContext.sendBroadcastAsUser(intent, UserHandle.ALL,
+                    Manifest.permission.READ_PRIVILEGED_PHONE_STATE);
             TelephonyMetrics.getInstance().updateSimState(phoneId, state);
         }
     }
@@ -898,12 +894,8 @@ public class UiccController extends Handler {
                     + TelephonyManager.simStateToString(state)
                     + " for phone: " + phoneId + " slot: " + slotId + "port: "
                     + (slot != null ? slot.getPortIndexFromPhoneId(phoneId) : null) + " sub: " + subId);
-            if (mFeatureFlags.hsumBroadcast()) {
-                mContext.sendBroadcastAsUser(intent, UserHandle.ALL,
-                        Manifest.permission.READ_PRIVILEGED_PHONE_STATE);
-            } else {
-                mContext.sendBroadcast(intent, Manifest.permission.READ_PRIVILEGED_PHONE_STATE);
-            }
+            mContext.sendBroadcastAsUser(intent, UserHandle.ALL,
+                    Manifest.permission.READ_PRIVILEGED_PHONE_STATE);
             TelephonyMetrics.getInstance().updateSimState(phoneId, state);
         }
     }
@@ -1502,13 +1494,8 @@ public class UiccController extends Handler {
         options.setBackgroundActivityStartsAllowed(true);
         Intent intent = new Intent(TelephonyManager.ACTION_SIM_SLOT_STATUS_CHANGED);
         intent.addFlags(Intent.FLAG_RECEIVER_REGISTERED_ONLY_BEFORE_BOOT);
-        if (mFeatureFlags.hsumBroadcast()) {
-            mContext.sendBroadcastAsUser(intent, UserHandle.ALL,
-                    android.Manifest.permission.READ_PRIVILEGED_PHONE_STATE, options.toBundle());
-        } else {
-            mContext.sendBroadcast(intent, android.Manifest.permission.READ_PRIVILEGED_PHONE_STATE,
-                    options.toBundle());
-        }
+        mContext.sendBroadcastAsUser(intent, UserHandle.ALL,
+                android.Manifest.permission.READ_PRIVILEGED_PHONE_STATE, options.toBundle());
     }
 
     private boolean hasActivePort(IccSimPortInfo[] simPortInfos) {
