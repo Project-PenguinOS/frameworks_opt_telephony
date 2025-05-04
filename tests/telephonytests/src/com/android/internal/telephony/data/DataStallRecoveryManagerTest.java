@@ -26,7 +26,9 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
+import android.content.Context;
 import android.content.Intent;
 import android.database.ContentObserver;
 import android.net.NetworkAgent;
@@ -92,6 +94,9 @@ public class DataStallRecoveryManagerTest extends TelephonyTest {
         Field field = DataStallRecoveryManager.class.getDeclaredField("mPredictWaitingMillis");
         field.setAccessible(true);
 
+        // Mock TelecomManager
+        when(mContext.getSystemService(Context.TELECOM_SERVICE)).thenReturn(mTelecomManager);
+
         mFakeContentResolver = new FakeContentResolver();
         doReturn(mFakeContentResolver).when(mContext).getContentResolver();
         // Set the global settings for action enabled state and duration to
@@ -128,6 +133,9 @@ public class DataStallRecoveryManagerTest extends TelephonyTest {
                         mDataStallRecoveryManagerCallback);
 
         field.set(mDataStallRecoveryManager, 0L);
+
+        doReturn(false).when(mTelecomManager).isInEmergencyCall();
+        doReturn(false).when(mPhone).isInEcm();
 
         logd("DataStallRecoveryManagerTest -Setup!");
     }
@@ -680,4 +688,59 @@ public class DataStallRecoveryManagerTest extends TelephonyTest {
 
         assertThat(getPrivateBooleanField(mDataStallRecoveryManager, "mIsValidNetwork")).isFalse();
     }
+
+    @Test
+    public void testDoNotDoRecoveryActionWhenInEmergencyCall() throws Exception {
+        sendValidationStatusCallback(NetworkAgent.VALIDATION_STATUS_VALID);
+        sendOnInternetDataNetworkCallback(true);
+        mDataStallRecoveryManager.setRecoveryAction(
+                DataStallRecoveryManager.RECOVERY_ACTION_CLEANUP);
+        doReturn(mSignalStrength).when(mPhone).getSignalStrength();
+        doReturn(3).when(mSignalStrength).getLevel();
+        doReturn(PhoneConstants.State.IDLE).when(mPhone).getState();
+        doReturn(true).when(mDataNetworkController).isInternetDataAllowed(true);
+        // set not in ECM
+        doReturn(false).when(mPhone).isInEcm();
+        // set in emergency call
+        doReturn(true).when(mTelecomManager).isInEmergencyCall();
+        logd("Sending validation failed callback while in emergency call");
+        sendValidationStatusCallback(NetworkAgent.VALIDATION_STATUS_NOT_VALID);
+        processAllFutureMessages();
+
+        verify(mDataStallRecoveryManagerCallback, never()).onDataStallReestablishInternet();
+        verify(mSST, never()).powerOffRadioSafely();
+        verify(mPhone, never()).rebootModem(any());
+
+        // Still at cleanup
+        assertThat(mDataStallRecoveryManager.getRecoveryAction())
+                .isEqualTo(DataStallRecoveryManager.RECOVERY_ACTION_CLEANUP);
+    }
+    @Test
+    public void testDoNotDoRecoveryActionWhenInEcm() throws Exception {
+        sendValidationStatusCallback(NetworkAgent.VALIDATION_STATUS_VALID);
+        sendOnInternetDataNetworkCallback(true);
+        mDataStallRecoveryManager.setRecoveryAction(
+                DataStallRecoveryManager.RECOVERY_ACTION_CLEANUP);
+        doReturn(mSignalStrength).when(mPhone).getSignalStrength();
+        doReturn(3).when(mSignalStrength).getLevel();
+        doReturn(PhoneConstants.State.IDLE).when(mPhone).getState();
+        doReturn(true).when(mDataNetworkController).isInternetDataAllowed(true);
+        // set in ECM
+        doReturn(true).when(mPhone).isInEcm();
+        // set not in emergency call
+        doReturn(false).when(mTelecomManager).isInEmergencyCall();
+        logd("Sending validation failed callback while in ECM");
+
+        sendValidationStatusCallback(NetworkAgent.VALIDATION_STATUS_NOT_VALID);
+        processAllFutureMessages();
+
+        verify(mDataStallRecoveryManagerCallback, never()).onDataStallReestablishInternet();
+        verify(mSST, never()).powerOffRadioSafely();
+        verify(mPhone, never()).rebootModem(any());
+
+        // Still at cleanup
+        assertThat(mDataStallRecoveryManager.getRecoveryAction())
+                .isEqualTo(DataStallRecoveryManager.RECOVERY_ACTION_CLEANUP);
+    }
+
 }

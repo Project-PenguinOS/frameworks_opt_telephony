@@ -646,12 +646,10 @@ public class SubscriptionManagerService extends ISub.Stub {
         // Broadcast sub Id on service initialized.
         broadcastSubId(TelephonyIntents.ACTION_DEFAULT_DATA_SUBSCRIPTION_CHANGED,
                 getDefaultDataSubId());
-        if (mFeatureFlags.ddsCallback()) {
-            mSubscriptionManagerServiceCallbacks.forEach(
-                    callback -> callback.invokeFromExecutor(
-                            () -> callback.onDefaultDataSubscriptionChanged(
-                                    getDefaultDataSubId())));
-        }
+        mSubscriptionManagerServiceCallbacks.forEach(
+                callback -> callback.invokeFromExecutor(
+                        () -> callback.onDefaultDataSubscriptionChanged(
+                                getDefaultDataSubId())));
 
         broadcastSubId(TelephonyIntents.ACTION_DEFAULT_VOICE_SUBSCRIPTION_CHANGED,
                 getDefaultVoiceSubId());
@@ -3309,11 +3307,9 @@ public class SubscriptionManagerService extends ISub.Stub {
 
                 broadcastSubId(TelephonyIntents.ACTION_DEFAULT_DATA_SUBSCRIPTION_CHANGED,
                         subId);
-                if (mFeatureFlags.ddsCallback()) {
-                    mSubscriptionManagerServiceCallbacks.forEach(
-                            callback -> callback.invokeFromExecutor(
-                                    () -> callback.onDefaultDataSubscriptionChanged(subId)));
-                }
+                mSubscriptionManagerServiceCallbacks.forEach(
+                        callback -> callback.invokeFromExecutor(
+                                () -> callback.onDefaultDataSubscriptionChanged(subId)));
 
                 updateDefaultSubId();
             }

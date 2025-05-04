@@ -2580,11 +2580,9 @@ public class DataNetwork extends StateMachine {
                 // the MMS capability from this cellular network. This will allow IWLAN to be
                 // brought up for MMS later.
                 if (dataProfile != null && !dataProfile.getApn().equals(mDataProfile.getApn())) {
-// QTI_BEGIN: 2024-08-21: Telephony: Show correct APN name for MMS when IWLAN available
                     log("Found a different apn name " + dataProfile.getApn()
-                            + " that can serve MMS on IWLAN."
-                            + " Current apn name " + mDataProfile.getApn());
-// QTI_END: 2024-08-21: Telephony: Show correct APN name for MMS when IWLAN available
+                            + " that can serve MMS on IWLAN. Current data profile "
+                            + mDataProfile.getApn());
                     builder.removeCapability(NetworkCapabilities.NET_CAPABILITY_MMS);
                 }
             }

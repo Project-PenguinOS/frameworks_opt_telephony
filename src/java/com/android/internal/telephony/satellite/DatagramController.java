@@ -48,7 +48,9 @@ import com.android.internal.telephony.flags.FeatureFlags;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
 /**
@@ -63,6 +65,7 @@ public class DatagramController {
     @NonNull private final PointingAppController mPointingAppController;
     @NonNull private final DatagramDispatcher mDatagramDispatcher;
     @NonNull private final DatagramReceiver mDatagramReceiver;
+    @Nullable private PersistentLogger mPersistentLogger = null;
 
     public static final long MAX_DATAGRAM_ID = (long) Math.pow(2, 16);
     public static final int ROUNDING_UNIT = 10;
@@ -80,9 +83,8 @@ public class DatagramController {
     private static final String ALLOW_MOCK_MODEM_PROPERTY = "persist.radio.allow_mock_modem";
     private static final boolean DEBUG = !"user".equals(Build.TYPE);
 
+    /** All the atomic variables are declared here. */
     /** Variables used to update onSendDatagramStateChanged(). */
-    private final Object mLock = new Object();
-
     private AtomicInteger mSendSubId = new AtomicInteger(0);
     private @SatelliteManager.DatagramType AtomicInteger mDatagramType =
             new AtomicInteger(DATAGRAM_TYPE_UNKNOWN);
@@ -99,24 +101,25 @@ public class DatagramController {
     private AtomicInteger mReceivePendingCount = new AtomicInteger(0);
     private AtomicInteger mReceiveErrorCode =
             new AtomicInteger(SatelliteManager.SATELLITE_RESULT_SUCCESS);
+    private AtomicBoolean mIsDemoMode = new AtomicBoolean(false);
+    private AtomicLong mAlignTimeoutDuration = new AtomicLong(SATELLITE_ALIGN_TIMEOUT);
+    private AtomicLong mDatagramWaitTimeForConnectedState = new AtomicLong(0);
+    private AtomicLong mModemImageSwitchingDuration = new AtomicLong(0);
+    private AtomicBoolean mWaitForDeviceAlignmentInDemoDatagram = new AtomicBoolean(false);
+    private AtomicLong mDatagramWaitTimeForConnectedStateForLastMessage = new AtomicLong(0);
+    @SatelliteManager.SatelliteModemState
+    private AtomicInteger mSatelltieModemState =
+            new AtomicInteger(SatelliteManager.SATELLITE_MODEM_STATE_UNKNOWN);
+
+    /** All the variables protected by lock are declared here. */
+    private final Object mLock = new Object();
     @GuardedBy("mLock")
     private final List<SatelliteDatagram> mDemoModeDatagramList;
-    private boolean mIsDemoMode = false;
-    private long mAlignTimeoutDuration = SATELLITE_ALIGN_TIMEOUT;
-    private long mDatagramWaitTimeForConnectedState;
-    private long mModemImageSwitchingDuration;
-    private boolean mWaitForDeviceAlignmentInDemoDatagram;
-    private long mDatagramWaitTimeForConnectedStateForLastMessage;
-    @GuardedBy("mLock")
-    @SatelliteManager.SatelliteModemState
-    private int mSatelltieModemState = SatelliteManager.SATELLITE_MODEM_STATE_UNKNOWN;
-    @Nullable
-    private PersistentLogger mPersistentLogger = null;
 
     /**
      * @return The singleton instance of DatagramController.
      */
-    public static DatagramController getInstance() {
+    static DatagramController getInstance() {
         if (sInstance == null) {
             loge("DatagramController was not yet initialized.");
         }
@@ -132,7 +135,7 @@ public class DatagramController {
      *                              PointingApp about datagram transfer state changes.
      * @return The singleton instance of DatagramController.
      */
-    public static DatagramController make(@NonNull Context context, @NonNull Looper looper,
+    static DatagramController make(@NonNull Context context, @NonNull Looper looper,
             @NonNull FeatureFlags featureFlags,
             @NonNull PointingAppController pointingAppController) {
         if (sInstance == null) {
@@ -152,7 +155,7 @@ public class DatagramController {
      *                              about datagram transfer state changes.
      */
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PRIVATE)
-    public DatagramController(@NonNull Context context, @NonNull Looper  looper,
+    protected DatagramController(@NonNull Context context, @NonNull Looper  looper,
             @NonNull FeatureFlags featureFlags,
             @NonNull PointingAppController pointingAppController) {
         mContext = context;
@@ -169,12 +172,12 @@ public class DatagramController {
         mDatagramReceiver = DatagramReceiver.make(
                 mContext, looper, mFeatureFlags, this);
 
-        mDatagramWaitTimeForConnectedState = getDatagramWaitForConnectedStateTimeoutMillis();
-        mModemImageSwitchingDuration = getSatelliteModemImageSwitchingDurationMillis();
-        mWaitForDeviceAlignmentInDemoDatagram =
-                getWaitForDeviceAlignmentInDemoDatagramFromResources();
-        mDatagramWaitTimeForConnectedStateForLastMessage =
-                getDatagramWaitForConnectedStateForLastMessageTimeoutMillis();
+        mDatagramWaitTimeForConnectedState.set(getDatagramWaitForConnectedStateTimeoutMillis());
+        mModemImageSwitchingDuration.set(getSatelliteModemImageSwitchingDurationMillis());
+        mWaitForDeviceAlignmentInDemoDatagram.set(
+                getWaitForDeviceAlignmentInDemoDatagramFromResources());
+        mDatagramWaitTimeForConnectedStateForLastMessage.set(
+                getDatagramWaitForConnectedStateForLastMessageTimeoutMillis());
         mDemoModeDatagramList = new ArrayList<>();
         mPersistentLogger = SatelliteServiceUtils.getPersistentLogger(context);
     }
@@ -187,7 +190,8 @@ public class DatagramController {
      *
      * @return The {@link SatelliteManager.SatelliteResult} result of the operation.
      */
-    @SatelliteManager.SatelliteResult public int registerForSatelliteDatagram(int subId,
+    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
+    @SatelliteManager.SatelliteResult protected int registerForSatelliteDatagram(int subId,
             @NonNull ISatelliteDatagramCallback callback) {
         return mDatagramReceiver.registerForSatelliteDatagram(subId, callback);
     }
@@ -200,7 +204,8 @@ public class DatagramController {
      * @param callback The callback that was passed to
      *                 {@link #registerForSatelliteDatagram(int, ISatelliteDatagramCallback)}.
      */
-    public void unregisterForSatelliteDatagram(int subId,
+    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
+    protected void unregisterForSatelliteDatagram(int subId,
             @NonNull ISatelliteDatagramCallback callback) {
         mDatagramReceiver.unregisterForSatelliteDatagram(subId, callback);
     }
@@ -216,7 +221,8 @@ public class DatagramController {
      * @param subId The subId of the subscription used for receiving datagrams.
      * @param callback The callback to get {@link SatelliteManager.SatelliteResult} of the request.
      */
-    public void pollPendingSatelliteDatagrams(int subId, @NonNull Consumer<Integer> callback) {
+    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
+    protected void pollPendingSatelliteDatagrams(int subId, @NonNull Consumer<Integer> callback) {
         plogd("pollPendingSatelliteDatagrams");
         mDatagramReceiver.pollPendingSatelliteDatagrams(subId, callback);
     }
@@ -240,7 +246,8 @@ public class DatagramController {
      *                                 full screen mode.
      * @param callback The callback to get {@link SatelliteManager.SatelliteResult} of the request.
      */
-    public void sendSatelliteDatagram(int subId, @SatelliteManager.DatagramType int datagramType,
+    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
+    protected void sendSatelliteDatagram(int subId, @SatelliteManager.DatagramType int datagramType,
             @NonNull SatelliteDatagram datagram, boolean needFullScreenPointingUI,
             @NonNull Consumer<Integer> callback) {
         mDatagramDispatcher.sendSatelliteDatagram(subId, datagramType, datagram,
@@ -285,16 +292,14 @@ public class DatagramController {
 
     private boolean shouldSuppressDatagramTransferStateUpdate(
             @SatelliteManager.DatagramType int datagramType) {
-        synchronized (mLock) {
-            if (!SatelliteController.getInstance().isSatelliteAttachRequired()) {
-                return false;
-            }
-            if (datagramType == DATAGRAM_TYPE_KEEP_ALIVE
-                    && mSatelltieModemState == SATELLITE_MODEM_STATE_NOT_CONNECTED) {
-                return true;
-            }
+        if (!SatelliteController.getInstance().isSatelliteAttachRequired()) {
             return false;
         }
+        if (datagramType == DATAGRAM_TYPE_KEEP_ALIVE
+                && mSatelltieModemState.get() == SATELLITE_MODEM_STATE_NOT_CONNECTED) {
+            return true;
+        }
+        return false;
     }
 
     /**
@@ -344,7 +349,8 @@ public class DatagramController {
 
 
     /** @return {@code true} if already sent an emergency datagram during a session. */
-    public boolean isEmergencyCommunicationEstablished() {
+    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
+    protected boolean isEmergencyCommunicationEstablished() {
         return mDatagramDispatcher.isEmergencyCommunicationEstablished();
     }
 
@@ -354,10 +360,9 @@ public class DatagramController {
      *
      * @param state Current satellite modem state.
      */
-    public void onSatelliteModemStateChanged(@SatelliteManager.SatelliteModemState int state) {
-        synchronized (mLock) {
-            mSatelltieModemState = state;
-        }
+    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
+    protected void onSatelliteModemStateChanged(@SatelliteManager.SatelliteModemState int state) {
+        mSatelltieModemState.set(state);
         mDatagramDispatcher.onSatelliteModemStateChanged(state);
         mDatagramReceiver.onSatelliteModemStateChanged(state);
     }
@@ -367,7 +372,7 @@ public class DatagramController {
      *
      * @param subId The subId of the subscription used to receive SMS
      */
-    public void onSmsReceived(int subId) {
+    void onSmsReceived(int subId) {
         // To keep exist notification flow, need to call with each state.
         updateReceiveStatus(subId, SatelliteManager.DATAGRAM_TYPE_SMS,
                 SatelliteManager.SATELLITE_DATAGRAM_TRANSFER_STATE_RECEIVING,
@@ -384,7 +389,7 @@ public class DatagramController {
      * Set whether the device is aligned with the satellite.
      */
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
-    public void setDeviceAlignedWithSatellite(boolean isAligned) {
+    protected void setDeviceAlignedWithSatellite(boolean isAligned) {
         mDatagramDispatcher.setDeviceAlignedWithSatellite(isAligned);
         mDatagramReceiver.setDeviceAlignedWithSatellite(isAligned);
         if (isAligned) {
@@ -403,31 +408,34 @@ public class DatagramController {
      * before transferring datagrams via satellite.
      */
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
-    public boolean needsWaitingForSatelliteConnected(
+    protected boolean needsWaitingForSatelliteConnected(
             @SatelliteManager.DatagramType int datagramType) {
-        synchronized (mLock) {
-            if (!SatelliteController.getInstance().isSatelliteAttachRequired()) {
-                return false;
-            }
-            if (datagramType == DATAGRAM_TYPE_KEEP_ALIVE
-                    && mSatelltieModemState == SATELLITE_MODEM_STATE_NOT_CONNECTED) {
-                return false;
-            }
-            boolean allowCheckMessageInNotConnected =
-                    mContext.getResources().getBoolean(
-                            R.bool.config_satellite_allow_check_message_in_not_connected);
-            if (datagramType == DATAGRAM_TYPE_CHECK_PENDING_INCOMING_SMS
-                    && mSatelltieModemState == SATELLITE_MODEM_STATE_NOT_CONNECTED
-                    && allowCheckMessageInNotConnected
-                    && mFeatureFlags.carrierRoamingNbIotNtn()) {
-                return false;
-            }
-            if (mSatelltieModemState != SATELLITE_MODEM_STATE_CONNECTED
-                    && mSatelltieModemState != SATELLITE_MODEM_STATE_DATAGRAM_TRANSFERRING) {
-                return true;
-            }
+        if (!SatelliteController.getInstance().isSatelliteAttachRequired()) {
             return false;
         }
+
+        int satelliteModemState = mSatelltieModemState.get();
+        plogd("needsWaitingForSatelliteConnected: datagramType=" + datagramType
+                + " satelliteModemState=" + satelliteModemState);
+
+        if (datagramType == DATAGRAM_TYPE_KEEP_ALIVE
+                && satelliteModemState == SATELLITE_MODEM_STATE_NOT_CONNECTED) {
+            return false;
+        }
+        boolean allowCheckMessageInNotConnected =
+                mContext.getResources().getBoolean(
+                        R.bool.config_satellite_allow_check_message_in_not_connected);
+        if (datagramType == DATAGRAM_TYPE_CHECK_PENDING_INCOMING_SMS
+                && satelliteModemState == SATELLITE_MODEM_STATE_NOT_CONNECTED
+                && allowCheckMessageInNotConnected
+                && mFeatureFlags.carrierRoamingNbIotNtn()) {
+            return false;
+        }
+        if (satelliteModemState != SATELLITE_MODEM_STATE_CONNECTED
+                && satelliteModemState != SATELLITE_MODEM_STATE_DATAGRAM_TRANSFERRING) {
+            return true;
+        }
+        return false;
     }
 
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
@@ -445,8 +453,8 @@ public class DatagramController {
      * @param isDemoMode {@code true} means demo mode is on, {@code false} otherwise.
      */
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
-    public void setDemoMode(boolean isDemoMode) {
-        mIsDemoMode = isDemoMode;
+    protected void setDemoMode(boolean isDemoMode) {
+        mIsDemoMode.set(isDemoMode);
         mDatagramDispatcher.setDemoMode(isDemoMode);
         mDatagramReceiver.setDemoMode(isDemoMode);
 
@@ -456,13 +464,13 @@ public class DatagramController {
             }
             setDeviceAlignedWithSatellite(false);
         }
-        plogd("setDemoMode: mIsDemoMode=" + mIsDemoMode);
+        plogd("setDemoMode: mIsDemoMode=" + isDemoMode);
     }
 
     /** Get the last sent datagram for demo mode */
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
-    public SatelliteDatagram popDemoModeDatagram() {
-        if (!mIsDemoMode) {
+    protected SatelliteDatagram popDemoModeDatagram() {
+        if (!mIsDemoMode.get()) {
             return null;
         }
 
@@ -480,9 +488,9 @@ public class DatagramController {
      * @param datagram datagram The last datagram saved when sendSatelliteDatagramForDemo is called
      */
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
-    public void pushDemoModeDatagram(@SatelliteManager.DatagramType int datagramType,
+    protected void pushDemoModeDatagram(@SatelliteManager.DatagramType int datagramType,
             SatelliteDatagram datagram) {
-        if (mIsDemoMode && SatelliteServiceUtils.isSosMessage(datagramType)) {
+        if (mIsDemoMode.get() && SatelliteServiceUtils.isSosMessage(datagramType)) {
             synchronized (mLock) {
                 mDemoModeDatagramList.add(datagram);
                 plogd("pushDemoModeDatagram size=" + mDemoModeDatagramList.size());
@@ -491,22 +499,22 @@ public class DatagramController {
     }
 
     long getSatelliteAlignedTimeoutDuration() {
-        return mAlignTimeoutDuration;
+        return mAlignTimeoutDuration.get();
     }
 
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
-    public long getDatagramWaitTimeForConnectedState(boolean isLastSosMessage) {
-        synchronized (mLock) {
-            long timeout = isLastSosMessage ? mDatagramWaitTimeForConnectedStateForLastMessage :
-                    mDatagramWaitTimeForConnectedState;
-            logd("getDatagramWaitTimeForConnectedState: isLastSosMessage=" + isLastSosMessage
-                    + ", timeout=" + timeout + ", modemState=" + mSatelltieModemState);
-            if (mSatelltieModemState == SATELLITE_MODEM_STATE_OFF
-                    || mSatelltieModemState == SATELLITE_MODEM_STATE_IDLE) {
-                return (timeout + mModemImageSwitchingDuration);
-            }
-            return timeout;
+    protected long getDatagramWaitTimeForConnectedState(boolean isLastSosMessage) {
+        long timeout = isLastSosMessage
+                ? mDatagramWaitTimeForConnectedStateForLastMessage.get()
+                : mDatagramWaitTimeForConnectedState.get();
+        int satelliteModemState = mSatelltieModemState.get();
+        logd("getDatagramWaitTimeForConnectedState: isLastSosMessage=" + isLastSosMessage
+                + ", timeout=" + timeout + ", modemState=" + satelliteModemState);
+        if (satelliteModemState == SATELLITE_MODEM_STATE_OFF
+                || satelliteModemState == SATELLITE_MODEM_STATE_IDLE) {
+            return (timeout + mModemImageSwitchingDuration.get());
         }
+        return timeout;
     }
 
     /**
@@ -526,18 +534,18 @@ public class DatagramController {
                 + ", reset=" + reset + ", timeoutType=" + timeoutType);
         if (timeoutType == TIMEOUT_TYPE_ALIGN) {
             if (reset) {
-                mAlignTimeoutDuration = SATELLITE_ALIGN_TIMEOUT;
+                mAlignTimeoutDuration.set(SATELLITE_ALIGN_TIMEOUT);
             } else {
-                mAlignTimeoutDuration = timeoutMillis;
+                mAlignTimeoutDuration.set(timeoutMillis);
             }
         } else if (timeoutType == TIMEOUT_TYPE_DATAGRAM_WAIT_FOR_CONNECTED_STATE) {
             if (reset) {
-                mDatagramWaitTimeForConnectedState =
-                        getDatagramWaitForConnectedStateTimeoutMillis();
-                mModemImageSwitchingDuration = getSatelliteModemImageSwitchingDurationMillis();
+                mDatagramWaitTimeForConnectedState.set(
+                        getDatagramWaitForConnectedStateTimeoutMillis());
+                mModemImageSwitchingDuration.set(getSatelliteModemImageSwitchingDurationMillis());
             } else {
-                mDatagramWaitTimeForConnectedState = timeoutMillis;
-                mModemImageSwitchingDuration = 0;
+                mDatagramWaitTimeForConnectedState.set(timeoutMillis);
+                mModemImageSwitchingDuration.set(0);
             }
         } else if (timeoutType == TIMEOUT_TYPE_WAIT_FOR_DATAGRAM_SENDING_RESPONSE) {
             mDatagramDispatcher.setWaitTimeForDatagramSendingResponse(reset, timeoutMillis);
@@ -568,10 +576,10 @@ public class DatagramController {
                 + ", reset=" + reset + ", enable=" + enable);
         if (booleanType == BOOLEAN_TYPE_WAIT_FOR_DEVICE_ALIGNMENT_IN_DEMO_DATAGRAM) {
             if (reset) {
-                mWaitForDeviceAlignmentInDemoDatagram =
-                        getWaitForDeviceAlignmentInDemoDatagramFromResources();
+                mWaitForDeviceAlignmentInDemoDatagram.set(
+                        getWaitForDeviceAlignmentInDemoDatagramFromResources());
             } else {
-                mWaitForDeviceAlignmentInDemoDatagram = enable;
+                mWaitForDeviceAlignmentInDemoDatagram.set(enable);
             }
         } else {
             loge("Invalid boolean type " + booleanType);
@@ -623,21 +631,25 @@ public class DatagramController {
     }
 
     private void retryPollPendingDatagramsInDemoMode() {
-        synchronized (mLock) {
-            if (mIsDemoMode && isSendingInIdleState() && isPollingInIdleState()
-                    && !mDemoModeDatagramList.isEmpty()) {
-                Consumer<Integer> internalCallback = new Consumer<Integer>() {
-                    @Override
-                    public void accept(Integer result) {
-                        if (result != SATELLITE_RESULT_SUCCESS) {
-                            plogd("retryPollPendingDatagramsInDemoMode result: " + result);
-                        }
+        if (mIsDemoMode.get() && isSendingInIdleState() && isPollingInIdleState()
+                && !isDemoModeDatagramListEmpty()) {
+            Consumer<Integer> internalCallback = new Consumer<Integer>() {
+                @Override
+                public void accept(Integer result) {
+                    if (result != SATELLITE_RESULT_SUCCESS) {
+                        plogd("retryPollPendingDatagramsInDemoMode result: " + result);
                     }
-                };
-                pollPendingSatelliteDatagrams(
-                        SatelliteController.getInstance().getSelectedSatelliteSubId(),
-                        internalCallback);
-            }
+                }
+            };
+            pollPendingSatelliteDatagrams(
+                    SatelliteController.getInstance().getSelectedSatelliteSubId(),
+                    internalCallback);
+        }
+    }
+
+    private boolean isDemoModeDatagramListEmpty() {
+        synchronized (mLock) {
+            return mDemoModeDatagramList.isEmpty();
         }
     }
 
@@ -649,7 +661,7 @@ public class DatagramController {
      * and it is required to wait for alignment else {@code false}
      */
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
-    public boolean waitForAligningToSatellite(boolean isAligned) {
+    protected boolean waitForAligningToSatellite(boolean isAligned) {
         if (isAligned) {
             return false;
         }
@@ -658,7 +670,7 @@ public class DatagramController {
     }
 
     private boolean getWaitForDeviceAlignmentInDemoDatagram() {
-        return mWaitForDeviceAlignmentInDemoDatagram;
+        return mWaitForDeviceAlignmentInDemoDatagram.get();
     }
 
     private boolean getWaitForDeviceAlignmentInDemoDatagramFromResources() {

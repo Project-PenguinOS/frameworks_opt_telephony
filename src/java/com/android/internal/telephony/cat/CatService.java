@@ -725,11 +725,7 @@ public class CatService extends Handler implements AppInterface {
         intent.setComponent(AppInterface.getDefaultSTKApplication());
         CatLog.d(this, "Sending CmdMsg: " + cmdMsg+ " on slotid:" + mSlotId);
 
-        if (sFlags.hsumBroadcast()) {
-            mContext.sendBroadcastAsUser(intent, UserHandle.ALL, AppInterface.STK_PERMISSION);
-        } else {
-            mContext.sendBroadcast(intent, AppInterface.STK_PERMISSION);
-        }
+        mContext.sendBroadcastAsUser(intent, UserHandle.ALL, AppInterface.STK_PERMISSION);
     }
 
     /**
@@ -746,11 +742,7 @@ public class CatService extends Handler implements AppInterface {
 // QTI_BEGIN: 2018-03-07: Telephony: Add FLAG_RECEIVER_FOREGROUND to CatService broadcast intents
         intent.addFlags(Intent.FLAG_RECEIVER_FOREGROUND);
 // QTI_END: 2018-03-07: Telephony: Add FLAG_RECEIVER_FOREGROUND to CatService broadcast intents
-        if (sFlags.hsumBroadcast()) {
-            mContext.sendBroadcastAsUser(intent, UserHandle.ALL, AppInterface.STK_PERMISSION);
-        } else {
-            mContext.sendBroadcast(intent, AppInterface.STK_PERMISSION);
-        }
+        mContext.sendBroadcastAsUser(intent, UserHandle.ALL, AppInterface.STK_PERMISSION);
     }
 
 
@@ -1124,11 +1116,7 @@ public class CatService extends Handler implements AppInterface {
         intent.putExtra("SLOT_ID", mSlotId);
         CatLog.d(this, "Sending Card Status: "
                 + cardState + " " + "cardPresent: " + cardPresent +  "SLOT_ID: " +  mSlotId);
-        if (sFlags.hsumBroadcast()) {
-            mContext.sendBroadcastAsUser(intent, UserHandle.ALL, AppInterface.STK_PERMISSION);
-        } else {
-            mContext.sendBroadcast(intent, AppInterface.STK_PERMISSION);
-        }
+        mContext.sendBroadcastAsUser(intent, UserHandle.ALL, AppInterface.STK_PERMISSION);
     }
 
     private void broadcastAlphaMessage(String alphaString) {
@@ -1138,11 +1126,7 @@ public class CatService extends Handler implements AppInterface {
         intent.putExtra(AppInterface.ALPHA_STRING, alphaString);
         intent.putExtra("SLOT_ID", mSlotId);
         intent.setComponent(AppInterface.getDefaultSTKApplication());
-        if (sFlags.hsumBroadcast()) {
-            mContext.sendBroadcastAsUser(intent, UserHandle.ALL, AppInterface.STK_PERMISSION);
-        } else {
-            mContext.sendBroadcast(intent, AppInterface.STK_PERMISSION);
-        }
+        mContext.sendBroadcastAsUser(intent, UserHandle.ALL, AppInterface.STK_PERMISSION);
     }
 
     @Override
