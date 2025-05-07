@@ -76,7 +76,6 @@ import com.android.internal.telephony.SmsConstants.MessageClass;
 import com.android.internal.telephony.analytics.TelephonyAnalytics;
 import com.android.internal.telephony.analytics.TelephonyAnalytics.SmsMmsAnalytics;
 import com.android.internal.telephony.flags.FeatureFlags;
-import com.android.internal.telephony.flags.Flags;
 import com.android.internal.telephony.metrics.TelephonyMetrics;
 import com.android.internal.telephony.satellite.SatelliteController;
 import com.android.internal.telephony.satellite.metrics.CarrierRoamingSatelliteSessionStats;
@@ -2192,9 +2191,7 @@ public abstract class InboundSmsHandler extends StateMachine {
                 UserManager userManager =
                         (UserManager) context.getSystemService(Context.USER_SERVICE);
                 PackageManager pm = context.getPackageManager();
-                if (Flags.hsumPackageManager()) {
-                    pm = context.createContextAsUser(UserHandle.CURRENT, 0).getPackageManager();
-                }
+                pm = context.createContextAsUser(UserHandle.CURRENT, 0).getPackageManager();
                 if (userManager.isUserUnlocked()) {
                     context.startActivityAsUser(pm.getLaunchIntentForPackage(
                             Telephony.Sms.getDefaultSmsPackage(context)), UserHandle.CURRENT);

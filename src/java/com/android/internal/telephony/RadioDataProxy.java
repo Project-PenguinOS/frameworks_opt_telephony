@@ -448,4 +448,30 @@ public class RadioDataProxy extends RadioServiceProxy {
             mRadioProxy.stopKeepalive(serial, sessionHandle);
         }
     }
+
+    /**
+     * Call IRadioData#setUserDataEnabled
+     * @param serial Serial number of request
+     * @param enabled Whether the user mobile data is enabled
+     * @throws RemoteException
+     */
+    public void setUserDataEnabled(int serial, boolean enabled) throws RemoteException {
+        if (isEmpty()) return;
+        if (isAidl()) {
+            mDataProxy.setUserDataEnabled(serial, enabled);
+        }
+    }
+
+    /**
+     * Call IRadioData#setUserDataRoamingEnabled
+     * @param serial Serial number of request
+     * @param enabled Whether the user mobile data roaming is enabled
+     * @throws RemoteException
+     */
+    public void setUserDataRoamingEnabled(int serial, boolean enabled) throws RemoteException {
+        if (isEmpty()) return;
+        if (isAidl()) {
+            mDataProxy.setUserDataRoamingEnabled(serial, enabled);
+        }
+    }
 }

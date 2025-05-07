@@ -2600,6 +2600,28 @@ public interface CommandsInterface {
     default void cancelHandover(Message result, int callId) {};
 
     /**
+     * Tells the modem if user data setting is enabled or disabled.
+     *
+     * This API is for informational purposes. The modem must not block any subsequent setup data
+     * call requests.
+     *
+     * @param result  Message that will be sent back to handler.
+     * @param enabled Whether the user mobile data is enabled.
+     */
+    default void setUserDataEnabled(Message result, boolean enabled) {};
+
+    /**
+     * Tells the modem if user data roaming setting is enabled or disabled.
+     *
+     * This API is for informational purposes. The modem must not block any subsequent setup data
+     * call requests.
+     *
+     * @param result  Message that will be sent back to handler.
+     * @param enabled Whether the user mobile data roaming is enabled.
+     */
+    default void setUserDataRoamingEnabled(Message result, boolean enabled) {};
+
+    /**
      * Control the data throttling at modem.
      *
      * @param result Message that will be sent back to the requester
