@@ -4805,6 +4805,51 @@ public class RIL extends BaseCommands implements CommandsInterface {
      * {@inheritDoc}
      */
     @Override
+    public void setUserDataEnabled(Message result, boolean enabled) {
+        RadioDataProxy dataProxy = getRadioServiceProxy(RadioDataProxy.class);
+        if (!canMakeRequest("setUserDataEnabled", dataProxy, result, RADIO_HAL_VERSION_2_4)) {
+            return;
+        }
+
+        RILRequest rr = obtainRequest(RIL_REQUEST_SET_USER_DATA_ENABLED, result,
+                mRILDefaultWorkSource);
+        if (RILJ_LOGD) {
+            riljLog(rr.serialString() + "> " + RILUtils.requestToString(rr.mRequest) + " enabled="
+                    + enabled);
+        }
+
+        radioServiceInvokeHelper(HAL_SERVICE_DATA, rr, "setUserDataEnabled", () -> {
+            dataProxy.setUserDataEnabled(rr.mSerial, enabled);
+        });
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void setUserDataRoamingEnabled(Message result, boolean enabled) {
+        RadioDataProxy dataProxy = getRadioServiceProxy(RadioDataProxy.class);
+        if (!canMakeRequest("setUserDataRoamingEnabled", dataProxy, result,
+                RADIO_HAL_VERSION_2_4)) {
+            return;
+        }
+
+        RILRequest rr = obtainRequest(RIL_REQUEST_SET_USER_DATA_ROAMING_ENABLED, result,
+                mRILDefaultWorkSource);
+        if (RILJ_LOGD) {
+            riljLog(rr.serialString() + "> " + RILUtils.requestToString(rr.mRequest) + " enabled="
+                    + enabled);
+        }
+
+        radioServiceInvokeHelper(HAL_SERVICE_DATA, rr, "setUserDataRoamingEnabled", () -> {
+            dataProxy.setUserDataRoamingEnabled(rr.mSerial, enabled);
+        });
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public void getSlicingConfig(Message result) {
         RadioDataProxy dataProxy = getRadioServiceProxy(RadioDataProxy.class);
         if (!canMakeRequest("getSlicingConfig", dataProxy, result, RADIO_HAL_VERSION_1_6)) {

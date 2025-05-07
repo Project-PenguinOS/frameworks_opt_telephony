@@ -79,17 +79,6 @@ flag {
     }
 }
 
-# OWNER=sasindran TARGET=24Q3
-flag {
-    name: "use_relaxed_id_match"
-    namespace: "telephony"
-    description: "This flag supports relaxed id match for radio state changes"
-    bug:"336916327"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
 # OWNER=joonhunshin TARGET=24Q4
 flag {
     name: "use_carrier_config_for_cfnry_time_via_mmi"
@@ -107,17 +96,6 @@ flag {
     namespace: "telephony"
     description: "Support Carrier Services (APIs) for HSUM."
     bug:"345522246"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-# OWNER=jackyu TARGET=25Q2
-flag {
-    name: "hsum_package_manager"
-    namespace: "telephony"
-    description: "Fixed the bug that package manager is not for the right user"
-    bug:"356827794"
     metadata {
         purpose: PURPOSE_BUGFIX
     }

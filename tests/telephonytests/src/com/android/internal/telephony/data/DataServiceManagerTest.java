@@ -120,6 +120,7 @@ public class DataServiceManagerTest extends TelephonyTest {
         Field field = DataService.class.getDeclaredField("mHandler");
         field.setAccessible(true);
         mDataServiceHandler = (Handler) field.get(mCellularDataService);
+        monitorTestableLooper(new TestableLooper(mDataServiceHandler.getLooper()));
 
         ServiceInfo serviceInfo = new ServiceInfo();
         serviceInfo.packageName = "com.android.phone";
@@ -138,7 +139,6 @@ public class DataServiceManagerTest extends TelephonyTest {
     }
 
     private void waitAndVerifyResult(Message message, int resultCode) {
-        waitForLastHandlerAction(mDataServiceHandler);
         processAllMessages();
 
         ArgumentCaptor<Message> messageCaptor = ArgumentCaptor.forClass(Message.class);

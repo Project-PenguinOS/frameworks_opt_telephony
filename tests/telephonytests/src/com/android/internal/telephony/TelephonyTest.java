@@ -561,7 +561,6 @@ public abstract class TelephonyTest {
         mDomainSelectionResolver = Mockito.mock(DomainSelectionResolver.class);
         mNullCipherNotifier = Mockito.mock(NullCipherNotifier.class);
 
-        lenient().doReturn(true).when(mFeatureFlags).hsumPackageManager();
         lenient().doReturn(true).when(mFeatureFlags).dataServiceCheck();
         lenient().doReturn(true).when(mFeatureFlags).phoneTypeCleanup();
         lenient().doReturn(true).when(mFeatureFlags).cleanupCdma();

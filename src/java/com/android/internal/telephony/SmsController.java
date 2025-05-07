@@ -226,14 +226,11 @@ public class SmsController extends ISmsImplBase {
 
     @NonNull
     private String getCallingPackage() {
-        if (mFlags.hsumPackageManager()) {
-            PackageManager pm = mContext.createContextAsUser(Binder.getCallingUserHandle(), 0)
-                    .getPackageManager();
-            String[] packages = pm.getPackagesForUid(Binder.getCallingUid());
-            if (packages == null || packages.length == 0) return "";
-            return packages[0];
-        }
-        return mContext.getPackageManager().getPackagesForUid(Binder.getCallingUid())[0];
+        PackageManager pm = mContext.createContextAsUser(Binder.getCallingUserHandle(), 0)
+                .getPackageManager();
+        String[] packages = pm.getPackagesForUid(Binder.getCallingUid());
+        if (packages == null || packages.length == 0) return "";
+        return packages[0];
     }
 
     @Override
