@@ -6082,10 +6082,9 @@ public class SatelliteControllerTest extends TelephonyTest {
             }
         }
 
-        void setIsSatelliteSupported(@Nullable Boolean isSatelliteSupported) {
-            synchronized (mIsSatelliteSupportedLock) {
-                mIsSatelliteSupported = isSatelliteSupported;
-            }
+        @Override
+        protected void setIsSatelliteSupported(boolean isSatelliteSupported) {
+            super.setIsSatelliteSupported(isSatelliteSupported);
         }
 
         public boolean isRadioOn() {

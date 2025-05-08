@@ -97,6 +97,18 @@ public class DatagramReceiver extends Handler {
     private AtomicLong mDatagramTransferStartTime = new AtomicLong(0);
     private AtomicBoolean mIsDemoMode = new AtomicBoolean(false);
     private AtomicBoolean mIsAligned = new AtomicBoolean(false);
+    /**
+     * Map key: subId, value: SatelliteDatagramListenerHandler to notify registrants.
+     */
+    private final ConcurrentHashMap<Integer, SatelliteDatagramListenerHandler>
+            mSatelliteDatagramListenerHandlers = new ConcurrentHashMap<>();
+    /**
+     * Map key: DatagramId, value: pendingAckCount
+     * This map is used to track number of listeners that are yet to send ack for a particular
+     * datagram.
+     */
+    private final ConcurrentHashMap<Long, Integer>
+            mPendingAckCountHashMap = new ConcurrentHashMap<>();
 
     /**
      * All the variables declared here should only be accessed by methods that run inside the
@@ -107,21 +119,6 @@ public class DatagramReceiver extends Handler {
     @Nullable
     private DatagramReceiverHandlerRequest mPendingPollSatelliteDatagramsRequest = null;
 
-
-    /**
-     * Map key: subId, value: SatelliteDatagramListenerHandler to notify registrants.
-     */
-    private final ConcurrentHashMap<Integer, SatelliteDatagramListenerHandler>
-            mSatelliteDatagramListenerHandlers = new ConcurrentHashMap<>();
-
-    /**
-     * Map key: DatagramId, value: pendingAckCount
-     * This map is used to track number of listeners that are yet to send ack for a particular
-     * datagram.
-     */
-    private final ConcurrentHashMap<Long, Integer>
-            mPendingAckCountHashMap = new ConcurrentHashMap<>();
-
     /**
      * Create the DatagramReceiver singleton instance.
      * @param context The Context to use to create the DatagramReceiver.
@@ -130,6 +127,7 @@ public class DatagramReceiver extends Handler {
      * @param datagramController DatagramController which is used to update datagram transfer state.
      * @return The singleton instance of DatagramReceiver.
      */
+    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
     public static DatagramReceiver make(@NonNull Context context, @NonNull Looper looper,
             @NonNull FeatureFlags featureFlags,
             @NonNull DatagramController datagramController) {
@@ -148,7 +146,7 @@ public class DatagramReceiver extends Handler {
      * @param featureFlags The telephony feature flags.
      * @param datagramController DatagramController which is used to update datagram transfer state.
      */
-    @VisibleForTesting
+    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PRIVATE)
     protected DatagramReceiver(@NonNull Context context, @NonNull Looper looper,
             @NonNull FeatureFlags featureFlags,
             @NonNull DatagramController datagramController) {
@@ -558,7 +556,8 @@ public class DatagramReceiver extends Handler {
      *
      * @return The {@link SatelliteManager.SatelliteResult} result of the operation.
      */
-    @SatelliteManager.SatelliteResult public int registerForSatelliteDatagram(int subId,
+    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
+    @SatelliteManager.SatelliteResult protected int registerForSatelliteDatagram(int subId,
             @NonNull ISatelliteDatagramCallback callback) {
         if (!SatelliteController.getInstance().isSatelliteSupportedViaOem()) {
             return SatelliteManager.SATELLITE_RESULT_NOT_SUPPORTED;
@@ -588,8 +587,7 @@ public class DatagramReceiver extends Handler {
      * @param callback The callback that was passed to
      *                 {@link #registerForSatelliteDatagram(int, ISatelliteDatagramCallback)}.
      */
-    public void unregisterForSatelliteDatagram(int subId,
-            @NonNull ISatelliteDatagramCallback callback) {
+    void unregisterForSatelliteDatagram(int subId, @NonNull ISatelliteDatagramCallback callback) {
         final int validSubId = SubscriptionManager.DEFAULT_SUBSCRIPTION_ID;
         SatelliteDatagramListenerHandler handler =
                 mSatelliteDatagramListenerHandlers.get(validSubId);
@@ -615,7 +613,8 @@ public class DatagramReceiver extends Handler {
      * @param subId The subId of the subscription used for receiving datagrams.
      * @param callback The callback to get {@link SatelliteManager.SatelliteResult} of the request.
      */
-    public void pollPendingSatelliteDatagrams(int subId, @NonNull Consumer<Integer> callback) {
+    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
+    protected void pollPendingSatelliteDatagrams(int subId, @NonNull Consumer<Integer> callback) {
         if (mFeatureFlags.satelliteImproveMultiThreadDesign()) {
             SomeArgs args = SomeArgs.obtain();
             args.arg1 = subId;
@@ -711,7 +710,8 @@ public class DatagramReceiver extends Handler {
      *
      * @param state Current satellite modem state.
      */
-    public void onSatelliteModemStateChanged(@SatelliteManager.SatelliteModemState int state) {
+    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
+    protected void onSatelliteModemStateChanged(@SatelliteManager.SatelliteModemState int state) {
         if (mFeatureFlags.satelliteImproveMultiThreadDesign()) {
             SomeArgs args = SomeArgs.obtain();
             args.arg1 = state;
