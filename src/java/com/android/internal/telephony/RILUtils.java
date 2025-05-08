@@ -197,6 +197,8 @@ import static com.android.internal.telephony.RILConstants.RIL_REQUEST_SET_UICC_S
 import static com.android.internal.telephony.RILConstants.RIL_REQUEST_SET_UNSOLICITED_RESPONSE_FILTER;
 import static com.android.internal.telephony.RILConstants.RIL_REQUEST_SET_UNSOL_CELL_INFO_LIST_RATE;
 import static com.android.internal.telephony.RILConstants.RIL_REQUEST_SET_USAGE_SETTING;
+import static com.android.internal.telephony.RILConstants.RIL_REQUEST_SET_USER_DATA_ENABLED;
+import static com.android.internal.telephony.RILConstants.RIL_REQUEST_SET_USER_DATA_ROAMING_ENABLED;
 import static com.android.internal.telephony.RILConstants.RIL_REQUEST_SHUTDOWN;
 import static com.android.internal.telephony.RILConstants.RIL_REQUEST_SIGNAL_STRENGTH;
 import static com.android.internal.telephony.RILConstants.RIL_REQUEST_SIM_AUTHENTICATION;
@@ -5267,6 +5269,10 @@ public class RILUtils {
                 return "SET_SATELLITE_ENABLED_FOR_CARRIER";
             case RIL_REQUEST_IS_SATELLITE_ENABLED_FOR_CARRIER:
                 return "IS_SATELLITE_ENABLED_FOR_CARRIER";
+            case RIL_REQUEST_SET_USER_DATA_ENABLED:
+                return "SET_USER_DATA_ENABLED";
+            case RIL_REQUEST_SET_USER_DATA_ROAMING_ENABLED:
+                return "SET_USER_DATA_ROAMING_ENABLED";
             default:
                 return "<unknown request " + request + ">";
         }

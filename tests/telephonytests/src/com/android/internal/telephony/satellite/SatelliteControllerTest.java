@@ -4470,7 +4470,7 @@ public class SatelliteControllerTest extends TelephonyTest {
         inputList.add(list.get(0));
         verifyProvisionSatellite(inputList);
 
-        verify(mMockSatelliteModemInterface, times(1)).updateSatelliteSubscription(anyString(),
+        verify(mMockSatelliteModemInterface, times(2)).updateSatelliteSubscription(anyString(),
                 any());
         assertTrue(waitForForEvents(
                 semaphore, 1, "testRegisterForSatelliteSubscriptionProvisionStateChanged"));
@@ -4841,8 +4841,8 @@ public class SatelliteControllerTest extends TelephonyTest {
 
         List<SatelliteSubscriberInfo> inputList = getExpectedSatelliteSubscriberInfoList();
         verifyProvisionSatellite(inputList);
-        verify(mMockSubscriptionManagerService).setIsSatelliteProvisionedForNonIpDatagram(
-                eq(SUB_ID), eq(true));
+        verify(mMockSubscriptionManagerService, times(2))
+                .setIsSatelliteProvisionedForNonIpDatagram(eq(SUB_ID), eq(true));
     }
 
     @Test
@@ -6230,6 +6230,7 @@ public class SatelliteControllerTest extends TelephonyTest {
     public void testSetNtnSmsSupportedByMessagesApp() {
         when(mFeatureFlags.carrierRoamingNbIotNtn()).thenReturn(true);
         mSatelliteControllerUT.setNtnSmsSupportedByMessagesApp(true);
+        processAllMessages();
         assertTrue(mSharedPreferences.getBoolean(
                 SatelliteController.NTN_SMS_SUPPORTED_BY_MESSAGES_APP_KEY, false));
     }
