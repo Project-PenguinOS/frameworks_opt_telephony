@@ -75,6 +75,7 @@ import org.mockito.MockitoAnnotations;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 
 @RunWith(AndroidTestingRunner.class)
 @TestableLooper.RunWithLooper
@@ -86,7 +87,7 @@ public class DatagramReceiverTest extends TelephonyTest {
     private static final long TEST_DATAGRAM_WAIT_FOR_CONNECTED_STATE_TIMEOUT_MILLIS =
             TimeUnit.SECONDS.toMillis(60);
 
-    private DatagramReceiver mDatagramReceiverUT;
+    private TestDatagramReceiver mDatagramReceiverUT;
     private DatagramReceiver.SatelliteDatagramListenerHandler mSatelliteDatagramListenerHandler;
     private TestDatagramReceiver mTestDemoModeDatagramReceiver;
 
@@ -130,7 +131,7 @@ public class DatagramReceiverTest extends TelephonyTest {
                 mMockSessionMetricsStats);
 
         doReturn(true).when(mFeatureFlags).satelliteImproveMultiThreadDesign();
-        mDatagramReceiverUT = DatagramReceiver.make(mContext, Looper.myLooper(), mFeatureFlags,
+        mDatagramReceiverUT = new TestDatagramReceiver(mContext, Looper.myLooper(), mFeatureFlags,
                 mMockDatagramController);
         mTestDemoModeDatagramReceiver = new TestDatagramReceiver(mContext, Looper.myLooper(),
                 mFeatureFlags,
@@ -521,6 +522,8 @@ public class DatagramReceiverTest extends TelephonyTest {
                 @NonNull FeatureFlags featureFlags,
                 @NonNull DatagramController datagramController) {
             super(context, looper, featureFlags, datagramController);
+            make(context, looper, featureFlags, datagramController);
+
         }
 
         @Override
@@ -545,6 +548,24 @@ public class DatagramReceiverTest extends TelephonyTest {
         @Override
         protected boolean isDatagramWaitForConnectedStateTimerStarted() {
             return super.isDatagramWaitForConnectedStateTimerStarted();
+        }
+
+        @Override
+        protected int registerForSatelliteDatagram(int subId,
+                @NonNull ISatelliteDatagramCallback callback) {
+            return super.registerForSatelliteDatagram(subId, callback);
+        }
+
+        @Override
+        protected void pollPendingSatelliteDatagrams(
+                int subId, @NonNull Consumer<Integer> callback) {
+            super.pollPendingSatelliteDatagrams(subId, callback);
+        }
+
+        @Override
+        protected void onSatelliteModemStateChanged(
+                @SatelliteManager.SatelliteModemState int state) {
+            super.onSatelliteModemStateChanged(state);
         }
     }
 

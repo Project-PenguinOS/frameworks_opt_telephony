@@ -389,6 +389,10 @@ public class SatelliteController extends Handler {
     private AtomicBoolean mDisableNFCOnSatelliteEnabled = new AtomicBoolean(false);
     private AtomicBoolean mDisableUWBOnSatelliteEnabled = new AtomicBoolean(false);
     private AtomicBoolean mDisableWifiOnSatelliteEnabled = new AtomicBoolean(false);
+    protected AtomicBoolean mIsSatelliteSupported = null;
+    private AtomicBoolean mNeedsSatellitePointing = new AtomicBoolean(false);
+    private AtomicBoolean mIsDemoModeEnabled = new AtomicBoolean(false);
+    private AtomicBoolean mIsEmergency = new AtomicBoolean(false);
 
     private final Object mSatelliteEnabledRequestLock = new Object();
     /* This variable is used to store the first enable request that framework has received in the
@@ -481,11 +485,6 @@ public class SatelliteController extends Handler {
     private final ConcurrentHashMap<IBinder, ISelectedNbIotSatelliteSubscriptionCallback>
             mSelectedNbIotSatelliteSubscriptionChangedListeners = new ConcurrentHashMap<>();
 
-    protected final Object mIsSatelliteSupportedLock = new Object();
-    @GuardedBy("mIsSatelliteSupportedLock")
-    protected Boolean mIsSatelliteSupported = null;
-    private boolean mIsDemoModeEnabled = false;
-    private boolean mIsEmergency = false;
     private final Object mIsSatelliteEnabledLock = new Object();
     @GuardedBy("mIsSatelliteEnabledLock")
     private Boolean mIsSatelliteEnabled = null;
@@ -506,9 +505,6 @@ public class SatelliteController extends Handler {
     private final Object mSatelliteCapabilitiesLock = new Object();
     @GuardedBy("mSatelliteCapabilitiesLock")
     private SatelliteCapabilities mSatelliteCapabilities;
-    private final Object mNeedsSatellitePointingLock = new Object();
-    @GuardedBy("mNeedsSatellitePointingLock")
-    private boolean mNeedsSatellitePointing = false;
     private final Object mNtnSignalsStrengthLock = new Object();
     @GuardedBy("mNtnSignalsStrengthLock")
     private NtnSignalStrength mNtnSignalStrength =
@@ -1557,7 +1553,7 @@ public class SatelliteController extends Handler {
                         evaluateToSendSatelliteEnabledSuccess();
                     } else {
                         // Unregister importance listener for PointingUI when satellite is disabled
-                        if (mNeedsSatellitePointing) {
+                        if (mNeedsSatellitePointing.get()) {
                             mPointingAppController.removeListenerForPointingUI();
                         }
 
@@ -1593,7 +1589,7 @@ public class SatelliteController extends Handler {
                             .setSatelliteTechnology(getSupportedNtnRadioTechnology())
                             .setInitializationProcessingTime(
                                     getElapsedRealtime() - mSessionProcessingTimeStamp)
-                            .setIsDemoMode(mIsDemoModeEnabled)
+                            .setIsDemoMode(mIsDemoModeEnabled.get())
                             .setCarrierId(getSatelliteCarrierId())
                             .setIsEmergency(argument.isEmergency);
                     mSessionProcessingTimeStamp = 0;
@@ -1615,7 +1611,7 @@ public class SatelliteController extends Handler {
                     mSessionStartTimeStamp = 0;
                     mSessionProcessingTimeStamp = 0;
                     mControllerMetricsStats.onSatelliteDisabled();
-                    handlePersistentLoggingOnSessionEnd(mIsEmergency);
+                    handlePersistentLoggingOnSessionEnd(mIsEmergency.get());
                     synchronized (mSatelliteEnabledRequestLock) {
                         mWaitingForDisableSatelliteModemResponse = false;
                     }
@@ -1796,9 +1792,7 @@ public class SatelliteController extends Handler {
                         error = SatelliteManager.SATELLITE_RESULT_INVALID_TELEPHONY_STATE;
                     } else {
                         SatelliteCapabilities capabilities = (SatelliteCapabilities) ar.result;
-                        synchronized (mNeedsSatellitePointingLock) {
-                            mNeedsSatellitePointing = capabilities.isPointingRequired();
-                        }
+                        mNeedsSatellitePointing.set(capabilities.isPointingRequired());
 
                         synchronized (mSatelliteCapabilitiesLock) {
                             mSatelliteCapabilities = capabilities;
@@ -2775,7 +2769,7 @@ public class SatelliteController extends Handler {
                 if (isSatelliteEnabled != null && isSatelliteEnabled == enableSatellite) {
                     evaluateToUpdateSatelliteEnabledAttributes(result,
                             SatelliteManager.SATELLITE_RESULT_SUCCESS, request,
-                            mIsDemoModeEnabled, mIsEmergency);
+                            mIsDemoModeEnabled.get(), mIsEmergency.get());
                     return;
                 }
 
@@ -3119,7 +3113,7 @@ public class SatelliteController extends Handler {
         }
 
         final Bundle bundle = new Bundle();
-        bundle.putBoolean(SatelliteManager.KEY_DEMO_MODE_ENABLED, mIsDemoModeEnabled);
+        bundle.putBoolean(SatelliteManager.KEY_DEMO_MODE_ENABLED, mIsDemoModeEnabled.get());
         result.send(SATELLITE_RESULT_SUCCESS, bundle);
     }
 
@@ -3129,7 +3123,7 @@ public class SatelliteController extends Handler {
      * @return {@code true} if the satellite demo mode is enabled and {@code false} otherwise.
      */
     public boolean isDemoModeEnabled() {
-        return mIsDemoModeEnabled;
+        return mIsDemoModeEnabled.get();
     }
 
     /**
@@ -3660,10 +3654,9 @@ public class SatelliteController extends Handler {
         /**
          * TODO for NTN-based satellites: Check if satellite is acquired.
          */
-        if (mNeedsSatellitePointing) {
-
-            mPointingAppController.startPointingUI(needFullScreenPointingUI, mIsDemoModeEnabled,
-                    mIsEmergency);
+        if (mNeedsSatellitePointing.get()) {
+            mPointingAppController.startPointingUI(needFullScreenPointingUI,
+                    mIsDemoModeEnabled.get(), mIsEmergency.get());
         }
 
         mDatagramController.sendSatelliteDatagram(getSelectedSatelliteSubId(), datagramType,
@@ -4063,9 +4056,7 @@ public class SatelliteController extends Handler {
         // Cached states need to be cleared whenever switching satellite vendor services.
         plogd("setSatelliteServicePackageName: Resetting cached states, provisioned="
                 + provisioned);
-        synchronized (mIsSatelliteSupportedLock) {
-            mIsSatelliteSupported = null;
-        }
+        mIsSatelliteSupported = null;
         synchronized (mIsSatelliteEnabledLock) {
             mIsSatelliteEnabled = null;
         }
@@ -4773,7 +4764,7 @@ public class SatelliteController extends Handler {
      *                      {@code false} otherwise.
      */
     public boolean getRequestIsEmergency() {
-        return mIsEmergency;
+        return mIsEmergency.get();
     }
 
     /**
@@ -5289,9 +5280,7 @@ public class SatelliteController extends Handler {
     }
 
     private void updateSatelliteSupportedState(boolean supported) {
-        synchronized (mIsSatelliteSupportedLock) {
-            mIsSatelliteSupported = supported;
-        }
+        setIsSatelliteSupported(supported);
         mSatelliteSessionController = SatelliteSessionController.make(
                 mContext, getLooper(), mFeatureFlags, supported);
         plogd("updateSatelliteSupportedState: create a new SatelliteSessionController because "
@@ -5346,7 +5335,7 @@ public class SatelliteController extends Handler {
         }
         if (mSatelliteSessionController != null) {
             mSatelliteSessionController.onSatelliteEnabledStateChanged(enabled);
-            mSatelliteSessionController.setDemoMode(mIsDemoModeEnabled);
+            mSatelliteSessionController.setDemoMode(mIsDemoModeEnabled.get());
         } else {
             ploge(caller + ": mSatelliteSessionController is not initialized yet");
         }
@@ -5656,10 +5645,7 @@ public class SatelliteController extends Handler {
                     });
 
         }
-
-        synchronized (mIsSatelliteSupportedLock) {
-            mIsSatelliteSupported = supported;
-        }
+        setIsSatelliteSupported(supported);
     }
 
     private void handleEventSelectedNbIotSatelliteSubscriptionChanged(int selectedSubId) {
@@ -5850,9 +5836,9 @@ public class SatelliteController extends Handler {
                 if (mSatelliteEnabledRequest.enableSatellite
                         && !mSatelliteEnabledRequest.isEmergency) {
                     plogd("Starting pointingUI needFullscreenPointingUI=" + true
-                            + "mIsDemoModeEnabled=" + mIsDemoModeEnabled + ", isEmergency="
+                            + "mIsDemoModeEnabled=" + mIsDemoModeEnabled.get() + ", isEmergency="
                             + mSatelliteEnabledRequest.isEmergency);
-                    mPointingAppController.startPointingUI(true, mIsDemoModeEnabled, false);
+                    mPointingAppController.startPointingUI(true, mIsDemoModeEnabled.get(), false);
                 }
                 mSatelliteEnabledRequest = null;
                 mWaitingForRadioDisabled = false;
@@ -5897,7 +5883,7 @@ public class SatelliteController extends Handler {
             @SatelliteManager.SatelliteResult int resultCode) {
         plogd("moveSatelliteToOffStateAndCleanUpResources");
         setDemoModeEnabled(false);
-        handlePersistentLoggingOnSessionEnd(mIsEmergency);
+        handlePersistentLoggingOnSessionEnd(mIsEmergency.get());
         setEmergencyMode(false);
         synchronized (mIsSatelliteEnabledLock) {
             mIsSatelliteEnabled = false;
@@ -5921,17 +5907,18 @@ public class SatelliteController extends Handler {
     }
 
     private void setDemoModeEnabled(boolean enabled) {
-        mIsDemoModeEnabled = enabled;
-        mDatagramController.setDemoMode(mIsDemoModeEnabled);
-        plogd("setDemoModeEnabled: mIsDemoModeEnabled=" + mIsDemoModeEnabled);
+        mIsDemoModeEnabled.set(enabled);
+        mDatagramController.setDemoMode(enabled);
+        plogd("setDemoModeEnabled: mIsDemoModeEnabled=" + enabled);
     }
 
     private void setEmergencyMode(boolean isEmergency) {
-        plogd("setEmergencyMode: mIsEmergency=" + mIsEmergency + ", isEmergency=" + isEmergency);
-        if (mIsEmergency != isEmergency) {
-            mIsEmergency = isEmergency;
+        plogd("setEmergencyMode: mIsEmergency=" + mIsEmergency.get()
+                + ", isEmergency=" + isEmergency);
+        if (mIsEmergency.get() != isEmergency) {
+            mIsEmergency.set(isEmergency);
             if (mSatelliteSessionController != null) {
-                mSatelliteSessionController.onEmergencyModeChanged(mIsEmergency);
+                mSatelliteSessionController.onEmergencyModeChanged(isEmergency);
             } else {
                 plogw("setEmergencyMode: mSatelliteSessionController is null");
             }
@@ -6790,7 +6777,7 @@ public class SatelliteController extends Handler {
         result.accept(error);
         mSessionMetricsStats.setInitializationResult(error)
                 .setSatelliteTechnology(getSupportedNtnRadioTechnology())
-                .setIsDemoMode(mIsDemoModeEnabled)
+                .setIsDemoMode(mIsDemoModeEnabled.get())
                 .setCarrierId(getSatelliteCarrierId())
                 .setIsNtnOnlyCarrier(isNtnOnlyCarrier())
                 .reportSessionMetrics();
@@ -6952,7 +6939,7 @@ public class SatelliteController extends Handler {
 
     private void logCarrierRoamingSatelliteSessionStats(@NonNull Phone phone,
             boolean lastNotifiedNtnMode, boolean currNtnMode) {
-        if (mIsDemoModeEnabled) {
+        if (mIsDemoModeEnabled.get()) {
             plogd("logCarrierRoamingSatelliteSessionStats: return, demo mode is enabled");
             return;
         }
@@ -7397,7 +7384,7 @@ public class SatelliteController extends Handler {
                     .setSatelliteTechnology(getSupportedNtnRadioTechnology())
                     .setInitializationProcessingTime(
                             getElapsedRealtime() - mSessionProcessingTimeStamp)
-                    .setIsDemoMode(mIsDemoModeEnabled)
+                    .setIsDemoMode(mIsDemoModeEnabled.get())
                     .setCarrierId(getSatelliteCarrierId())
                     .reportSessionMetrics();
         } else {
@@ -8935,14 +8922,12 @@ public class SatelliteController extends Handler {
 
     /** Start PointingUI if it is required. */
     public void startPointingUI() {
-        synchronized (mNeedsSatellitePointingLock) {
-            plogd("startPointingUI: mNeedsSatellitePointing=" + mNeedsSatellitePointing
-                    + ", mIsDemoModeEnabled=" + mIsDemoModeEnabled
-                    + ", mIsEmergency=" + mIsEmergency);
-            if (mNeedsSatellitePointing) {
-                mPointingAppController.startPointingUI(false /*needFullScreenPointingUI*/,
-                        mIsDemoModeEnabled, mIsEmergency);
-            }
+        plogd("startPointingUI: mNeedsSatellitePointing=" + mNeedsSatellitePointing.get()
+                + ", mIsDemoModeEnabled=" + mIsDemoModeEnabled.get()
+                + ", mIsEmergency=" + mIsEmergency.get());
+        if (mNeedsSatellitePointing.get()) {
+            mPointingAppController.startPointingUI(false /*needFullScreenPointingUI*/,
+                    mIsDemoModeEnabled.get(), mIsEmergency.get());
         }
     }
 
@@ -9098,7 +9083,7 @@ public class SatelliteController extends Handler {
             mTerrestrialNetworkAvailableChangedListeners.remove(listener.asBinder());
         });
 
-        if (isAvailable && !mIsEmergency) {
+        if (isAvailable && !mIsEmergency.get()) {
             requestSatelliteEnabled(
                     false /* enableSatellite */, false /* enableDemoMode */,
                     false /* isEmergency */,
@@ -9687,11 +9672,21 @@ public class SatelliteController extends Handler {
         }
     }
 
+    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PRIVATE)
+    protected void setIsSatelliteSupported(boolean isSupported) {
+        if (mIsSatelliteSupported == null) {
+            mIsSatelliteSupported = new AtomicBoolean(isSupported);
+        } else {
+            mIsSatelliteSupported.set(isSupported);
+        }
+    }
+
     @Nullable
     private Boolean getIsSatelliteSupported() {
-        synchronized (mIsSatelliteSupportedLock) {
-            return mIsSatelliteSupported;
+        if (mIsSatelliteSupported == null) {
+            return null;
         }
+        return mIsSatelliteSupported.get();
     }
 
     private boolean isWaitingForDisableSatelliteModemResponse() {

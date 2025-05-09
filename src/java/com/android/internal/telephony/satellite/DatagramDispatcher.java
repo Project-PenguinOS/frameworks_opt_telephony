@@ -82,6 +82,7 @@ public class DatagramDispatcher extends Handler {
     private static final int EVENT_SEND_SMS_DONE = 9;
     private static final int EVENT_MT_SMS_POLLING_THROTTLE_TIMED_OUT = 10;
     private static final int CMD_SEND_MT_SMS_POLLING_MESSAGE = 11;
+    private static final int EVENT_SATELLITE_MODEM_STATE_CHANGED = 12;
 
     private static final Long TIMEOUT_DATAGRAM_DELAY_IN_DEMO_MODE = TimeUnit.SECONDS.toMillis(10);
 
@@ -114,7 +115,13 @@ public class DatagramDispatcher extends Handler {
     private AtomicInteger mConnectedStateCounter = new AtomicInteger(0);
     private AtomicLong mSmsTransmissionStartTime = new AtomicLong(0);
 
+    /**
+     * All the variables declared here should only be accessed by methods that run inside the
+     * handler thread.
+     */
     private DatagramDispatcherHandlerRequest mSendSatelliteDatagramRequest = null;
+
+    /** All the variables that require lock are declared here. */
     private final Object mLock = new Object();
     /**
      * Map key: datagramId, value: SendSatelliteDatagramArgument to retry sending emergency
@@ -418,6 +425,18 @@ public class DatagramDispatcher extends Handler {
             case CMD_SEND_MT_SMS_POLLING_MESSAGE: {
                 plogd("CMD_SEND_MT_SMS_POLLING_MESSAGE");
                 handleCmdSendMtSmsPollingMessage();
+                break;
+            }
+
+            case EVENT_SATELLITE_MODEM_STATE_CHANGED: {
+                plogd("EVENT_SATELLITE_MODEM_STATE_CHANGED");
+                SomeArgs args = (SomeArgs) msg.obj;
+                int state = (int) args.arg1;
+                try {
+                    handleEventSatelliteModemStateChanged(state);
+                } finally {
+                    args.recycle();
+                }
                 break;
             }
 
@@ -805,6 +824,19 @@ public class DatagramDispatcher extends Handler {
      * @param state Current satellite modem state.
      */
     public void onSatelliteModemStateChanged(@SatelliteManager.SatelliteModemState int state) {
+        if (mFeatureFlags.satelliteImproveMultiThreadDesign()) {
+            SomeArgs args = SomeArgs.obtain();
+            args.arg1 = state;
+            sendMessage(obtainMessage(EVENT_SATELLITE_MODEM_STATE_CHANGED, args));
+            return;
+        }
+
+        handleEventSatelliteModemStateChanged(state);
+    }
+
+    private void handleEventSatelliteModemStateChanged(
+            @SatelliteManager.SatelliteModemState int state) {
+        plogd("handleEventSatelliteModemStateChanged: state = " + state);
         synchronized (mLock) {
             mModemState.set(state);
             if (state == SatelliteManager.SATELLITE_MODEM_STATE_OFF
