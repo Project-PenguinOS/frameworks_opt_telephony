@@ -111,6 +111,9 @@ public class DatagramDispatcherTest extends TelephonyTest {
             TEST_WAIT_FOR_DATAGRAM_SENDING_RESPONSE_FOR_LAST_MESSAGE_TIMEOUT_MILLIS =
             (int) TimeUnit.SECONDS.toMillis(60);
 
+    private static final int TEST_MT_SMS_POLLING_THROTTLE_MILLIS =
+            (int) TimeUnit.SECONDS.toMillis(60);
+
     private TestDatagramDispatcher mDatagramDispatcherUT;
 
     @Mock private SatelliteController mMockSatelliteController;
@@ -179,6 +182,9 @@ public class DatagramDispatcherTest extends TelephonyTest {
         when(mPhone.getSmsDispatchersController()).thenReturn(mMockSmsDispatchersController);
         when(mMockSatelliteController.getSatelliteCarrierId()).thenReturn(UNKNOWN_CARRIER_ID);
         mPendingSms = createPendingRequest();
+
+        mContextFixture.putIntResource(R.integer.config_mt_sms_polling_throttle_millis,
+                TEST_MT_SMS_POLLING_THROTTLE_MILLIS);
     }
 
     @After
@@ -1308,6 +1314,7 @@ public class DatagramDispatcherTest extends TelephonyTest {
 
     private void setModemState(int state) {
         mDatagramDispatcherUT.onSatelliteModemStateChanged(state);
+        processAllMessages();
     }
 
     private void setShouldPollMtSmsTrue() {
