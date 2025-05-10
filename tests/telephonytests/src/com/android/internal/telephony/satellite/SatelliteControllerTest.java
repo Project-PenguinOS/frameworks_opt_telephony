@@ -222,6 +222,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Semaphore;
@@ -2932,7 +2933,8 @@ public class SatelliteControllerTest extends TelephonyTest {
         reset(mMockSatelliteModemInterface);
         setUpResponseForRequestSetSatelliteEnabledForCarrier(true, SATELLITE_RESULT_SUCCESS);
         doReturn(true).when(mMockSatelliteModemInterface).isSatelliteServiceSupported();
-        Map<Integer, Set<Integer>> satelliteAttachRestrictionForCarrierArray = new HashMap<>();
+        ConcurrentHashMap<Integer, Set<Integer>> satelliteAttachRestrictionForCarrierArray =
+                new ConcurrentHashMap<>();
         satelliteAttachRestrictionForCarrierArray.put(SUB_ID, new HashSet<>());
         satelliteAttachRestrictionForCarrierArray.get(SUB_ID).add(
                 SATELLITE_COMMUNICATION_RESTRICTION_REASON_ENTITLEMENT);
@@ -2956,7 +2958,8 @@ public class SatelliteControllerTest extends TelephonyTest {
         mIIntegerConsumerResults.clear();
         reset(mMockSatelliteModemInterface);
         reset(mPhone);
-        Map<Integer, Boolean> enabledForCarrierArrayPerSub = new HashMap<>();
+        ConcurrentHashMap<Integer, Boolean> enabledForCarrierArrayPerSub =
+                new ConcurrentHashMap<>();
         enabledForCarrierArrayPerSub.put(SUB_ID, true);
         replaceInstance(SatelliteController.class, "mIsSatelliteAttachEnabledForCarrierArrayPerSub",
                 mSatelliteControllerUT, enabledForCarrierArrayPerSub);
