@@ -268,17 +268,15 @@ public class DatagramDispatcher extends Handler {
                 argument.setDatagramStartTime();
                 onCompleted = obtainMessage(EVENT_SEND_SATELLITE_DATAGRAM_DONE, request);
 
-                synchronized (mLock) {
-                    if (mIsDemoMode.get() && !shouldSendDatagramToModemInDemoMode()) {
-                        AsyncResult.forMessage(onCompleted, SATELLITE_RESULT_SUCCESS, null);
-                        sendMessageDelayed(onCompleted, getDemoTimeoutDuration());
-                    } else {
-                        SatelliteModemInterface.getInstance().sendSatelliteDatagram(
-                                argument.datagram,
-                                SatelliteServiceUtils.isSosMessage(argument.datagramType),
-                                argument.needFullScreenPointingUI, onCompleted);
-                        startWaitForDatagramSendingResponseTimer(argument);
-                    }
+                if (mIsDemoMode.get() && !shouldSendDatagramToModemInDemoMode()) {
+                    AsyncResult.forMessage(onCompleted, SATELLITE_RESULT_SUCCESS, null);
+                    sendMessageDelayed(onCompleted, getDemoTimeoutDuration());
+                } else {
+                    SatelliteModemInterface.getInstance().sendSatelliteDatagram(
+                            argument.datagram,
+                            SatelliteServiceUtils.isSosMessage(argument.datagramType),
+                            argument.needFullScreenPointingUI, onCompleted);
+                    startWaitForDatagramSendingResponseTimer(argument);
                 }
                 break;
             }
@@ -837,37 +835,36 @@ public class DatagramDispatcher extends Handler {
     private void handleEventSatelliteModemStateChanged(
             @SatelliteManager.SatelliteModemState int state) {
         plogd("handleEventSatelliteModemStateChanged: state = " + state);
-        synchronized (mLock) {
-            mModemState.set(state);
-            if (state == SatelliteManager.SATELLITE_MODEM_STATE_OFF
-                    || state == SatelliteManager.SATELLITE_MODEM_STATE_UNAVAILABLE) {
-                plogd("onSatelliteModemStateChanged: cleaning up resources");
-                cleanUpResources();
-            } else if (state == SatelliteManager.SATELLITE_MODEM_STATE_IDLE) {
+        mModemState.set(state);
+        if (state == SatelliteManager.SATELLITE_MODEM_STATE_OFF
+                || state == SatelliteManager.SATELLITE_MODEM_STATE_UNAVAILABLE) {
+            plogd("onSatelliteModemStateChanged: cleaning up resources");
+            cleanUpResources();
+        } else if (state == SatelliteManager.SATELLITE_MODEM_STATE_IDLE) {
+            sendPendingMessages();
+        }
+
+        if (state == SATELLITE_MODEM_STATE_CONNECTED) {
+            mHasEnteredConnectedState.set(true);
+
+            mConnectedStateCounter.incrementAndGet();
+            if (isFirstConnected()) {
+                mShouldPollMtSms.set(shouldPollMtSms());
+            }
+
+            if (isDatagramWaitForConnectedStateTimerStarted()) {
+                stopDatagramWaitForConnectedStateTimer();
                 sendPendingMessages();
             }
+        }
 
-            if (state == SATELLITE_MODEM_STATE_CONNECTED) {
-                mHasEnteredConnectedState.set(true);
-
-                mConnectedStateCounter.incrementAndGet();
-                if (isFirstConnected()) {
-                    mShouldPollMtSms.set(shouldPollMtSms());
-                }
-
-                if (isDatagramWaitForConnectedStateTimerStarted()) {
-                    stopDatagramWaitForConnectedStateTimer();
-                    sendPendingMessages();
-                }
-            }
-
-            if (state == SATELLITE_MODEM_STATE_NOT_CONNECTED) {
-                if (mHasEnteredConnectedState.get()) {
-                    mHasEnteredConnectedState.set(false);
-                    mShouldPollMtSms.set(shouldPollMtSms());
-                }
+        if (state == SATELLITE_MODEM_STATE_NOT_CONNECTED) {
+            if (mHasEnteredConnectedState.get()) {
+                mHasEnteredConnectedState.set(false);
+                mShouldPollMtSms.set(shouldPollMtSms());
             }
         }
+
         if (allowMtSmsPolling()) {
             sendMessage(obtainMessage(CMD_SEND_MT_SMS_POLLING_MESSAGE));
         }

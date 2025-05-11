@@ -393,6 +393,7 @@ public class SatelliteController extends Handler {
     private AtomicBoolean mNeedsSatellitePointing = new AtomicBoolean(false);
     private AtomicBoolean mIsDemoModeEnabled = new AtomicBoolean(false);
     private AtomicBoolean mIsEmergency = new AtomicBoolean(false);
+    private AtomicBoolean mIsSatelliteEnabled = null;
 
     private final Object mSatelliteEnabledRequestLock = new Object();
     /* This variable is used to store the first enable request that framework has received in the
@@ -485,9 +486,6 @@ public class SatelliteController extends Handler {
     private final ConcurrentHashMap<IBinder, ISelectedNbIotSatelliteSubscriptionCallback>
             mSelectedNbIotSatelliteSubscriptionChangedListeners = new ConcurrentHashMap<>();
 
-    private final Object mIsSatelliteEnabledLock = new Object();
-    @GuardedBy("mIsSatelliteEnabledLock")
-    private Boolean mIsSatelliteEnabled = null;
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PRIVATE)
     protected final Object mIsRadioOnLock = new Object();
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PRIVATE)
@@ -526,15 +524,14 @@ public class SatelliteController extends Handler {
     private final SubscriptionManager.OnSubscriptionsChangedListener mSubscriptionsChangedListener;
     @GuardedBy("mCarrierConfigArrayLock")
     @NonNull private final SparseArray<PersistableBundle> mCarrierConfigArray = new SparseArray<>();
-    @GuardedBy("mIsSatelliteEnabledLock")
+
     /** Key: Subscription ID, value: set of restriction reasons for satellite communication.*/
-    @NonNull private final Map<Integer, Set<Integer>> mSatelliteAttachRestrictionForCarrierArray =
-            new HashMap<>();
-    @GuardedBy("mIsSatelliteEnabledLock")
+    @NonNull private final ConcurrentHashMap<Integer, Set<Integer>>
+            mSatelliteAttachRestrictionForCarrierArray = new ConcurrentHashMap<>();
     /** Key: Subscription ID, value: the actual satellite enabled state in the modem -
      * {@code true} for enabled and {@code false} for disabled. */
-    @NonNull private final Map<Integer, Boolean> mIsSatelliteAttachEnabledForCarrierArrayPerSub =
-            new HashMap<>();
+    @NonNull private final ConcurrentHashMap<Integer, Boolean>
+            mIsSatelliteAttachEnabledForCarrierArrayPerSub = new ConcurrentHashMap<>();
     /** Key: subId, value: (key: Regional satellite config Id string, value: Integer
      * arrays of earfcns in the corresponding regions.)
      */
@@ -1939,18 +1936,15 @@ public class SatelliteController extends Handler {
 
                 plogd("EVENT_EVALUATE_SATELLITE_ATTACH_RESTRICTION_CHANGE_DONE: subId="
                         + subId + " error:" + error);
-                synchronized (mIsSatelliteEnabledLock) {
-                    if (error == SATELLITE_RESULT_SUCCESS) {
-                        boolean enableSatellite = mSatelliteAttachRestrictionForCarrierArray
-                                .getOrDefault(argument.subId, Collections.emptySet()).isEmpty();
-                        plogd("EVENT_EVALUATE_SATELLITE_ATTACH_RESTRICTION_CHANGE_DONE: "
-                                + "satelliteAttachEnabledForCarrier=" + enableSatellite);
-                        mIsSatelliteAttachEnabledForCarrierArrayPerSub.put(subId, enableSatellite);
-                    } else {
-                        mIsSatelliteAttachEnabledForCarrierArrayPerSub.remove(subId);
-                    }
+                if (error == SATELLITE_RESULT_SUCCESS) {
+                    boolean enableSatellite = mSatelliteAttachRestrictionForCarrierArray
+                            .getOrDefault(argument.subId, Collections.emptySet()).isEmpty();
+                    plogd("EVENT_EVALUATE_SATELLITE_ATTACH_RESTRICTION_CHANGE_DONE: "
+                            + "satelliteAttachEnabledForCarrier=" + enableSatellite);
+                    mIsSatelliteAttachEnabledForCarrierArrayPerSub.put(subId, enableSatellite);
+                } else {
+                    mIsSatelliteAttachEnabledForCarrierArrayPerSub.remove(subId);
                 }
-
                 argument.callback.accept(error);
                 break;
             }
@@ -2325,10 +2319,8 @@ public class SatelliteController extends Handler {
                             + " error=" + error + " satelliteEnabled=" + satelliteEnabled);
 
                     if (error == SATELLITE_RESULT_SUCCESS) {
-                        synchronized (mIsSatelliteEnabledLock) {
-                            mIsSatelliteAttachEnabledForCarrierArrayPerSub.put(
-                                    subId, satelliteEnabled);
-                        }
+                        mIsSatelliteAttachEnabledForCarrierArrayPerSub.put(
+                                subId, satelliteEnabled);
                         evaluateEnablingSatelliteForCarrier(subId,
                                 SATELLITE_COMMUNICATION_RESTRICTION_REASON_USER, null);
                     }
@@ -3038,10 +3030,8 @@ public class SatelliteController extends Handler {
      * @return {@code true} if the satellite modem is enabled and {@code false} otherwise.
      */
     public boolean isSatelliteEnabled() {
-        synchronized (mIsSatelliteEnabledLock) {
-            if (mIsSatelliteEnabled == null) return false;
-            return mIsSatelliteEnabled;
-        }
+        if (mIsSatelliteEnabled == null) return false;
+        return mIsSatelliteEnabled.get();
     }
 
     /**
@@ -3752,16 +3742,15 @@ public class SatelliteController extends Handler {
         plogd("handleRequestAddAttachRestrictionForCarrier: subId=" + subId + " reason=" + reason);
         Consumer<Integer> result = FunctionalUtils.ignoreRemoteException(callback::accept);
 
-        synchronized (mIsSatelliteEnabledLock) {
-            if (mSatelliteAttachRestrictionForCarrierArray.getOrDefault(
-                    subId, Collections.emptySet()).isEmpty()) {
-                mSatelliteAttachRestrictionForCarrierArray.put(subId, new HashSet<>());
-            } else if (mSatelliteAttachRestrictionForCarrierArray.get(subId).contains(reason)) {
-                result.accept(SATELLITE_RESULT_SUCCESS);
-                return;
-            }
-            mSatelliteAttachRestrictionForCarrierArray.get(subId).add(reason);
+        if (mSatelliteAttachRestrictionForCarrierArray.getOrDefault(
+                subId, Collections.emptySet()).isEmpty()) {
+            mSatelliteAttachRestrictionForCarrierArray.put(subId, new HashSet<>());
+        } else if (mSatelliteAttachRestrictionForCarrierArray.get(subId).contains(reason)) {
+            result.accept(SATELLITE_RESULT_SUCCESS);
+            return;
         }
+        mSatelliteAttachRestrictionForCarrierArray.get(subId).add(reason);
+
         RequestHandleSatelliteAttachRestrictionForCarrierArgument request =
                 new RequestHandleSatelliteAttachRestrictionForCarrierArgument(subId, reason,
                         result);
@@ -3802,15 +3791,14 @@ public class SatelliteController extends Handler {
                 + " reason=" + reason);
         Consumer<Integer> result = FunctionalUtils.ignoreRemoteException(callback::accept);
 
-        synchronized (mIsSatelliteEnabledLock) {
-            if (mSatelliteAttachRestrictionForCarrierArray.getOrDefault(
-                    subId, Collections.emptySet()).isEmpty()
-                    || !mSatelliteAttachRestrictionForCarrierArray.get(subId).contains(reason)) {
-                result.accept(SATELLITE_RESULT_SUCCESS);
-                return;
-            }
-            mSatelliteAttachRestrictionForCarrierArray.get(subId).remove(reason);
+        if (mSatelliteAttachRestrictionForCarrierArray.getOrDefault(
+                subId, Collections.emptySet()).isEmpty()
+                || !mSatelliteAttachRestrictionForCarrierArray.get(subId).contains(reason)) {
+            result.accept(SATELLITE_RESULT_SUCCESS);
+            return;
         }
+        mSatelliteAttachRestrictionForCarrierArray.get(subId).remove(reason);
+
         RequestHandleSatelliteAttachRestrictionForCarrierArgument request =
                 new RequestHandleSatelliteAttachRestrictionForCarrierArgument(subId, reason,
                         result);
@@ -3827,14 +3815,12 @@ public class SatelliteController extends Handler {
      * @return Set of reasons for disallowing satellite attach for carrier.
      */
     @NonNull public Set<Integer> getAttachRestrictionReasonsForCarrier(int subId) {
-        synchronized (mIsSatelliteEnabledLock) {
-            Set<Integer> resultSet =
-                    mSatelliteAttachRestrictionForCarrierArray.get(subId);
-            if (resultSet == null) {
-                return new HashSet<>();
-            }
-            return new HashSet<>(resultSet);
+        Set<Integer> resultSet =
+                mSatelliteAttachRestrictionForCarrierArray.get(subId);
+        if (resultSet == null) {
+            return new HashSet<>();
         }
+        return new HashSet<>(resultSet);
     }
 
     /**
@@ -4057,9 +4043,7 @@ public class SatelliteController extends Handler {
         plogd("setSatelliteServicePackageName: Resetting cached states, provisioned="
                 + provisioned);
         mIsSatelliteSupported = null;
-        synchronized (mIsSatelliteEnabledLock) {
-            mIsSatelliteEnabled = null;
-        }
+        mIsSatelliteEnabled = null;
         synchronized (mSatelliteCapabilitiesLock) {
             mSatelliteCapabilities = null;
         }
@@ -5330,9 +5314,7 @@ public class SatelliteController extends Handler {
     }
 
     private void updateSatelliteEnabledState(boolean enabled, String caller) {
-        synchronized (mIsSatelliteEnabledLock) {
-            mIsSatelliteEnabled = enabled;
-        }
+        setIsSatelliteEnabled(enabled);
         if (mSatelliteSessionController != null) {
             mSatelliteSessionController.onSatelliteEnabledStateChanged(enabled);
             mSatelliteSessionController.setDemoMode(mIsDemoModeEnabled.get());
@@ -5825,9 +5807,7 @@ public class SatelliteController extends Handler {
             if (areAllRadiosDisabled() && (mSatelliteEnabledRequest != null)
                     && mWaitingForRadioDisabled) {
                 plogd("Sending success to callback that sent enable satellite request");
-                synchronized (mIsSatelliteEnabledLock) {
-                    mIsSatelliteEnabled = mSatelliteEnabledRequest.enableSatellite;
-                }
+                setIsSatelliteEnabled(mSatelliteEnabledRequest.enableSatellite);
                 mSatelliteEnabledRequest.callback.accept(SATELLITE_RESULT_SUCCESS);
                 updateSatelliteEnabledState(
                         mSatelliteEnabledRequest.enableSatellite,
@@ -5885,9 +5865,7 @@ public class SatelliteController extends Handler {
         setDemoModeEnabled(false);
         handlePersistentLoggingOnSessionEnd(mIsEmergency.get());
         setEmergencyMode(false);
-        synchronized (mIsSatelliteEnabledLock) {
-            mIsSatelliteEnabled = false;
-        }
+        setIsSatelliteEnabled(false);
         setSettingsKeyForSatelliteMode(SATELLITE_MODE_ENABLED_FALSE);
         setSettingsKeyToAllowDeviceRotation(SATELLITE_MODE_ENABLED_FALSE);
         abortSatelliteDisableRequest(resultCode);
@@ -6226,11 +6204,9 @@ public class SatelliteController extends Handler {
 
     private void getSatelliteEnabledForCarrierAtModem(int subId) {
         Phone phone = SatelliteServiceUtils.getPhone(subId);
-        synchronized (mIsSatelliteEnabledLock) {
-            if (!mIsSatelliteAttachEnabledForCarrierArrayPerSub.containsKey(subId)) {
-                // Get enabled status from modem for new subscription
-                sendRequestAsync(CMD_GET_SATELLITE_ENABLED_FOR_CARRIER, null, phone);
-            }
+        if (!mIsSatelliteAttachEnabledForCarrierArrayPerSub.containsKey(subId)) {
+            // Get enabled status from modem for new subscription
+            sendRequestAsync(CMD_GET_SATELLITE_ENABLED_FOR_CARRIER, null, phone);
         }
     }
 
@@ -6494,46 +6470,42 @@ public class SatelliteController extends Handler {
      * {@code false} otherwise.
      */
     private boolean isSatelliteAttachEnabledForCarrierByUser(int subId) {
-        synchronized (mIsSatelliteEnabledLock) {
-            Set<Integer> cachedRestrictionSet =
-                    mSatelliteAttachRestrictionForCarrierArray.get(subId);
-            if (cachedRestrictionSet != null) {
-                return !cachedRestrictionSet.contains(
-                        SATELLITE_COMMUNICATION_RESTRICTION_REASON_USER);
-            } else {
-                plogd("isSatelliteAttachEnabledForCarrierByUser() no correspondent cache, "
-                        + "load from persist storage");
-                try {
-                    String enabled =
-                            mSubscriptionManagerService.getSubscriptionProperty(subId,
-                                    SATELLITE_ATTACH_ENABLED_FOR_CARRIER,
-                                    mContext.getOpPackageName(), mContext.getAttributionTag());
+        Set<Integer> cachedRestrictionSet =
+                mSatelliteAttachRestrictionForCarrierArray.get(subId);
+        if (cachedRestrictionSet != null) {
+            return !cachedRestrictionSet.contains(
+                    SATELLITE_COMMUNICATION_RESTRICTION_REASON_USER);
+        } else {
+            plogd("isSatelliteAttachEnabledForCarrierByUser() no correspondent cache, "
+                    + "load from persist storage");
+            try {
+                String enabled =
+                        mSubscriptionManagerService.getSubscriptionProperty(subId,
+                                SATELLITE_ATTACH_ENABLED_FOR_CARRIER,
+                                mContext.getOpPackageName(), mContext.getAttributionTag());
 
-                    if (enabled == null) {
-                        ploge("isSatelliteAttachEnabledForCarrierByUser: invalid subId, subId="
-                                + subId);
-                        return false;
-                    }
-
-                    if (enabled.isEmpty()) {
-                        ploge("isSatelliteAttachEnabledForCarrierByUser: no data for subId(" + subId
-                                + ")");
-                        return false;
-                    }
-
-                    synchronized (mIsSatelliteEnabledLock) {
-                        boolean result = enabled.equals("1");
-                        if (!result) {
-                            mSatelliteAttachRestrictionForCarrierArray.put(subId, new HashSet<>());
-                            mSatelliteAttachRestrictionForCarrierArray.get(subId).add(
-                                    SATELLITE_COMMUNICATION_RESTRICTION_REASON_USER);
-                        }
-                        return result;
-                    }
-                } catch (IllegalArgumentException | SecurityException ex) {
-                    ploge("isSatelliteAttachEnabledForCarrierByUser: ex=" + ex);
+                if (enabled == null) {
+                    ploge("isSatelliteAttachEnabledForCarrierByUser: invalid subId, subId="
+                            + subId);
                     return false;
                 }
+
+                if (enabled.isEmpty()) {
+                    ploge("isSatelliteAttachEnabledForCarrierByUser: no data for subId(" + subId
+                            + ")");
+                    return false;
+                }
+
+                boolean result = enabled.equals("1");
+                if (!result) {
+                    mSatelliteAttachRestrictionForCarrierArray.put(subId, new HashSet<>());
+                    mSatelliteAttachRestrictionForCarrierArray.get(subId).add(
+                            SATELLITE_COMMUNICATION_RESTRICTION_REASON_USER);
+                }
+                return result;
+            } catch (IllegalArgumentException | SecurityException ex) {
+                ploge("isSatelliteAttachEnabledForCarrierByUser: ex=" + ex);
+                return false;
             }
         }
     }
@@ -6546,10 +6518,8 @@ public class SatelliteController extends Handler {
      * @return {@code true} when there is at least on reason, {@code false} otherwise.
      */
     private boolean hasReasonToRestrictSatelliteCommunicationForCarrier(int subId) {
-        synchronized (mIsSatelliteEnabledLock) {
-            return !mSatelliteAttachRestrictionForCarrierArray
-                    .getOrDefault(subId, Collections.emptySet()).isEmpty();
-        }
+        return !mSatelliteAttachRestrictionForCarrierArray
+                .getOrDefault(subId, Collections.emptySet()).isEmpty();
     }
 
     private void updateRestrictReasonForEntitlementPerCarrier(int subId) {
@@ -6624,17 +6594,15 @@ public class SatelliteController extends Handler {
             return false;
         }
 
-        synchronized (mIsSatelliteEnabledLock) {
-            try {
-                mSubscriptionManagerService.setSubscriptionProperty(subId,
-                        SATELLITE_ATTACH_ENABLED_FOR_CARRIER,
-                        mSatelliteAttachRestrictionForCarrierArray.get(subId)
-                                .contains(SATELLITE_COMMUNICATION_RESTRICTION_REASON_USER)
-                                ? "0" : "1");
-            } catch (IllegalArgumentException | SecurityException ex) {
-                ploge("persistSatelliteAttachEnabledForCarrierSetting, ex=" + ex);
-                return false;
-            }
+        try {
+            mSubscriptionManagerService.setSubscriptionProperty(subId,
+                    SATELLITE_ATTACH_ENABLED_FOR_CARRIER,
+                    mSatelliteAttachRestrictionForCarrierArray.get(subId)
+                            .contains(SATELLITE_COMMUNICATION_RESTRICTION_REASON_USER)
+                            ? "0" : "1");
+        } catch (IllegalArgumentException | SecurityException ex) {
+            ploge("persistSatelliteAttachEnabledForCarrierSetting, ex=" + ex);
+            return false;
         }
         return true;
     }
@@ -6658,9 +6626,7 @@ public class SatelliteController extends Handler {
      */
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PRIVATE)
     public boolean isSatelliteEnabledForCarrierAtModem(int subId) {
-        synchronized (mIsSatelliteEnabledLock) {
-            return mIsSatelliteAttachEnabledForCarrierArrayPerSub.getOrDefault(subId, false);
-        }
+        return mIsSatelliteAttachEnabledForCarrierArrayPerSub.getOrDefault(subId, false);
     }
 
     /**
@@ -9223,9 +9189,7 @@ public class SatelliteController extends Handler {
     }
 
     private boolean isSatelliteDisabled() {
-        synchronized (mIsSatelliteEnabledLock) {
-            return ((mIsSatelliteEnabled != null) && !mIsSatelliteEnabled);
-        }
+        return ((mIsSatelliteEnabled != null) && !mIsSatelliteEnabled.get());
     }
 
     private boolean shouldStopWaitForEnableResponseTimer(
@@ -9701,11 +9665,20 @@ public class SatelliteController extends Handler {
         }
     }
 
+    private void setIsSatelliteEnabled(boolean enabled) {
+        if (mIsSatelliteEnabled == null) {
+            mIsSatelliteEnabled = new AtomicBoolean(enabled);
+        } else {
+            mIsSatelliteEnabled.set(enabled);
+        }
+    }
+
     @Nullable
     private Boolean getIsSatelliteEnabled() {
-        synchronized (mIsSatelliteEnabledLock) {
-            return mIsSatelliteEnabled;
+        if (mIsSatelliteEnabled == null) {
+            return null;
         }
+        return mIsSatelliteEnabled.get();
     }
 
     @Nullable
