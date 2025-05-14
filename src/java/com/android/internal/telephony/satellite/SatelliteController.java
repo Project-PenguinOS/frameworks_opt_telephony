@@ -6093,6 +6093,57 @@ public class SatelliteController extends Handler {
     }
 
     @NonNull
+    private int getMaxAllowedDataModeDeviceConfigOverlay() {
+        int maxAllowedDataMode = CarrierConfigManager.SATELLITE_DATA_SUPPORT_BANDWIDTH_CONSTRAINED;
+        try {
+            maxAllowedDataMode =
+                    mContext.getResources().getInteger(R.integer.max_allowed_data_mode);
+        } catch (Resources.NotFoundException ex) {
+            ploge(
+                    "getMaxAllowedDataModeDeviceConfigOverlay: max_allowed_data_mode resource not"
+                            + " found. ex="
+                            + ex);
+        }
+        logd("getMaxAllowedDataModeDeviceConfigOverlay: " + maxAllowedDataMode);
+        return maxAllowedDataMode;
+    }
+
+    /**
+     * @return An integer representing the maximum allowed data mode. This will be the value from
+     *     the configupdater configuration if available and valid, otherwise the value from the
+     *     device configuration overlay.
+     */
+    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PRIVATE)
+    public int getMaxAllowedDataMode() {
+        int maxAllowedDataMode = getMaxAllowedDataModeDeviceConfigOverlay();
+        logd("getMaxAllowedDataMode: device config=" + maxAllowedDataMode);
+
+        SatelliteConfig satelliteConfig = getSatelliteConfig();
+        if (satelliteConfig == null) {
+            logd(
+                    "getMaxAllowedDataMode: satelliteConfig is null: "
+                            + "return "
+                            + maxAllowedDataMode);
+            return maxAllowedDataMode;
+        }
+
+        if (satelliteConfig.getSatelliteMaxAllowedDataMode() == null) {
+            logd(
+                    "getMaxAllowedDataMode: getSatelliteMaxAllowedDataMode() is null: "
+                            + "return "
+                            + maxAllowedDataMode);
+            return maxAllowedDataMode;
+        }
+
+        maxAllowedDataMode = satelliteConfig.getSatelliteMaxAllowedDataMode();
+        logd(
+                "getMaxAllowedDataMode: "
+                        + "satelliteConfig.getSatelliteMaxAllowedDataMode()="
+                        + maxAllowedDataMode);
+        return maxAllowedDataMode;
+    }
+
+    @NonNull
     private List<String> readSatellitePlmnsFromOverlayConfig() {
         String[] devicePlmns = readStringArrayFromOverlayConfig(
                 R.array.config_satellite_providers);
@@ -9753,18 +9804,30 @@ public class SatelliteController extends Handler {
 
     /**
      * Method to return the current satellite data service policy supported mode for the registered
-     * plmn based on entitlement provisioning information. Note: If no information at
-     * provisioning is supported this is overridden with operator carrier config information
-     * if available satellite services support data else data service policy is marked as
-     * restricted.
+     * plmn based on entitlement provisioning information. Note: If no information at provisioning
+     * is supported this is overridden with operator carrier config information if available
+     * satellite services support data else data service policy is marked as restricted. Note that
+     * the data service policy is capped at maxAllowedDataMode which is configured by OEMs through
+     * {@link R.integer.max_allowed_data_mode} or through {@link SatelliteConfig}
      *
      * @param subId current subscription id
      * @param plmn current registered plmn information
-     *
      * @return Supported modes {@link CarrierConfigManager.SATELLITE_DATA_SUPPORT_MODE}
      */
     public int getSatelliteDataServicePolicyForPlmn(int subId, String plmn) {
         plogd("getSatelliteDataServicePolicyForPlmn: subId=" + subId + " plmn=" + plmn);
+        int maxAllowedDataMode = getMaxAllowedDataMode();
+        plogd("getSatelliteDataServicePolicyForPlmn: maxAllowedDataMode=" + maxAllowedDataMode);
+
+        if (maxAllowedDataMode == CarrierConfigManager.SATELLITE_DATA_SUPPORT_ONLY_RESTRICTED) {
+            plogd(
+                    "maxAllowedDataMode is "
+                            + CarrierConfigManager.SATELLITE_DATA_SUPPORT_ONLY_RESTRICTED
+                            + ", the least possible value. Data service policy cannot go below"
+                            + " that. Therefore, returning this");
+            return maxAllowedDataMode;
+        }
+
         if (isValidSubscriptionId(subId)) {
             Map<String, Integer> dataServicePolicy;
             synchronized (mSupportedSatelliteServicesLock) {
@@ -9779,6 +9842,18 @@ public class SatelliteController extends Handler {
                 if (!TextUtils.isEmpty(plmn) && dataServicePolicy.containsKey(plmn)) {
                     plogd("getSatelliteDataServicePolicyForPlmn: "
                             + "return policy using dataServicePolicy map");
+                    if (dataServicePolicy.get(plmn) > maxAllowedDataMode) {
+                        plogd(
+                                "getSatelliteDataServicePolicyForPlmn: dataServicePolicy shouldn't "
+                                        + "be bigger than maxAllowedDataMode: "
+                                        + maxAllowedDataMode);
+                        return maxAllowedDataMode;
+                    }
+
+                    plogd(
+                            "getSatelliteDataServicePolicyForPlmn: "
+                                    + "return policy using dataServicePolicy map: "
+                                    + dataServicePolicy.get(plmn));
                     return dataServicePolicy.get(plmn);
                 } else if (TextUtils.isEmpty(plmn)) {
                     int preferredPolicy =
@@ -9798,8 +9873,23 @@ public class SatelliteController extends Handler {
                     // subscription id.
                     if (preferredPolicy
                             > CarrierConfigManager.SATELLITE_DATA_SUPPORT_ONLY_RESTRICTED) {
-                        plogd("getSatelliteDataServicePolicyForPlmn: "
-                                + "return preferredPolicy=" + preferredPolicy);
+                        plogd(
+                                "getSatelliteDataServicePolicyForPlmn: "
+                                        + "preferredPolicy="
+                                        + preferredPolicy);
+
+                        if (preferredPolicy > maxAllowedDataMode) {
+                            plogd(
+                                    "getSatelliteDataServicePolicyForPlmn: preferredPolicy"
+                                            + " shouldn't be bigger than maxAllowedDataMode: "
+                                            + maxAllowedDataMode);
+                            return maxAllowedDataMode;
+                        }
+
+                        plogd(
+                                "getSatelliteDataServicePolicyForPlmn: "
+                                        + "returning preferredPolicy="
+                                        + preferredPolicy);
                         return preferredPolicy;
                     }
                 }
@@ -9807,7 +9897,21 @@ public class SatelliteController extends Handler {
 
             if (isSatelliteDataServicesAllowed(subId, plmn)) {
                 plogd("getSatelliteDataServicePolicyForPlmn: return data support mode from config");
-                return getCarrierSatelliteDataSupportedModeFromConfig(subId);
+                int carrierSatelliteDataSupportedMode =
+                        getCarrierSatelliteDataSupportedModeFromConfig(subId);
+                if (carrierSatelliteDataSupportedMode > maxAllowedDataMode) {
+                    plogd(
+                            "getSatelliteDataServicePolicyForPlmn:"
+                                    + " carrierSatelliteDataSupportedMode shouldn't be bigger than"
+                                    + " maxAllowedDataMode: "
+                                    + maxAllowedDataMode);
+                    return maxAllowedDataMode;
+                }
+                plogd(
+                        "getSatelliteDataServicePolicyForPlmn: return data support mode from"
+                                + " config: "
+                                + carrierSatelliteDataSupportedMode);
+                return carrierSatelliteDataSupportedMode;
             }
         }
 
