@@ -227,6 +227,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 @RunWith(AndroidTestingRunner.class)
@@ -6083,8 +6084,15 @@ public class SatelliteControllerTest extends TelephonyTest {
         }
 
         void setSatelliteProvisioned(@Nullable Boolean isProvisioned) {
-            synchronized (mDeviceProvisionLock) {
-                mIsDeviceProvisioned = isProvisioned;
+            if (isProvisioned == null) {
+                mIsDeviceProvisioned = null;
+                return;
+            }
+
+            if (mIsDeviceProvisioned == null) {
+                mIsDeviceProvisioned = new AtomicBoolean(isProvisioned);
+            } else {
+                mIsDeviceProvisioned.set(isProvisioned);
             }
         }
 

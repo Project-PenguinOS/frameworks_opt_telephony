@@ -353,6 +353,7 @@ message IncomingSms {
     optional bool is_ntn = 17;
     optional bool is_emergency = 18;
     optional bool is_nb_iot_ntn = 19;
+    optional int32 pdu_length = 20;
 
     // Internal use only
     optional int32 hashCode = 10001;

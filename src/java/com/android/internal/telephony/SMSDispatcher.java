@@ -129,7 +129,6 @@ public abstract class SMSDispatcher extends Handler {
     protected static final String MAP_KEY_DEST_PORT = "destPort";
     protected static final String MAP_KEY_DATA = "data";
     protected static final String MAP_KEY_TEXT = "text";
-
     private static final int PREMIUM_RULE_USE_SIM = 1;
     private static final int PREMIUM_RULE_USE_NETWORK = 2;
     private static final int PREMIUM_RULE_USE_BOTH = 3;

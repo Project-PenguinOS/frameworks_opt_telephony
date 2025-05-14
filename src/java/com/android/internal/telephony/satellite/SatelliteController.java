@@ -398,6 +398,9 @@ public class SatelliteController extends Handler {
     protected AtomicBoolean mIsRadioOn = new AtomicBoolean(false);
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PRIVATE)
     protected AtomicBoolean mRadioOffRequested = new AtomicBoolean(false);
+    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PRIVATE)
+    protected AtomicBoolean mIsDeviceProvisioned = null;
+    private AtomicBoolean mOverriddenIsSatelliteViaOemProvisioned = null;
     private AtomicBoolean mIgnorePlmnListFromStorage = new AtomicBoolean(false);
 
     private final Object mSatelliteEnabledRequestLock = new Object();
@@ -491,13 +494,6 @@ public class SatelliteController extends Handler {
     private final ConcurrentHashMap<IBinder, ISelectedNbIotSatelliteSubscriptionCallback>
             mSelectedNbIotSatelliteSubscriptionChangedListeners = new ConcurrentHashMap<>();
 
-    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PRIVATE)
-    protected final Object mDeviceProvisionLock = new Object();
-    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PRIVATE)
-    @GuardedBy("mDeviceProvisionLock")
-    protected Boolean mIsDeviceProvisioned = null;
-    @GuardedBy("mDeviceProvisionLock")
-    private Boolean mOverriddenIsSatelliteViaOemProvisioned = null;
     private final Object mSatelliteCapabilitiesLock = new Object();
     @GuardedBy("mSatelliteCapabilitiesLock")
     private SatelliteCapabilities mSatelliteCapabilities;
@@ -3411,11 +3407,8 @@ public class SatelliteController extends Handler {
         } catch (RemoteException ex) {
             loge("registerForSatelliteProvisionStateChanged: " + ex);
         }
-        synchronized (mDeviceProvisionLock) {
-            plogd("registerForSatelliteProvisionStateChanged: report current provisioned "
-                    + "state, state=" + isProvisioned);
-        }
-
+        plogd("registerForSatelliteProvisionStateChanged: report current provisioned "
+                + "state, state=" + isProvisioned);
         return SATELLITE_RESULT_SUCCESS;
     }
 
@@ -3457,14 +3450,12 @@ public class SatelliteController extends Handler {
             return;
         }
 
-        synchronized (mDeviceProvisionLock) {
-            if (mIsDeviceProvisioned != null) {
-                Bundle bundle = new Bundle();
-                bundle.putBoolean(SatelliteManager.KEY_SATELLITE_PROVISIONED,
-                        mIsDeviceProvisioned);
-                result.send(SATELLITE_RESULT_SUCCESS, bundle);
-                return;
-            }
+        if (mIsDeviceProvisioned != null) {
+            Bundle bundle = new Bundle();
+            bundle.putBoolean(SatelliteManager.KEY_SATELLITE_PROVISIONED,
+                    mIsDeviceProvisioned.get());
+            result.send(SATELLITE_RESULT_SUCCESS, bundle);
+            return;
         }
 
         sendRequestAsync(CMD_IS_SATELLITE_PROVISIONED, result, null);
@@ -4281,12 +4272,10 @@ public class SatelliteController extends Handler {
             ploge("setOemEnabledSatelliteProvisionStatus: mock modem not allowed");
             return false;
         }
-        synchronized (mDeviceProvisionLock) {
-            if (reset) {
-                mOverriddenIsSatelliteViaOemProvisioned = null;
-            } else {
-                mOverriddenIsSatelliteViaOemProvisioned = isProvisioned;
-            }
+        if (reset) {
+            mOverriddenIsSatelliteViaOemProvisioned = null;
+        } else {
+            mOverriddenIsSatelliteViaOemProvisioned = new AtomicBoolean(isProvisioned);
         }
         return true;
     }
@@ -5145,16 +5134,14 @@ public class SatelliteController extends Handler {
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
     @Nullable
     protected Boolean isDeviceProvisioned() {
-        synchronized (mDeviceProvisionLock) {
-            if (mOverriddenIsSatelliteViaOemProvisioned != null) {
-                return mOverriddenIsSatelliteViaOemProvisioned;
-            }
-
-            if (mIsDeviceProvisioned == null) {
-                mIsDeviceProvisioned = getPersistedDeviceProvisionStatus();
-            }
-            return mIsDeviceProvisioned;
+        if (mOverriddenIsSatelliteViaOemProvisioned != null) {
+            return mOverriddenIsSatelliteViaOemProvisioned.get();
         }
+
+        if (mIsDeviceProvisioned == null) {
+            mIsDeviceProvisioned = new AtomicBoolean(getPersistedDeviceProvisionStatus());
+        }
+        return mIsDeviceProvisioned.get();
     }
 
     private void handleSatelliteEnabled(SatelliteControllerHandlerRequest request) {
@@ -5463,11 +5450,12 @@ public class SatelliteController extends Handler {
     private void updateCachedDeviceProvisionStatus() {
         boolean isProvisioned = getPersistedDeviceProvisionStatus();
         plogd("updateCachedDeviceProvisionStatus: isProvisioned=" + isProvisioned);
-        synchronized (mDeviceProvisionLock) {
-            if (mIsDeviceProvisioned == null || mIsDeviceProvisioned != isProvisioned) {
-                mIsDeviceProvisioned = isProvisioned;
-                notifyDeviceProvisionStateChanged(isProvisioned);
-            }
+        if (mIsDeviceProvisioned == null) {
+            mIsDeviceProvisioned = new AtomicBoolean(isProvisioned);
+            notifyDeviceProvisionStateChanged(isProvisioned);
+        } else if (mIsDeviceProvisioned.get() != isProvisioned) {
+            mIsDeviceProvisioned.set(isProvisioned);
+            notifyDeviceProvisionStateChanged(isProvisioned);
         }
     }
 
@@ -6921,8 +6909,12 @@ public class SatelliteController extends Handler {
                 // Log satellite session end
                 CarrierRoamingSatelliteSessionStats sessionStats =
                         mCarrierRoamingSatelliteSessionStatsMap.get(subId);
-                sessionStats.onSessionEnd(subId);
-                mCarrierRoamingSatelliteSessionStatsMap.remove(subId);
+                if (sessionStats != null) {
+                    sessionStats.onSessionEnd(subId);
+                    mCarrierRoamingSatelliteSessionStatsMap.remove(subId);
+                } else {
+                    plogd("logCarrierRoamingSatelliteSessionStats: sessionStats is null");
+                }
                 mCarrierRoamingSatelliteControllerStats.onSessionEnd(subId);
             }
         }
@@ -7059,31 +7051,29 @@ public class SatelliteController extends Handler {
     }
 
     private void persistOemEnabledSatelliteProvisionStatus(boolean isProvisioned) {
-        synchronized (mDeviceProvisionLock) {
-            plogd("persistOemEnabledSatelliteProvisionStatus: isProvisioned=" + isProvisioned);
-            if (mFeatureFlags.carrierRoamingNbIotNtn()) {
-                int subId = getNtnOnlySubscriptionId();
-                if (subId != SubscriptionManager.INVALID_SUBSCRIPTION_ID) {
-                    try {
-                        mSubscriptionManagerService.setIsSatelliteProvisionedForNonIpDatagram(subId,
-                                isProvisioned);
-                        plogd("persistOemEnabledSatelliteProvisionStatus: subId=" + subId);
-                    } catch (IllegalArgumentException | SecurityException ex) {
-                        ploge("setIsSatelliteProvisionedForNonIpDatagram: subId=" + subId + ", ex="
-                                + ex);
-                    }
-                } else {
-                    plogd("persistOemEnabledSatelliteProvisionStatus: INVALID_SUBSCRIPTION_ID");
+        plogd("persistOemEnabledSatelliteProvisionStatus: isProvisioned=" + isProvisioned);
+        if (mFeatureFlags.carrierRoamingNbIotNtn()) {
+            int subId = getNtnOnlySubscriptionId();
+            if (subId != SubscriptionManager.INVALID_SUBSCRIPTION_ID) {
+                try {
+                    mSubscriptionManagerService.setIsSatelliteProvisionedForNonIpDatagram(subId,
+                            isProvisioned);
+                    plogd("persistOemEnabledSatelliteProvisionStatus: subId=" + subId);
+                } catch (IllegalArgumentException | SecurityException ex) {
+                    ploge("setIsSatelliteProvisionedForNonIpDatagram: subId=" + subId + ", ex="
+                            + ex);
                 }
             } else {
-                if (!loadSatelliteSharedPreferences()) return;
+                plogd("persistOemEnabledSatelliteProvisionStatus: INVALID_SUBSCRIPTION_ID");
+            }
+        } else {
+            if (!loadSatelliteSharedPreferences()) return;
 
-                if (mSharedPreferences == null) {
-                    ploge("persistOemEnabledSatelliteProvisionStatus: mSharedPreferences is null");
-                } else {
-                    mSharedPreferences.edit().putBoolean(
-                            OEM_ENABLED_SATELLITE_PROVISION_STATUS_KEY, isProvisioned).apply();
-                }
+            if (mSharedPreferences == null) {
+                ploge("persistOemEnabledSatelliteProvisionStatus: mSharedPreferences is null");
+            } else {
+                mSharedPreferences.edit().putBoolean(
+                        OEM_ENABLED_SATELLITE_PROVISION_STATUS_KEY, isProvisioned).apply();
             }
         }
     }
@@ -7091,44 +7081,42 @@ public class SatelliteController extends Handler {
     @Nullable
     private boolean getPersistedDeviceProvisionStatus() {
         plogd("getPersistedDeviceProvisionStatus");
-        synchronized (mDeviceProvisionLock) {
-            if (mFeatureFlags.carrierRoamingNbIotNtn()) {
-                int subId = getNtnOnlySubscriptionId();
-                if (subId != SubscriptionManager.INVALID_SUBSCRIPTION_ID) {
-                    if (mSubscriptionManagerService.isSatelliteProvisionedForNonIpDatagram(subId)) {
+        if (mFeatureFlags.carrierRoamingNbIotNtn()) {
+            int subId = getNtnOnlySubscriptionId();
+            if (subId != SubscriptionManager.INVALID_SUBSCRIPTION_ID) {
+                if (mSubscriptionManagerService.isSatelliteProvisionedForNonIpDatagram(subId)) {
+                    return true;
+                }
+            }
+
+            List<SubscriptionInfo> activeSubscriptionInfoList =
+                    mSubscriptionManagerService.getActiveSubscriptionInfoList(
+                            mContext.getOpPackageName(), mContext.getAttributionTag(), true);
+            for (SubscriptionInfo info : activeSubscriptionInfoList) {
+                if (info.isSatelliteESOSSupported()) {
+                    if (mSubscriptionManagerService.isSatelliteProvisionedForNonIpDatagram(
+                            info.getSubscriptionId())) {
+                        Pair<String, Integer> subscriberIdPair = getSubscriberIdAndType(
+                                mSubscriptionManagerService.getSubscriptionInfo(subId));
+                        String subscriberId = subscriberIdPair.first;
+                        synchronized (mSatelliteTokenProvisionedLock) {
+                            mProvisionedSubscriberId.put(subscriberId, true);
+                        }
                         return true;
                     }
                 }
+            }
+            return false;
+        } else {
+            if (!loadSatelliteSharedPreferences()) return false;
 
-                List<SubscriptionInfo> activeSubscriptionInfoList =
-                        mSubscriptionManagerService.getActiveSubscriptionInfoList(
-                            mContext.getOpPackageName(), mContext.getAttributionTag(), true);
-                for (SubscriptionInfo info : activeSubscriptionInfoList) {
-                    if (info.isSatelliteESOSSupported()) {
-                        if (mSubscriptionManagerService.isSatelliteProvisionedForNonIpDatagram(
-                                info.getSubscriptionId())) {
-                            Pair<String, Integer> subscriberIdPair = getSubscriberIdAndType(
-                                    mSubscriptionManagerService.getSubscriptionInfo(subId));
-                            String subscriberId = subscriberIdPair.first;
-                            synchronized (mSatelliteTokenProvisionedLock) {
-                                mProvisionedSubscriberId.put(subscriberId, true);
-                            }
-                            return true;
-                        }
-                    }
-                }
+            if (mSharedPreferences == null) {
+                ploge("getPersistedDeviceProvisionStatus: mSharedPreferences is "
+                        + "null");
                 return false;
             } else {
-                if (!loadSatelliteSharedPreferences()) return false;
-
-                if (mSharedPreferences == null) {
-                    ploge("getPersistedDeviceProvisionStatus: mSharedPreferences is "
-                            + "null");
-                    return false;
-                } else {
-                    return mSharedPreferences.getBoolean(
-                            OEM_ENABLED_SATELLITE_PROVISION_STATUS_KEY, false);
-                }
+                return mSharedPreferences.getBoolean(
+                        OEM_ENABLED_SATELLITE_PROVISION_STATUS_KEY, false);
             }
         }
     }

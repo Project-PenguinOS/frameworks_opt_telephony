@@ -90,8 +90,9 @@ public class SmsStats {
 
     /** Create a new atom when multi-part incoming SMS is dropped due to missing parts. */
     public void onDroppedIncomingMultipartSms(boolean is3gpp2, int receivedCount, int totalCount,
-            boolean isEmergency) {
-        IncomingSms proto = getIncomingDefaultProto(is3gpp2, SOURCE_NOT_INJECTED, isEmergency);
+            boolean isEmergency, int pduLength) {
+        IncomingSms proto = getIncomingDefaultProto(is3gpp2, SOURCE_NOT_INJECTED, isEmergency,
+                pduLength);
         // Keep SMS tech as unknown because it's possible that it changed overtime and is not
         // necessarily the current one. Similarly mark the RAT as unknown.
         proto.smsTech = INCOMING_SMS__SMS_TECH__SMS_TECH_UNKNOWN;
@@ -104,22 +105,25 @@ public class SmsStats {
 
     /** Create a new atom when an SMS for the voicemail indicator is received. */
     public void onIncomingSmsVoicemail(boolean is3gpp2,
-            @InboundSmsHandler.SmsSource int smsSource) {
-        IncomingSms proto = getIncomingDefaultProto(is3gpp2, smsSource, false);
+            @InboundSmsHandler.SmsSource int smsSource, int pduLength) {
+        IncomingSms proto = getIncomingDefaultProto(is3gpp2, smsSource, false, pduLength);
         proto.smsType = INCOMING_SMS__SMS_TYPE__SMS_TYPE_VOICEMAIL_INDICATION;
         mAtomsStorage.addIncomingSms(proto);
     }
 
     /** Create a new atom when an SMS of type zero is received. */
-    public void onIncomingSmsTypeZero(@InboundSmsHandler.SmsSource int smsSource) {
-        IncomingSms proto = getIncomingDefaultProto(false /* is3gpp2 */, smsSource, false);
+    public void onIncomingSmsTypeZero(@InboundSmsHandler.SmsSource int smsSource, int pduLength) {
+        IncomingSms proto = getIncomingDefaultProto(false /* is3gpp2 */, smsSource, false,
+                pduLength);
         proto.smsType = INCOMING_SMS__SMS_TYPE__SMS_TYPE_ZERO;
         mAtomsStorage.addIncomingSms(proto);
     }
 
     /** Create a new atom when an SMS-PP for the SIM card is received. */
-    public void onIncomingSmsPP(@InboundSmsHandler.SmsSource int smsSource, boolean success) {
-        IncomingSms proto = getIncomingDefaultProto(false /* is3gpp2 */, smsSource, false);
+    public void onIncomingSmsPP(@InboundSmsHandler.SmsSource int smsSource, boolean success,
+            int pduLength) {
+        IncomingSms proto = getIncomingDefaultProto(false /* is3gpp2 */, smsSource, false,
+                pduLength);
         proto.smsType = INCOMING_SMS__SMS_TYPE__SMS_TYPE_SMS_PP;
         proto.error = getIncomingSmsError(success);
         mAtomsStorage.addIncomingSms(proto);
@@ -128,8 +132,8 @@ public class SmsStats {
     /** Create a new atom when an SMS is received successfully. */
     public void onIncomingSmsSuccess(boolean is3gpp2,
             @InboundSmsHandler.SmsSource int smsSource, int messageCount,
-            boolean blocked, long messageId, boolean isEmergency) {
-        IncomingSms proto = getIncomingDefaultProto(is3gpp2, smsSource, isEmergency);
+            boolean blocked, long messageId, boolean isEmergency, int pduLength) {
+        IncomingSms proto = getIncomingDefaultProto(is3gpp2, smsSource, isEmergency, pduLength);
         proto.totalParts = messageCount;
         proto.receivedParts = messageCount;
         proto.blocked = blocked;
@@ -139,16 +143,17 @@ public class SmsStats {
 
     /** Create a new atom when an incoming SMS has an error. */
     public void onIncomingSmsError(boolean is3gpp2,
-            @InboundSmsHandler.SmsSource int smsSource, int result, boolean isEmergency) {
-        IncomingSms proto = getIncomingDefaultProto(is3gpp2, smsSource, isEmergency);
+            @InboundSmsHandler.SmsSource int smsSource, int result, boolean isEmergency,
+            int pduLength) {
+        IncomingSms proto = getIncomingDefaultProto(is3gpp2, smsSource, isEmergency, pduLength);
         proto.error = getIncomingSmsError(result);
         mAtomsStorage.addIncomingSms(proto);
     }
 
     /** Create a new atom when an incoming WAP_PUSH SMS is received. */
     public void onIncomingSmsWapPush(@InboundSmsHandler.SmsSource int smsSource,
-            int messageCount, int result, long messageId, boolean isEmergency) {
-        IncomingSms proto = getIncomingDefaultProto(false, smsSource, isEmergency);
+            int messageCount, int result, long messageId, boolean isEmergency, int pduLength) {
+        IncomingSms proto = getIncomingDefaultProto(false, smsSource, isEmergency, pduLength);
         proto.smsType = INCOMING_SMS__SMS_TYPE__SMS_TYPE_WAP_PUSH;
         proto.totalParts = messageCount;
         proto.receivedParts = messageCount;
@@ -222,7 +227,7 @@ public class SmsStats {
 
     /** Creates a proto for a normal single-part {@code IncomingSms} with default values. */
     private IncomingSms getIncomingDefaultProto(boolean is3gpp2,
-            @InboundSmsHandler.SmsSource int smsSource, boolean isEmergency) {
+            @InboundSmsHandler.SmsSource int smsSource, boolean isEmergency, int pduLength) {
         IncomingSms proto = new IncomingSms();
         proto.smsFormat = getSmsFormat(is3gpp2);
         proto.smsTech = getSmsTech(smsSource, is3gpp2);
@@ -245,6 +250,7 @@ public class SmsStats {
         proto.isNtn = isNonTerrestrialNetwork();
         proto.isEmergency = isEmergency;
         proto.isNbIotNtn = isNbIotNtn(mPhone);
+        proto.pduLength = pduLength;
         return proto;
     }
 
@@ -362,7 +368,7 @@ public class SmsStats {
         return Objects.hash(sms.smsFormat, sms.smsTech, sms.rat, sms.smsType,
             sms.totalParts, sms.receivedParts, sms.blocked, sms.error,
                 sms.isRoaming, sms.simSlotIndex, sms.isMultiSim, sms.isEsim, sms.carrierId,
-                sms.isNtn, sms.isNbIotNtn);
+                sms.isNtn, sms.isNbIotNtn, sms.pduLength);
     }
 
     private int getPhoneId() {
