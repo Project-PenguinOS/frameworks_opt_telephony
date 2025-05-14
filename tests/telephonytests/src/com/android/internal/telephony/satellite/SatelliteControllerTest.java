@@ -6099,15 +6099,11 @@ public class SatelliteControllerTest extends TelephonyTest {
         }
 
         public boolean isRadioOn() {
-            synchronized (mIsRadioOnLock) {
-                return mIsRadioOn;
-            }
+            return mIsRadioOn.get();
         }
 
         public boolean isRadioOffRequested() {
-            synchronized (mIsRadioOnLock) {
-                return mRadioOffRequested;
-            }
+            return mRadioOffRequested.get();
         }
 
         public boolean isWaitForCellularModemOffTimerStarted() {
