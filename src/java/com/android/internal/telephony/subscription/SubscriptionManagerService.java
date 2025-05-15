@@ -3712,7 +3712,10 @@ public class SubscriptionManagerService extends ISub.Stub {
                     + "carrier privilege");
         }
 
-        enforceTelephonyFeatureWithException(callingPackage, "isActiveSubId");
+        if (!mContext.getResources().getBoolean(
+                com.android.internal.R.bool.config_force_phone_globals_creation)) {
+            enforceTelephonyFeatureWithException(callingPackage, "isActiveSubId");
+        }
 
         final long identity = Binder.clearCallingIdentity();
         try {

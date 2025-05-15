@@ -41,6 +41,7 @@ import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.os.AsyncResult;
 import android.os.Handler;
+import android.os.Looper;
 import android.os.Message;
 import android.os.RegistrantList;
 import android.os.UserHandle;
@@ -80,6 +81,7 @@ import com.android.internal.telephony.subscription.SubscriptionManagerService;
 import com.android.internal.telephony.uicc.euicc.EuiccCard;
 import com.android.internal.telephony.util.ArrayUtils;
 import com.android.internal.telephony.util.TelephonyUtils;
+import com.android.internal.telephony.util.WorkerThread;
 import com.android.telephony.Rlog;
 
 import java.io.FileDescriptor;
@@ -314,7 +316,12 @@ public class UiccController extends Handler {
         PhoneConfigurationManager.registerForMultiSimConfigChange(
                 this, EVENT_MULTI_SIM_CONFIG_CHANGED, null);
 
-        mPinStorage = new PinStorage(mContext);
+        if (mFeatureFlags.threadShred()) {
+            mPinStorage = new PinStorage(mContext, WorkerThread.getHandler().getLooper(),
+                    mFeatureFlags);
+        } else {
+            mPinStorage = new PinStorage(mContext, Looper.myLooper(), mFeatureFlags);
+        }
         if (!TelephonyUtils.IS_USER) {
             mUseRemovableEsimAsDefault = PreferenceManager.getDefaultSharedPreferences(mContext)
                     .getBoolean(REMOVABLE_ESIM_AS_DEFAULT, false);

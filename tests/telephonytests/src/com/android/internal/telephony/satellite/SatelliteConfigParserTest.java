@@ -82,6 +82,13 @@ public class SatelliteConfigParserTest extends TelephonyTest {
         // carriersupportedservices#carrier_id
         carrierSupportedSatelliteServiceBuilder.setCarrierId(1);
 
+        // carrierroamingconfig
+        SatelliteConfigData.CarrierRoamingConfigProto.Builder carrierRoamingConfigBuilder =
+                SatelliteConfigData.CarrierRoamingConfigProto.newBuilder();
+        carrierRoamingConfigBuilder.setMaxAllowedDataMode(2);
+        satelliteConfigBuilder.setCarrierRoamingConfig(carrierRoamingConfigBuilder);
+        carrierRoamingConfigBuilder.clear();
+
         // carriersupportedservices#providercapability
         SatelliteConfigData.SatelliteProviderCapabilityProto.Builder
                 satelliteProviderCapabilityBuilder =
@@ -378,5 +385,176 @@ public class SatelliteConfigParserTest extends TelephonyTest {
         assertNotNull(satelliteConfigParser);
         assertNotNull(satelliteConfigParser.getConfig());
         assertEquals(4, satelliteConfigParser.getConfig().getSatelliteConfigDataVersion());
+    }
+
+    @Test
+    public void testGetCarrierRoamingConfigMaxAllowedDataMode() {
+        SatelliteConfigParser satelliteConfigParserNull = new SatelliteConfigParser((byte[]) null);
+        assertNotNull(satelliteConfigParserNull);
+        assertNull(satelliteConfigParserNull.getConfig());
+
+        SatelliteConfigParser satelliteConfigParserPlaceholder =
+                new SatelliteConfigParser("test".getBytes());
+        assertNotNull(satelliteConfigParserPlaceholder);
+        assertNull(satelliteConfigParserPlaceholder.getConfig());
+
+        SatelliteConfigParser satelliteConfigParser = new SatelliteConfigParser(mBytesProtoBuffer);
+        assertNotNull(satelliteConfigParser);
+        assertNotNull(satelliteConfigParser.getConfig());
+        assertNotNull(satelliteConfigParser.getConfig().getSatelliteMaxAllowedDataMode());
+        assertEquals(Integer.valueOf(2),
+                satelliteConfigParser.getConfig().getSatelliteMaxAllowedDataMode());
+    }
+
+    @Test
+    public void testNullCarrierRoamingConfig() {
+        SatelliteConfigData.TelephonyConfigProto.Builder telephonyConfigBuilder =
+                SatelliteConfigData.TelephonyConfigProto.newBuilder();
+        SatelliteConfigData.SatelliteConfigProto.Builder satelliteConfigBuilder =
+                SatelliteConfigData.SatelliteConfigProto.newBuilder();
+
+        // version
+        satelliteConfigBuilder.setVersion(4);
+
+        // carriersupportedservices
+        SatelliteConfigData.CarrierSupportedSatelliteServicesProto.Builder
+                carrierSupportedSatelliteServiceBuilder =
+                        SatelliteConfigData.CarrierSupportedSatelliteServicesProto.newBuilder();
+
+        // carriersupportedservices#carrier_id
+        carrierSupportedSatelliteServiceBuilder.setCarrierId(1);
+
+        // not building carrierroamingconfig
+
+        // carriersupportedservices#providercapability
+        SatelliteConfigData.SatelliteProviderCapabilityProto.Builder
+                satelliteProviderCapabilityBuilder =
+                        SatelliteConfigData.SatelliteProviderCapabilityProto.newBuilder();
+        satelliteProviderCapabilityBuilder.setCarrierPlmn("310160");
+        satelliteProviderCapabilityBuilder.addAllowedServices(1);
+        satelliteProviderCapabilityBuilder.addAllowedServices(2);
+        satelliteProviderCapabilityBuilder.addAllowedServices(3);
+        carrierSupportedSatelliteServiceBuilder.addSupportedSatelliteProviderCapabilities(
+                satelliteProviderCapabilityBuilder);
+        satelliteProviderCapabilityBuilder.clear();
+
+        satelliteProviderCapabilityBuilder.setCarrierPlmn("310220");
+        satelliteProviderCapabilityBuilder.addAllowedServices(3);
+        carrierSupportedSatelliteServiceBuilder.addSupportedSatelliteProviderCapabilities(
+                satelliteProviderCapabilityBuilder);
+        satelliteProviderCapabilityBuilder.clear();
+
+        satelliteConfigBuilder.addCarrierSupportedSatelliteServices(
+                carrierSupportedSatelliteServiceBuilder);
+
+        // satelliteregion
+        SatelliteConfigData.SatelliteRegionProto.Builder satelliteRegionBuilder =
+                SatelliteConfigData.SatelliteRegionProto.newBuilder();
+        String testS2Content = "0123456789", testSatelliteAccessConfigContent = "sac";
+        satelliteRegionBuilder.setS2CellFile(ByteString.copyFrom(testS2Content.getBytes()));
+        satelliteRegionBuilder.setSatelliteAccessConfigFile(
+                ByteString.copyFrom(testSatelliteAccessConfigContent.getBytes()));
+        satelliteRegionBuilder.addCountryCodes("US");
+        satelliteRegionBuilder.setIsAllowed(true);
+        satelliteConfigBuilder.setDeviceSatelliteRegion(satelliteRegionBuilder);
+
+        telephonyConfigBuilder.setSatellite(satelliteConfigBuilder);
+
+        SatelliteConfigData.TelephonyConfigProto telephonyConfigData =
+                telephonyConfigBuilder.build();
+        mBytesProtoBuffer = telephonyConfigData.toByteArray();
+
+        SatelliteConfigParser satelliteConfigParserNull = new SatelliteConfigParser((byte[]) null);
+        assertNotNull(satelliteConfigParserNull);
+        assertNull(satelliteConfigParserNull.getConfig());
+
+        SatelliteConfigParser satelliteConfigParserPlaceholder =
+                new SatelliteConfigParser("test".getBytes());
+        assertNotNull(satelliteConfigParserPlaceholder);
+        assertNull(satelliteConfigParserPlaceholder.getConfig());
+
+        SatelliteConfigParser satelliteConfigParser = new SatelliteConfigParser(mBytesProtoBuffer);
+        assertNotNull(satelliteConfigParser);
+        assertNotNull(satelliteConfigParser.getConfig());
+        assertNull(satelliteConfigParser.getConfig().getSatelliteMaxAllowedDataMode());
+    }
+
+    @Test
+    public void testNullMaxAllowedDataMode() {
+        SatelliteConfigData.TelephonyConfigProto.Builder telephonyConfigBuilder =
+                SatelliteConfigData.TelephonyConfigProto.newBuilder();
+        SatelliteConfigData.SatelliteConfigProto.Builder satelliteConfigBuilder =
+                SatelliteConfigData.SatelliteConfigProto.newBuilder();
+
+        // version
+        satelliteConfigBuilder.setVersion(4);
+
+        // carriersupportedservices
+        SatelliteConfigData.CarrierSupportedSatelliteServicesProto.Builder
+                carrierSupportedSatelliteServiceBuilder =
+                        SatelliteConfigData.CarrierSupportedSatelliteServicesProto.newBuilder();
+
+        // carriersupportedservices#carrier_id
+        carrierSupportedSatelliteServiceBuilder.setCarrierId(1);
+
+        // carrierroamingconfig, but not setting maxAllowedDataMode
+        SatelliteConfigData.CarrierRoamingConfigProto.Builder carrierRoamingConfigBuilder =
+                SatelliteConfigData.CarrierRoamingConfigProto.newBuilder();
+        satelliteConfigBuilder.setCarrierRoamingConfig(carrierRoamingConfigBuilder);
+        carrierRoamingConfigBuilder.clear();
+
+        // carriersupportedservices#providercapability
+        SatelliteConfigData.SatelliteProviderCapabilityProto.Builder
+                satelliteProviderCapabilityBuilder =
+                        SatelliteConfigData.SatelliteProviderCapabilityProto.newBuilder();
+        satelliteProviderCapabilityBuilder.setCarrierPlmn("310160");
+        satelliteProviderCapabilityBuilder.addAllowedServices(1);
+        satelliteProviderCapabilityBuilder.addAllowedServices(2);
+        satelliteProviderCapabilityBuilder.addAllowedServices(3);
+        carrierSupportedSatelliteServiceBuilder.addSupportedSatelliteProviderCapabilities(
+                satelliteProviderCapabilityBuilder);
+        satelliteProviderCapabilityBuilder.clear();
+
+        satelliteProviderCapabilityBuilder.setCarrierPlmn("310220");
+        satelliteProviderCapabilityBuilder.addAllowedServices(3);
+        carrierSupportedSatelliteServiceBuilder.addSupportedSatelliteProviderCapabilities(
+                satelliteProviderCapabilityBuilder);
+        satelliteProviderCapabilityBuilder.clear();
+
+        satelliteConfigBuilder.addCarrierSupportedSatelliteServices(
+                carrierSupportedSatelliteServiceBuilder);
+
+        // satelliteregion
+        SatelliteConfigData.SatelliteRegionProto.Builder satelliteRegionBuilder =
+                SatelliteConfigData.SatelliteRegionProto.newBuilder();
+        String testS2Content = "0123456789", testSatelliteAccessConfigContent = "sac";
+        satelliteRegionBuilder.setS2CellFile(ByteString.copyFrom(testS2Content.getBytes()));
+        satelliteRegionBuilder.setSatelliteAccessConfigFile(
+                ByteString.copyFrom(testSatelliteAccessConfigContent.getBytes()));
+        satelliteRegionBuilder.addCountryCodes("US");
+        satelliteRegionBuilder.setIsAllowed(true);
+        satelliteConfigBuilder.setDeviceSatelliteRegion(satelliteRegionBuilder);
+
+        telephonyConfigBuilder.setSatellite(satelliteConfigBuilder);
+
+        SatelliteConfigData.TelephonyConfigProto telephonyConfigData =
+                telephonyConfigBuilder.build();
+        mBytesProtoBuffer = telephonyConfigData.toByteArray();
+
+        SatelliteConfigParser satelliteConfigParserNull = new SatelliteConfigParser((byte[]) null);
+        assertNotNull(satelliteConfigParserNull);
+        assertNull(satelliteConfigParserNull.getConfig());
+
+        SatelliteConfigParser satelliteConfigParserPlaceholder =
+                new SatelliteConfigParser("test".getBytes());
+        assertNotNull(satelliteConfigParserPlaceholder);
+        assertNull(satelliteConfigParserPlaceholder.getConfig());
+
+        SatelliteConfigParser satelliteConfigParser = new SatelliteConfigParser(mBytesProtoBuffer);
+        assertNotNull(satelliteConfigParser);
+        assertNotNull(satelliteConfigParser.getConfig());
+        assertNotNull(satelliteConfigParser.getConfig().getSatelliteMaxAllowedDataMode());
+        assertEquals(Integer.valueOf(0),
+                satelliteConfigParser.getConfig().getSatelliteMaxAllowedDataMode());
     }
 }
