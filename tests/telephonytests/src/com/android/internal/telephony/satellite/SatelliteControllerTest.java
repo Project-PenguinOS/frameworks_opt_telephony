@@ -4981,6 +4981,13 @@ public class SatelliteControllerTest extends TelephonyTest {
         }
         assertTrue(mSatelliteControllerUT
                 .isP2PSmsDisallowedOnCarrierRoamingNtn(/*subId*/ SUB_ID));
+
+        mSatelliteControllerUT.isSatelliteProvisioned = true;
+        mSatelliteControllerUT.setNtnSmsSupportedByMessagesApp(true);
+        mSatelliteControllerUT.mIsApplicationSupportsP2P = true;
+        processAllMessages();
+        assertFalse(mSatelliteControllerUT
+                .isP2PSmsDisallowedOnCarrierRoamingNtn(/*subId*/ SUB_ID));
     }
 
     @Test
@@ -6070,9 +6077,19 @@ public class SatelliteControllerTest extends TelephonyTest {
             isApplicationUpdated = false;
         }
 
+        @Nullable
+        public Phone getSatellitePhone() {
+            return super.getSatellitePhone();
+        }
+
         @Override
         protected void initializeSatelliteModeRadios() {
             logd("initializeSatelliteModeRadios");
+        }
+
+        @NonNull
+        protected PersistableBundle getPersistableBundle(int subId) {
+            return super.getPersistableBundle(subId);
         }
 
         @Override

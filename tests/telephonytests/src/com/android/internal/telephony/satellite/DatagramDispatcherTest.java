@@ -117,7 +117,7 @@ public class DatagramDispatcherTest extends TelephonyTest {
 
     private TestDatagramDispatcher mDatagramDispatcherUT;
 
-    @Mock private SatelliteController mMockSatelliteController;
+    @Mock private SatelliteControllerTest.TestSatelliteController mMockSatelliteController;
     @Mock private DatagramControllerTest.TestDatagramController mMockDatagramController;
     @Mock private DatagramReceiver mMockDatagramReceiver;
     @Mock private SatelliteModemInterface mMockSatelliteModemInterface;
