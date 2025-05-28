@@ -1107,7 +1107,9 @@ public class SatelliteController extends Handler {
             Log.d(TAG, "satelliteConfigParser is not ready");
             return null;
         }
-        return satelliteConfigParser.getConfig();
+        SatelliteConfig satelliteConfig = satelliteConfigParser.getConfig();
+        logd("getSatelliteConfig: satelliteConfig: " + satelliteConfig);
+        return satelliteConfig;
     }
 
     /**
