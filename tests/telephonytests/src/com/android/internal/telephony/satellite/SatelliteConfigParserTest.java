@@ -35,6 +35,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 
 import android.content.Context;
+import android.telephony.CarrierConfigManager;
 import android.testing.AndroidTestingRunner;
 
 import androidx.test.InstrumentationRegistry;
@@ -843,5 +844,31 @@ public class SatelliteConfigParserTest extends TelephonyTest {
                 .getSupportedSatelliteServices(1).containsKey(PLMN_45005));
         assertEquals(Set.of(SERVICE_TYPE_SMS), satelliteConfigParser.getConfig()
                 .getSupportedSatelliteServices(1).get(PLMN_45005));
+    }
+
+    @Test
+    public void testOverrideConfigByOverridingSatelliteMaxAllowedDataMode() {
+        SatelliteConfigParser satelliteConfigParser = new SatelliteConfigParser(mBytesProtoBuffer);
+        assertNotNull(satelliteConfigParser);
+        assertNotNull(satelliteConfigParser.getConfig());
+        assertNotNull(satelliteConfigParser.getConfig().getSatelliteMaxAllowedDataMode());
+        assertEquals(
+                Integer.valueOf(CarrierConfigManager.SATELLITE_DATA_SUPPORT_BANDWIDTH_CONSTRAINED),
+                satelliteConfigParser.getConfig().getSatelliteMaxAllowedDataMode());
+
+        SatelliteConfig satelliteConfig = new SatelliteConfig();
+        satelliteConfig.overrideSatelliteMaxAllowedDataMode(
+                CarrierConfigManager.SATELLITE_DATA_SUPPORT_ALL);
+        satelliteConfigParser.overrideConfig(satelliteConfig);
+        assertEquals(
+                Integer.valueOf(CarrierConfigManager.SATELLITE_DATA_SUPPORT_ALL),
+                satelliteConfigParser.getConfig().getSatelliteMaxAllowedDataMode());
+
+        satelliteConfig.overrideSatelliteMaxAllowedDataMode(
+                CarrierConfigManager.SATELLITE_DATA_SUPPORT_BANDWIDTH_CONSTRAINED);
+        satelliteConfigParser.overrideConfig(satelliteConfig);
+        assertEquals(
+                Integer.valueOf(CarrierConfigManager.SATELLITE_DATA_SUPPORT_BANDWIDTH_CONSTRAINED),
+                satelliteConfigParser.getConfig().getSatelliteMaxAllowedDataMode());
     }
 }

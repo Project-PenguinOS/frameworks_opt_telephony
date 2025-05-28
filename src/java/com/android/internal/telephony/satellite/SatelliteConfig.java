@@ -60,8 +60,17 @@ public class SatelliteConfig {
     private File mSatelliteAccessConfigJsonFile;
     private SatelliteConfigData.SatelliteConfigProto mConfigData;
 
+    public SatelliteConfig() {
+        logd("SatelliteConfig: constructing from scratch");
+    }
+
+    public SatelliteConfig(@NonNull SatelliteConfig satelliteConfig) {
+        logd("SatelliteConfig: constructing through deep copy of: " + satelliteConfig);
+        new SatelliteConfig(satelliteConfig.mConfigData);
+    }
+
     public SatelliteConfig(@NonNull SatelliteConfigData.SatelliteConfigProto configData) {
-        logd("SatelliteConfig");
+        logd("SatelliteConfig: constructing with configData: " + configData);
         mConfigData = configData;
         mVersion = mConfigData.version;
         logd("mVersion: " + mVersion);
@@ -163,6 +172,17 @@ public class SatelliteConfig {
         }
         logd("mCarrierRoamingMaxAllowedDataMode : mConfigData is null or no config data");
         return null;
+    }
+
+    /**
+     * Overrides the satellite max allowed data mode.
+     *
+     * @param maxAllowedDataMode the new max allowed data mode
+     */
+    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PRIVATE)
+    public void overrideSatelliteMaxAllowedDataMode(int maxAllowedDataMode) {
+        logd("overrideSatelliteMaxAllowedDataMode: " + maxAllowedDataMode);
+        mCarrierRoamingMaxAllowedDataMode = maxAllowedDataMode;
     }
 
     /**

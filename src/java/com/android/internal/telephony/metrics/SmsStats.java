@@ -35,16 +35,21 @@ import static com.android.internal.telephony.TelephonyStatsLog.INCOMING_SMS__SMS
 import static com.android.internal.telephony.TelephonyStatsLog.INCOMING_SMS__SMS_TYPE__SMS_TYPE_VOICEMAIL_INDICATION;
 import static com.android.internal.telephony.TelephonyStatsLog.INCOMING_SMS__SMS_TYPE__SMS_TYPE_WAP_PUSH;
 import static com.android.internal.telephony.TelephonyStatsLog.INCOMING_SMS__SMS_TYPE__SMS_TYPE_ZERO;
+import static com.android.internal.telephony.TelephonyStatsLog.OUTGOING_SMS__SEND_ERROR_CODE__SMS_SEND_ERROR_GENERIC_FAILURE;
+import static com.android.internal.telephony.TelephonyStatsLog.OUTGOING_SMS__SEND_ERROR_CODE__SMS_SEND_ERROR_NETWORK_ERROR;
+import static com.android.internal.telephony.TelephonyStatsLog.OUTGOING_SMS__SEND_ERROR_CODE__SMS_SEND_ERROR_NONE;
 import static com.android.internal.telephony.TelephonyStatsLog.OUTGOING_SMS__SEND_RESULT__SMS_SEND_RESULT_ERROR;
 import static com.android.internal.telephony.TelephonyStatsLog.OUTGOING_SMS__SEND_RESULT__SMS_SEND_RESULT_ERROR_FALLBACK;
 import static com.android.internal.telephony.TelephonyStatsLog.OUTGOING_SMS__SEND_RESULT__SMS_SEND_RESULT_ERROR_RETRY;
 import static com.android.internal.telephony.TelephonyStatsLog.OUTGOING_SMS__SEND_RESULT__SMS_SEND_RESULT_SUCCESS;
 import static com.android.internal.telephony.TelephonyStatsLog.OUTGOING_SMS__SEND_RESULT__SMS_SEND_RESULT_UNKNOWN;
+import static com.android.internal.telephony.TelephonyStatsLog.OUTGOING_SMS__SMS_TECH__SMS_TECH_UNKNOWN;
 
 import android.annotation.Nullable;
 import android.app.Activity;
 import android.provider.Telephony.Sms.Intents;
 import android.telephony.Annotation.NetworkType;
+import android.telephony.AnomalyReporter;
 import android.telephony.ServiceState;
 import android.telephony.SmsManager;
 import android.telephony.TelephonyManager;
@@ -66,6 +71,7 @@ import com.android.telephony.Rlog;
 
 import java.util.Objects;
 import java.util.Random;
+import java.util.UUID;
 
 /** Collects sms events per phone ID for the pulled atom. */
 public class SmsStats {
@@ -76,6 +82,8 @@ public class SmsStats {
 
     /** 3GPP2 error for out of service: "Other radio interface problem" in N.S0005 Table 171 */
     private static final int NO_NETWORK_ERROR_3GPP2 = 66;
+    public static final UUID NTN_OUTGOING_SMS_ERROR_ANOMALY_UUID = UUID.fromString(
+            "bfd2a3d9-9f2c-4070-b9df-bdbb7f9c645a");
 
     private final Phone mPhone;
 
@@ -83,6 +91,7 @@ public class SmsStats {
             PhoneFactory.getMetricsCollector().getAtomsStorage();
 
     private static final Random RANDOM = new Random();
+
 
     public SmsStats(Phone phone) {
         mPhone = phone;
@@ -213,6 +222,7 @@ public class SmsStats {
         proto.networkErrorCode = networkErrorCode;
 
         mAtomsStorage.addOutgoingSms(proto);
+        reportNtnOutgoingSmsAnomaly(proto);
         CarrierRoamingSatelliteSessionStats sessionStats =
                 CarrierRoamingSatelliteSessionStats.getInstance(mPhone.getSubId());
         sessionStats.onOutgoingSms(mPhone.getSubId());
@@ -431,6 +441,45 @@ public class SmsStats {
             phone = mPhone.getDefaultPhone();
         }
         return phone.getCarrierId();
+    }
+
+    private void reportNtnOutgoingSmsAnomaly(OutgoingSms proto) {
+        if (!proto.isNtn && !proto.isNbIotNtn) {
+            return;
+        }
+
+        if (proto.sendResult == OUTGOING_SMS__SEND_RESULT__SMS_SEND_RESULT_SUCCESS) {
+            // Do not report anomaly if sendResult is success
+            return;
+        }
+
+        if (proto.errorCode == OUTGOING_SMS__SEND_ERROR_CODE__SMS_SEND_ERROR_NONE
+                && proto.smsTech != OUTGOING_SMS__SMS_TECH__SMS_TECH_UNKNOWN) {
+            // Only report anomaly for errorCode==ERROR_NONE when sms_tech is unknown.
+            return;
+        }
+
+        // For NTN outgoing SMS, proto.errorCode == proto.networkErrorCode
+        switch (proto.errorCode) {
+            case OUTGOING_SMS__SEND_ERROR_CODE__SMS_SEND_ERROR_NONE:
+            case OUTGOING_SMS__SEND_ERROR_CODE__SMS_SEND_ERROR_NETWORK_ERROR:
+            case OUTGOING_SMS__SEND_ERROR_CODE__SMS_SEND_ERROR_GENERIC_FAILURE:
+            case SmsManager.SMS_RP_CAUSE_CONGESTION:
+            case SmsManager.SMS_RP_CAUSE_PROTOCOL_ERROR:
+                String message = "NTN Outgoing SMS failed";
+                Rlog.d(TAG, message + " with errorCode=" + proto.errorCode
+                        + " with sendResult=" + proto.sendResult + " smsTech=" + proto.smsTech);
+                AnomalyReporter.reportAnomaly(generateUUID(proto.errorCode, proto.sendResult),
+                        message, proto.carrierId);
+        }
+    }
+
+    private UUID generateUUID(int errorCode, int sendResult) {
+        long lerrorCode = errorCode;
+        long lsendResult = sendResult;
+        return new UUID(NTN_OUTGOING_SMS_ERROR_ANOMALY_UUID.getMostSignificantBits(),
+                NTN_OUTGOING_SMS_ERROR_ANOMALY_UUID.getLeastSignificantBits()
+                        + ((lsendResult << 32) + lerrorCode));
     }
 
     private boolean isNbIotNtn(Phone phone) {

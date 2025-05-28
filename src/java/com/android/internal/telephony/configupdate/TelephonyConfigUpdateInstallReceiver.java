@@ -249,6 +249,18 @@ public class TelephonyConfigUpdateInstallReceiver extends ConfigUpdateInstallRec
         }
     }
 
+    /**
+     * Overrides the config parser. Should be used only in tests.
+     *
+     * @param configParser the config parser that we have to override
+     */
+    public void overrideConfigParser(ConfigParser configParser) {
+        Log.d(TAG, "overrideConfigParser");
+        synchronized (getInstance().mConfigParserLock) {
+            getInstance().mConfigParser = configParser;
+        }
+    }
+
     @Override
     public void registerCallback(@NonNull Executor executor, @NonNull Callback callback) {
         mCallbackHashMap.put(executor, callback);

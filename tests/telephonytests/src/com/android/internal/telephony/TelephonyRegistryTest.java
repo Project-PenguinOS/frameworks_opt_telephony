@@ -1815,7 +1815,7 @@ public class TelephonyRegistryTest extends TelephonyTest {
     @Test
     @EnableFlags(Flags.FLAG_CARRIER_ROAMING_NB_IOT_NTN)
     public void testNotifyCarrierRoamingNtnSignalStrengthChanged() {
-        int subId = INVALID_SUBSCRIPTION_ID;
+        int subId = 2;
         doReturn(mMockSubInfo).when(mSubscriptionManager).getActiveSubscriptionInfo(anyInt());
         doReturn(0/*slotIndex*/).when(mMockSubInfo).getSimSlotIndex();
         int[] events = {TelephonyCallback.EVENT_CARRIER_ROAMING_NTN_SIGNAL_STRENGTH_CHANGED};

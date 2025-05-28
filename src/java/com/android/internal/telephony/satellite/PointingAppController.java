@@ -472,6 +472,7 @@ public class PointingAppController extends Handler {
         launchIntent.putExtra("needFullScreen", needFullScreenPointingUI);
         launchIntent.putExtra("isDemoMode", isDemoMode);
         launchIntent.putExtra("isEmergency", isEmergency);
+        launchIntent.setFlags(Intent.FLAG_ACTIVITY_NO_USER_ACTION);
 
         try {
             if (!mListenerForPointingUIRegistered.get()) {

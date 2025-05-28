@@ -232,6 +232,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 @RunWith(AndroidTestingRunner.class)
@@ -3035,8 +3036,8 @@ public class SatelliteControllerTest extends TelephonyTest {
         // are available and the barred plmn list is empty, verify passing to the modem.
         reset(mMockSatelliteModemInterface);
         reset(mPhone);
-        Map<Integer, Map<String, Set<Integer>>>
-                satelliteServicesSupportedByCarriers = new HashMap<>();
+        ConcurrentHashMap<Integer, Map<String, Set<Integer>>>
+                satelliteServicesSupportedByCarriers = new ConcurrentHashMap<>();
         List<String> carrierConfigPlmnList = Arrays.stream(new String[]{"00105", "00106"}).toList();
         Map<String, Set<Integer>> plmnAndService = new HashMap<>();
         plmnAndService.put(carrierConfigPlmnList.get(0), new HashSet<>(Arrays.asList(3, 5)));
@@ -3160,7 +3161,7 @@ public class SatelliteControllerTest extends TelephonyTest {
                 mSatelliteControllerUT, new SparseArray<>());
         replaceInstance(SatelliteController.class,
                 "mSatelliteServicesSupportedByCarriersFromConfig",
-                mSatelliteControllerUT, new HashMap<>());
+                mSatelliteControllerUT, new ConcurrentHashMap<>());
         List<Integer> servicesPerPlmn;
 
         // verify whether an empty list is returned with conditions below
@@ -3424,7 +3425,7 @@ public class SatelliteControllerTest extends TelephonyTest {
                 mSatelliteControllerUT, new SparseArray<>());
         replaceInstance(SatelliteController.class,
                 "mSatelliteServicesSupportedByCarriersFromConfig",
-                mSatelliteControllerUT, new HashMap<>());
+                mSatelliteControllerUT, new ConcurrentHashMap<>());
         mCarrierConfigBundle.putBoolean(CarrierConfigManager.KEY_SATELLITE_ATTACH_SUPPORTED_BOOL,
                 true);
         mCarrierConfigBundle.putBoolean(
@@ -4733,11 +4734,11 @@ public class SatelliteControllerTest extends TelephonyTest {
         Field provisionedSubscriberIdField = SatelliteController.class.getDeclaredField(
                 "mProvisionedSubscriberId");
         provisionedSubscriberIdField.setAccessible(true);
-        provisionedSubscriberIdField.set(mSatelliteControllerUT, new HashMap<>());
+        provisionedSubscriberIdField.set(mSatelliteControllerUT, new ConcurrentHashMap<>());
         Field subscriberIdPerSubField = SatelliteController.class.getDeclaredField(
                 "mSubscriberIdPerSub");
         subscriberIdPerSubField.setAccessible(true);
-        subscriberIdPerSubField.set(mSatelliteControllerUT, new HashMap<>());
+        subscriberIdPerSubField.set(mSatelliteControllerUT, new ConcurrentHashMap<>());
         Field lastConfiguredIccIdField = SatelliteController.class.getDeclaredField(
                 "mLastConfiguredIccId");
         lastConfiguredIccIdField.setAccessible(true);
@@ -4886,7 +4887,7 @@ public class SatelliteControllerTest extends TelephonyTest {
         Field provisionedSubscriberIdField = SatelliteController.class.getDeclaredField(
                 "mProvisionedSubscriberId");
         provisionedSubscriberIdField.setAccessible(true);
-        Map<String, Boolean> testProvisionedSubscriberId = new HashMap<>();;
+        ConcurrentHashMap<String, Boolean> testProvisionedSubscriberId = new ConcurrentHashMap<>();
         testProvisionedSubscriberId.put(carrierSubscriberId, true);
         testProvisionedSubscriberId.put(oemSubscriberId, true);
         provisionedSubscriberIdField.set(mSatelliteControllerUT, testProvisionedSubscriberId);
@@ -6125,9 +6126,7 @@ public class SatelliteControllerTest extends TelephonyTest {
         @Override
         protected void setSelectedSatelliteSubId(int subId) {
             logd("setSelectedSatelliteSubId: subId=" + subId);
-            synchronized (mSatelliteTokenProvisionedLock) {
-                mSelectedSatelliteSubId = subId;
-            }
+            mSelectedSatelliteSubId = new AtomicInteger(subId);
         }
 
         @Override
@@ -6228,10 +6227,9 @@ public class SatelliteControllerTest extends TelephonyTest {
             return hasMessages(EVENT_WAIT_FOR_CELLULAR_MODEM_OFF_TIMED_OUT);
         }
 
-        public Map<String, Integer> subscriberIdPerSub() {
-            synchronized (mSatelliteTokenProvisionedLock) {
-                return mSubscriberIdPerSub;
-            }
+        /** Return subscriberId for each subscription map. */
+        public ConcurrentHashMap<String, Integer> subscriberIdPerSub() {
+            return mSubscriberIdPerSub;
         }
 
         public Map<Integer, List<SubscriptionInfo>> subsInfoListPerPriority() {
@@ -6257,15 +6255,11 @@ public class SatelliteControllerTest extends TelephonyTest {
         }
 
         public int getResultReceiverTotalCount() {
-            synchronized (mResultReceiverTotalCountLock) {
-                return mResultReceiverTotalCount;
-            }
+            return mResultReceiverTotalCount.get();
         }
 
-        public HashMap<String, Integer> getResultReceiverCountPerMethodMap() {
-            synchronized (mResultReceiverTotalCountLock) {
-                return mResultReceiverCountPerMethodMap;
-            }
+        public ConcurrentHashMap<String, Integer> getResultReceiverCountPerMethodMap() {
+            return mResultReceiverCountPerMethodMap;
         }
 
         public void setIsSatelliteAllowedState(boolean isAllowed) {
