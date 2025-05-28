@@ -127,6 +127,14 @@ flag {
     bug:"381319469"
 }
 
+# OWNER=arunvoddu TARGET=25Q4
+flag {
+    name: "send_imsi_key_for_duplicate_sim"
+    namespace: "telephony"
+    description: "This flag reset the cache if the sim phonebook is empty"
+    bug:"404094844"
+}
+
 # OWNER=arunvoddu TARGET=25Q3
 flag {
     name: "sim_phonebook_cache_fix"
