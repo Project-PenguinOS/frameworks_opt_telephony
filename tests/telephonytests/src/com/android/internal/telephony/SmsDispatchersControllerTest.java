@@ -42,6 +42,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.ActivityManager;
 import android.app.PendingIntent;
@@ -146,8 +147,9 @@ public class SmsDispatchersControllerTest extends TelephonyTest {
      * Inherits the SMSDispatcher to verify the abstract or protected methods.
      */
     protected static class TestSmsDispatcher extends SMSDispatcher {
-        public TestSmsDispatcher(Phone phone, SmsDispatchersController smsDispatchersController) {
-            super(phone, smsDispatchersController);
+        public TestSmsDispatcher(Phone phone, SmsDispatchersController smsDispatchersController,
+                @NonNull FeatureFlags featureFlags) {
+            super(phone, smsDispatchersController, featureFlags);
         }
 
         @Override
@@ -212,8 +214,8 @@ public class SmsDispatchersControllerTest extends TelephonyTest {
      */
     protected static class TestImsSmsDispatcher extends ImsSmsDispatcher {
         public TestImsSmsDispatcher(Phone phone, SmsDispatchersController smsDispatchersController,
-                FeatureConnectorFactory factory) {
-            super(phone, smsDispatchersController, factory);
+                FeatureConnectorFactory factory, @NonNull FeatureFlags featureFlags) {
+            super(phone, smsDispatchersController, factory, featureFlags);
         }
 
         @Override
@@ -1346,9 +1348,11 @@ public class SmsDispatchersControllerTest extends TelephonyTest {
         when(mConnectorFactory.create(any(), anyInt(), anyString(), any(), any())).thenReturn(
                 mMockConnector);
         mImsSmsDispatcher =
-                spy(new TestImsSmsDispatcher(mPhone, mSmsDispatchersController, mConnectorFactory));
+                spy(new TestImsSmsDispatcher(mPhone, mSmsDispatchersController, mConnectorFactory,
+                        mFeatureFlags));
 
-        mGsmSmsDispatcher = spy(new TestSmsDispatcher(mPhone, mSmsDispatchersController));
+        mGsmSmsDispatcher = spy(
+                new TestSmsDispatcher(mPhone, mSmsDispatchersController, mFeatureFlags));
 
         mCdmaSmsDispatcher = Mockito.mock(TestSmsDispatcher.class);
         when(mCdmaSmsDispatcher.getFormat()).thenReturn(SmsConstants.FORMAT_3GPP2);

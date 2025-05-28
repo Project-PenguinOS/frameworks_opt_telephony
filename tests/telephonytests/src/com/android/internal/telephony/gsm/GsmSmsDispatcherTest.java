@@ -27,11 +27,15 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeFalse;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -47,6 +51,7 @@ import android.content.pm.PackageManager;
 import android.content.pm.ServiceInfo;
 import android.location.Country;
 import android.location.CountryDetector;
+import android.os.AsyncResult;
 import android.os.Binder;
 import android.os.HandlerThread;
 import android.os.Message;
@@ -69,10 +74,13 @@ import androidx.test.filters.MediumTest;
 import androidx.test.filters.SmallTest;
 
 import com.android.internal.R;
+import com.android.internal.telephony.CommandException;
 import com.android.internal.telephony.ContextFixture;
 import com.android.internal.telephony.ISub;
 import com.android.internal.telephony.SMSDispatcher;
+import com.android.internal.telephony.SmsConstants;
 import com.android.internal.telephony.SmsDispatchersController;
+import com.android.internal.telephony.SmsResponse;
 import com.android.internal.telephony.TelephonyTest;
 import com.android.internal.telephony.TelephonyTestUtils;
 import com.android.internal.telephony.TestApplication;
@@ -135,7 +143,7 @@ public class GsmSmsDispatcherTest extends TelephonyTest {
         @Override
         public void onLooperPrepared() {
             mGsmSmsDispatcher = new GsmSMSDispatcher(mPhone, mSmsDispatchersController,
-                    mGsmInboundSmsHandler);
+                    mGsmInboundSmsHandler, mFeatureFlags);
             setReady(true);
         }
     }
@@ -167,7 +175,7 @@ public class GsmSmsDispatcherTest extends TelephonyTest {
         mGsmSmsDispatcherTestHandler.start();
         waitUntilReady();
         mGsmSmsDispatcher = new GsmSMSDispatcher(mPhone, mSmsDispatchersController,
-                mGsmInboundSmsHandler);
+                mGsmInboundSmsHandler, mFeatureFlags);
         mCallingUserId = Binder.getCallingUserHandle().getIdentifier();
         processAllMessages();
     }
@@ -748,5 +756,97 @@ public class GsmSmsDispatcherTest extends TelephonyTest {
 
         doReturn(false).when(mMockSatelliteController).isSatelliteEnabled();
         assertFalse(mGsmSmsDispatcher.shouldBlockPremiumSmsInSatelliteMode());
+    }
+
+    @Test
+    public void testSendCompleteEvent_ExceedMaxRetryCount() {
+        HashMap<String, Object> data = new HashMap<String, Object>();
+        byte[] pdu = new byte[1];
+        data.put("pdu", pdu);
+
+        String destAddr = "0123456789";
+        String format = SmsConstants.FORMAT_3GPP;
+        long messageId = 202L;
+        int retryCount = 2;
+        String fullMessageText = "Test SMS for mRetryCount < max (PDU: byte[1])";
+
+        SMSDispatcher.SmsTracker smsTracker = new SMSDispatcher.SmsTracker(data, destAddr, format,
+                messageId, retryCount, fullMessageText);
+
+        sendSendSendCompleteEvent(smsTracker, CommandException.Error.SMS_FAIL_RETRY);
+
+        verify(mPhone.getSmsStats()).onOutgoingSms(
+                anyBoolean(),                                   // isOverIms
+                eq(false),                                // isFormat3gpp2
+                anyBoolean(),                                   // fallbackToCs
+                eq(SmsManager.RESULT_RIL_SMS_SEND_FAIL_RETRY),  // resultCode
+                eq(SmsResponse.NO_ERROR_CODE),                  // errorCode
+                eq(messageId),                                  // messageId
+                eq(true),                                 // isFromDefaultSmsApplication
+                anyLong(),                                      // interval
+                anyBoolean(),                                   // isEmergencyNumber
+                anyBoolean(),                                   // isMtSmsPollingMessage
+                eq(pdu.length),                                 // pduLength
+                eq(null),                                 // app package name
+                anyInt()                                        // application uid
+        );
+
+        retryCount = 3;
+        smsTracker = new SMSDispatcher.SmsTracker(data, destAddr, format,
+                messageId, retryCount, fullMessageText);
+        doReturn(true).when(mFeatureFlags).satellite25q4Apis();
+        sendSendSendCompleteEvent(smsTracker, CommandException.Error.SMS_FAIL_RETRY);
+
+        // only metrics report should have updated error code
+        verify(mSmsTracker).onFailed(any(Context.class),
+                eq(SmsManager.RESULT_RIL_SMS_SEND_FAIL_RETRY), eq(SmsResponse.NO_ERROR_CODE));
+        verify(mPhone.getSmsStats()).onOutgoingSms(
+                anyBoolean(),
+                eq(false),
+                anyBoolean(),
+                eq(SmsManager.RESULT_SMS_SEND_FAIL_AFTER_MAX_RETRY),    // resultCode
+                eq(SmsResponse.NO_ERROR_CODE),
+                eq(messageId),
+                eq(true),
+                anyLong(),
+                anyBoolean(),
+                anyBoolean(),
+                eq(pdu.length),
+                eq(null),
+                anyInt()
+        );
+
+        doReturn(false).when(mFeatureFlags).satellite25q4Apis();
+        sendSendSendCompleteEvent(smsTracker, CommandException.Error.SMS_FAIL_RETRY);
+
+        verify(mSmsTracker).onFailed(any(Context.class),
+                eq(SmsManager.RESULT_RIL_SMS_SEND_FAIL_RETRY), eq(SmsResponse.NO_ERROR_CODE));
+        verify(mPhone.getSmsStats(), times(2)).onOutgoingSms(
+                anyBoolean(),
+                eq(false),
+                anyBoolean(),
+                eq(SmsManager.RESULT_RIL_SMS_SEND_FAIL_RETRY),    // resultCode
+                eq(SmsResponse.NO_ERROR_CODE),
+                eq(messageId),
+                eq(true),
+                anyLong(),
+                anyBoolean(),
+                anyBoolean(),
+                eq(pdu.length),
+                eq(null),
+                anyInt()
+        );
+    }
+
+    private void sendSendSendCompleteEvent(SMSDispatcher.SmsTracker smsTracker,
+            CommandException.Error error) {
+        mSmsTracker = spy(smsTracker);
+        doReturn(true).when(mSmsTracker).isFromDefaultSmsApplication(any());
+        CommandException commandException = new CommandException(error);
+
+        Message msg = mGsmSmsDispatcher.obtainMessage(2 /* EVENT_SEND_SMS_COMPLETE */);
+        msg.obj = new AsyncResult(mSmsTracker, null, commandException);
+        msg.sendToTarget();
+        processAllMessages();
     }
 }

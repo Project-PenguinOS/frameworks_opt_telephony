@@ -416,16 +416,17 @@ public class SmsDispatchersController extends Handler {
 
         // Create dispatchers, inbound SMS handlers and
         // broadcast undelivered messages in raw table.
-        mImsSmsDispatcher = new ImsSmsDispatcher(phone, this, ImsManager::getConnector);
+        mImsSmsDispatcher = new ImsSmsDispatcher(phone, this, ImsManager::getConnector,
+                mFeatureFlags);
         mGsmInboundSmsHandler = GsmInboundSmsHandler.makeInboundSmsHandler(phone.getContext(),
                 storageMonitor, phone, looper, mFeatureFlags);
         if (ENABLE_CDMA_DISPATCHER) {
-            mCdmaDispatcher = new CdmaSMSDispatcher(phone, this);
+            mCdmaDispatcher = new CdmaSMSDispatcher(phone, this, mFeatureFlags);
             mCdmaInboundSmsHandler = CdmaInboundSmsHandler.makeInboundSmsHandler(phone.getContext(),
                     storageMonitor, phone, (CdmaSMSDispatcher) mCdmaDispatcher, looper,
                     mFeatureFlags);
         }
-        mGsmDispatcher = new GsmSMSDispatcher(phone, this, mGsmInboundSmsHandler);
+        mGsmDispatcher = new GsmSMSDispatcher(phone, this, mGsmInboundSmsHandler, mFeatureFlags);
         SmsBroadcastUndelivered.initialize(phone.getContext(),
                 mGsmInboundSmsHandler, mCdmaInboundSmsHandler, mFeatureFlags);
         InboundSmsHandler.registerNewMessageNotificationActionHandler(phone.getContext());

@@ -23,6 +23,7 @@ import static com.android.internal.telephony.IccSmsInterfaceManager.SMS_MESSAGE_
 import static com.android.internal.telephony.SmsDispatchersController.PendingRequest;
 import static com.android.internal.telephony.SmsResponse.NO_ERROR_CODE;
 
+import android.annotation.NonNull;
 import android.annotation.UserIdInt;
 import android.app.Activity;
 import android.app.AlertDialog;
@@ -55,6 +56,7 @@ import android.os.Message;
 // QTI_BEGIN: 2018-03-13: Telephony: Add 7bit Ascii support for long message
 import android.os.PersistableBundle;
 // QTI_END: 2018-03-13: Telephony: Add 7bit Ascii support for long message
+import android.os.Process;
 import android.os.SystemClock;
 import android.os.UserHandle;
 import android.provider.Settings;
@@ -97,6 +99,7 @@ import com.android.internal.telephony.analytics.TelephonyAnalytics.SmsMmsAnalyti
 import com.android.internal.telephony.SmsUsageMonitor.SmsAuthorizationCallback;
 // QTI_END: 2018-04-04: Secure Systems: SEEMP: framework instrumentation and SMS security
 import com.android.internal.telephony.cdma.sms.UserData;
+import com.android.internal.telephony.flags.FeatureFlags;
 import com.android.internal.telephony.flags.Flags;
 import com.android.internal.telephony.satellite.SatelliteController;
 import com.android.internal.telephony.subscription.SubscriptionInfoInternal;
@@ -192,6 +195,7 @@ public abstract class SMSDispatcher extends Handler {
     protected Phone mPhone;
     @UnsupportedAppUsage
     protected final Context mContext;
+    private final @NonNull FeatureFlags mFeatureFlags;
     @UnsupportedAppUsage
     protected final ContentResolver mResolver;
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
@@ -255,7 +259,8 @@ public abstract class SMSDispatcher extends Handler {
      * Create a new SMS dispatcher.
      * @param phone the Phone to use
      */
-    protected SMSDispatcher(Phone phone, SmsDispatchersController smsDispatchersController) {
+    protected SMSDispatcher(Phone phone, SmsDispatchersController smsDispatchersController,
+            @NonNull FeatureFlags featureFlags) {
         mPhone = phone;
         mSmsDispatchersController = smsDispatchersController;
         mContext = phone.getContext();
@@ -272,6 +277,7 @@ public abstract class SMSDispatcher extends Handler {
         IntentFilter intentFilter = new IntentFilter();
         intentFilter.addAction(Intent.ACTION_SIM_STATE_CHANGED);
         mContext.registerReceiver(mBroadcastReceiver, intentFilter);
+        mFeatureFlags = featureFlags;
         Rlog.d(TAG, "SMSDispatcher: ctor mSmsCapable=" + mSmsCapable + " format=" + getFormat()
                 + " mSmsSendDisabled=" + mSmsSendDisabled);
     }
@@ -1163,33 +1169,7 @@ public abstract class SMSDispatcher extends Handler {
             mPhone.notifySmsSent(tracker.mDestAddress);
             mSmsDispatchersController.notifySmsSent(tracker, false,
                 tracker.isSinglePartOrLastPart(), true /*success*/);
-
-            mPhone.getSmsStats().onOutgoingSms(
-                    tracker.mImsRetry > 0 /* isOverIms */,
-                    SmsConstants.FORMAT_3GPP2.equals(getFormat()),
-                    false /* fallbackToCs */,
-                    SmsManager.RESULT_ERROR_NONE,
-                    tracker.mMessageId,
-                    tracker.isFromDefaultSmsApplication(mContext),
-                    tracker.getInterval(),
-                    mTelephonyManager.isEmergencyNumber(tracker.mDestAddress),
-                    tracker.isMtSmsPollingMessage(mContext),
-                    tracker.getPduLength(),
-                    tracker.getAppPackageName(),
-                    tracker.getAppUid());
-            if (mPhone != null) {
-                TelephonyAnalytics telephonyAnalytics = mPhone.getTelephonyAnalytics();
-                if (telephonyAnalytics != null) {
-                    SmsMmsAnalytics smsMmsAnalytics = telephonyAnalytics.getSmsMmsAnalytics();
-                    if (smsMmsAnalytics != null) {
-                        smsMmsAnalytics.onOutgoingSms(
-                                tracker.mImsRetry > 0 /* isOverIms */,
-                                SmsManager.RESULT_ERROR_NONE
-                        );
-                    }
-                }
-            }
-
+            reportOutgoingSmsMetrics(tracker, SmsManager.RESULT_ERROR_NONE, NO_ERROR_CODE);
         } else {
             if (DBG) {
                 Rlog.d(TAG, "SMS send failed "
@@ -1232,32 +1212,7 @@ public abstract class SMSDispatcher extends Handler {
                     ServiceState.RIL_RADIO_TECHNOLOGY_NR) {
                 tracker.onFailed(mContext, getNotInServiceError(ss), NO_ERROR_CODE);
                 notifySmsSentFailedToEmergencyStateTracker(tracker, false);
-                mPhone.getSmsStats().onOutgoingSms(
-                        tracker.mImsRetry > 0 /* isOverIms */,
-                        SmsConstants.FORMAT_3GPP2.equals(getFormat()),
-                        false /* fallbackToCs */,
-                        getNotInServiceError(ss),
-                        tracker.mMessageId,
-                        tracker.isFromDefaultSmsApplication(mContext),
-                        tracker.getInterval(),
-                        mTelephonyManager.isEmergencyNumber(tracker.mDestAddress),
-                        tracker.isMtSmsPollingMessage(mContext),
-                        tracker.getPduLength(),
-                        tracker.getAppPackageName(),
-                        tracker.getAppUid());
-                if (mPhone != null) {
-                    TelephonyAnalytics telephonyAnalytics = mPhone.getTelephonyAnalytics();
-                    if (telephonyAnalytics != null) {
-                        SmsMmsAnalytics smsMmsAnalytics = telephonyAnalytics.getSmsMmsAnalytics();
-                        if (smsMmsAnalytics != null) {
-                            smsMmsAnalytics.onOutgoingSms(
-                                    tracker.mImsRetry > 0 /* isOverIms */,
-                                    getNotInServiceError(ss)
-                            );
-                        }
-                    }
-                }
-
+                reportOutgoingSmsMetrics(tracker, getNotInServiceError(ss), NO_ERROR_CODE);
             } else if (error == SmsManager.RESULT_RIL_SMS_SEND_FAIL_RETRY
                     && tracker.mRetryCount < getMaxSmsRetryCount()) {
                 // Retry after a delay if needed.
@@ -1272,62 +1227,13 @@ public abstract class SMSDispatcher extends Handler {
                 int errorCode = (smsResponse != null) ? smsResponse.mErrorCode : NO_ERROR_CODE;
                 Message retryMsg = obtainMessage(EVENT_SEND_RETRY, tracker);
                 sendMessageDelayed(retryMsg, getSmsRetryDelayValue());
-                mPhone.getSmsStats().onOutgoingSms(
-                        tracker.mImsRetry > 0 /* isOverIms */,
-                        SmsConstants.FORMAT_3GPP2.equals(getFormat()),
-                        false /* fallbackToCs */,
-                        SmsManager.RESULT_RIL_SMS_SEND_FAIL_RETRY,
-                        errorCode,
-                        tracker.mMessageId,
-                        tracker.isFromDefaultSmsApplication(mContext),
-                        tracker.getInterval(),
-                        mTelephonyManager.isEmergencyNumber(tracker.mDestAddress),
-                        tracker.isMtSmsPollingMessage(mContext),
-                        tracker.getPduLength(),
-                        tracker.getAppPackageName(),
-                        tracker.getAppUid());
-                if (mPhone != null) {
-                    TelephonyAnalytics telephonyAnalytics = mPhone.getTelephonyAnalytics();
-                    if (telephonyAnalytics != null) {
-                        SmsMmsAnalytics smsMmsAnalytics = telephonyAnalytics.getSmsMmsAnalytics();
-                        if (smsMmsAnalytics != null) {
-                            smsMmsAnalytics.onOutgoingSms(
-                                    tracker.mImsRetry > 0 /* isOverIms */,
-                                    SmsManager.RESULT_RIL_SMS_SEND_FAIL_RETRY
-                            );
-                        }
-                    }
-                }
-
+                reportOutgoingSmsMetrics(tracker, SmsManager.RESULT_RIL_SMS_SEND_FAIL_RETRY,
+                        errorCode);
             } else {
                 int errorCode = (smsResponse != null) ? smsResponse.mErrorCode : NO_ERROR_CODE;
                 tracker.onFailed(mContext, error, errorCode);
                 notifySmsSentFailedToEmergencyStateTracker(tracker, false);
-                mPhone.getSmsStats().onOutgoingSms(
-                        tracker.mImsRetry > 0 /* isOverIms */,
-                        SmsConstants.FORMAT_3GPP2.equals(getFormat()),
-                        false /* fallbackToCs */,
-                        error,
-                        errorCode,
-                        tracker.mMessageId,
-                        tracker.isFromDefaultSmsApplication(mContext),
-                        tracker.getInterval(),
-                        mTelephonyManager.isEmergencyNumber(tracker.mDestAddress),
-                        tracker.isMtSmsPollingMessage(mContext),
-                        tracker.getPduLength(),
-                        tracker.getAppPackageName(),
-                        tracker.getAppUid());
-                if (mPhone != null) {
-                    TelephonyAnalytics telephonyAnalytics = mPhone.getTelephonyAnalytics();
-                    if (telephonyAnalytics != null) {
-                        SmsMmsAnalytics smsMmsAnalytics = telephonyAnalytics.getSmsMmsAnalytics();
-                        if (smsMmsAnalytics != null) {
-                            smsMmsAnalytics.onOutgoingSms(
-                                    tracker.mImsRetry > 0 /* isOverIms */,
-                                    error);
-                        }
-                    }
-                }
+                reportOutgoingSmsMetrics(tracker, error, errorCode);
             }
         }
     }
@@ -2790,6 +2696,43 @@ public abstract class SMSDispatcher extends Handler {
             mAppUid = android.os.Process.INVALID_UID;
         }
 
+        @VisibleForTesting
+        public SmsTracker(
+                HashMap<String, Object> data,
+                String destAddr,
+                String format,
+                long messageId,
+                int initialRetryCount,
+                String fullMessageText
+        ) {
+            this.mData = data;
+            this.mDestAddress = destAddr;
+            this.mFormat = format;
+            this.mMessageId = messageId;
+            this.mRetryCount = initialRetryCount;
+            this.mFullMessageText = fullMessageText;
+
+            this.mAppInfo = null;
+            this.mSentIntent = null;
+            this.mDeliveryIntent = null;
+            this.mSmsHeader = null;
+            this.mExpectMore = false;
+            this.mUsesImsServiceForIms = false;
+            this.mMessageRef = 0;
+            this.mValidityPeriod = -1;
+            this.mPriority = 0;
+            this.mIsText = true;
+            this.mPersistMessage = false;
+            this.mUserId = 0;
+            this.mSubId = 0;
+            this.mIsForVvm = false;
+            this.mCarrierId = 0;
+            this.mSkipShortCodeDestAddrCheck = false;
+            this.mUniqueMessageId = messageId;
+            this.mResultCodeFromCarrierMessagingService = CarrierMessagingService.SEND_STATUS_OK;
+            this.mAppUid = Process.INVALID_UID;
+        }
+
         public HashMap<String, Object> getData() {
             return mData;
         }
@@ -3383,6 +3326,41 @@ public abstract class SMSDispatcher extends Handler {
         }
     }
 // QTI_END: 2018-03-13: Telephony: Add 7bit Ascii support for long message
+
+    private void reportOutgoingSmsMetrics(SmsTracker tracker, int result, int errorCode) {
+        if (mPhone != null) {
+            int resultForMetrics = result;
+            if (mFeatureFlags.satellite25q4Apis()
+                    && result == SmsManager.RESULT_RIL_SMS_SEND_FAIL_RETRY
+                    && tracker.mRetryCount >= getMaxSmsRetryCount()) {
+                resultForMetrics = SmsManager.RESULT_SMS_SEND_FAIL_AFTER_MAX_RETRY;
+            }
+
+            mPhone.getSmsStats().onOutgoingSms(
+                    tracker.mImsRetry > 0 /* isOverIms */,
+                    SmsConstants.FORMAT_3GPP2.equals(getFormat()),
+                    false /* fallbackToCs */,
+                    resultForMetrics,
+                    errorCode,
+                    tracker.mMessageId,
+                    tracker.isFromDefaultSmsApplication(mContext),
+                    tracker.getInterval(),
+                    mTelephonyManager.isEmergencyNumber(tracker.mDestAddress),
+                    tracker.isMtSmsPollingMessage(mContext),
+                    tracker.getPduLength(),
+                    tracker.getAppPackageName(),
+                    tracker.getAppUid());
+            TelephonyAnalytics telephonyAnalytics = mPhone.getTelephonyAnalytics();
+            if (telephonyAnalytics != null) {
+                SmsMmsAnalytics smsMmsAnalytics = telephonyAnalytics.getSmsMmsAnalytics();
+                if (smsMmsAnalytics != null) {
+                    smsMmsAnalytics.onOutgoingSms(
+                            tracker.mImsRetry > 0 /* isOverIms */,
+                            result);
+                }
+            }
+        }
+    }
 
     /**
      * Dump local logs

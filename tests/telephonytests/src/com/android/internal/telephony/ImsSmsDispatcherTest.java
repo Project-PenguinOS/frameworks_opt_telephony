@@ -91,7 +91,7 @@ public class ImsSmsDispatcherTest extends TelephonyTest {
             return mMockConnector;
         }).when(mConnectorFactory).create(any(), anyInt(), anyString(), any(), any());
         mImsSmsDispatcher = new ImsSmsDispatcher(mPhone, mSmsDispatchersController,
-                mConnectorFactory);
+                mConnectorFactory, mFeatureFlags);
         processAllMessages();
         // set the ImsManager instance
         verify(mMockConnector).connect();
