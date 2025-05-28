@@ -1416,10 +1416,11 @@ public class NetworkTypeController extends StateMachine {
             }
         }
 
+        mPciChangedDuringPrimaryTimer = (mLastAnchorNrCellId != anchorNrCellId)
+                && mIsPrimaryTimerActive;
         mLastAnchorNrCellId = anchorNrCellId;
         mPhysicalChannelConfigs = physicalChannelConfigs;
         mDoesPccListIndicateIdle = false;
-        mPciChangedDuringPrimaryTimer = mIsPrimaryTimerActive;
         if (DBG) {
             log("Physical channel configs updated: anchorNrCell=" + mLastAnchorNrCellId
                     + ", nrBandwidths=" + mRatchetedNrBandwidths + ", nrBands=" +  mRatchetedNrBands

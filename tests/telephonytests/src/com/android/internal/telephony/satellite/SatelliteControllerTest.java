@@ -6269,9 +6269,7 @@ public class SatelliteControllerTest extends TelephonyTest {
         }
 
         public void setIsSatelliteAllowedState(boolean isAllowed) {
-            synchronized(mSatelliteAccessConfigLock) {
-                mSatelliteAccessAllowed = isAllowed;
-            }
+            mSatelliteAccessAllowed = new AtomicBoolean(isAllowed);
         }
 
         public void setCallOnlySuperMethod() {

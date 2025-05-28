@@ -52,6 +52,7 @@ import android.os.AsyncResult;
 import android.os.Binder;
 import android.os.Looper;
 import android.os.Message;
+import android.os.Process;
 import android.telephony.Rlog;
 import android.telephony.satellite.SatelliteDatagram;
 import android.telephony.satellite.SatelliteManager;
@@ -1336,7 +1337,7 @@ public class DatagramDispatcherTest extends TelephonyTest {
                 SmsDispatchersController.PendingRequest.TYPE_TEXT, null, "test-app",
                 Binder.getCallingUserHandle().getIdentifier(), "1111", "2222", asArrayList(null),
                 asArrayList(null), false, null, 0, asArrayList("text"), null, false, 0, false,
-                10, 100L, false, /* isMtSmsPolling= */ true);
+                10, 100L, false, /* isMtSmsPolling= */ true, /* uid= */ Process.INVALID_UID);
         mDatagramDispatcherUT.sendSms(pendingRequest);
         SomeArgs args = SomeArgs.obtain();
         args.arg1 = mPhone.getSubId();
@@ -1416,6 +1417,6 @@ public class DatagramDispatcherTest extends TelephonyTest {
                 SmsDispatchersController.PendingRequest.TYPE_TEXT, null, "test-app",
                 Binder.getCallingUserHandle().getIdentifier(), "1111", "2222", asArrayList(null),
                 asArrayList(null), false, null, 0, asArrayList("text"), null, false, 0, false,
-                10, 100L, false, false);
+                10, 100L, false, false, Process.INVALID_UID);
     }
 }
