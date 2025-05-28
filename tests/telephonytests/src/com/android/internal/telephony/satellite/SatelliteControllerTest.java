@@ -108,6 +108,7 @@ import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doAnswer;
@@ -122,6 +123,7 @@ import static org.mockito.Mockito.when;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.app.AlarmManager;
 import android.app.NotificationManager;
 import android.app.usage.NetworkStatsManager;
 import android.content.BroadcastReceiver;
@@ -146,6 +148,7 @@ import android.os.OutcomeReceiver;
 import android.os.PersistableBundle;
 import android.os.RemoteException;
 import android.os.ResultReceiver;
+import android.os.WorkSource;
 import android.platform.test.annotations.RequiresFlagsDisabled;
 import android.platform.test.annotations.RequiresFlagsEnabled;
 import android.platform.test.flag.junit.CheckFlagsRule;
@@ -209,6 +212,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.ArgumentMatchers;
+import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
@@ -290,6 +294,10 @@ public class SatelliteControllerTest extends TelephonyTest {
     @Mock private SubscriptionInfo mSubscriptionInfo;
     @Mock private PackageManager mMockPManager;
     @Mock private Intent mMockLocationIntent;
+    @Mock private AlarmManager mMockAlarmManager;
+
+    @Captor
+    private ArgumentCaptor<AlarmManager.OnAlarmListener> mAlarmListenerCaptor;
 
     private Semaphore mIIntegerConsumerSemaphore = new Semaphore(0);
     private IIntegerConsumer mIIntegerConsumer = new IIntegerConsumer.Stub() {
@@ -736,6 +744,10 @@ public class SatelliteControllerTest extends TelephonyTest {
 
         doReturn(true).when(mFeatureFlags).satelliteImproveMultiThreadDesign();
         doReturn(TEST_ALL_SATELLITE_PLMN_SET).when(mMockSatelliteController).getAllPlmnSet();
+        mSatelliteControllerUT.setAlarmManager(mMockAlarmManager);
+        doNothing().when(mMockAlarmManager).cancel(any(AlarmManager.OnAlarmListener.class));
+        doNothing().when(mMockAlarmManager).setExact(anyInt(), anyLong(), anyString(),
+                any(Executor.class), any(WorkSource.class), mAlarmListenerCaptor.capture());
     }
 
     @After
@@ -1763,7 +1775,7 @@ public class SatelliteControllerTest extends TelephonyTest {
     }
 
     @Test
-    public void testRegisterForSatelliteProvisionStateChanged() {
+    public void testRegisterForSatelliteProvisionStateChanged() throws Exception {
         when(mFeatureFlags.carrierRoamingNbIotNtn()).thenReturn(true);
         Semaphore semaphore = new Semaphore(0);
         ISatelliteProvisionStateCallback callback =
@@ -4446,9 +4458,63 @@ public class SatelliteControllerTest extends TelephonyTest {
     @Test
     public void testProvisionSatellite() throws Exception {
         when(mFeatureFlags.carrierRoamingNbIotNtn()).thenReturn(true);
+        when(mFeatureFlags.satelliteImproveMultiThreadDesign()).thenReturn(true);
         verifyRequestSatelliteSubscriberProvisionStatus();
         List<SatelliteSubscriberInfo> inputList = getExpectedSatelliteSubscriberInfoList();
+
+        try {
+            replaceInstance(SatelliteController.class, "sInstance", null, mSatelliteControllerUT);
+        } catch (Exception ex) {
+            loge(ex.toString());
+        }
+        reset(mMockControllerMetricsStats);
+        reset(mMockAlarmManager);
+        doNothing().when(mMockAlarmManager).setExact(anyInt(), anyLong(), anyString(),
+                any(Executor.class), any(WorkSource.class), mAlarmListenerCaptor.capture());
         verifyProvisionSatellite(inputList);
+
+        int numberOfCarriers = (int) inputList.stream()
+                .map(SatelliteSubscriberInfo::getCarrierId)
+                .distinct()
+                .count();
+        // TODO b/409584433 for now handleRequestProvisionSatellite is invoked 2 times.
+        //  expectedMetricReportCallCount should be restore to numberOfCarriers eventually.
+        int expectedMetricReportCallCount = numberOfCarriers;
+        if (mFeatureFlags.satelliteImproveMultiThreadDesign()) {
+            expectedMetricReportCallCount *= 2;
+        }
+        verify(mMockControllerMetricsStats, times(expectedMetricReportCallCount)).setIsProvisioned(
+                anyInt(), eq(true), anyBoolean());
+        verify(mMockAlarmManager, atLeastOnce()).cancel(any(AlarmManager.OnAlarmListener.class));
+        verify(mMockAlarmManager, atLeastOnce()).setExact(eq(AlarmManager.ELAPSED_REALTIME_WAKEUP),
+                anyLong(), anyString(), any(Executor.class),
+                any(WorkSource.class), any(AlarmManager.OnAlarmListener.class));
+        AlarmManager.OnAlarmListener capturedListener = mAlarmListenerCaptor.getValue();
+        if (capturedListener == null) {
+            fail("AlarmListener was not captured by AlarmManager.setExact()");
+        }
+
+        final CountDownLatch countDownLatch = new CountDownLatch(numberOfCarriers);
+        doAnswer(invocation -> {
+            countDownLatch.countDown();
+            return null;
+        }).when(mMockControllerMetricsStats).setIsProvisioned(anyInt(), anyBoolean(), anyBoolean());
+        capturedListener.onAlarm();
+        processAllMessages();
+        try {
+            if (!countDownLatch.await(2, TimeUnit.SECONDS)) {
+                fail("Handler did not process the expected message (latch timed out)");
+            }
+        } catch (InterruptedException ex) {
+            loge(ex.toString());
+        }
+        expectedMetricReportCallCount +=  numberOfCarriers;
+        verify(mMockControllerMetricsStats, times(expectedMetricReportCallCount)).setIsProvisioned(
+                anyInt(), eq(true), anyBoolean());
+        verify(mMockAlarmManager, atLeast(2)).cancel(any(AlarmManager.OnAlarmListener.class));
+        verify(mMockAlarmManager, atLeast(2)).setExact(eq(AlarmManager.ELAPSED_REALTIME_WAKEUP),
+                anyLong(), anyString(), any(Executor.class),
+                any(WorkSource.class), any(AlarmManager.OnAlarmListener.class));
     }
 
     private void verifyProvisionSatellite(List<SatelliteSubscriberInfo> inputList) {
