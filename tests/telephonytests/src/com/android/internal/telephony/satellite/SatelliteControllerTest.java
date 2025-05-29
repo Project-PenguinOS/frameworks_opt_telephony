@@ -108,6 +108,7 @@ import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doAnswer;
@@ -122,6 +123,7 @@ import static org.mockito.Mockito.when;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.app.AlarmManager;
 import android.app.NotificationManager;
 import android.app.usage.NetworkStatsManager;
 import android.content.BroadcastReceiver;
@@ -146,6 +148,7 @@ import android.os.OutcomeReceiver;
 import android.os.PersistableBundle;
 import android.os.RemoteException;
 import android.os.ResultReceiver;
+import android.os.WorkSource;
 import android.platform.test.annotations.RequiresFlagsDisabled;
 import android.platform.test.annotations.RequiresFlagsEnabled;
 import android.platform.test.flag.junit.CheckFlagsRule;
@@ -209,6 +212,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.ArgumentMatchers;
+import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
@@ -228,6 +232,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 @RunWith(AndroidTestingRunner.class)
@@ -290,6 +295,10 @@ public class SatelliteControllerTest extends TelephonyTest {
     @Mock private SubscriptionInfo mSubscriptionInfo;
     @Mock private PackageManager mMockPManager;
     @Mock private Intent mMockLocationIntent;
+    @Mock private AlarmManager mMockAlarmManager;
+
+    @Captor
+    private ArgumentCaptor<AlarmManager.OnAlarmListener> mAlarmListenerCaptor;
 
     private Semaphore mIIntegerConsumerSemaphore = new Semaphore(0);
     private IIntegerConsumer mIIntegerConsumer = new IIntegerConsumer.Stub() {
@@ -736,6 +745,10 @@ public class SatelliteControllerTest extends TelephonyTest {
 
         doReturn(true).when(mFeatureFlags).satelliteImproveMultiThreadDesign();
         doReturn(TEST_ALL_SATELLITE_PLMN_SET).when(mMockSatelliteController).getAllPlmnSet();
+        mSatelliteControllerUT.setAlarmManager(mMockAlarmManager);
+        doNothing().when(mMockAlarmManager).cancel(any(AlarmManager.OnAlarmListener.class));
+        doNothing().when(mMockAlarmManager).setExact(anyInt(), anyLong(), anyString(),
+                any(Executor.class), any(WorkSource.class), mAlarmListenerCaptor.capture());
     }
 
     @After
@@ -1763,7 +1776,7 @@ public class SatelliteControllerTest extends TelephonyTest {
     }
 
     @Test
-    public void testRegisterForSatelliteProvisionStateChanged() {
+    public void testRegisterForSatelliteProvisionStateChanged() throws Exception {
         when(mFeatureFlags.carrierRoamingNbIotNtn()).thenReturn(true);
         Semaphore semaphore = new Semaphore(0);
         ISatelliteProvisionStateCallback callback =
@@ -3023,8 +3036,8 @@ public class SatelliteControllerTest extends TelephonyTest {
         // are available and the barred plmn list is empty, verify passing to the modem.
         reset(mMockSatelliteModemInterface);
         reset(mPhone);
-        Map<Integer, Map<String, Set<Integer>>>
-                satelliteServicesSupportedByCarriers = new HashMap<>();
+        ConcurrentHashMap<Integer, Map<String, Set<Integer>>>
+                satelliteServicesSupportedByCarriers = new ConcurrentHashMap<>();
         List<String> carrierConfigPlmnList = Arrays.stream(new String[]{"00105", "00106"}).toList();
         Map<String, Set<Integer>> plmnAndService = new HashMap<>();
         plmnAndService.put(carrierConfigPlmnList.get(0), new HashSet<>(Arrays.asList(3, 5)));
@@ -3148,7 +3161,7 @@ public class SatelliteControllerTest extends TelephonyTest {
                 mSatelliteControllerUT, new SparseArray<>());
         replaceInstance(SatelliteController.class,
                 "mSatelliteServicesSupportedByCarriersFromConfig",
-                mSatelliteControllerUT, new HashMap<>());
+                mSatelliteControllerUT, new ConcurrentHashMap<>());
         List<Integer> servicesPerPlmn;
 
         // verify whether an empty list is returned with conditions below
@@ -3412,7 +3425,7 @@ public class SatelliteControllerTest extends TelephonyTest {
                 mSatelliteControllerUT, new SparseArray<>());
         replaceInstance(SatelliteController.class,
                 "mSatelliteServicesSupportedByCarriersFromConfig",
-                mSatelliteControllerUT, new HashMap<>());
+                mSatelliteControllerUT, new ConcurrentHashMap<>());
         mCarrierConfigBundle.putBoolean(CarrierConfigManager.KEY_SATELLITE_ATTACH_SUPPORTED_BOOL,
                 true);
         mCarrierConfigBundle.putBoolean(
@@ -4446,9 +4459,63 @@ public class SatelliteControllerTest extends TelephonyTest {
     @Test
     public void testProvisionSatellite() throws Exception {
         when(mFeatureFlags.carrierRoamingNbIotNtn()).thenReturn(true);
+        when(mFeatureFlags.satelliteImproveMultiThreadDesign()).thenReturn(true);
         verifyRequestSatelliteSubscriberProvisionStatus();
         List<SatelliteSubscriberInfo> inputList = getExpectedSatelliteSubscriberInfoList();
+
+        try {
+            replaceInstance(SatelliteController.class, "sInstance", null, mSatelliteControllerUT);
+        } catch (Exception ex) {
+            loge(ex.toString());
+        }
+        reset(mMockControllerMetricsStats);
+        reset(mMockAlarmManager);
+        doNothing().when(mMockAlarmManager).setExact(anyInt(), anyLong(), anyString(),
+                any(Executor.class), any(WorkSource.class), mAlarmListenerCaptor.capture());
         verifyProvisionSatellite(inputList);
+
+        int numberOfCarriers = (int) inputList.stream()
+                .map(SatelliteSubscriberInfo::getCarrierId)
+                .distinct()
+                .count();
+        // TODO b/409584433 for now handleRequestProvisionSatellite is invoked 2 times.
+        //  expectedMetricReportCallCount should be restore to numberOfCarriers eventually.
+        int expectedMetricReportCallCount = numberOfCarriers;
+        if (mFeatureFlags.satelliteImproveMultiThreadDesign()) {
+            expectedMetricReportCallCount *= 2;
+        }
+        verify(mMockControllerMetricsStats, times(expectedMetricReportCallCount)).setIsProvisioned(
+                anyInt(), eq(true), anyBoolean());
+        verify(mMockAlarmManager, atLeastOnce()).cancel(any(AlarmManager.OnAlarmListener.class));
+        verify(mMockAlarmManager, atLeastOnce()).setExact(eq(AlarmManager.ELAPSED_REALTIME_WAKEUP),
+                anyLong(), anyString(), any(Executor.class),
+                any(WorkSource.class), any(AlarmManager.OnAlarmListener.class));
+        AlarmManager.OnAlarmListener capturedListener = mAlarmListenerCaptor.getValue();
+        if (capturedListener == null) {
+            fail("AlarmListener was not captured by AlarmManager.setExact()");
+        }
+
+        final CountDownLatch countDownLatch = new CountDownLatch(numberOfCarriers);
+        doAnswer(invocation -> {
+            countDownLatch.countDown();
+            return null;
+        }).when(mMockControllerMetricsStats).setIsProvisioned(anyInt(), anyBoolean(), anyBoolean());
+        capturedListener.onAlarm();
+        processAllMessages();
+        try {
+            if (!countDownLatch.await(2, TimeUnit.SECONDS)) {
+                fail("Handler did not process the expected message (latch timed out)");
+            }
+        } catch (InterruptedException ex) {
+            loge(ex.toString());
+        }
+        expectedMetricReportCallCount +=  numberOfCarriers;
+        verify(mMockControllerMetricsStats, times(expectedMetricReportCallCount)).setIsProvisioned(
+                anyInt(), eq(true), anyBoolean());
+        verify(mMockAlarmManager, atLeast(2)).cancel(any(AlarmManager.OnAlarmListener.class));
+        verify(mMockAlarmManager, atLeast(2)).setExact(eq(AlarmManager.ELAPSED_REALTIME_WAKEUP),
+                anyLong(), anyString(), any(Executor.class),
+                any(WorkSource.class), any(AlarmManager.OnAlarmListener.class));
     }
 
     private void verifyProvisionSatellite(List<SatelliteSubscriberInfo> inputList) {
@@ -4667,11 +4734,11 @@ public class SatelliteControllerTest extends TelephonyTest {
         Field provisionedSubscriberIdField = SatelliteController.class.getDeclaredField(
                 "mProvisionedSubscriberId");
         provisionedSubscriberIdField.setAccessible(true);
-        provisionedSubscriberIdField.set(mSatelliteControllerUT, new HashMap<>());
+        provisionedSubscriberIdField.set(mSatelliteControllerUT, new ConcurrentHashMap<>());
         Field subscriberIdPerSubField = SatelliteController.class.getDeclaredField(
                 "mSubscriberIdPerSub");
         subscriberIdPerSubField.setAccessible(true);
-        subscriberIdPerSubField.set(mSatelliteControllerUT, new HashMap<>());
+        subscriberIdPerSubField.set(mSatelliteControllerUT, new ConcurrentHashMap<>());
         Field lastConfiguredIccIdField = SatelliteController.class.getDeclaredField(
                 "mLastConfiguredIccId");
         lastConfiguredIccIdField.setAccessible(true);
@@ -4820,7 +4887,7 @@ public class SatelliteControllerTest extends TelephonyTest {
         Field provisionedSubscriberIdField = SatelliteController.class.getDeclaredField(
                 "mProvisionedSubscriberId");
         provisionedSubscriberIdField.setAccessible(true);
-        Map<String, Boolean> testProvisionedSubscriberId = new HashMap<>();;
+        ConcurrentHashMap<String, Boolean> testProvisionedSubscriberId = new ConcurrentHashMap<>();
         testProvisionedSubscriberId.put(carrierSubscriberId, true);
         testProvisionedSubscriberId.put(oemSubscriberId, true);
         provisionedSubscriberIdField.set(mSatelliteControllerUT, testProvisionedSubscriberId);
@@ -4913,6 +4980,13 @@ public class SatelliteControllerTest extends TelephonyTest {
             logd("NameNotFoundException");
         }
         assertTrue(mSatelliteControllerUT
+                .isP2PSmsDisallowedOnCarrierRoamingNtn(/*subId*/ SUB_ID));
+
+        mSatelliteControllerUT.isSatelliteProvisioned = true;
+        mSatelliteControllerUT.setNtnSmsSupportedByMessagesApp(true);
+        mSatelliteControllerUT.mIsApplicationSupportsP2P = true;
+        processAllMessages();
+        assertFalse(mSatelliteControllerUT
                 .isP2PSmsDisallowedOnCarrierRoamingNtn(/*subId*/ SUB_ID));
     }
 
@@ -6003,9 +6077,19 @@ public class SatelliteControllerTest extends TelephonyTest {
             isApplicationUpdated = false;
         }
 
+        @Nullable
+        public Phone getSatellitePhone() {
+            return super.getSatellitePhone();
+        }
+
         @Override
         protected void initializeSatelliteModeRadios() {
             logd("initializeSatelliteModeRadios");
+        }
+
+        @NonNull
+        protected PersistableBundle getPersistableBundle(int subId) {
+            return super.getPersistableBundle(subId);
         }
 
         @Override
@@ -6059,9 +6143,7 @@ public class SatelliteControllerTest extends TelephonyTest {
         @Override
         protected void setSelectedSatelliteSubId(int subId) {
             logd("setSelectedSatelliteSubId: subId=" + subId);
-            synchronized (mSatelliteTokenProvisionedLock) {
-                mSelectedSatelliteSubId = subId;
-            }
+            mSelectedSatelliteSubId = new AtomicInteger(subId);
         }
 
         @Override
@@ -6162,10 +6244,9 @@ public class SatelliteControllerTest extends TelephonyTest {
             return hasMessages(EVENT_WAIT_FOR_CELLULAR_MODEM_OFF_TIMED_OUT);
         }
 
-        public Map<String, Integer> subscriberIdPerSub() {
-            synchronized (mSatelliteTokenProvisionedLock) {
-                return mSubscriberIdPerSub;
-            }
+        /** Return subscriberId for each subscription map. */
+        public ConcurrentHashMap<String, Integer> subscriberIdPerSub() {
+            return mSubscriberIdPerSub;
         }
 
         public Map<Integer, List<SubscriptionInfo>> subsInfoListPerPriority() {
@@ -6191,21 +6272,15 @@ public class SatelliteControllerTest extends TelephonyTest {
         }
 
         public int getResultReceiverTotalCount() {
-            synchronized (mResultReceiverTotalCountLock) {
-                return mResultReceiverTotalCount;
-            }
+            return mResultReceiverTotalCount.get();
         }
 
-        public HashMap<String, Integer> getResultReceiverCountPerMethodMap() {
-            synchronized (mResultReceiverTotalCountLock) {
-                return mResultReceiverCountPerMethodMap;
-            }
+        public ConcurrentHashMap<String, Integer> getResultReceiverCountPerMethodMap() {
+            return mResultReceiverCountPerMethodMap;
         }
 
         public void setIsSatelliteAllowedState(boolean isAllowed) {
-            synchronized(mSatelliteAccessConfigLock) {
-                mSatelliteAccessAllowed = isAllowed;
-            }
+            mSatelliteAccessAllowed = new AtomicBoolean(isAllowed);
         }
 
         public void setCallOnlySuperMethod() {

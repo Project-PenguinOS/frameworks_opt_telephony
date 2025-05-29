@@ -16,6 +16,7 @@
 
 package com.android.internal.telephony;
 
+import android.annotation.NonNull;
 import android.app.Activity;
 // QTI_BEGIN: 2018-06-29: Telephony: Fix SMS over IMS retry issues.
 import static android.telephony.SmsManager.RESULT_ERROR_GENERIC_FAILURE;
@@ -55,6 +56,7 @@ import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.telephony.GsmAlphabet.TextEncodingDetails;
 import com.android.internal.telephony.analytics.TelephonyAnalytics;
 import com.android.internal.telephony.analytics.TelephonyAnalytics.SmsMmsAnalytics;
+import com.android.internal.telephony.flags.FeatureFlags;
 import com.android.internal.telephony.metrics.TelephonyMetrics;
 // QTI_BEGIN: 2020-04-15: Telephony: Fix failing to send SMS with SMSC over IMS
 import com.android.internal.telephony.uicc.IccUtils;
@@ -266,7 +268,9 @@ public class ImsSmsDispatcher extends SMSDispatcher {
                         tracker.getInterval(),
                         mTelephonyManager.isEmergencyNumber(tracker.mDestAddress),
                         tracker.isMtSmsPollingMessage(mContext),
-                        tracker.getPduLength());
+                        tracker.getPduLength(),
+                        tracker.getAppPackageName(),
+                        tracker.getAppUid());
                 if (mPhone != null) {
                     TelephonyAnalytics telephonyAnalytics = mPhone.getTelephonyAnalytics();
                     if (telephonyAnalytics != null) {
@@ -379,8 +383,8 @@ public class ImsSmsDispatcher extends SMSDispatcher {
     }
 
     public ImsSmsDispatcher(Phone phone, SmsDispatchersController smsDispatchersController,
-            FeatureConnectorFactory factory) {
-        super(phone, smsDispatchersController);
+            FeatureConnectorFactory factory, @NonNull FeatureFlags featureFlags) {
+        super(phone, smsDispatchersController, featureFlags);
         mConnectorFactory = factory;
 
         mImsManagerConnector = mConnectorFactory.create(mContext, mPhone.getPhoneId(), TAG,
@@ -716,7 +720,9 @@ public class ImsSmsDispatcher extends SMSDispatcher {
                     tracker.getInterval(),
                     mTelephonyManager.isEmergencyNumber(tracker.mDestAddress),
                     tracker.isMtSmsPollingMessage(mContext),
-                    tracker.getPduLength());
+                    tracker.getPduLength(),
+                    tracker.getAppPackageName(),
+                    tracker.getAppUid());
             if (mPhone != null) {
                 TelephonyAnalytics telephonyAnalytics = mPhone.getTelephonyAnalytics();
                 if (telephonyAnalytics != null) {

@@ -4133,7 +4133,8 @@ public abstract class Phone extends Handler implements PhoneInternalInterface {
      *        IMSI and IMPI. This includes the Key type, the Public key
      *        {@link java.security.PublicKey} and the Key identifier.
      */
-    public void setCarrierInfoForImsiEncryption(ImsiEncryptionInfo imsiEncryptionInfo) {
+    public void setCarrierInfoForImsiEncryption(ImsiEncryptionInfo imsiEncryptionInfo,
+            boolean saveToDb) {
         return;
     }
 

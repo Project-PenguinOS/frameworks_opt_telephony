@@ -254,6 +254,7 @@ public class SmsDispatchersController extends Handler {
         public final boolean skipShortCodeCheck;
         public final long uniqueMessageId;
         public final boolean isMtSmsPolling;
+        public final int mApplicationUid;
 
         public PendingRequest(int type, SMSDispatcher.SmsTracker tracker, String callingPackage,
                 int callingUser, String destAddr, String scAddr,
@@ -261,7 +262,7 @@ public class SmsDispatchersController extends Handler {
                 boolean isForVvm, byte[] data, int destPort, ArrayList<String> texts,
                 Uri messageUri, boolean persistMessage, int priority, boolean expectMore,
                 int validityPeriod, long messageId, boolean skipShortCodeCheck,
-                boolean isMtSmsPolling) {
+                boolean isMtSmsPolling, int uid) {
             this.type = type;
             this.tracker = tracker;
             this.callingPackage = callingPackage;
@@ -289,6 +290,7 @@ public class SmsDispatchersController extends Handler {
                 this.uniqueMessageId = getNextUniqueMessageId();
             }
             this.isMtSmsPolling = isMtSmsPolling;
+            this.mApplicationUid = uid;
         }
 
         public static long getNextUniqueMessageId() {
@@ -414,16 +416,17 @@ public class SmsDispatchersController extends Handler {
 
         // Create dispatchers, inbound SMS handlers and
         // broadcast undelivered messages in raw table.
-        mImsSmsDispatcher = new ImsSmsDispatcher(phone, this, ImsManager::getConnector);
+        mImsSmsDispatcher = new ImsSmsDispatcher(phone, this, ImsManager::getConnector,
+                mFeatureFlags);
         mGsmInboundSmsHandler = GsmInboundSmsHandler.makeInboundSmsHandler(phone.getContext(),
                 storageMonitor, phone, looper, mFeatureFlags);
         if (ENABLE_CDMA_DISPATCHER) {
-            mCdmaDispatcher = new CdmaSMSDispatcher(phone, this);
+            mCdmaDispatcher = new CdmaSMSDispatcher(phone, this, mFeatureFlags);
             mCdmaInboundSmsHandler = CdmaInboundSmsHandler.makeInboundSmsHandler(phone.getContext(),
                     storageMonitor, phone, (CdmaSMSDispatcher) mCdmaDispatcher, looper,
                     mFeatureFlags);
         }
-        mGsmDispatcher = new GsmSMSDispatcher(phone, this, mGsmInboundSmsHandler);
+        mGsmDispatcher = new GsmSMSDispatcher(phone, this, mGsmInboundSmsHandler, mFeatureFlags);
         SmsBroadcastUndelivered.initialize(phone.getContext(),
                 mGsmInboundSmsHandler, mCdmaInboundSmsHandler, mFeatureFlags);
         InboundSmsHandler.registerNewMessageNotificationActionHandler(phone.getContext());
@@ -852,7 +855,7 @@ public class SmsDispatchersController extends Handler {
                         null, UserHandle.USER_NULL, null, null,
                         null, null, false, null, 0,
                         null, null, false,
-                        0, false, 0, 0L, false, false);
+                        0, false, 0, 0L, false, false, tracker.getAppUid());
                 args.arg3 = "sendRetrySms";
                 sendMessage(obtainMessage(EVENT_REQUEST_DOMAIN_SELECTION, args));
                 return;
@@ -1450,17 +1453,17 @@ public class SmsDispatchersController extends Handler {
             mImsSmsDispatcher.sendData(request.callingPackage, request.callingUser,
                     request.destAddr, request.scAddr, request.destPort, request.data,
                     request.sentIntents.get(0), request.deliveryIntents.get(0), request.isForVvm,
-                    request.uniqueMessageId);
+                    request.uniqueMessageId, request.mApplicationUid);
         } else if (isCdmaMo(domain)) {
             mCdmaDispatcher.sendData(request.callingPackage, request.callingUser, request.destAddr,
                     request.scAddr, request.destPort, request.data,
                     request.sentIntents.get(0), request.deliveryIntents.get(0), request.isForVvm,
-                    request.uniqueMessageId);
+                    request.uniqueMessageId, request.mApplicationUid);
         } else {
             mGsmDispatcher.sendData(request.callingPackage, request.callingUser, request.destAddr,
                     request.scAddr, request.destPort, request.data,
                     request.sentIntents.get(0), request.deliveryIntents.get(0), request.isForVvm,
-                    request.uniqueMessageId);
+                    request.uniqueMessageId, request.mApplicationUid);
         }
     }
 
@@ -1480,7 +1483,7 @@ public class SmsDispatchersController extends Handler {
                     request.messageUri, request.callingPackage, request.callingUser,
                     request.persistMessage, request.priority,  /*request.expectMore*/ false,
                     request.validityPeriod, request.isForVvm, request.messageId,
-                    request.skipShortCodeCheck, request.uniqueMessageId);
+                    request.skipShortCodeCheck, request.uniqueMessageId, request.mApplicationUid);
         } else {
             if (isCdmaMo(domain)) {
                 mCdmaDispatcher.sendText(request.destAddr, request.scAddr, request.texts.get(0),
@@ -1488,14 +1491,16 @@ public class SmsDispatchersController extends Handler {
                         request.messageUri, request.callingPackage, request.callingUser,
                         request.persistMessage, request.priority, request.expectMore,
                         request.validityPeriod, request.isForVvm, request.messageId,
-                        request.skipShortCodeCheck, request.uniqueMessageId);
+                        request.skipShortCodeCheck, request.uniqueMessageId,
+                        request.mApplicationUid);
             } else {
                 mGsmDispatcher.sendText(request.destAddr, request.scAddr, request.texts.get(0),
                         request.sentIntents.get(0), request.deliveryIntents.get(0),
                         request.messageUri, request.callingPackage, request.callingUser,
                         request.persistMessage, request.priority, request.expectMore,
                         request.validityPeriod, request.isForVvm, request.messageId,
-                        request.skipShortCodeCheck, request.uniqueMessageId);
+                        request.skipShortCodeCheck, request.uniqueMessageId,
+                        request.mApplicationUid);
             }
         }
     }
@@ -1515,20 +1520,20 @@ public class SmsDispatchersController extends Handler {
                     request.sentIntents, request.deliveryIntents, request.messageUri,
                     request.callingPackage, request.callingUser, request.persistMessage,
                     request.priority, false /*request.expectMore*/, request.validityPeriod,
-                    request.messageId, request.uniqueMessageId);
+                    request.messageId, request.uniqueMessageId, request.mApplicationUid);
         } else {
             if (isCdmaMo(domain)) {
                 mCdmaDispatcher.sendMultipartText(request.destAddr, request.scAddr, request.texts,
                         request.sentIntents, request.deliveryIntents, request.messageUri,
                         request.callingPackage, request.callingUser, request.persistMessage,
                         request.priority, request.expectMore, request.validityPeriod,
-                        request.messageId, request.uniqueMessageId);
+                        request.messageId, request.uniqueMessageId, request.mApplicationUid);
             } else {
                 mGsmDispatcher.sendMultipartText(request.destAddr, request.scAddr, request.texts,
                         request.sentIntents, request.deliveryIntents, request.messageUri,
                         request.callingPackage, request.callingUser, request.persistMessage,
                         request.priority, request.expectMore, request.validityPeriod,
-                        request.messageId, request.uniqueMessageId);
+                        request.messageId, request.uniqueMessageId, request.mApplicationUid);
             }
         }
     }
@@ -1645,7 +1650,7 @@ public class SmsDispatchersController extends Handler {
      */
     protected void sendData(String callingPackage, int callingUser, String destAddr, String scAddr,
             int destPort, byte[] data, PendingIntent sentIntent, PendingIntent deliveryIntent,
-            boolean isForVvm) {
+            boolean isForVvm, int uid) {
         if (TextUtils.isEmpty(scAddr)) {
             scAddr = getSmscAddressFromUSIMWithPhoneIdentity(callingPackage);
         }
@@ -1656,7 +1661,7 @@ public class SmsDispatchersController extends Handler {
                             destAddr, scAddr, asArrayList(sentIntent),
                             asArrayList(deliveryIntent), isForVvm, data, destPort, null,
                             null, false, 0, false, 0,
-                            0L, false, false),
+                            0L, false, false, uid),
                     "sendData");
             return;
         }
@@ -1664,15 +1669,15 @@ public class SmsDispatchersController extends Handler {
         if (mImsSmsDispatcher.isAvailable()) {
             mImsSmsDispatcher.sendData(callingPackage, callingUser, destAddr, scAddr, destPort,
                     data, sentIntent, deliveryIntent, isForVvm,
-                    PendingRequest.getNextUniqueMessageId());
+                    PendingRequest.getNextUniqueMessageId(), uid);
         } else if (isCdmaMo()) {
             mCdmaDispatcher.sendData(callingPackage, callingUser, destAddr, scAddr, destPort, data,
                     sentIntent, deliveryIntent, isForVvm,
-                    PendingRequest.getNextUniqueMessageId());
+                    PendingRequest.getNextUniqueMessageId(), uid);
         } else {
             mGsmDispatcher.sendData(callingPackage, callingUser, destAddr, scAddr, destPort, data,
                     sentIntent, deliveryIntent, isForVvm,
-                    PendingRequest.getNextUniqueMessageId());
+                    PendingRequest.getNextUniqueMessageId(), uid);
         }
     }
 
@@ -1776,10 +1781,10 @@ public class SmsDispatchersController extends Handler {
     public void sendText(String destAddr, String scAddr, String text, PendingIntent sentIntent,
             PendingIntent deliveryIntent, Uri messageUri, String callingPkg, int callingUser,
             boolean persistMessage, int priority, boolean expectMore, int validityPeriod,
-            boolean isForVvm, long messageId) {
+            boolean isForVvm, long messageId, int uid) {
         sendText(destAddr, scAddr, text, sentIntent, deliveryIntent, messageUri, callingPkg,
                 callingUser, persistMessage, priority, expectMore, validityPeriod, isForVvm,
-                messageId, false);
+                messageId, false, uid);
     }
 
     /**
@@ -1883,7 +1888,7 @@ public class SmsDispatchersController extends Handler {
     public void sendText(String destAddr, String scAddr, String text, PendingIntent sentIntent,
             PendingIntent deliveryIntent, Uri messageUri, String callingPkg, int callingUser,
             boolean persistMessage, int priority, boolean expectMore, int validityPeriod,
-            boolean isForVvm, long messageId, boolean skipShortCodeCheck) {
+            boolean isForVvm, long messageId, boolean skipShortCodeCheck, int uid) {
         if (TextUtils.isEmpty(scAddr)) {
             scAddr = getSmscAddressFromUSIMWithPhoneIdentity(callingPkg);
         }
@@ -1892,7 +1897,7 @@ public class SmsDispatchersController extends Handler {
                 callingPkg, callingUser, destAddr, scAddr, asArrayList(sentIntent),
                 asArrayList(deliveryIntent), isForVvm, null, 0, asArrayList(text),
                 messageUri, persistMessage, priority, expectMore, validityPeriod, messageId,
-                skipShortCodeCheck, false);
+                skipShortCodeCheck, false, uid);
 
         if (SatelliteController.getInstance().shouldSendSmsToDatagramDispatcher(mPhone)) {
             // Send P2P SMS using carrier roaming NB IOT NTN
@@ -1925,7 +1930,7 @@ public class SmsDispatchersController extends Handler {
                     request.messageUri, request.callingPackage, request.callingUser,
                     request.persistMessage, request.priority, false /*expectMore*/,
                     request.validityPeriod, request.isForVvm, request.messageId,
-                    request.skipShortCodeCheck, request.uniqueMessageId);
+                    request.skipShortCodeCheck, request.uniqueMessageId, request.mApplicationUid);
         } else {
             if (isCdmaMo()) {
                 mCdmaDispatcher.sendText(request.destAddr, request.scAddr, request.texts.get(0),
@@ -1933,14 +1938,16 @@ public class SmsDispatchersController extends Handler {
                         request.messageUri, request.callingPackage, request.callingUser,
                         request.persistMessage, request.priority, request.expectMore,
                         request.validityPeriod, request.isForVvm, request.messageId,
-                        request.skipShortCodeCheck, request.uniqueMessageId);
+                        request.skipShortCodeCheck, request.uniqueMessageId,
+                        request.mApplicationUid);
             } else {
                 mGsmDispatcher.sendText(request.destAddr, request.scAddr, request.texts.get(0),
                         request.sentIntents.get(0), request.deliveryIntents.get(0),
                         request.messageUri, request.callingPackage, request.callingUser,
                         request.persistMessage, request.priority, request.expectMore,
                         request.validityPeriod, request.isForVvm, request.messageId,
-                        request.skipShortCodeCheck, request.uniqueMessageId);
+                        request.skipShortCodeCheck, request.uniqueMessageId,
+                        request.mApplicationUid);
             }
         }
     }
@@ -2053,7 +2060,7 @@ public class SmsDispatchersController extends Handler {
             ArrayList<String> parts, ArrayList<PendingIntent> sentIntents,
             ArrayList<PendingIntent> deliveryIntents, Uri messageUri, String callingPkg,
             int callingUser, boolean persistMessage, int priority, boolean expectMore,
-            int validityPeriod, long messageId) {
+            int validityPeriod, long messageId, int uid) {
         if (TextUtils.isEmpty(scAddr)) {
             scAddr = getSmscAddressFromUSIMWithPhoneIdentity(callingPkg);
         }
@@ -2061,7 +2068,7 @@ public class SmsDispatchersController extends Handler {
         PendingRequest pendingRequest = new PendingRequest(PendingRequest.TYPE_MULTIPART_TEXT, null,
                 callingPkg, callingUser, destAddr, scAddr, sentIntents, deliveryIntents, false,
                 null, 0, parts, messageUri, persistMessage, priority, expectMore,
-                validityPeriod, messageId, false, false);
+                validityPeriod, messageId, false, false, uid);
 
         if (SatelliteController.getInstance().shouldSendSmsToDatagramDispatcher(mPhone)) {
             // Send multipart P2P SMS using carrier roaming NB IOT NTN
@@ -2098,20 +2105,20 @@ public class SmsDispatchersController extends Handler {
                     request.sentIntents, request.deliveryIntents, request.messageUri,
                     request.callingPackage, request.callingUser, request.persistMessage,
                     request.priority, false /*expectMore*/, request.validityPeriod,
-                    request.messageId, request.uniqueMessageId);
+                    request.messageId, request.uniqueMessageId, request.mApplicationUid);
         } else {
             if (isCdmaMo()) {
                 mCdmaDispatcher.sendMultipartText(request.destAddr, request.scAddr, request.texts,
                         request.sentIntents, request.deliveryIntents, request.messageUri,
                         request.callingPackage, request.callingUser, request.persistMessage,
                         request.priority, request.expectMore, request.validityPeriod,
-                        request.messageId, request.uniqueMessageId);
+                        request.messageId, request.uniqueMessageId, request.mApplicationUid);
             } else {
                 mGsmDispatcher.sendMultipartText(request.destAddr, request.scAddr, request.texts,
                         request.sentIntents, request.deliveryIntents, request.messageUri,
                         request.callingPackage, request.callingUser, request.persistMessage,
                         request.priority, request.expectMore, request.validityPeriod,
-                        request.messageId, request.uniqueMessageId);
+                        request.messageId, request.uniqueMessageId, request.mApplicationUid);
             }
         }
     }
@@ -2309,7 +2316,7 @@ public class SmsDispatchersController extends Handler {
                 callingPackage, Binder.getCallingUserHandle().getIdentifier(), destAddr,
                 getSmscAddressFromUSIMWithPhoneIdentity(callingPackage), asArrayList(null),
                 asArrayList(null), false, null, 0, asArrayList(mtSmsPollingText), null, false, 0,
-                false, 5, 0L, true, true);
+                false, 5, 0L, true, true, Binder.getCallingUid());
 
         if (SatelliteController.getInstance().shouldSendSmsToDatagramDispatcher(mPhone)) {
             DatagramDispatcher.getInstance().sendSms(pendingRequest);

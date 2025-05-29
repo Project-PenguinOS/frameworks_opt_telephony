@@ -390,12 +390,13 @@ public class ControllerMetricsStats {
     }
 
     /** Capture the latest provisioned state for satellite service */
-    @VisibleForTesting
-    public void setIsProvisioned(boolean isProvisioned) {
-        logd("setIsProvisioned:" + isProvisioned);
+    public void setIsProvisioned(int carrierId, boolean isProvisioned, boolean isNtnOnlyCarrier) {
+        logd("setIsProvisioned: carrierId=" + carrierId + ", isProvisioned=" + isProvisioned);
         mSatelliteStats.onSatelliteControllerMetrics(
                 new SatelliteStats.SatelliteControllerParams.Builder()
+                        .setCarrierId(carrierId)
                         .setIsProvisioned(isProvisioned)
+                        .setIsNtnOnlyCarrier(isNtnOnlyCarrier)
                         .build());
     }
 

@@ -36,6 +36,7 @@ import static org.mockito.Mockito.when;
 import android.content.Context;
 import android.os.Binder;
 import android.os.PersistableBundle;
+import android.os.Process;
 import android.telephony.CarrierConfigManager;
 import android.telephony.SmsMessage;
 import android.telephony.ims.stub.ImsSmsImplBase;
@@ -90,7 +91,7 @@ public class ImsSmsDispatcherTest extends TelephonyTest {
             return mMockConnector;
         }).when(mConnectorFactory).create(any(), anyInt(), anyString(), any(), any());
         mImsSmsDispatcher = new ImsSmsDispatcher(mPhone, mSmsDispatchersController,
-                mConnectorFactory);
+                mConnectorFactory, mFeatureFlags);
         processAllMessages();
         // set the ImsManager instance
         verify(mMockConnector).connect();
@@ -347,7 +348,8 @@ public class ImsSmsDispatcherTest extends TelephonyTest {
         doReturn(mSmsUsageMonitor).when(mSmsDispatchersController).getUsageMonitor();
 
         mImsSmsDispatcher.sendText("+15555551212", null, "MessageRef test",
-                null, null, null, null, mCallingUserId, false, -1, false, -1, false, 0);
+                null, null, null, null, mCallingUserId, false, -1, false, -1, false, 0,
+                Process.INVALID_UID);
         verify(mImsManager).sendSms(eq(token + 1), eq(messageRef), eq(SmsMessage.FORMAT_3GPP),
                 nullable(String.class), eq(false), (byte[]) any());
     }
@@ -362,7 +364,8 @@ public class ImsSmsDispatcherTest extends TelephonyTest {
         doReturn(mSmsUsageMonitor).when(mSmsDispatchersController).getUsageMonitor();
 
         mImsSmsDispatcher.sendText("+15555551212", null, "MessageRef test",
-                null, null, null, null, mCallingUserId, false, -1, false, -1, false, 0);
+                null, null, null, null, mCallingUserId, false, -1, false, -1, false, 0,
+                Process.INVALID_UID);
         verify(mImsManager).sendSms(eq(token + 1), eq(messageRef), eq(SmsMessage.FORMAT_3GPP),
                 nullable(String.class), eq(false), (byte[]) any());
 
@@ -396,7 +399,8 @@ public class ImsSmsDispatcherTest extends TelephonyTest {
         doReturn(mSmsUsageMonitor).when(mSmsDispatchersController).getUsageMonitor();
 
         mImsSmsDispatcher.sendText("+15555551212", null, "MessageRef test",
-                null, null, null, null, mCallingUserId, false, -1, false, -1, false, 0);
+                null, null, null, null, mCallingUserId, false, -1, false, -1, false, 0,
+                Process.INVALID_UID);
         verify(mImsManager).sendSms(eq(token + 1), eq(messageRef), eq(SmsMessage.FORMAT_3GPP),
                 nullable(String.class), eq(false), (byte[]) any());
 
@@ -434,7 +438,8 @@ public class ImsSmsDispatcherTest extends TelephonyTest {
         when(mPhone.getPhoneType()).thenReturn(PhoneConstants.PHONE_TYPE_GSM);
         doReturn(mSmsUsageMonitor).when(mSmsDispatchersController).getUsageMonitor();
         mImsSmsDispatcher.sendText("+15555551212", null, "Retry test",
-                null, null, null, null, mCallingUserId, false, -1, false, -1, false, 0);
+                null, null, null, null, mCallingUserId, false, -1, false, -1, false, 0,
+                Process.INVALID_UID);
         verify(mImsManager).sendSms(eq(token + 1), eq(messageRef), eq(SmsMessage.FORMAT_3GPP),
                 nullable(String.class), eq(false), (byte[]) any());
         assertEquals(2, mImsSmsDispatcher.getMaxRetryCountOverIms());
