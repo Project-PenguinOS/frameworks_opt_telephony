@@ -974,7 +974,7 @@ public class DataNetworkController extends Handler {
                 TelephonyComponentFactory.getInstance()
                         .inject(DataServiceManager.class.getName())
                         .makeDataServiceManager(mPhone, looper,
-                                AccessNetworkConstants.TRANSPORT_TYPE_WWAN));
+                                AccessNetworkConstants.TRANSPORT_TYPE_WWAN, featureFlags));
         if (!mAccessNetworksManager.isInLegacyMode()) {
             mDataServiceManagers.put(AccessNetworkConstants.TRANSPORT_TYPE_WLAN,
 // QTI_END: 2023-06-13: Telephony: Revert "Removed IWLAN legacy mode support"
@@ -984,7 +984,7 @@ public class DataNetworkController extends Handler {
 // QTI_END: 2022-12-07: Telephony: Enable extension of a few data classes for QoS
 // QTI_BEGIN: 2023-06-13: Telephony: Revert "Removed IWLAN legacy mode support"
                             .makeDataServiceManager(mPhone, looper,
-                                    AccessNetworkConstants.TRANSPORT_TYPE_WLAN));
+                                    AccessNetworkConstants.TRANSPORT_TYPE_WLAN, featureFlags));
 // QTI_END: 2023-06-13: Telephony: Revert "Removed IWLAN legacy mode support"
         }
 
@@ -1011,7 +1011,7 @@ public class DataNetworkController extends Handler {
 
         mDataSettingsManager = TelephonyComponentFactory.getInstance().inject(
                 DataSettingsManager.class.getName())
-                .makeDataSettingsManager(mPhone, this, mFeatureFlags, looper,
+                .makeDataSettingsManager(mPhone, this, mDataServiceManagers, mFeatureFlags, looper,
                         new DataSettingsManagerCallback(this::post) {
                             @Override
                             public void onDataEnabledChanged(boolean enabled,
@@ -3775,10 +3775,12 @@ public class DataNetworkController extends Handler {
             if (simState == TelephonyManager.SIM_STATE_ABSENT) {
                 onSimAbsent();
                 mDataNetworkControllerCallbacks.forEach(callback -> callback.invokeFromExecutor(
-                    () -> callback.onSimStateChanged(simState)));
+                        () -> callback.onSimStateChanged(simState)));
             } else if (simState == TelephonyManager.SIM_STATE_LOADED) {
                 sendMessage(obtainMessage(EVENT_REEVALUATE_UNSATISFIED_NETWORK_REQUESTS,
                         DataEvaluationReason.SIM_LOADED));
+                mDataNetworkControllerCallbacks.forEach(callback -> callback.invokeFromExecutor(
+                        () -> callback.onSimStateChanged(simState)));
             }
         }
     }

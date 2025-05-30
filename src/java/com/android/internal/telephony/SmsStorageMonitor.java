@@ -257,7 +257,6 @@ public class SmsStorageMonitor extends Handler {
                 if (smsIfcMngr.mDispatchersController.isIms() && isAvailable) {
                     smsIfcMngr.mDispatchersController.reportSmsMemoryStatus(
                             obtainMessage(EVENT_REPORT_MEMORY_STATUS_DONE));
-                    return;
                 }
             }
         }

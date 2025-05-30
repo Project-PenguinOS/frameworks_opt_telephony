@@ -50,9 +50,7 @@ import android.system.StructStatVfs;
 import android.telephony.AccessNetworkConstants.TransportType;
 // QTI_END: 2022-12-12: Telephony: Fix compilation error with changes brought from T
 import android.text.TextUtils;
-// QTI_BEGIN: 2022-03-05: Telephony: Add support for injecting data sub modules
 import android.util.SparseArray;
-// QTI_END: 2022-03-05: Telephony: Add support for injecting data sub modules
 
 import com.android.ims.ImsManager;
 import com.android.internal.telephony.cdma.CdmaSubscriptionSourceManager;
@@ -667,8 +665,8 @@ public class TelephonyComponentFactory {
      * @return The data service manager instance
      */
     public DataServiceManager makeDataServiceManager(Phone phone, Looper looper,
-            @TransportType int transportType) {
-        return new DataServiceManager(phone, looper, transportType);
+            @TransportType int transportType, @NonNull FeatureFlags featureFlags) {
+        return new DataServiceManager(phone, looper, transportType, featureFlags);
     }
 
 // QTI_END: 2022-12-07: Telephony: Enable extension of a few data classes for QoS
@@ -698,6 +696,7 @@ public class TelephonyComponentFactory {
      *
      * @param phone The phone instance.
      * @param dataNetworkController Data network controller instance.
+     * @param dataServiceManagers Data service manager instances.
      * @param looper The looper to be used by the handler. Currently the handler thread is the phone
      * process's main thread.
      * @param callback Callback for passing events back to data network controller.
@@ -705,9 +704,11 @@ public class TelephonyComponentFactory {
      */
     public @NonNull DataSettingsManager makeDataSettingsManager(@NonNull Phone phone,
             @NonNull DataNetworkController dataNetworkController,
+            @NonNull SparseArray<DataServiceManager> dataServiceManagers,
             @NonNull FeatureFlags featureFlags, @NonNull Looper looper,
             @NonNull DataSettingsManager.DataSettingsManagerCallback callback) {
-        return new DataSettingsManager(phone, dataNetworkController, featureFlags, looper,
+        return new DataSettingsManager(phone, dataNetworkController, dataServiceManagers,
+                featureFlags, looper,
                 callback);
     }
 

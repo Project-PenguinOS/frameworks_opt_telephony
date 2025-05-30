@@ -3002,7 +3002,12 @@ public class ServiceStateTracker extends Handler {
         String wfcDataSpnFormat = null;
         String wfcFlightSpnFormat = null;
         int combinedRegState = getCombinedRegState(mSS);
-        if (mPhone.getImsPhone() != null && mPhone.getImsPhone().isWifiCallingEnabled()
+        boolean isWifiCallingEnabled = mPhone.getImsPhone() != null
+                && mPhone.getImsPhone().isWifiCallingEnabled();
+        log("updateCarrierDisplayName: isWifiCallingEnabled=" + isWifiCallingEnabled
+                        + " combinedRegState=" + ServiceState.rilServiceStateToString(
+                                combinedRegState) + " " + mSS);
+        if (isWifiCallingEnabled
                 && mPhone.isImsRegistered()
                 && (combinedRegState == ServiceState.STATE_IN_SERVICE
                 && mSS.getDataNetworkType() == TelephonyManager.NETWORK_TYPE_IWLAN)) {

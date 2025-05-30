@@ -22,6 +22,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -33,6 +34,8 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
 import android.os.PersistableBundle;
+import android.platform.test.annotations.EnableFlags;
+import android.platform.test.flag.junit.SetFlagsRule;
 import android.telephony.AccessNetworkConstants;
 import android.telephony.AccessNetworkConstants.AccessNetworkType;
 import android.telephony.TelephonyManager;
@@ -45,9 +48,11 @@ import android.testing.TestableLooper;
 
 import com.android.internal.R;
 import com.android.internal.telephony.TelephonyTest;
+import com.android.internal.telephony.flags.Flags;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
@@ -58,6 +63,9 @@ import java.util.List;
 @RunWith(AndroidTestingRunner.class)
 @TestableLooper.RunWithLooper
 public class DataServiceManagerTest extends TelephonyTest {
+    @Rule
+    public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
+
     private final DataProfile mGeneralPurposeDataProfile = new DataProfile.Builder()
             .setApnSetting(new ApnSetting.Builder()
                     .setId(2163)
@@ -135,7 +143,7 @@ public class DataServiceManagerTest extends TelephonyTest {
                 filter);
 
         mDataServiceManagerUT = new DataServiceManager(mPhone, Looper.myLooper(),
-                AccessNetworkConstants.TRANSPORT_TYPE_WWAN);
+                AccessNetworkConstants.TRANSPORT_TYPE_WWAN, mFeatureFlags);
     }
 
     private void waitAndVerifyResult(Message message, int resultCode) {
@@ -282,5 +290,72 @@ public class DataServiceManagerTest extends TelephonyTest {
         Message message = mHandler.obtainMessage(1234);
         mDataServiceManagerUT.requestNetworkValidation(123, message);
         waitAndVerifyResult(message, DataServiceCallback.RESULT_ERROR_UNSUPPORTED);
+    }
+
+    @Test
+    public void testNotifyUserDataEnabled_FlagDisabled() throws Exception {
+        createDataServiceManager(true);
+        Message message = mHandler.obtainMessage(1234);
+        mDataServiceManagerUT.notifyUserDataEnabled(true, message);
+        waitAndVerifyResult(message, DataServiceCallback.RESULT_ERROR_UNSUPPORTED);
+        verify(mSimulatedCommandsVerifier, never()).setUserDataRoamingEnabled(any(Message.class),
+                anyBoolean());
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_DATA_SERVICE_USER_DATA_TOGGLE_NOTIFY)
+    public void testNotifyUserDataEnabled_ServiceNotBound() throws Exception {
+        doReturn(true).when(mFeatureFlags).dataServiceUserDataToggleNotify();
+        createDataServiceManager(false);
+        Message message = mHandler.obtainMessage(1234);
+        mDataServiceManagerUT.notifyUserDataEnabled(true, message);
+        waitAndVerifyResult(message, DataServiceCallback.RESULT_ERROR_ILLEGAL_STATE);
+        verify(mSimulatedCommandsVerifier, never()).setUserDataRoamingEnabled(any(Message.class),
+                anyBoolean());
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_DATA_SERVICE_USER_DATA_TOGGLE_NOTIFY)
+    public void testNotifyUserDataEnabled_FlagEnabled() throws Exception {
+        doReturn(true).when(mFeatureFlags).dataServiceUserDataToggleNotify();
+        createDataServiceManager(true);
+        Message message = mHandler.obtainMessage(1234);
+        mDataServiceManagerUT.notifyUserDataEnabled(true, message);
+        waitAndVerifyResult(message, DataServiceCallback.RESULT_SUCCESS);
+        verify(mSimulatedCommandsVerifier).setUserDataEnabled(any(Message.class), anyBoolean());
+    }
+
+    @Test
+    public void testNotifyUserDataRoamingEnabled_FlagDisabled() throws Exception {
+        createDataServiceManager(true);
+        Message message = mHandler.obtainMessage(1234);
+        mDataServiceManagerUT.notifyUserDataRoamingEnabled(true, message);
+        waitAndVerifyResult(message, DataServiceCallback.RESULT_ERROR_UNSUPPORTED);
+        verify(mSimulatedCommandsVerifier, never()).setUserDataRoamingEnabled(any(Message.class),
+                anyBoolean());
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_DATA_SERVICE_USER_DATA_TOGGLE_NOTIFY)
+    public void testNotifyUserDataRoamingEnabled_ServiceNotBound() throws Exception {
+        doReturn(true).when(mFeatureFlags).dataServiceUserDataToggleNotify();
+        createDataServiceManager(false);
+        Message message = mHandler.obtainMessage(1234);
+        mDataServiceManagerUT.notifyUserDataRoamingEnabled(true, message);
+        waitAndVerifyResult(message, DataServiceCallback.RESULT_ERROR_ILLEGAL_STATE);
+        verify(mSimulatedCommandsVerifier, never()).setUserDataRoamingEnabled(any(Message.class),
+                anyBoolean());
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_DATA_SERVICE_USER_DATA_TOGGLE_NOTIFY)
+    public void testNotifyUserDataRoamingEnabled_FlagEnabled() throws Exception {
+        doReturn(true).when(mFeatureFlags).dataServiceUserDataToggleNotify();
+        createDataServiceManager(true);
+        Message message = mHandler.obtainMessage(1234);
+        mDataServiceManagerUT.notifyUserDataRoamingEnabled(true, message);
+        waitAndVerifyResult(message, DataServiceCallback.RESULT_SUCCESS);
+        verify(mSimulatedCommandsVerifier).setUserDataRoamingEnabled(any(Message.class),
+                anyBoolean());
     }
 }

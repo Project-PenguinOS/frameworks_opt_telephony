@@ -105,6 +105,7 @@ public class SatelliteSOSMessageRecommender extends Handler {
     @NonNull
     private final TelephonyCountryDetector mCountryDetector;
     private ImsManager mImsManager;
+    private SubscriptionManager mSubscriptionManager;
     @NonNull
     private final FeatureFlags mFeatureFlags;
     @Nullable private PersistentLogger mPersistentLogger = null;
@@ -164,6 +165,7 @@ public class SatelliteSOSMessageRecommender extends Handler {
         mFeatureFlags = mSatelliteController.getFeatureFlags();
         mCountryDetector = TelephonyCountryDetector.getInstance(context, mFeatureFlags);
         mImsManager = imsManager;
+        mSubscriptionManager = context.getSystemService(SubscriptionManager.class);
         mOemEnabledTimeoutMillis.set(
                 getOemEnabledEmergencyCallWaitForConnectionTimeoutMillis(context));
         mISatelliteProvisionStateCallback = new ISatelliteProvisionStateCallback.Stub() {
@@ -675,6 +677,14 @@ public class SatelliteSOSMessageRecommender extends Handler {
         String action = getSatelliteEmergencyHandoverIntentActionFromOverlayConfig(mContext,
                 isTestEmergencyNumber);
 
+        int overriddenHandoverType =
+            mSatelliteController.getEnforcedEmergencyCallToSatelliteHandoverType();
+        if (overriddenHandoverType != INVALID_EMERGENCY_CALL_TO_SATELLITE_HANDOVER_TYPE) {
+            handoverType = overriddenHandoverType;
+            plogd("createExtraBundleForEventDisplayEmergencyMessage: use the overridden"
+                      + " handoverType=" + handoverType);
+        }
+
         if (handoverType == EMERGENCY_CALL_TO_SATELLITE_HANDOVER_TYPE_T911) {
             ComponentName defaultSmsAppComponent = getDefaultSmsApp();
             packageName = defaultSmsAppComponent.getPackageName();
@@ -701,10 +711,27 @@ public class SatelliteSOSMessageRecommender extends Handler {
             if (mEmergencyConnection != null) {
                 emergencyNumber = mEmergencyConnection.getAddress().getSchemeSpecificPart();
             }
-            plogd("emergencyNumber=" + emergencyNumber);
 
             Uri uri = Uri.parse("smsto:" + emergencyNumber);
             intent = new Intent(Intent.ACTION_SENDTO, uri);
+
+            // Populate the sim slot id for launching T911 conversation thread.
+            int simSlotId = 0;
+            if (mSatelliteController.getEnforcedEmergencyCallToSatelliteHandoverType()
+                    == EMERGENCY_CALL_TO_SATELLITE_HANDOVER_TYPE_T911) {
+                simSlotId = mSatelliteController.getSimSlotIdForLaunchingT911ConversationThread();
+                plogd("Use the overridden simSlotId=" + simSlotId);
+            } else {
+                simSlotId = mSubscriptionManager.getSlotIndex(
+                    mSubIdOfSatelliteConnectedViaCarrierWithinHysteresisTime.get());
+            }
+            if (simSlotId != SubscriptionManager.INVALID_SIM_SLOT_INDEX) {
+                intent.putExtra(TelephonyManager.EXTRA_SIM_SLOT_ID, simSlotId);
+                plogd("emergencyNumber=" + emergencyNumber + ", EXTRA_SIM_SLOT_ID="
+                      + intent.getIntExtra(TelephonyManager.EXTRA_SIM_SLOT_ID, -1));
+            } else {
+                plogd("emergencyNumber=" + emergencyNumber);
+            }
         } else {
             intent = new Intent(action);
             intent.addFlags(FLAG_ACTIVITY_CLEAR_TOP);
@@ -714,6 +741,7 @@ public class SatelliteSOSMessageRecommender extends Handler {
                         ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED)
                 .toBundle();
         intent.setComponent(new ComponentName(packageName, className));
+        plogd("Launching intent: intent=" + intent);
         return PendingIntent.getActivity(mContext, 0, intent,
                 PendingIntent.FLAG_ONE_SHOT | PendingIntent.FLAG_IMMUTABLE, activityOptions);
     }
