@@ -57,6 +57,7 @@ import android.text.TextUtils;
 import com.android.internal.telephony.IIntegerConsumer;
 import com.android.internal.telephony.Phone;
 import com.android.internal.telephony.PhoneConfigurationManager;
+import com.android.internal.telephony.flags.FeatureFlags;
 import com.android.internal.telephony.util.TelephonyUtils;
 import com.android.telephony.Rlog;
 
@@ -102,6 +103,8 @@ public class DataServiceManager extends Handler {
     private final LegacyPermissionManager mPermissionManager;
 
     private final int mTransportType;
+
+    private final FeatureFlags mFeatureFlags;
 
 // QTI_BEGIN: 2022-12-07: Telephony: Enable extension of a few data classes for QoS
     protected boolean mBound;
@@ -380,12 +383,14 @@ public class DataServiceManager extends Handler {
      * @param phone The phone instance
      * @param looper Looper for the handler
      * @param transportType The transport type
+     * @param featureFlags The feature flags
      */
     public DataServiceManager(@NonNull Phone phone, @NonNull Looper looper,
-            @TransportType int transportType) {
+            @TransportType int transportType, @NonNull FeatureFlags featureFlags) {
         super(looper);
         mPhone = phone;
         mTransportType = transportType;
+        mFeatureFlags = featureFlags;
         mTag = "DSM-" + (mTransportType == AccessNetworkConstants.TRANSPORT_TYPE_WWAN ? "C-"
                 : "I-") + mPhone.getPhoneId();
         mBound = false;
@@ -996,6 +1001,85 @@ public class DataServiceManager extends Handler {
     protected void log(String s) {
 // QTI_END: 2022-12-07: Telephony: Enable extension of a few data classes for QoS
         Rlog.d(mTag, s);
+    }
+    /**
+     * Notify {@link DataService} the user data setting.
+     *
+     * @param enabled Whether the user mobile data is enabled.
+     * @param onCompleteMessage The result message for this request. Null if the client does not
+     * care about the result.
+     */
+    public void notifyUserDataEnabled(boolean enabled, Message onCompleteMessage) {
+        if (DBG) log("notifyUserDataEnabled");
+        if (!mFeatureFlags.dataServiceUserDataToggleNotify()) {
+            if (DBG) log("Data service user data toggle notification is not enabled.");
+            sendCompleteMessage(onCompleteMessage, DataServiceCallback.RESULT_ERROR_UNSUPPORTED);
+            return;
+        }
+        if (!mBound) {
+            loge("Data service not bound.");
+            sendCompleteMessage(onCompleteMessage, DataServiceCallback.RESULT_ERROR_ILLEGAL_STATE);
+            return;
+        }
+
+        IIntegerConsumer callback = new IIntegerConsumer.Stub() {
+            @Override
+            public void accept(int result) {
+                if (DBG) log("notifyUserDataEnabledComplete. result = " + result);
+                mMessageMap.remove(asBinder());
+                sendCompleteMessage(onCompleteMessage, result);
+            }
+        };
+        if (onCompleteMessage != null) {
+            mMessageMap.put(callback.asBinder(), onCompleteMessage);
+        }
+        try {
+            mIDataService.notifyUserDataEnabled(mPhone.getPhoneId(), enabled, callback);
+        } catch (RemoteException e) {
+            loge("Cannot invoke notifyUserDataEnabled on data service.");
+            mMessageMap.remove(callback.asBinder());
+            sendCompleteMessage(onCompleteMessage, DataServiceCallback.RESULT_ERROR_ILLEGAL_STATE);
+        }
+    }
+
+    /**
+     * Notify {@link DataService} the user data roaming setting.
+     *
+     * @param enabled Whether the user mobile data roaming is enabled.
+     * @param onCompleteMessage The result message for this request. Null if the client does not
+     * care about the result.
+     */
+    public void notifyUserDataRoamingEnabled(boolean enabled, Message onCompleteMessage) {
+        if (DBG) log("notifyUserDataRoamingEnabled");
+        if (!mFeatureFlags.dataServiceUserDataToggleNotify()) {
+            if (DBG) log("Data service user data toggle notification is not enabled.");
+            sendCompleteMessage(onCompleteMessage, DataServiceCallback.RESULT_ERROR_UNSUPPORTED);
+            return;
+        }
+        if (!mBound) {
+            loge("Data service not bound.");
+            sendCompleteMessage(onCompleteMessage, DataServiceCallback.RESULT_ERROR_ILLEGAL_STATE);
+            return;
+        }
+
+        IIntegerConsumer callback = new IIntegerConsumer.Stub() {
+            @Override
+            public void accept(int result) {
+                if (DBG) log("notifyUserDataRoamingEnabledComplete. result = " + result);
+                mMessageMap.remove(asBinder());
+                sendCompleteMessage(onCompleteMessage, result);
+            }
+        };
+        if (onCompleteMessage != null) {
+            mMessageMap.put(callback.asBinder(), onCompleteMessage);
+        }
+        try {
+            mIDataService.notifyUserDataRoamingEnabled(mPhone.getPhoneId(), enabled, callback);
+        } catch (RemoteException e) {
+            loge("Cannot invoke notifyUserDataRoamingEnabled on data service.");
+            mMessageMap.remove(callback.asBinder());
+            sendCompleteMessage(onCompleteMessage, DataServiceCallback.RESULT_ERROR_ILLEGAL_STATE);
+        }
     }
 
 // QTI_BEGIN: 2022-12-07: Telephony: Enable extension of a few data classes for QoS

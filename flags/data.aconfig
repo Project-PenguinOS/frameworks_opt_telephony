@@ -60,3 +60,11 @@ flag {
     purpose: PURPOSE_BUGFIX
   }
 }
+
+# OWNER=kuenyuet TARGET=26Q2
+flag {
+  name: "data_service_user_data_toggle_notify"
+  namespace: "telephony"
+  description: "Support notify data services when user data and user data roaming is toggled."
+  bug:"389120182"
+}

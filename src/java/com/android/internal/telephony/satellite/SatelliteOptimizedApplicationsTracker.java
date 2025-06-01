@@ -31,6 +31,7 @@ import android.os.Looper;
 import android.os.Message;
 import android.os.UserHandle;
 import android.os.UserManager;
+import android.text.TextUtils;
 import android.util.Log;
 
 import com.android.internal.telephony.PackageChangeReceiver;
@@ -167,7 +168,7 @@ public class SatelliteOptimizedApplicationsTracker {
     private void handlePackageMonitor(String packageName) {
         ApplicationInfo applicationInfo = getApplicationInfo(packageName);
         if (applicationInfo != null) {
-            if (isOptimizedSatelliteApplication(applicationInfo)) {
+            if (isOptimizedSatelliteApplication(applicationInfo, packageName)) {
                 addCacheOptimizedSatelliteApplication(packageName);
             } else {
                 removeCacheOptimizedSatelliteApplication(packageName);
@@ -187,20 +188,28 @@ public class SatelliteOptimizedApplicationsTracker {
         // Iterate through the packages
         for (PackageInfo packageInfo : packages) {
             if (packageInfo.applicationInfo != null
-                    && isOptimizedSatelliteApplication(packageInfo.applicationInfo)) {
+                    && isOptimizedSatelliteApplication(packageInfo.applicationInfo,
+                    packageInfo.packageName)) {
                 addCacheOptimizedSatelliteApplication(packageInfo.packageName);
             }
         }
     }
 
-    private boolean isOptimizedSatelliteApplication(@NonNull ApplicationInfo applicationInfo) {
-        boolean flag = false;
-        if (applicationInfo.metaData != null) {
-            // Get the application's metadata
-            Bundle metadata = applicationInfo.metaData;
-            flag = metadata.containsKey(APP_PROPERTY);
+    private boolean isOptimizedSatelliteApplication(@NonNull ApplicationInfo applicationInfo,
+            @NonNull String packageName) {
+        // Get the application's metadata
+        Bundle metadata = applicationInfo.metaData;
+        if (metadata != null) {
+            final String value = metadata.getString(APP_PROPERTY);
+            if (value == null) return false; // No expected meta-data.
+
+            // Check if the retrieved object is a matched String.
+            if (value instanceof String
+                    && TextUtils.equals((String) value, packageName)) {
+                return true;
+            }
         }
-        return flag;
+        return false;
     }
 
     private void addCacheOptimizedSatelliteApplication(@NonNull String packageName) {

@@ -3454,6 +3454,9 @@ public class RILUtils {
             }
         }
 
+        result.mtuV4 = normalizeMtu(result.mtuV4);
+        result.mtuV6 = normalizeMtu(result.mtuV6);
+
         return new DataCallResponse.Builder()
                 .setCause(result.cause)
                 .setRetryDurationMillis(result.suggestedRetryTime)
@@ -3476,6 +3479,13 @@ public class RILUtils {
                         : convertHalSliceInfo(result.sliceInfo))
                 .setTrafficDescriptors(trafficDescriptors)
                 .build();
+    }
+
+    private static int normalizeMtu(int rawMtu) {
+        // Ensure it's within unsigned 16-bit range.
+        int mtu = Math.min(rawMtu, 65535);
+        // Ensure even number, otherwise round down.
+        return mtu & ~1;
     }
 
     private static NetworkSliceInfo convertHalSliceInfo(android.hardware.radio.V1_6.SliceInfo si) {

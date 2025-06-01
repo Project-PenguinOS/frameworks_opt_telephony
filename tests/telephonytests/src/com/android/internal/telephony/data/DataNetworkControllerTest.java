@@ -868,7 +868,8 @@ public class DataNetworkControllerTest extends TelephonyTest {
         mMockSubInfo = Mockito.mock(SubscriptionInfo.class);
         mMockPackageManager = Mockito.mock(PackageManager.class);
         when(mTelephonyComponentFactory.makeDataSettingsManager(any(Phone.class),
-                any(DataNetworkController.class), any(FeatureFlags.class), any(Looper.class),
+                any(DataNetworkController.class), any(SparseArray.class), any(FeatureFlags.class),
+                any(Looper.class),
                 any(DataSettingsManager.DataSettingsManagerCallback.class))).thenCallRealMethod();
         doReturn(mMockedImsMmTelManager).when(mMockedImsManager).getImsMmTelManager(anyInt());
         doReturn(mMockedImsRcsManager).when(mMockedImsManager).getImsRcsManager(anyInt());
