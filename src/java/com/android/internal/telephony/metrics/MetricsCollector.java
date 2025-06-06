@@ -1624,7 +1624,10 @@ public class MetricsCollector implements StatsManager.StatsPullAtomCallback {
                 stats.minUplinkBandwidthKbps,
                 stats.maxUplinkBandwidthKbps,
                 stats.minDownlinkBandwidthKbps,
-                stats.maxDownlinkBandwidthKbps);
+                stats.maxDownlinkBandwidthKbps,
+                stats.satelliteSupportedApps,
+                stats.satelliteSupportedUids,
+                stats.perAppSatelliteDataConsumedBytes);
     }
 
     private static StatsEvent buildStatsEvent(CarrierRoamingSatelliteControllerStats stats) {

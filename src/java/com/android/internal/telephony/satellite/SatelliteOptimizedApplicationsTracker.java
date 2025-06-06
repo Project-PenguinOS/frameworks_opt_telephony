@@ -37,6 +37,7 @@ import android.util.Log;
 import com.android.internal.telephony.PackageChangeReceiver;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -200,13 +201,18 @@ public class SatelliteOptimizedApplicationsTracker {
         // Get the application's metadata
         Bundle metadata = applicationInfo.metaData;
         if (metadata != null) {
-            final String value = metadata.getString(APP_PROPERTY);
-            if (value == null) return false; // No expected meta-data.
+            try {
+                final Object value = metadata.get(APP_PROPERTY);
+                if (value == null) return false; // No expected meta-data.
 
-            // Check if the retrieved object is a matched String.
-            if (value instanceof String
-                    && TextUtils.equals((String) value, packageName)) {
-                return true;
+                // Check if the retrieved object is a matched String.
+                return value instanceof String
+                        && TextUtils.equals((String) value, packageName);
+            } catch (Exception e) {
+                loge("Exception while reading metadata [ "
+                        + packageName
+                        + " ] exp = "
+                        + e.getMessage());
             }
         }
         return false;
@@ -252,7 +258,17 @@ public class SatelliteOptimizedApplicationsTracker {
      *     #PROPERTY_SATELLITE_DATA_OPTIMIZED}
      */
     public @NonNull List<String> getSatelliteOptimizedApplications(int userId) {
-        return new ArrayList<>(mSatelliteApplications.get(userId));
+        // 1. Retrieve the Set directly from the ConcurrentHashMap.
+        Set<String> applications = mSatelliteApplications.get(userId);
+
+        // 2. Check if a Set was found for the userId.
+        if (applications != null) {
+            return new ArrayList<>(applications);
+        } else {
+            // 3. If no Set is found, return an empty, unmodifiable list.
+            // This is highly efficient and prevents null pointer exceptions for callers.
+            return Collections.emptyList();
+        }
     }
 
     private void log(String str) {

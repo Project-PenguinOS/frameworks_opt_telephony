@@ -177,23 +177,14 @@ public class CarrierKeyDownloadManager extends Handler {
                                                 TelephonyManager.class)
                                         .createForSubscriptionId(subId);
                             }
-                            if (Flags.ignoreCarrieridResetForSimRemoval()) {
-                                if (carrierId > 0) {
-                                    mCarrierId = carrierId;
-                                }
-                            } else {
+                            if (carrierId > 0) {
                                 mCarrierId = carrierId;
                             }
                             updateSimOperator();
                             // If device is screen locked do not proceed to handle
                             // EVENT_ALARM_OR_CONFIG_CHANGE
                             printDeviceLockStatus();
-                            if (Flags.ignoreCarrieridResetForSimRemoval()) {
-                                if (!mUserManager.isUserUnlocked()) {
-                                    mIsRequiredToHandleUnlock = true;
-                                    return;
-                                }
-                            } else if (mKeyguardManager.isDeviceLocked()) {
+                            if (!mUserManager.isUserUnlocked()) {
                                 mIsRequiredToHandleUnlock = true;
                                 return;
                             }
@@ -338,12 +329,7 @@ public class CarrierKeyDownloadManager extends Handler {
                     } else {
                         // If download fails due to the device user lock, we will reattempt once
                         // the device is unlocked.
-                        if (Flags.ignoreCarrieridResetForSimRemoval()) {
-                            mIsRequiredToHandleUnlock = !mUserManager.isUserUnlocked();
-                        } else {
-                            mIsRequiredToHandleUnlock = mKeyguardManager.isDeviceLocked();
-                        }
-
+                        mIsRequiredToHandleUnlock = !mUserManager.isUserUnlocked();
                         loge("hasActiveDataConnection = " + hasActiveDataNetwork
                                 + "    isDeviceUserLocked = " + mIsRequiredToHandleUnlock);
                         if (!hasActiveDataNetwork) {

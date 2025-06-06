@@ -1,6 +1,17 @@
 package: "com.android.internal.telephony.flags"
 container: "system"
 
+# OWNER=linggm TARGET=26Q2
+flag {
+  name: "keep_wfc_on_apm"
+  namespace: "telephony"
+  description: "Keep WFC even when turn on APM."
+  bug:"420996981"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}
+
 # OWNER=linggm TARGET=25Q3
 flag {
   name: "auto_data_prune_listener"
@@ -67,4 +78,15 @@ flag {
   namespace: "telephony"
   description: "Support notify data services when user data and user data roaming is toggled."
   bug:"389120182"
+}
+
+# OWNER=sewookseo TARGET=25Q4
+flag {
+  name: "qos_update_network_agent"
+  namespace: "telephony"
+  description: "Update network agent in QosCallbackTracker when DN recreates network agent"
+  bug:"412542821"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
 }

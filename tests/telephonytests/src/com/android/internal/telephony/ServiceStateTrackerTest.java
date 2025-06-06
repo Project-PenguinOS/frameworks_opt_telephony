@@ -459,7 +459,7 @@ public class ServiceStateTrackerTest extends TelephonyTest {
 
         // Data disconnected on sub 2, still waiting for data disconnected on sub 1
         doReturn(true).when(dataNetworkController_phone2).areAllDataDisconnected();
-        callback2.getValue().onAnyDataNetworkExistingChanged(false);
+        callback2.getValue().onAnyDataNetworkExistingChanged(false, false);
         processAllMessages();
         assertEquals(TelephonyManager.RADIO_POWER_ON, mSimulatedCommands.getRadioState());
         verify(dataNetworkController_phone2, times(1)).unregisterDataNetworkControllerCallback(
@@ -467,7 +467,7 @@ public class ServiceStateTrackerTest extends TelephonyTest {
 
         // Data disconnected on sub 1, radio should power off now
         doReturn(true).when(mDataNetworkController).areAllDataDisconnected();
-        callback1.getValue().onAnyDataNetworkExistingChanged(false);
+        callback1.getValue().onAnyDataNetworkExistingChanged(false, false);
         processAllMessages();
         verify(mDataNetworkController, times(1)).unregisterDataNetworkControllerCallback(any());
         assertEquals(TelephonyManager.RADIO_POWER_OFF, mSimulatedCommands.getRadioState());
@@ -519,7 +519,7 @@ public class ServiceStateTrackerTest extends TelephonyTest {
 
         // Data disconnected on sub 2, still waiting for data disconnected on sub 1
         doReturn(true).when(dataNetworkController_phone2).areAllDataDisconnected();
-        callback2.getValue().onAnyDataNetworkExistingChanged(false);
+        callback2.getValue().onAnyDataNetworkExistingChanged(false, false);
         processAllMessages();
         assertEquals(TelephonyManager.RADIO_POWER_ON, mSimulatedCommands.getRadioState());
         verify(dataNetworkController_phone2, times(1)).unregisterDataNetworkControllerCallback(
@@ -527,7 +527,7 @@ public class ServiceStateTrackerTest extends TelephonyTest {
 
         // Data disconnected on sub 1, radio should power off now
         doReturn(true).when(mDataNetworkController).areAllDataDisconnected();
-        callback1.getValue().onAnyDataNetworkExistingChanged(false);
+        callback1.getValue().onAnyDataNetworkExistingChanged(false, false);
         processAllMessages();
         verify(mDataNetworkController, times(1)).unregisterDataNetworkControllerCallback(any());
         assertEquals(TelephonyManager.RADIO_POWER_OFF, mSimulatedCommands.getRadioState());

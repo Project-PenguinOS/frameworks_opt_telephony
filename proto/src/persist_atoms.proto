@@ -853,6 +853,9 @@ message CarrierRoamingSatelliteSession {
     optional int32 max_uplink_bandwidth_kbps = 29;
     optional int32 min_downlink_bandwidth_kbps = 30;
     optional int32 max_downlink_bandwidth_kbps = 31;
+    repeated string satellite_supported_apps = 32;
+    repeated int32 satellite_supported_uids = 33;
+    repeated int64 per_app_satellite_data_consumed_bytes = 34;
 }
 
 message CarrierRoamingSatelliteControllerStats {

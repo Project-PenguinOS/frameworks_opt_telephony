@@ -5528,6 +5528,39 @@ public class RIL extends BaseCommands implements CommandsInterface {
                 });
     }
 
+    /** {@inheritDoc} */
+    @Override
+    public void updateAllowedImsServices(@NonNull Set<Integer> allowedImsServicesAny,
+            @NonNull Set<Integer> allowedImsServicesHomeOnly,
+            @Nullable Message result) {
+        RadioImsProxy imsProxy = getRadioServiceProxy(RadioImsProxy.class);
+        if (!canMakeRequest("updateAllowedImsServices", imsProxy, result, RADIO_HAL_VERSION_2_4)) {
+            return;
+        }
+
+        RILRequest rr = obtainRequest(RIL_REQUEST_UPDATE_ALLOWED_IMS_SERVICES, result,
+                mRILDefaultWorkSource);
+
+        if (RILJ_LOGD) {
+            riljLog(
+                    rr.serialString()
+                            + "> "
+                            + RILUtils.requestToString(rr.mRequest)
+                            + " allowedImsServicesAny="
+                            + allowedImsServicesAny
+                            + " allowedImsServicesHomeOnly="
+                            + allowedImsServicesHomeOnly);
+        }
+        radioServiceInvokeHelper(
+                HAL_SERVICE_IMS,
+                rr,
+                "updateAllowedImsServices",
+                () -> {
+                    imsProxy.updateAllowedServices(rr.mSerial,
+                            RILUtils.convertImsServices(allowedImsServicesAny,
+                                    allowedImsServicesHomeOnly));
+                });
+    }
 
     //***** Private Methods
     /**

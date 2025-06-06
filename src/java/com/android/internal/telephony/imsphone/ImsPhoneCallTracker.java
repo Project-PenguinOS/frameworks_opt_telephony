@@ -115,6 +115,7 @@ import android.util.ArraySet;
 import android.util.LocalLog;
 import android.util.Log;
 import android.util.Pair;
+import android.util.SparseBooleanArray;
 import android.util.SparseIntArray;
 
 import com.android.ims.FeatureConnector;
@@ -835,6 +836,7 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
     private boolean mSupportCepOnPeer = true;
     private boolean mSupportD2DUsingRtp = false;
     private boolean mSupportSdpForRtpHeaderExtensions = false;
+    private boolean mVolteRoamingSupported = false;
     private int mThresholdRtpPacketLoss;
     private int mThresholdRtpJitter;
     private long mThresholdRtpInactivityTime;
@@ -847,6 +849,7 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
     // in progress. Values listed above.
     private HoldSwapState mHoldSwitchingState = HoldSwapState.INACTIVE;
     private MediaThreshold mMediaThreshold;
+    private SparseBooleanArray mImsCapability = new SparseBooleanArray();
 
     private String mLastDialString = null;
     private ImsDialArgs mLastDialArgs = null;
@@ -1566,6 +1569,7 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
         }
         mCurrentlyConnectedSubId = Optional.empty();
         mMediaThreshold = null;
+        clearAllowedServices();
         resetImsCapabilities();
         hangupAllOrphanedConnections(DisconnectCause.LOST_SIGNAL);
         // For compatibility with apps that still use deprecated intent
@@ -2085,6 +2089,8 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
         updateImsServiceConfig();
         updateMediaThreshold(
                 mThresholdRtpPacketLoss, mThresholdRtpJitter, mThresholdRtpInactivityTime);
+        updateAllowedServices(ImsRegistrationImplBase.REGISTRATION_TECH_LTE);
+        updateAllowedServices(ImsRegistrationImplBase.REGISTRATION_TECH_IWLAN);
     }
 
     /**
@@ -2135,6 +2141,9 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
         mSupportSdpForRtpHeaderExtensions = carrierConfig.getBoolean(
                 CarrierConfigManager
                         .KEY_SUPPORTS_SDP_NEGOTIATION_OF_D2D_RTP_HEADER_EXTENSIONS_BOOL);
+        mVolteRoamingSupported =
+                carrierConfig.getBoolean(
+                        CarrierConfigManager.ImsVoice.KEY_CARRIER_VOLTE_ROAMING_AVAILABLE_BOOL);
         mThresholdRtpPacketLoss = carrierConfig.getInt(
                 CarrierConfigManager.ImsVoice.KEY_VOICE_RTP_PACKET_LOSS_RATE_THRESHOLD_INT);
         mThresholdRtpInactivityTime = carrierConfig.getLong(
@@ -2236,6 +2245,45 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
                 loge("setMediaThreshold Failed: " + e);
             }
         }
+    }
+
+    /**
+     * Update allowed services to the modem.
+     *
+     * @param regTech Which technology is associated with this capability.
+     */
+    private void updateAllowedServices(@ImsRegistrationImplBase.ImsRegistrationTech int regTech) {
+        if (!mFeatureFlags.allowedServices()) return;
+        if (mImsCapability.indexOfKey(regTech) < 0) {
+            // Update allowed services until this capability is initialized.
+            return;
+        }
+        boolean enabled = mImsCapability.get(regTech);
+        boolean enabledForRoaming;
+        switch(regTech) {
+            case ImsRegistrationImplBase.REGISTRATION_TECH_LTE:
+                enabledForRoaming = enabled && mVolteRoamingSupported;
+                break;
+            case ImsRegistrationImplBase.REGISTRATION_TECH_IWLAN:
+                boolean wfcRoamingEnabledByUser = mImsManager.isWfcRoamingEnabledByUser();
+                enabledForRoaming = enabled && wfcRoamingEnabledByUser;
+                break;
+            default:
+                logw("Unhandled registration technology = " + regTech);
+                return;
+        }
+        log("updateAllowedServices for RAT = " + regTech + ", enabled = " + enabled
+                + ", enabledForRoaming = " + enabledForRoaming);
+        mPhone.setAllowedImsServices(regTech, enabled, !enabledForRoaming);
+    }
+
+    /**
+     * Clear cached allowed services.
+     */
+    private void clearAllowedServices() {
+        log("clearAllowedServices");
+        mImsCapability.clear();
+        mVolteRoamingSupported = false;
     }
 
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
@@ -5223,17 +5271,34 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
                 }
             };
 
+
     private final ImsManager.ImsStatsCallback mImsStatsCallback =
             new ImsManager.ImsStatsCallback() {
-        @Override
-        public void onEnabledMmTelCapabilitiesChanged(int capability, int regTech,
-                boolean isEnabled) {
-            int enabledVal = isEnabled ? ProvisioningManager.PROVISIONING_VALUE_ENABLED
-                    : ProvisioningManager.PROVISIONING_VALUE_DISABLED;
-            mMetrics.writeImsSetFeatureValue(mPhone.getPhoneId(), capability, regTech, enabledVal);
-            mPhone.getImsStats().onSetFeatureResponse(capability, regTech, enabledVal);
-        }
-    };
+                @Override
+                public void onEnabledMmTelCapabilitiesChanged(
+                        int capability, int regTech, boolean isEnabled) {
+                    int enabledVal =
+                            isEnabled
+                                    ? ProvisioningManager.PROVISIONING_VALUE_ENABLED
+                                    : ProvisioningManager.PROVISIONING_VALUE_DISABLED;
+                    mMetrics.writeImsSetFeatureValue(
+                            mPhone.getPhoneId(), capability, regTech, enabledVal);
+                    mPhone.getImsStats().onSetFeatureResponse(capability, regTech, enabledVal);
+                    if (mFeatureFlags.allowedServices()
+                            && capability == MmTelFeature.MmTelCapabilities.CAPABILITY_TYPE_VOICE) {
+                        switch (regTech) {
+                            case (ImsRegistrationImplBase.REGISTRATION_TECH_LTE):
+                            case (ImsRegistrationImplBase.REGISTRATION_TECH_IWLAN):
+                                if (mImsCapability.indexOfKey(regTech) < 0
+                                        || mImsCapability.get(regTech) != isEnabled) {
+                                    mImsCapability.put(regTech, isEnabled);
+                                    updateAllowedServices(regTech);
+                                }
+                                break;
+                        }
+                    }
+                }
+            };
 
     private final ProvisioningManager.Callback mConfigCallback =
             new ProvisioningManager.Callback() {
@@ -5838,6 +5903,11 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
     @VisibleForTesting(visibility = PRIVATE)
     public String getVtInterface() {
         return NetworkStats.IFACE_VT + mPhone.getSubId();
+    }
+
+    @VisibleForTesting(visibility = PRIVATE)
+    public ImsManager.ImsStatsCallback getImsStatsCallback() {
+        return mImsStatsCallback;
     }
 
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)

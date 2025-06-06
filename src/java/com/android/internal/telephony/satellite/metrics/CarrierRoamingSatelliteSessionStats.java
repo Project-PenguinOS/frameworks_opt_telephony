@@ -25,6 +25,8 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageManager;
 import android.net.ConnectivityManager;
 import android.net.Network;
 import android.net.NetworkCapabilities;
@@ -32,6 +34,7 @@ import android.net.NetworkRequest;
 import android.net.NetworkTemplate;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.HandlerThread;
 import android.os.SystemClock;
 import android.telephony.CellInfo;
 import android.telephony.CellSignalStrength;
@@ -60,12 +63,16 @@ import com.android.internal.telephony.subscription.SubscriptionManagerService;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.OptionalDouble;
 import java.util.Set;
 import java.util.concurrent.Executor;
 
-public class CarrierRoamingSatelliteSessionStats extends Handler {
+public class CarrierRoamingSatelliteSessionStats {
     private static final String TAG = CarrierRoamingSatelliteSessionStats.class.getSimpleName();
     private static final SparseArray<CarrierRoamingSatelliteSessionStats>
             sCarrierRoamingSatelliteSessionStats = new SparseArray<>();
@@ -88,6 +95,8 @@ public class CarrierRoamingSatelliteSessionStats extends Handler {
     private Context mContext;
     private long mSatelliteDataConsumedBytes = 0L;
     private long mDataUsageOnSessionStartBytes = 0L;
+    private Map<String, Long> mPerAppDataUsageOnSessionStartMap = new HashMap<>();
+    private Map<String, Integer> mSatelliteAppUidMap = new HashMap<>();
     private int[] mLastFailCauses = new int[5];
     private int mCountOfDataConnections = 0;
     private int mCountOfDataDisconnections = 0;
@@ -108,6 +117,10 @@ public class CarrierRoamingSatelliteSessionStats extends Handler {
     private ConnectivityManager mConnectivityManager;
     private NetworkCapabilities mNetworkcapabilities;
     @NonNull private FeatureFlags mFeatureFlags;
+    String[] mSatelliteAppsPackageNameArray = null;
+    private long[] mPerAppSatelliteDataConsumedBytesArray = new long[]{0L};
+    private static final int MAX_SATELLITE_TOP_APPS_TRACKED = 5;
+    private int[] mSatelliteAppsUidArray = new int[MAX_SATELLITE_TOP_APPS_TRACKED];
 
     private final ConnectivityManager.NetworkCallback mNetworkCallback =
             new ConnectivityManager.NetworkCallback() {
@@ -122,7 +135,7 @@ public class CarrierRoamingSatelliteSessionStats extends Handler {
                                     && mNetworkcapabilities.hasTransport(
                                     NetworkCapabilities.TRANSPORT_SATELLITE)
                                     && mNetworkcapabilities.hasCapability(
-                                            NetworkCapabilities.NET_CAPABILITY_INTERNET)) {
+                                    NetworkCapabilities.NET_CAPABILITY_INTERNET)) {
                                 logd("found satellite data connection");
                                 startDataConnectionTracker();
                             }
@@ -282,6 +295,7 @@ public class CarrierRoamingSatelliteSessionStats extends Handler {
     /** Log carrier roaming satellite session start */
     public void onSessionStart(
             int carrierId, Phone phone, int[] supportedServices, int serviceDataPolicy,
+            List<String> satelliteApps,
             @NonNull FeatureFlags featureFlags) {
         mPhone = phone;
         mContext = mPhone.getContext();
@@ -292,9 +306,12 @@ public class CarrierRoamingSatelliteSessionStats extends Handler {
         mIsNtnRoamingInHomeCountry = false;
         onConnectionStart(mPhone);
         mDataUsageOnSessionStartBytes = getDataUsage();
+        logd("current data consumed: " + mDataUsageOnSessionStartBytes);
         mFeatureFlags = featureFlags;
         registerForSatelliteDataNetworkCallback();
-        logd("current data consumed: " + mDataUsageOnSessionStartBytes);
+        if (mFeatureFlags.satelliteDataMetrics()) {
+            mPerAppDataUsageOnSessionStartMap = getPerAppSatelliteDataUsage(satelliteApps);
+        }
     }
 
     /** Log carrier roaming satellite connection start */
@@ -323,11 +340,16 @@ public class CarrierRoamingSatelliteSessionStats extends Handler {
         builder.removeCapability(NetworkCapabilities.NET_CAPABILITY_NOT_BANDWIDTH_CONSTRAINED);
         builder.removeCapability(NetworkCapabilities.NET_CAPABILITY_NOT_RESTRICTED);
         mConnectivityManager = (ConnectivityManager) mPhone.getContext()
-                            .getSystemService(Context.CONNECTIVITY_SERVICE);
+                .getSystemService(Context.CONNECTIVITY_SERVICE);
         if (mConnectivityManager != null) {
             logd("register for best matching");
+            HandlerThread satelliteNetworkHandlerThread = new HandlerThread(
+                    "SatelliteNetworkCallbackThread");
+            satelliteNetworkHandlerThread.start(); // Start the thread
+            Handler satelliteNetworkHandler =
+                    new Handler(satelliteNetworkHandlerThread.getLooper());
             mConnectivityManager.registerBestMatchingNetworkCallback(
-                    builder.build(), mNetworkCallback, this);
+                    builder.build(), mNetworkCallback, satelliteNetworkHandler);
         } else {
             loge("network callback not registered");
         }
@@ -409,8 +431,115 @@ public class CarrierRoamingSatelliteSessionStats extends Handler {
         }
     }
 
+    private void logSatelliteAppData() {
+        if (mSatelliteAppsPackageNameArray == null || mSatelliteAppsPackageNameArray.length == 0) {
+            Log.d(TAG, "No satellite app data to log.");
+            return;
+        }
+
+        for (int i = 0; i < mSatelliteAppsPackageNameArray.length; i++) {
+            // Ensure array bounds are checked if arrays might not be perfectly synchronized,
+            // though in this context they should be of the same length.
+            if (i < mSatelliteAppsUidArray.length
+                    && i < mPerAppSatelliteDataConsumedBytesArray.length) {
+                Log.d(TAG, "Package: " + mSatelliteAppsPackageNameArray[i]
+                        + ", UID: " + mSatelliteAppsUidArray[i]
+                        + ", Bytes: " + mPerAppSatelliteDataConsumedBytesArray[i]);
+            } else {
+                Log.w(TAG, "Mismatched array lengths at index: "
+                        + i + ". Skipping logging for this entry.");
+                break; // Or continue, depending on desired behavior
+            }
+        }
+    }
+
+    private void updatePerAppDataConsumedMaptoArray(Map<String, Long> appDataUsageMap) {
+        if (appDataUsageMap == null || appDataUsageMap.isEmpty()) {
+            Log.w(TAG, "No satellite data usage found. The app data usage map is null or empty.");
+            return;
+        }
+
+        // Extract package names
+        mSatelliteAppsPackageNameArray = appDataUsageMap.keySet().toArray(new String[0]);
+
+        // Extract UIDs using streams
+        mSatelliteAppsUidArray = Arrays.stream(mSatelliteAppsPackageNameArray)
+                .mapToInt(packageName -> mSatelliteAppUidMap.getOrDefault(packageName, -1))
+                .toArray();
+
+        // Extract data consumption bytes
+        mPerAppSatelliteDataConsumedBytesArray = appDataUsageMap.values().stream()
+                .mapToLong(Long::longValue) // Convert Long objects to primitive long values
+                .toArray();
+
+        // Log the processed data for verification
+        logSatelliteAppData();
+    }
+
+    private Map<String, Long> computePerAppSatelliteDataUsageWithSession(Map<String, Long> map2) {
+        // The satelliteSessionUsageMap is initialized as a HashMap, and now the method signature
+        // explicitly states that a HashMap will be returned.
+        HashMap<String, Long> satelliteSessionUsageMap = new HashMap<>();
+
+        // Iterate through each entry in Map2
+        for (Map.Entry<String, Long> entry : map2.entrySet()) {
+            String key = entry.getKey();
+            Long currentDataUsageBytes = entry.getValue();
+
+            // Check if the key from Map2 exists in Map1
+            if (mPerAppDataUsageOnSessionStartMap.containsKey(key)) {
+                Long initialDataUsageBytes =
+                        mPerAppDataUsageOnSessionStartMap.get(key);
+                // If available, find the difference (Map2 - Map1)
+                satelliteSessionUsageMap.put(key,
+                        currentDataUsageBytes
+                                - initialDataUsageBytes);
+            } else {
+                // If Map2 key is not found in Map1,
+                // add Map2 key and its corresponding value to the new map
+                satelliteSessionUsageMap.put(key, currentDataUsageBytes);
+            }
+        }
+        return satelliteSessionUsageMap;
+    }
+
+    private Map<String, Long> findTopNPackagesWithMaxData(Map<String, Long> dataConsumptionMap) {
+
+        // Handle null or empty input map
+        if (dataConsumptionMap == null || dataConsumptionMap.isEmpty()) {
+            return new HashMap<>(); // Return an empty HashMap
+        }
+
+        // Convert the HashMap to a List of Map.Entry for sorting
+        List<Map.Entry<String, Long>> list =
+                new LinkedList<>(dataConsumptionMap.entrySet());
+
+        // Sort the list in descending order of data consumed
+        Collections.sort(list, new Comparator<Map.Entry<String, Long>>() {
+            public int compare(Map.Entry<String, Long> o1,
+                    Map.Entry<String, Long> o2) {
+                return (o2.getValue()).compareTo(o1.getValue());
+            }
+        });
+
+        // Create a HashMap to store the top 5 entries (order is not guaranteed)
+        HashMap<String, Long> result = new HashMap<>();
+        int count = 0;
+        for (Map.Entry<String, Long> entry : list) {
+            if (count < MAX_SATELLITE_TOP_APPS_TRACKED) {
+                result.put(entry.getKey(), entry.getValue());
+                count++;
+            } else {
+                // We have found our top 5
+                break;
+            }
+        }
+
+        return result;
+    }
+
     /** Log carrier roaming satellite session end */
-    public void onSessionEnd(int subId) {
+    public void onSessionEnd(int subId, List<String> satelliteApps) {
         onConnectionEnd();
         long dataUsageOnSessionEndBytes = getDataUsage();
         logd("update data consumed: " + dataUsageOnSessionEndBytes);
@@ -420,6 +549,21 @@ public class CarrierRoamingSatelliteSessionStats extends Handler {
                     dataUsageOnSessionEndBytes - mDataUsageOnSessionStartBytes;
         }
         logd("satellite data consumed at session: " + mSatelliteDataConsumedBytes);
+
+        if (mFeatureFlags.satelliteDataMetrics()) {
+            Map<String, Long> perAppDataUsageOnSessionEndMap = getPerAppSatelliteDataUsage(
+                    satelliteApps);
+            if (!perAppDataUsageOnSessionEndMap.isEmpty()) {
+                Map<String, Long> currSatelliteSessionPerAppDataUsageMap =
+                        computePerAppSatelliteDataUsageWithSession(perAppDataUsageOnSessionEndMap);
+                Map<String, Long> top5PackagesWithMaxDataMap =
+                        findTopNPackagesWithMaxData(currSatelliteSessionPerAppDataUsageMap);
+                logd("top 5 satellite data usage apps:" + top5PackagesWithMaxDataMap);
+                updatePerAppDataConsumedMaptoArray(top5PackagesWithMaxDataMap);
+            } else {
+                loge("per app satellite consumed array is empty");
+            }
+        }
 
         if (mSumOfDownlinkBandwidthKbps > 0 && mCountOfDataConnections > 0) {
             mAverageDownlinkBandwidthKbps = updateAvgBandwidthForSession(
@@ -438,8 +582,119 @@ public class CarrierRoamingSatelliteSessionStats extends Handler {
         mSupportedSatelliteServices = new int[0];
         mServiceDataPolicy = SatelliteConstants.SATELLITE_ENTITLEMENT_SERVICE_POLICY_UNKNOWN;
         mSatelliteDataConsumedBytes = 0L;
+        mSatelliteAppsPackageNameArray = null;
+        Arrays.fill(mSatelliteAppsUidArray, 0);
+        mPerAppSatelliteDataConsumedBytesArray = new long[]{0L};
         mDataUsageOnSessionStartBytes = 0L;
         resetSatelliteDataState();
+    }
+
+    private Map<String, Integer> updatePackageNameWithUids(List<String> satelliteApps) {
+        HashMap<String, Integer> satelliteAppMap = new HashMap<>();
+
+        try {
+            if (mContext == null) {
+                // Log an error or throw an exception if context is null
+                // For example: Log.e("AppUidResolver", "Context cannot be null.");
+                return satelliteAppMap;
+            }
+
+            if (satelliteApps == null || satelliteApps.isEmpty()) {
+                return satelliteAppMap;
+            }
+
+            PackageManager packageManager = mContext.getPackageManager();
+            for (String packageName : satelliteApps) {
+                try {
+                    // Get ApplicationInfo for the package.
+                    // The flag 0 means no specific flags are requested.
+                    ApplicationInfo appInfo = packageManager.getApplicationInfo(packageName, 0);
+                    // Load the label (application name) using the PackageManager
+                    satelliteAppMap.put(packageName, appInfo.uid);
+                } catch (PackageManager.NameNotFoundException e) {
+                    loge("Package Manager found exception");
+                }
+            }
+        } catch (Exception e) {
+            loge("found exception on finding uids:" + e);
+        }
+        return satelliteAppMap;
+    }
+
+    private String findKeysByValue(Map<String, Integer> map, Integer targetValue) {
+        String key = null;
+
+        if (map == null || map.isEmpty()) {
+            logd("Found Packagename: " + null);
+            return key;
+        }
+
+        for (Map.Entry<String, Integer> entry : map.entrySet()) {
+            if (entry.getValue().equals(targetValue)) {
+                key = entry.getKey();
+                logd("Found Packagename: " + key);
+            }
+        }
+        return key;
+    }
+
+    private void updateDataUsageMap(NetworkStats networkStats, Map<String, Long> dataUsageMap) {
+        long totalBytes;
+        NetworkStats.Bucket bucket = new NetworkStats.Bucket();
+        while (networkStats.hasNextBucket()) {
+            totalBytes = 0L;
+            networkStats.getNextBucket(bucket);
+            if (bucket.getUid() != -1 && mSatelliteAppUidMap.containsValue(bucket.getUid())) {
+                String packageName =
+                        findKeysByValue(mSatelliteAppUidMap, bucket.getUid());
+                if (dataUsageMap.containsKey(packageName)) {
+                    totalBytes = dataUsageMap.getOrDefault(packageName, 0L);
+                }
+                totalBytes += bucket.getRxBytes() + bucket.getTxBytes();
+                if (totalBytes > 0) {
+                    dataUsageMap.put(packageName, totalBytes);
+                }
+            }
+        }
+    }
+
+    private Map<String, Long> getPerAppSatelliteDataUsage(@NonNull List<String> satelliteApps) {
+        Map<String, Long> dataUsageMap = new HashMap<>();
+
+        // track satellite data usage of satellite constrained apps
+        logd("satellite app List: " + satelliteApps);
+        if (!satelliteApps.isEmpty()) {
+            mSatelliteAppUidMap = updatePackageNameWithUids(satelliteApps);
+            logd("satellite App Map: " + mSatelliteAppUidMap);
+            if (!mSatelliteAppUidMap.isEmpty()) {
+                NetworkStatsManager networkStatsManager =
+                        mContext.getSystemService(NetworkStatsManager.class);
+                final String subscriberId = mPhone.getSubscriberId();
+                if (networkStatsManager != null && !TextUtils.isEmpty(subscriberId)) {
+                    final NetworkTemplate.Builder builder =
+                            new NetworkTemplate.Builder(NetworkTemplate.MATCH_MOBILE);
+                    logd("subscriber id for data consumed: " + subscriberId);
+                    try {
+                        builder.setSubscriberIds(Set.of(subscriberId));
+                        // Consider data usage calculation of only metered capabilities
+                        // data network
+                        builder.setMeteredness(android.net.NetworkStats.METERED_YES);
+                        NetworkStats networkStats;
+                        NetworkTemplate template = builder.build();
+                        networkStats =
+                                networkStatsManager.querySummary(template, 0,
+                                        System.currentTimeMillis());
+                        updateDataUsageMap(networkStats, dataUsageMap);
+                    } catch (SecurityException e) {
+                        loge("querying networkstats met with approach:" + e);
+                    }
+                }
+            }
+            logd("NetworkStats per apps: " + dataUsageMap);
+        } else {
+            loge("Satellite apps list is empty");
+        }
+        return dataUsageMap;
     }
 
     private void resetSatelliteDataState() {
@@ -579,6 +834,9 @@ public class CarrierRoamingSatelliteSessionStats extends Handler {
                         .setMaximumUplinkBandwidthKbps(mMaxUplinkBandwidthKbps)
                         .setMinimumDownlinkBandwidthKbps(mMinDownlinkBandwidthKbps)
                         .setMaximumDownlinkBandwidthKbps(mMaxDownlinkBandwidthKbps)
+                        .setSatelliteSupportedApps(mSatelliteAppsPackageNameArray)
+                        .setSatelliteSupportedUids(mSatelliteAppsUidArray)
+                        .setPerAppSatelliteDataConsumedBytes(mPerAppSatelliteDataConsumedBytesArray)
                         .build();
         SatelliteStats.getInstance().onCarrierRoamingSatelliteSessionMetrics(params);
         logd("Supported satellite services: " + Arrays.toString(mSupportedSatelliteServices));

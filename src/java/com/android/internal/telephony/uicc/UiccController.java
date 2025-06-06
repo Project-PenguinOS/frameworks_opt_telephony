@@ -40,10 +40,12 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.os.AsyncResult;
+import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
 import android.os.RegistrantList;
+import android.os.SystemProperties;
 import android.os.UserHandle;
 import android.preference.PreferenceManager;
 import android.sysprop.TelephonyProperties;
@@ -283,6 +285,22 @@ public class UiccController extends Handler {
         numPhysicalSlots = TelephonyProperties.sim_slots_count().orElse(numPhysicalSlots);
         if (DBG) {
             logl("config_num_physical_slots = " + numPhysicalSlots);
+        }
+
+        int mVendorApiLevel = SystemProperties.getInt(
+                "ro.vendor.api_level", Build.VERSION.DEVICE_INITIAL_SDK_INT);
+        logl("current vendor api_level: " + mVendorApiLevel);
+        // Adjust numPhysicalSlots only for devices that were originally launched with a version
+        // of Android older than or equals to VENDOR_API_2024_Q2. This is to avoid impacting vendor
+        // freeze targets.
+        if (mVendorApiLevel <= Build.VENDOR_API_2024_Q2) {
+            logl("Adjusting numPhysicalSlots for firstApiLevel = " + mVendorApiLevel
+                    + " based on mCis.length");
+            // Minimum number of physical slot count should be equals to or greater than
+            // phone count,if it is less than phone count use phone count as physical slot count.
+            if (numPhysicalSlots < mCis.length) {
+                numPhysicalSlots = mCis.length;
+            }
         }
 
         mTelephonyManager = mContext.getSystemService(TelephonyManager.class);
