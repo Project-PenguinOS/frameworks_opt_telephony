@@ -426,6 +426,9 @@ public class DataNetwork extends StateMachine {
     /** Data network tear down due to current data network transport mismatch. */
     public static final int TEAR_DOWN_REASON_DATA_NETWORK_TRANSPORT_NOT_ALLOWED = 32;
 
+    /** Data network tear down due to device shut down. */
+    public static final int TEAR_DOWN_REASON_DATA_NETWORK_DEVICE_SHUT_DOWN = 33;
+
     //********************************************************************************************//
     // WHENEVER ADD A NEW TEAR DOWN REASON, PLEASE UPDATE DataDeactivateReasonEnum in enums.proto //
     //********************************************************************************************//
@@ -2368,6 +2371,11 @@ public class DataNetwork extends StateMachine {
         // will always be registered with NOT_SUSPENDED capability.
         mNetworkAgent = createNetworkAgent();
         mNetworkAgent.markConnected();
+        // Update NetworkAgent in QosCallbackTracker so that QoS callbacks on the new network agent
+        // properly reach to the callback tracker.
+        if (mFlags.qosUpdateNetworkAgent() && mQosCallbackTracker != null) {
+            mQosCallbackTracker.updateNetworkAgent(mNetworkAgent);
+        }
         notifyPreciseDataConnectionState();
         // Because network agent is always created with NOT_SUSPENDED, we need to update
         // the suspended if it's was in suspended state.

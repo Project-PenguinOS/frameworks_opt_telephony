@@ -1897,6 +1897,9 @@ public class SatelliteStats {
         private final int mMaxUplinkBandwidthKbps;
         private final int mMinDownlinkBandwidthKbps;
         private final int mMaxDownlinkBandwidthKbps;
+        private final String[] mSatelliteSupportedApps;
+        private final int[] mSatelliteSupportedUids;
+        private final long[] mPerAppSatelliteDataConsumedBytes;
 
         private CarrierRoamingSatelliteSessionParams(Builder builder) {
             this.mCarrierId = builder.mCarrierId;
@@ -1932,6 +1935,9 @@ public class SatelliteStats {
             this.mMaxUplinkBandwidthKbps = builder.mMaxUplinkBandwidthKbps;
             this.mMinDownlinkBandwidthKbps = builder.mMinDownlinkBandwidthKbps;
             this.mMaxDownlinkBandwidthKbps = builder.mMaxDownlinkBandwidthKbps;
+            this.mSatelliteSupportedApps = builder.mSatelliteSupportedApps;
+            this.mSatelliteSupportedUids = builder.mSatelliteSupportedUids;
+            this.mPerAppSatelliteDataConsumedBytes = builder.mPerAppSatelliteDataConsumedBytes;
         }
 
         public int getCarrierId() {
@@ -2058,6 +2064,18 @@ public class SatelliteStats {
             return mMaxDownlinkBandwidthKbps;
         }
 
+        public String[] getSatelliteSupportedApps() {
+            return mSatelliteSupportedApps;
+        }
+
+        public int[] getSatelliteSupportedUids() {
+            return mSatelliteSupportedUids;
+        }
+
+        public long[] getPerAppSatelliteDataConsumedBytes() {
+            return mPerAppSatelliteDataConsumedBytes;
+        }
+
         /**
          * A builder class to create {@link CarrierRoamingSatelliteSessionParams} data structure
          * class
@@ -2095,6 +2113,9 @@ public class SatelliteStats {
             private int mMaxUplinkBandwidthKbps = 0;
             private int mMinDownlinkBandwidthKbps = Integer.MAX_VALUE;
             private int mMaxDownlinkBandwidthKbps = 0;
+            private String[] mSatelliteSupportedApps = null;
+            private int[] mSatelliteSupportedUids = new int[5];
+            private long[] mPerAppSatelliteDataConsumedBytes = new long[]{0L};
 
 
             /**
@@ -2390,6 +2411,34 @@ public class SatelliteStats {
                 this.mMaxDownlinkBandwidthKbps = maxDownlinkBandwidthKbps;
                 return this;
             }
+
+            /**
+             * Sets satelliteSupportedApps value of {@link CarrierRoamingSatelliteSession}
+             * atom then returns Builder class
+             */
+            public Builder setSatelliteSupportedApps(String[] satelliteSupportedApps) {
+                this.mSatelliteSupportedApps = satelliteSupportedApps;
+                return this;
+            }
+
+            /**
+             * Sets satelliteSupportedUids value of {@link CarrierRoamingSatelliteSession}
+             * atom then returns Builder class
+             */
+            public Builder setSatelliteSupportedUids(int[] satelliteSupportedUids) {
+                this.mSatelliteSupportedUids = satelliteSupportedUids;
+                return this;
+            }
+
+            /**
+             * Sets perAppSatelliteDataConsumedBytes value of {@link CarrierRoamingSatelliteSession}
+             * atom then returns Builder class
+             */
+            public Builder setPerAppSatelliteDataConsumedBytes(
+                    long[] perAppSatelliteDataConsumedBytes) {
+                this.mPerAppSatelliteDataConsumedBytes = perAppSatelliteDataConsumedBytes;
+                return this;
+            }
         }
 
         @Override
@@ -2427,6 +2476,10 @@ public class SatelliteStats {
                     + ", maxUplinkBandwidthKbps=" + mMaxUplinkBandwidthKbps
                     + ", minDownlinkBandwidthKbps=" + mMinDownlinkBandwidthKbps
                     + ", maxDownlinkBandwidthKbps=" + mMaxDownlinkBandwidthKbps
+                    + ", satelliteSupportedApps=" + Arrays.toString(mSatelliteSupportedApps)
+                    + ", satelliteSupportedUids=" + Arrays.toString(mSatelliteSupportedUids)
+                    + ", perAppSatelliteDataConsumedBytes=" + Arrays.toString(
+                    mPerAppSatelliteDataConsumedBytes)
                     + ")";
         }
     }
@@ -3388,6 +3441,9 @@ public class SatelliteStats {
         proto.maxUplinkBandwidthKbps = param.mMaxUplinkBandwidthKbps;
         proto.minDownlinkBandwidthKbps = param.mMinDownlinkBandwidthKbps;
         proto.maxDownlinkBandwidthKbps = param.mMaxDownlinkBandwidthKbps;
+        proto.satelliteSupportedApps = param.mSatelliteSupportedApps;
+        proto.satelliteSupportedUids = param.mSatelliteSupportedUids;
+        proto.perAppSatelliteDataConsumedBytes = param.mPerAppSatelliteDataConsumedBytes;
         if (DBG) logd("onCarrierRoamingSatelliteSessionMetrics: " + param);
         mAtomsStorage.addCarrierRoamingSatelliteSessionStats(proto);
     }

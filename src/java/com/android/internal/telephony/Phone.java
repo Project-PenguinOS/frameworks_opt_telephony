@@ -432,6 +432,8 @@ public abstract class Phone extends Handler implements PhoneInternalInterface {
     private int mUsageSettingFromModem = SubscriptionManager.USAGE_SETTING_UNKNOWN;
     private boolean mIsUsageSettingSupported = true;
     private boolean mIsNetworkScanStarted = false;
+    private Set<Integer> mAllowedImsServicesAny = new HashSet<>();
+    private Set<Integer> mAllowedImsServicesHomeOnly = new HashSet<>();
 
     //IMS
     /**
@@ -4950,6 +4952,7 @@ public abstract class Phone extends Handler implements PhoneInternalInterface {
      **/
     public void setVoNrEnabled(boolean enabled, Message result, WorkSource workSource) {
         mCi.setVoNrEnabled(enabled, result, workSource);
+        setAllowedImsServicesForAny(ImsRegistrationImplBase.REGISTRATION_TECH_NR, enabled);
     }
 
     /**
@@ -5703,6 +5706,63 @@ public abstract class Phone extends Handler implements PhoneInternalInterface {
      */
     public void isSatelliteEnabledForCarrier(int simSlot, Message result) {
         mCi.isSatelliteEnabledForCarrier(simSlot, result);
+    }
+
+    /**
+     * Update allowed IMS services for home network only.
+     *
+     * @param regTech Which technology is associated with this capability.
+     * @param enabled Whether this capability is enabled.
+     */
+    public void setAllowedImsServicesForHomeOnly(
+            @ImsRegistrationImplBase.ImsRegistrationTech int regTech,
+            boolean enabled) {
+        if (!mFeatureFlags.allowedServices()) return;
+        Set<Integer> oldAllowedImsServicesAny = new HashSet<>(mAllowedImsServicesAny);
+        Set<Integer> oldAllowedImsServicesHomeOnly = new HashSet<>(mAllowedImsServicesHomeOnly);
+        if (enabled) {
+            mAllowedImsServicesHomeOnly.add(regTech);
+        } else {
+            mAllowedImsServicesHomeOnly.remove(regTech);
+        }
+        mAllowedImsServicesAny.remove(regTech);
+        if (!oldAllowedImsServicesAny.equals(mAllowedImsServicesAny)
+                || !oldAllowedImsServicesHomeOnly.equals(mAllowedImsServicesHomeOnly)) {
+            mCi.updateAllowedImsServices(mAllowedImsServicesAny, mAllowedImsServicesHomeOnly, null);
+        }
+    }
+
+    /**
+     * Update allowed IMS services for home and roaming networks.
+     *
+     * @param regTech Which technology is associated with this capability.
+     * @param enabled Whether this capability is enabled.
+     */
+    public void setAllowedImsServicesForAny(
+            @ImsRegistrationImplBase.ImsRegistrationTech int regTech,
+            boolean enabled) {
+        if (!mFeatureFlags.allowedServices()) return;
+        Set<Integer> oldAllowedImsServicesAny = new HashSet<>(mAllowedImsServicesAny);
+        Set<Integer> oldAllowedImsServicesHomeOnly = new HashSet<>(mAllowedImsServicesHomeOnly);
+        if (enabled) {
+            mAllowedImsServicesAny.add(regTech);
+        } else {
+            mAllowedImsServicesAny.remove(regTech);
+        }
+        mAllowedImsServicesHomeOnly.remove(regTech);
+        if (!oldAllowedImsServicesAny.equals(mAllowedImsServicesAny)
+                || !oldAllowedImsServicesHomeOnly.equals(mAllowedImsServicesHomeOnly)) {
+            mCi.updateAllowedImsServices(mAllowedImsServicesAny, mAllowedImsServicesHomeOnly, null);
+        }
+    }
+
+    /**
+     * Clear allowed IMS services.
+     */
+    public void clearAllowedImsServices() {
+        Rlog.d(mLogTag, "clearAllowedImsServices");
+        mAllowedImsServicesAny.clear();
+        mAllowedImsServicesHomeOnly.clear();
     }
 
     public void dump(FileDescriptor fd, PrintWriter pw, String[] args) {

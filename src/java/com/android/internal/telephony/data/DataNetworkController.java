@@ -682,7 +682,8 @@ public class DataNetworkController extends Handler {
          * existing regardless of its state. {@code false} indicating all data networks are
          * disconnected.
          */
-        public void onAnyDataNetworkExistingChanged(boolean anyDataExisting) {}
+        public void onAnyDataNetworkExistingChanged(boolean anyDataExisting,
+                boolean anyCellularDataExisting) {}
 
         /**
          * Called when {@link SubscriptionPlan}s change or an unmetered or congested subscription
@@ -1303,7 +1304,7 @@ public class DataNetworkController extends Handler {
                 // Notify upon registering if no data networks currently exist.
                 if (mDataNetworkList.isEmpty()) {
                     callback.invokeFromExecutor(
-                            () -> callback.onAnyDataNetworkExistingChanged(false));
+                            () -> callback.onAnyDataNetworkExistingChanged(false, false));
                 }
                 break;
             case EVENT_UNREGISTER_DATA_NETWORK_CONTROLLER_CALLBACK:
@@ -3205,7 +3206,8 @@ public class DataNetworkController extends Handler {
         if (!mAnyDataNetworkExisting) {
             mAnyDataNetworkExisting = true;
             mDataNetworkControllerCallbacks.forEach(callback -> callback.invokeFromExecutor(
-                    () -> callback.onAnyDataNetworkExistingChanged(mAnyDataNetworkExisting)));
+                    () -> callback.onAnyDataNetworkExistingChanged(
+                            mAnyDataNetworkExisting, false)));
         }
     }
 
@@ -3227,7 +3229,8 @@ public class DataNetworkController extends Handler {
         if (mAnyDataNetworkExisting && mDataNetworkList.isEmpty()) {
             mAnyDataNetworkExisting = false;
             mDataNetworkControllerCallbacks.forEach(callback -> callback.invokeFromExecutor(
-                    () -> callback.onAnyDataNetworkExistingChanged(mAnyDataNetworkExisting)));
+                    () -> callback.onAnyDataNetworkExistingChanged(
+                            mAnyDataNetworkExisting, false)));
         }
 
         requestList.removeIf(request -> !mAllNetworkRequestList.contains(request));
@@ -3581,7 +3584,8 @@ public class DataNetworkController extends Handler {
             log("All data networks disconnected now.");
             mAnyDataNetworkExisting = false;
             mDataNetworkControllerCallbacks.forEach(callback -> callback.invokeFromExecutor(
-                    () -> callback.onAnyDataNetworkExistingChanged(mAnyDataNetworkExisting)));
+                    () -> callback.onAnyDataNetworkExistingChanged(
+                            mAnyDataNetworkExisting, false)));
         }
 
         // Immediately reestablish on target transport if network was torn down due to policy

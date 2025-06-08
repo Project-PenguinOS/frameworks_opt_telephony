@@ -26,14 +26,6 @@ flag {
     bug:"313553044"
 }
 
-# OWNER=arunvoddu TARGET=24Q3
-flag {
-    name: "carrier_restriction_rules_enhancement"
-    namespace: "telephony"
-    description: "This flag controls the new enhancements to the existing carrier restrictions rules"
-    bug:"317226653"
-}
-
 # OWNER=rafahs TARGET=24Q3
 flag {
     name: "esim_available_memory"
@@ -69,17 +61,6 @@ flag {
     namespace: "telephony"
     description: "This flag controls optimization of apdu sender class."
     bug:"335257880"
-}
-
-# OWNER=arunvoddu TARGET=24Q4
-flag {
-    name: "ignore_carrierid_reset_for_sim_removal"
-    namespace: "telephony"
-    description: "This flag controls the carrierId reset while imsi key deletion time upon sim ejection."
-    bug:"366178705"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
 }
 
 # OWNER=jhyoon TARGET=25Q2

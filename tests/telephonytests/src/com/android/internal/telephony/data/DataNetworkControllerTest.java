@@ -1449,7 +1449,7 @@ public class DataNetworkControllerTest extends TelephonyTest {
                 NetworkCapabilities.NET_CAPABILITY_INTERNET);
         mDataNetworkControllerUT.addNetworkRequest(request);
         processAllMessages();
-        verify(mMockedDataNetworkControllerCallback).onAnyDataNetworkExistingChanged(eq(true));
+        verify(mMockedDataNetworkControllerCallback).onAnyDataNetworkExistingChanged(true, false);
         verify(mMockedDataNetworkControllerCallback).onConnectedInternetDataNetworksChanged(any());
 
         int countOfCallbacks = dataNetworkControllerCallbacks.size();
@@ -1472,7 +1472,7 @@ public class DataNetworkControllerTest extends TelephonyTest {
                 TelephonyManager.SIM_STATE_ABSENT, 0).sendToTarget();
         processAllMessages();
         verifyAllDataDisconnected();
-        verify(mMockedDataNetworkControllerCallback).onAnyDataNetworkExistingChanged(eq(false));
+        verify(mMockedDataNetworkControllerCallback).onAnyDataNetworkExistingChanged(false, false);
         verify(mMockedDataNetworkControllerCallback).onConnectedInternetDataNetworksChanged(
                 eq(Collections.emptySet()));
         verify(mMockedDataNetworkControllerCallback).onPhysicalLinkStatusChanged(
@@ -1765,7 +1765,7 @@ public class DataNetworkControllerTest extends TelephonyTest {
         serviceStateChanged(TelephonyManager.NETWORK_TYPE_GSM,
                 NetworkRegistrationInfo.REGISTRATION_STATE_HOME);
         verifyAllDataDisconnected();
-        verify(mMockedDataNetworkControllerCallback).onAnyDataNetworkExistingChanged(eq(false));
+        verify(mMockedDataNetworkControllerCallback).onAnyDataNetworkExistingChanged(false, false);
         verify(mMockedDataNetworkControllerCallback).onConnectedInternetDataNetworksChanged(
                 eq(Collections.emptySet()));
         verify(mMockedDataNetworkControllerCallback).onPhysicalLinkStatusChanged(
@@ -3153,7 +3153,7 @@ public class DataNetworkControllerTest extends TelephonyTest {
         // establish a new one on IWLAN
 
         // Verify all data disconnected.
-        verify(mMockedDataNetworkControllerCallback).onAnyDataNetworkExistingChanged(eq(false));
+        verify(mMockedDataNetworkControllerCallback).onAnyDataNetworkExistingChanged(false, false);
         verify(mMockedDataNetworkControllerCallback).onPhysicalLinkStatusChanged(
                 eq(DataCallResponse.LINK_STATUS_INACTIVE));
 
@@ -3244,7 +3244,7 @@ public class DataNetworkControllerTest extends TelephonyTest {
         processAllMessages();
 
         // Verify all data disconnected.
-        verify(mMockedDataNetworkControllerCallback).onAnyDataNetworkExistingChanged(eq(false));
+        verify(mMockedDataNetworkControllerCallback).onAnyDataNetworkExistingChanged(false, false);
         verify(mMockedDataNetworkControllerCallback).onPhysicalLinkStatusChanged(
                 eq(DataCallResponse.LINK_STATUS_INACTIVE));
 
@@ -3279,7 +3279,7 @@ public class DataNetworkControllerTest extends TelephonyTest {
                 AccessNetworkConstants.TRANSPORT_TYPE_WLAN);
 
         // Verify all data disconnected.
-        verify(mMockedDataNetworkControllerCallback).onAnyDataNetworkExistingChanged(eq(false));
+        verify(mMockedDataNetworkControllerCallback).onAnyDataNetworkExistingChanged(false, false);
         verify(mMockedDataNetworkControllerCallback).onPhysicalLinkStatusChanged(
                 eq(DataCallResponse.LINK_STATUS_INACTIVE));
 
@@ -4174,7 +4174,7 @@ public class DataNetworkControllerTest extends TelephonyTest {
 
         // There shouldn't be all data disconnected event.
         verify(mMockedDataNetworkControllerCallback, never())
-                .onAnyDataNetworkExistingChanged(anyBoolean());
+                .onAnyDataNetworkExistingChanged(anyBoolean(), anyBoolean());
 
         // Verify IMS is still alive.
         List<DataNetwork> dataNetworkList = getDataNetworks();
@@ -4765,7 +4765,7 @@ public class DataNetworkControllerTest extends TelephonyTest {
                 AccessNetworkConstants.TRANSPORT_TYPE_WLAN);
 
         // Verify all data disconnected.
-        verify(mMockedDataNetworkControllerCallback).onAnyDataNetworkExistingChanged(eq(false));
+        verify(mMockedDataNetworkControllerCallback).onAnyDataNetworkExistingChanged(false, false);
         verify(mMockedDataNetworkControllerCallback).onPhysicalLinkStatusChanged(
                 eq(DataCallResponse.LINK_STATUS_INACTIVE));
 
@@ -5343,7 +5343,7 @@ public class DataNetworkControllerTest extends TelephonyTest {
                 TelephonyManager.SIM_STATE_ABSENT, 0).sendToTarget();
         processAllMessages();
         verifyAllDataDisconnected();
-        verify(mMockedDataNetworkControllerCallback).onAnyDataNetworkExistingChanged(eq(false));
+        verify(mMockedDataNetworkControllerCallback).onAnyDataNetworkExistingChanged(false, false);
         verify(mMockedDataNetworkControllerCallback).onConnectedInternetDataNetworksChanged(
                 eq(Collections.emptySet()));
         verify(mMockedDataNetworkControllerCallback).onPhysicalLinkStatusChanged(
@@ -5942,7 +5942,7 @@ public class DataNetworkControllerTest extends TelephonyTest {
                 DataNetwork.TEAR_DOWN_REASON_AIRPLANE_MODE_ON);
         processAllMessages();
         verifyAllDataDisconnected();
-        verify(mMockedDataNetworkControllerCallback).onAnyDataNetworkExistingChanged(eq(false));
+        verify(mMockedDataNetworkControllerCallback).onAnyDataNetworkExistingChanged(false, false);
 
         clearInvocations(mMockedDataNetworkControllerCallback);
         mDataNetworkControllerUT.addNetworkRequest(
@@ -5950,7 +5950,7 @@ public class DataNetworkControllerTest extends TelephonyTest {
         processAllMessages();
         verifyAllDataDisconnected();
         verify(mMockedDataNetworkControllerCallback, never()).onAnyDataNetworkExistingChanged(
-                anyBoolean());
+                anyBoolean(), anyBoolean());
     }
 
     @Test

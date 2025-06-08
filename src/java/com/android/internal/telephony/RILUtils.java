@@ -228,6 +228,7 @@ import static com.android.internal.telephony.RILConstants.RIL_REQUEST_SWITCH_WAI
 import static com.android.internal.telephony.RILConstants.RIL_REQUEST_TRIGGER_EMERGENCY_NETWORK_SCAN;
 import static com.android.internal.telephony.RILConstants.RIL_REQUEST_TRIGGER_EPS_FALLBACK;
 import static com.android.internal.telephony.RILConstants.RIL_REQUEST_UDUB;
+import static com.android.internal.telephony.RILConstants.RIL_REQUEST_UPDATE_ALLOWED_IMS_SERVICES;
 import static com.android.internal.telephony.RILConstants.RIL_REQUEST_UPDATE_IMS_CALL_STATUS;
 import static com.android.internal.telephony.RILConstants.RIL_REQUEST_UPDATE_IMS_REGISTRATION_INFO;
 import static com.android.internal.telephony.RILConstants.RIL_REQUEST_UPDATE_SIM_PHONEBOOK_RECORD;
@@ -378,6 +379,7 @@ import android.telephony.ims.feature.ConnectionFailureInfo;
 import android.telephony.ims.feature.MmTelFeature;
 import android.telephony.ims.stub.ImsRegistrationImplBase;
 import android.telephony.ims.stub.ImsRegistrationImplBase.ImsDeregistrationReason;
+import android.telephony.ims.stub.ImsRegistrationImplBase.ImsRegistrationTech;
 import android.text.TextUtils;
 import android.util.ArraySet;
 import android.util.SparseArray;
@@ -4775,6 +4777,57 @@ public class RILUtils {
         return ConnectionFailureInfo.REASON_UNSPECIFIED;
     }
 
+    /**
+     * Convert to an array of HAL IMS service.
+     *
+     * @param allowedImsServicesAny Which allowed services for both home and roaming state.
+     * @param allowedImsServicesHomeOnly Which allowed services for home state only.
+     * @return The array of HAL IMS service.
+     */
+    public static android.hardware.radio.ims.ImsService[] convertImsServices(
+            @NonNull Set<Integer> allowedImsServicesAny,
+            @NonNull Set<Integer> allowedImsServicesHomeOnly) {
+        int length = allowedImsServicesAny.size() + allowedImsServicesHomeOnly.size();
+        if (length == 0) {
+            return new android.hardware.radio.ims.ImsService[0];
+        }
+        android.hardware.radio.ims.ImsService[] imsServices =
+                new android.hardware.radio.ims.ImsService[length];
+        int index = 0;
+        for (Integer regTech : allowedImsServicesAny) {
+            imsServices[index] = new android.hardware.radio.ims.ImsService();
+            imsServices[index].serviceType = convertToImsServiceTypeAidl(regTech);
+            imsServices[index].roamingType = android.hardware.radio.ims.ImsService.RoamingType.ANY;
+            index++;
+        }
+        for (Integer regTech : allowedImsServicesHomeOnly) {
+            imsServices[index] = new android.hardware.radio.ims.ImsService();
+            imsServices[index].serviceType = convertToImsServiceTypeAidl(regTech);
+            imsServices[index].roamingType =
+                    android.hardware.radio.ims.ImsService.RoamingType.HOME_ONLY;
+            index++;
+        }
+        return imsServices;
+    }
+
+    /**
+     * Convert to HAL IMS service type.
+     *
+     * @param regTech The IMS service radio technology.
+     * @return The HAL IMS service type.
+     */
+    private static int convertToImsServiceTypeAidl(@ImsRegistrationTech int regTech) {
+        return switch (regTech) {
+            case ImsRegistrationImplBase.REGISTRATION_TECH_LTE ->
+                    android.hardware.radio.ims.ImsServiceType.VOLTE;
+            case ImsRegistrationImplBase.REGISTRATION_TECH_NR ->
+                    android.hardware.radio.ims.ImsServiceType.VONR;
+            case ImsRegistrationImplBase.REGISTRATION_TECH_IWLAN ->
+                    android.hardware.radio.ims.ImsServiceType.VOWIFI;
+            default -> android.hardware.radio.ims.ImsServiceType.INVALID;
+        };
+    }
+
     /** Append the data to the end of an ArrayList */
     public static void appendPrimitiveArrayToArrayList(byte[] src, ArrayList<Byte> dst) {
         for (byte b : src) {
@@ -5283,6 +5336,8 @@ public class RILUtils {
                 return "SET_USER_DATA_ENABLED";
             case RIL_REQUEST_SET_USER_DATA_ROAMING_ENABLED:
                 return "SET_USER_DATA_ROAMING_ENABLED";
+            case RIL_REQUEST_UPDATE_ALLOWED_IMS_SERVICES:
+                return "UPDATE_ALLOWED_IMS_SERVICES";
             default:
                 return "<unknown request " + request + ">";
         }

@@ -186,8 +186,6 @@ import android.testing.AndroidTestingRunner;
 import android.testing.TestableLooper;
 import android.util.IntArray;
 import android.util.Pair;
-import android.util.SparseArray;
-import android.util.SparseBooleanArray;
 
 import com.android.internal.R;
 import com.android.internal.telephony.IBooleanConsumer;
@@ -2942,7 +2940,7 @@ public class SatelliteControllerTest extends TelephonyTest {
 
         mCarrierConfigBundle.putBoolean(CarrierConfigManager.KEY_SATELLITE_ATTACH_SUPPORTED_BOOL,
                 true);
-        SparseBooleanArray satelliteEnabledPerCarrier = new SparseBooleanArray();
+        ConcurrentHashMap<Integer, Boolean> satelliteEnabledPerCarrier = new ConcurrentHashMap<>();
         replaceInstance(SatelliteController.class, "mSatelliteEntitlementStatusPerCarrier",
                 mSatelliteControllerUT, satelliteEnabledPerCarrier);
 
@@ -3000,7 +2998,7 @@ public class SatelliteControllerTest extends TelephonyTest {
         logd("testPassSatellitePlmnToModemAfterUpdateSatelliteEntitlementStatus");
 
         replaceInstance(SatelliteController.class, "mMergedPlmnListPerCarrier",
-                mSatelliteControllerUT, new SparseArray<>());
+                mSatelliteControllerUT, new ConcurrentHashMap<>());
         List<String> overlayConfigPlmnList = new ArrayList<>();
         replaceInstance(SatelliteController.class, "mSatellitePlmnListFromOverlayConfig",
                 mSatelliteControllerUT, overlayConfigPlmnList);
@@ -3158,7 +3156,7 @@ public class SatelliteControllerTest extends TelephonyTest {
     public void testUpdateSupportedSatelliteServices() throws Exception {
         logd("testUpdateSupportedSatelliteServices");
         replaceInstance(SatelliteController.class, "mMergedPlmnListPerCarrier",
-                mSatelliteControllerUT, new SparseArray<>());
+                mSatelliteControllerUT, new ConcurrentHashMap<>());
         replaceInstance(SatelliteController.class,
                 "mSatelliteServicesSupportedByCarriersFromConfig",
                 mSatelliteControllerUT, new ConcurrentHashMap<>());
@@ -3216,7 +3214,8 @@ public class SatelliteControllerTest extends TelephonyTest {
                 servicesPerPlmn.stream().sorted().toList());
     }
     private void setEntitlementPlmnList(List<String> plmnList) throws Exception {
-        SparseArray<List<String>> entitlementPlmnListPerCarrier = new SparseArray<>();
+        ConcurrentHashMap<Integer, List<String>> entitlementPlmnListPerCarrier =
+                new ConcurrentHashMap<>();
         if (!plmnList.isEmpty()) {
             entitlementPlmnListPerCarrier.clear();
             entitlementPlmnListPerCarrier.put(SUB_ID, plmnList);
@@ -3227,7 +3226,8 @@ public class SatelliteControllerTest extends TelephonyTest {
 
     private void setEntitlementPlmnList(SatelliteController targetClass, int subId,
             List<String> plmnList) throws Exception {
-        SparseArray<List<String>> entitlementPlmnListPerCarrier = new SparseArray<>();
+        ConcurrentHashMap<Integer, List<String>> entitlementPlmnListPerCarrier =
+                new ConcurrentHashMap<>();
         if (!plmnList.isEmpty()) {
             entitlementPlmnListPerCarrier.clear();
             entitlementPlmnListPerCarrier.put(subId, plmnList);
@@ -3280,7 +3280,7 @@ public class SatelliteControllerTest extends TelephonyTest {
         logd("testUpdatePlmnListPerCarrier");
 
         replaceInstance(SatelliteController.class, "mMergedPlmnListPerCarrier",
-                mSatelliteControllerUT, new SparseArray<>());
+                mSatelliteControllerUT, new ConcurrentHashMap<>());
         mCarrierConfigBundle.putBoolean(
                 CarrierConfigManager.KEY_SATELLITE_ENTITLEMENT_SUPPORTED_BOOL, true);
         List<String> plmnListPerCarrier;
@@ -3336,7 +3336,7 @@ public class SatelliteControllerTest extends TelephonyTest {
     @Test
     public void testEntitlementStatus() throws Exception {
         logd("testEntitlementStatus");
-        SparseBooleanArray satelliteEnabledPerCarrier = new SparseBooleanArray();
+        ConcurrentHashMap<Integer, Boolean> satelliteEnabledPerCarrier = new ConcurrentHashMap<>();
         replaceInstance(SatelliteController.class, "mSatelliteEntitlementStatusPerCarrier",
                 mSatelliteControllerUT, satelliteEnabledPerCarrier);
 
@@ -3346,7 +3346,7 @@ public class SatelliteControllerTest extends TelephonyTest {
                 new HashMap<>(), new HashMap<>(), mIIntegerConsumer);
 
         assertEquals(true, satelliteEnabledPerCarrier.get(SUB_ID));
-        assertEquals(false, satelliteEnabledPerCarrier.get(SUB_ID1));
+        assertEquals(false, satelliteEnabledPerCarrier.computeIfAbsent(SUB_ID1, k -> false));
 
         // Change SUB_ID1's EntitlementStatus to true
         mSatelliteControllerUT.onSatelliteEntitlementStatusUpdated(SUB_ID1, true, new ArrayList<>(),
@@ -3422,7 +3422,7 @@ public class SatelliteControllerTest extends TelephonyTest {
         doReturn(new ArrayList<>()).when(
                 mMockSubscriptionManagerService).getSatelliteEntitlementPlmnList(anyInt());
         replaceInstance(SatelliteController.class, "mEntitlementPlmnListPerCarrier",
-                mSatelliteControllerUT, new SparseArray<>());
+                mSatelliteControllerUT, new ConcurrentHashMap<>());
         replaceInstance(SatelliteController.class,
                 "mSatelliteServicesSupportedByCarriersFromConfig",
                 mSatelliteControllerUT, new ConcurrentHashMap<>());
@@ -3444,7 +3444,7 @@ public class SatelliteControllerTest extends TelephonyTest {
         // plmn list is empty, check whether valid entitlement plmn list is returned
         // when calling getSatellitePlmnsForCarrier before the entitlement query.
         replaceInstance(SatelliteController.class, "mEntitlementPlmnListPerCarrier",
-                mSatelliteControllerUT, new SparseArray<>());
+                mSatelliteControllerUT, new ConcurrentHashMap<>());
         List<String> expectedSatelliteEntitlementPlmnList = Arrays.asList("123456,12560");
         doReturn(expectedSatelliteEntitlementPlmnList).when(
                 mMockSubscriptionManagerService).getSatelliteEntitlementPlmnList(anyInt());
@@ -3463,7 +3463,7 @@ public class SatelliteControllerTest extends TelephonyTest {
         // plmn list is valid, check whether valid entitlement plmn list is returned when
         // calling getSatellitePlmnsForCarrier before the entitlement query.
         replaceInstance(SatelliteController.class, "mEntitlementPlmnListPerCarrier",
-                mSatelliteControllerUT, new SparseArray<>());
+                mSatelliteControllerUT, new ConcurrentHashMap<>());
         PersistableBundle carrierSupportedSatelliteServicesPerProvider = new PersistableBundle();
         List<String> carrierConfigPlmnList = Arrays.asList("00102", "00103", "00105");
         carrierSupportedSatelliteServicesPerProvider.putIntArray(
@@ -3490,7 +3490,7 @@ public class SatelliteControllerTest extends TelephonyTest {
         // plmn list is valid, check whether valid carrier config plmn list is returned when
         // calling getSatellitePlmnsForCarrier before the entitlement query.
         replaceInstance(SatelliteController.class, "mEntitlementPlmnListPerCarrier",
-                mSatelliteControllerUT, new SparseArray<>());
+                mSatelliteControllerUT, new ConcurrentHashMap<>());
         doReturn(new ArrayList<>()).when(
                 mMockSubscriptionManagerService).getSatelliteEntitlementPlmnList(anyInt());
         for (Pair<Executor, CarrierConfigManager.CarrierConfigChangeListener> pair
@@ -6390,7 +6390,7 @@ public class SatelliteControllerTest extends TelephonyTest {
         logd("testGetSatelliteDataPlanForPlmn_WithEntitlement");
 
         replaceInstance(SatelliteController.class, "mMergedPlmnListPerCarrier",
-                mSatelliteControllerUT, new SparseArray<>());
+                mSatelliteControllerUT, new ConcurrentHashMap<>());
         List<String> overlayConfigPlmnList = new ArrayList<>();
         replaceInstance(SatelliteController.class, "mSatellitePlmnListFromOverlayConfig",
                 mSatelliteControllerUT, overlayConfigPlmnList);
@@ -6423,7 +6423,7 @@ public class SatelliteControllerTest extends TelephonyTest {
         logd("testGetSatelliteDataPlanForPlmn_WithoutEntitlement");
 
         replaceInstance(SatelliteController.class, "mMergedPlmnListPerCarrier",
-                mSatelliteControllerUT, new SparseArray<>());
+                mSatelliteControllerUT, new ConcurrentHashMap<>());
         List<String> overlayConfigPlmnList = new ArrayList<>();
         replaceInstance(SatelliteController.class, "mSatellitePlmnListFromOverlayConfig",
                 mSatelliteControllerUT, overlayConfigPlmnList);
@@ -6451,7 +6451,7 @@ public class SatelliteControllerTest extends TelephonyTest {
         logd("TestGetSupportedSatelliteServicesForPlmn_WithEntitlement");
 
         replaceInstance(SatelliteController.class, "mMergedPlmnListPerCarrier",
-                mSatelliteControllerUT, new SparseArray<>());
+                mSatelliteControllerUT, new ConcurrentHashMap<>());
         List<String> overlayConfigPlmnList = new ArrayList<>();
         replaceInstance(SatelliteController.class, "mSatellitePlmnListFromOverlayConfig",
                 mSatelliteControllerUT, overlayConfigPlmnList);
@@ -6509,7 +6509,7 @@ public class SatelliteControllerTest extends TelephonyTest {
         logd("TestGetSupportedSatelliteServicesForPlmn_WithEntitlement");
 
         replaceInstance(SatelliteController.class, "mMergedPlmnListPerCarrier",
-                mSatelliteControllerUT, new SparseArray<>());
+                mSatelliteControllerUT, new ConcurrentHashMap<>());
         List<String> overlayConfigPlmnList = new ArrayList<>();
         replaceInstance(SatelliteController.class, "mSatellitePlmnListFromOverlayConfig",
                 mSatelliteControllerUT, overlayConfigPlmnList);
@@ -6570,7 +6570,7 @@ public class SatelliteControllerTest extends TelephonyTest {
         logd("TestGetSupportedSatelliteServicesForPlmn_WithEntitlement");
 
         replaceInstance(SatelliteController.class, "mMergedPlmnListPerCarrier",
-                mSatelliteControllerUT, new SparseArray<>());
+                mSatelliteControllerUT, new ConcurrentHashMap<>());
         List<String> overlayConfigPlmnList = new ArrayList<>();
         replaceInstance(SatelliteController.class, "mSatellitePlmnListFromOverlayConfig",
                 mSatelliteControllerUT, overlayConfigPlmnList);
@@ -6628,7 +6628,7 @@ public class SatelliteControllerTest extends TelephonyTest {
         logd("TestGetSupportedSatelliteServicesForPlmn_WithEntitlement");
 
         replaceInstance(SatelliteController.class, "mMergedPlmnListPerCarrier",
-                mSatelliteControllerUT, new SparseArray<>());
+                mSatelliteControllerUT, new ConcurrentHashMap<>());
         List<String> overlayConfigPlmnList = new ArrayList<>();
         replaceInstance(SatelliteController.class, "mSatellitePlmnListFromOverlayConfig",
                 mSatelliteControllerUT, overlayConfigPlmnList);
@@ -6686,7 +6686,7 @@ public class SatelliteControllerTest extends TelephonyTest {
         logd("TestGetSupportedSatelliteServicesForPlmn_WithoutAllowedServices");
 
         replaceInstance(SatelliteController.class, "mMergedPlmnListPerCarrier",
-                mSatelliteControllerUT, new SparseArray<>());
+                mSatelliteControllerUT, new ConcurrentHashMap<>());
         List<String> overlayConfigPlmnList = new ArrayList<>();
         replaceInstance(SatelliteController.class, "mSatellitePlmnListFromOverlayConfig",
                 mSatelliteControllerUT, overlayConfigPlmnList);
@@ -6737,7 +6737,7 @@ public class SatelliteControllerTest extends TelephonyTest {
         doReturn(SATELLITE_DATA_SUPPORT_ALL).when(mMockConfig).getSatelliteMaxAllowedDataMode();
 
         replaceInstance(SatelliteController.class, "mMergedPlmnListPerCarrier",
-                mSatelliteControllerUT, new SparseArray<>());
+                mSatelliteControllerUT, new ConcurrentHashMap<>());
         List<String> overlayConfigPlmnList = new ArrayList<>();
         replaceInstance(SatelliteController.class, "mSatellitePlmnListFromOverlayConfig",
                 mSatelliteControllerUT, overlayConfigPlmnList);
@@ -6826,7 +6826,7 @@ public class SatelliteControllerTest extends TelephonyTest {
                 SatelliteController.class,
                 "mMergedPlmnListPerCarrier",
                 mSatelliteControllerUT,
-                new SparseArray<>());
+                new ConcurrentHashMap<>());
         List<String> overlayConfigPlmnList = new ArrayList<>();
         replaceInstance(
                 SatelliteController.class,
@@ -6938,7 +6938,7 @@ public class SatelliteControllerTest extends TelephonyTest {
         doReturn(SATELLITE_DATA_SUPPORT_ALL).when(mMockConfig).getSatelliteMaxAllowedDataMode();
 
         replaceInstance(SatelliteController.class, "mMergedPlmnListPerCarrier",
-                mSatelliteControllerUT, new SparseArray<>());
+                mSatelliteControllerUT, new ConcurrentHashMap<>());
         List<String> overlayConfigPlmnList = new ArrayList<>();
         replaceInstance(SatelliteController.class, "mSatellitePlmnListFromOverlayConfig",
                 mSatelliteControllerUT, overlayConfigPlmnList);
@@ -7006,7 +7006,7 @@ public class SatelliteControllerTest extends TelephonyTest {
                 SatelliteController.class,
                 "mMergedPlmnListPerCarrier",
                 mSatelliteControllerUT,
-                new SparseArray<>());
+                new ConcurrentHashMap<>());
         List<String> overlayConfigPlmnList = new ArrayList<>();
         replaceInstance(
                 SatelliteController.class,

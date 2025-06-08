@@ -64,6 +64,7 @@ import com.android.internal.telephony.uicc.IccCardStatus;
 import com.android.internal.telephony.uicc.SimPhonebookRecord;
 
 import java.util.List;
+import java.util.Set;
 
 /**
  * {@hide}
@@ -3021,4 +3022,15 @@ public interface CommandsInterface {
      * @param result Callback message to receive the result.
      */
     default void isSatelliteEnabledForCarrier(int simSlot, Message result) {}
+
+    /**
+     * Update allowed IMS services to the modem. The modem can use the information for 3GPP
+     * specifications and carriers' requirements e.g. system determination.
+     *
+     * @param allowedImsServicesAny Which IMS services are allowed for both home and roaming state.
+     * @param allowedImsServicesHomeOnly Which IMS services are allowed for home state only.
+     * @param result Callback message to receive the result.
+     */
+    default void updateAllowedImsServices(@NonNull Set<Integer> allowedImsServicesAny,
+            @NonNull Set<Integer> allowedImsServicesHomeOnly, @Nullable Message result) {}
 }

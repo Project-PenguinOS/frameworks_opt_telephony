@@ -180,3 +180,14 @@ flag {
         purpose: PURPOSE_FEATURE
     }
 }
+
+# OWNER=gwenlin TARGET=26Q2
+flag {
+    name: "allowed_services"
+    namespace: "telephony"
+    description: "Update allowed services to the modem"
+    bug:"389157806"
+    metadata {
+        purpose: PURPOSE_FEATURE
+    }
+}

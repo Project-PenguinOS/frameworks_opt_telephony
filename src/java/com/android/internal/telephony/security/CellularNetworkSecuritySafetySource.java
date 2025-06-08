@@ -240,7 +240,7 @@ public class CellularNetworkSecuritySafetySource {
                 break;
             case NULL_CIPHER_STATE_NOTIFY_ENCRYPTED:
                 builder = new SafetySourceIssue.Builder(
-                        NULL_CIPHER_ISSUE_NON_ENCRYPTED_ID + "_" + subId,
+                        NULL_CIPHER_ISSUE_ENCRYPTED_ID + "_" + subId,
                         context.getString(
                                 R.string.scNullCipherIssueEncryptedTitle,
                                 subInfo.getDisplayName()),
