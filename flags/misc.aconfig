@@ -179,3 +179,14 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+# OWNER=rmao TARGET=26Q1
+flag {
+    name: "dynamic_modem_shutdown"
+    namespace: "telephony"
+    description: "Allow shutdown and turn on the modem while the overall system is on"
+    bug:"416563298"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
