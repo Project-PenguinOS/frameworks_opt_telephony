@@ -1,15 +1,6 @@
 package: "com.android.internal.telephony.flags"
 container: "system"
 
-# OWNER=tjstuart TARGET=24Q3
-flag {
-  name: "do_not_override_precise_label"
-  namespace: "telephony"
-  description: "When set, Telecom will not override the precise label for certain disconnect causes."
-  bug: "296968778"
-  is_fixed_read_only: true
-}
-
 # OWNER=tnd TARGET=24Q1
 flag {
   name: "log_mms_sms_database_access_info"

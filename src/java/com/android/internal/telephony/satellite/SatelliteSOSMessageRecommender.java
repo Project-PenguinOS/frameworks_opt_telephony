@@ -559,7 +559,11 @@ public class SatelliteSOSMessageRecommender extends Handler {
     }
 
     private void selectEmergencyCallWaitForConnectionTimeoutDuration() {
-        if (isSatelliteEmergencyMessagingViaCarrierAvailable()) {
+        if (mSatelliteController.getEmergencyCallMonitoringDurationMillisForCtsTests() > 0) {
+            mTimeoutMillis.set(
+                mSatelliteController.getEmergencyCallMonitoringDurationMillisForCtsTests());
+            plogd("Use the overridden timeout value for CTS tests");
+        } else if (isSatelliteEmergencyMessagingViaCarrierAvailable()) {
             int satelliteSubId = mSubIdOfSatelliteConnectedViaCarrierWithinHysteresisTime.get();
             mTimeoutMillis.set(mSatelliteController
                     .getCarrierEmergencyCallWaitForConnectionTimeoutMillis(satelliteSubId));
