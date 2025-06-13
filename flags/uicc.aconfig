@@ -9,14 +9,6 @@ flag {
     bug:"298567545"
 }
 
-# OWNER=arunvoddu TARGET=24Q3
-flag {
-    name: "imsi_key_retry_download_on_phone_unlock"
-    namespace: "telephony"
-    description: "This flag controls to download the IMSI encryption keys after user unlocks the phone."
-    bug:"303780982"
-}
-
 # OWNER=arunvoddu TARGET=24Q4
 flag {
     name: "carrier_restriction_status"

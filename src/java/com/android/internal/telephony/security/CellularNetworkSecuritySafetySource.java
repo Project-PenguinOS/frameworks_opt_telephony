@@ -23,8 +23,10 @@ import static android.safetycenter.SafetySourceData.SEVERITY_LEVEL_RECOMMENDATIO
 
 import android.annotation.IntDef;
 import android.app.PendingIntent;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.res.Resources;
 import android.net.Uri;
 import android.safetycenter.SafetyCenterManager;
@@ -90,6 +92,9 @@ public class CellularNetworkSecuritySafetySource {
     private boolean mIdentifierDisclosureIssuesEnabled;
     private HashMap<Integer, IdentifierDisclosure> mIdentifierDisclosures = new HashMap<>();
 
+    // Broadcast receiver for airplane mode intent broadcasts
+    private final BroadcastReceiver mReceiver = new CellularNetworkSecurityBroadcastReceiver();
+
     /**
      * Gets a singleton CellularNetworkSecuritySafetySource.
      */
@@ -110,9 +115,22 @@ public class CellularNetworkSecuritySafetySource {
 
     /** Enables or disables the null cipher issue and clears any current issues. */
     public synchronized void setNullCipherIssueEnabled(Context context, boolean enabled) {
-        mNullCipherStateIssuesEnabled = enabled;
-        mNullCipherStates.clear();
-        updateSafetyCenter(context);
+        // This check ensures that if we're enabled and we are asked to enable ourselves again (can
+        // happen if the modem restarts), we don't clear our state.
+        if (enabled != mNullCipherStateIssuesEnabled) {
+            mNullCipherStateIssuesEnabled = enabled;
+            mNullCipherStates.clear();
+            updateSafetyCenter(context);
+            if (enabled) {
+                // Register for airplane mode intent broadcasts.
+                IntentFilter intentFilter =
+                        new IntentFilter(Intent.ACTION_AIRPLANE_MODE_CHANGED);
+                context.registerReceiver(mReceiver, intentFilter);
+            } else {
+                // Unregister for airplane mode intent broadcasts.
+                context.unregisterReceiver(mReceiver);
+            }
+        }
     }
 
     /** Sets the null cipher issue state for the identified subscription. */
@@ -442,6 +460,23 @@ public class CellularNetworkSecuritySafetySource {
         @Override
         public int hashCode() {
             return Objects.hash(mDisclosureCount, mWindowStart, mWindowEnd);
+        }
+    }
+
+    /**
+     * Receiver for airplane mode intent broadcasts for cellular network security.
+     */
+    private class CellularNetworkSecurityBroadcastReceiver extends BroadcastReceiver {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            String action = intent.getAction();
+            if (action.equals(Intent.ACTION_AIRPLANE_MODE_CHANGED)) {
+                boolean airplaneMode = intent.getBooleanExtra("state", false);
+                if (airplaneMode) {
+                    mNullCipherStates.clear();
+                    updateSafetyCenter(context);
+                }
+            }
         }
     }
 }
