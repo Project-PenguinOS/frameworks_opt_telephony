@@ -1007,6 +1007,7 @@ public class SatelliteControllerTest extends TelephonyTest {
                     /*slotIndex*/ 0, /*subId*/ SUB_ID, /*carrierId*/ 0, /*specificCarrierId*/ 0)
             );
         }
+        processAllMessages();
         when(mServiceState.getNetworkRegistrationInfoList()).thenReturn(List.of(satelliteNri));
         when(mServiceState.isUsingNonTerrestrialNetwork()).thenReturn(true);
         sendServiceStateChangedEvent();

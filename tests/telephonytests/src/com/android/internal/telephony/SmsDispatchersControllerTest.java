@@ -971,26 +971,6 @@ public class SmsDispatchersControllerTest extends TelephonyTest {
 
     @Test
     @SmallTest
-    public void testSendTextWhenFeatureFlagDisabledForSmsDomainSelection() throws Exception {
-        setUpDomainSelectionConnection();
-        setUpSmsDispatchers();
-        when(mFeatureFlags.smsDomainSelectionEnabled()).thenReturn(false);
-        when(mImsSmsDispatcher.isAvailable()).thenReturn(true);
-
-        mSmsDispatchersController.sendText("1111", "2222", "text", mSentIntent, null, null,
-                "test-app", mCallingUserId, false, 0, false, 10, false, 1L, false,
-                Process.INVALID_UID);
-
-        // Expect that the domain selection is not executed and
-        // ImsSmsDispatcher handles this text directly.
-        verify(mImsSmsDispatcher).sendText(eq("1111"), eq("2222"), eq("text"),
-                eq(mSentIntent), any(), any(), eq("test-app"), eq(mCallingUserId), eq(false), eq(0),
-                eq(false), eq(10), eq(false), eq(1L), eq(false), anyLong(),
-                eq(Process.INVALID_UID));
-    }
-
-    @Test
-    @SmallTest
     public void testSendTextWhenDomainSelectionFinishedAndNewTextSent() throws Exception {
         setUpDomainSelectionConnection();
         setUpSmsDispatchers();
@@ -1151,7 +1131,6 @@ public class SmsDispatchersControllerTest extends TelephonyTest {
                         return true;
                     }
                 });
-        when(mFeatureFlags.smsDomainSelectionEnabled()).thenReturn(true);
         setUpSmsDispatchers();
         when(mImsSmsDispatcher.isAvailable()).thenReturn(true);
 
@@ -1194,7 +1173,6 @@ public class SmsDispatchersControllerTest extends TelephonyTest {
                         return true;
                     }
                 });
-        when(mFeatureFlags.smsDomainSelectionEnabled()).thenReturn(true);
         setUpSmsDispatchers();
         setUpEmergencyStateTracker(DisconnectCause.NOT_DISCONNECTED);
         when(mImsSmsDispatcher.isAvailable()).thenReturn(true);
@@ -1288,7 +1266,6 @@ public class SmsDispatchersControllerTest extends TelephonyTest {
                         return true;
                     }
                 });
-        when(mFeatureFlags.smsDomainSelectionEnabled()).thenReturn(enabled);
     }
 
     private void setUpDomainSelectionConnection() {
@@ -1309,7 +1286,6 @@ public class SmsDispatchersControllerTest extends TelephonyTest {
                         return true;
                     }
                 });
-        when(mFeatureFlags.smsDomainSelectionEnabled()).thenReturn(true);
 
         mDscFuture = new CompletableFuture<>();
         when(mSmsDsc.requestDomainSelection(

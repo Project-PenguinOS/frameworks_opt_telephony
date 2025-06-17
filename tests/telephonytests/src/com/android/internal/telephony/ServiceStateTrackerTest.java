@@ -422,6 +422,21 @@ public class ServiceStateTrackerTest extends TelephonyTest {
     }
 
     @Test
+    public void testSetRadioPowerAfterShuttingDownRequest() throws Exception {
+        sst.setRadioPower(true);
+        processAllMessages();
+
+        sst.requestShutdown();
+        processAllMessages();
+        assertTrue(mSimulatedCommands.getRadioState() == TelephonyManager.RADIO_POWER_UNAVAILABLE);
+        assertEquals(TelephonyManager.RADIO_POWER_UNAVAILABLE, mSimulatedCommands.getRadioState());
+
+        sst.setRadioPower(true);
+        processAllMessages();
+        assertEquals(TelephonyManager.RADIO_POWER_ON, mSimulatedCommands.getRadioState());
+    }
+
+    @Test
     public void testSetRadioPowerWaitForAllDataDisconnected() throws Exception {
         // Set up DSDS environment
         GsmCdmaPhone phone2 = Mockito.mock(GsmCdmaPhone.class);

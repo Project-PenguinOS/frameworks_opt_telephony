@@ -3192,6 +3192,11 @@ public class SubscriptionManagerService extends ISub.Stub {
                     + subId + ", phoneId=" + phoneId);
             mDefaultSubId.set(subId);
 
+            if (mFeatureFlags.updateResourceConfiguration()) {
+                String mccMnc = mTelephonyManager.getSimOperatorNumeric(subId);
+                MccTable.updateMccMncConfiguration(mContext, mccMnc);
+            }
+
             Intent intent = new Intent(SubscriptionManager.ACTION_DEFAULT_SUBSCRIPTION_CHANGED);
             intent.addFlags(Intent.FLAG_RECEIVER_REPLACE_PENDING);
             SubscriptionManager.putPhoneIdAndSubIdExtra(intent, phoneId, subId);

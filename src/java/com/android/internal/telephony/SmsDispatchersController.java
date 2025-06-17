@@ -1057,8 +1057,7 @@ public class SmsDispatchersController extends Handler {
      * @return {@code true} if the SMS domain selection is enabled, {@code false} otherwise.
      */
     private boolean isSmsDomainSelectionEnabled() {
-        return mFeatureFlags.smsDomainSelectionEnabled()
-                && mDomainSelectionResolverProxy.isDomainSelectionSupported();
+        return mDomainSelectionResolverProxy.isDomainSelectionSupported();
     }
 
     /**

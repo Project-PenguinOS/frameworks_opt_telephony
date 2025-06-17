@@ -1,14 +1,6 @@
 package: "com.android.internal.telephony.flags"
 container: "system"
 
-# OWNER=hwangoo TARGET=24Q2
-flag {
-  name: "sms_domain_selection_enabled"
-  namespace: "telephony"
-  description: "This flag controls AP domain selection support for normal/emergency SMS."
-  bug: "262804071"
-}
-
 # OWNER=tnd TARGET=24Q3
 flag {
   name: "mms_disabled_error"
