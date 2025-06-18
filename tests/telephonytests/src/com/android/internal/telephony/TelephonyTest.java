@@ -90,6 +90,7 @@ import android.test.mock.MockContentResolver;
 import android.testing.TestableLooper;
 import android.util.Log;
 import android.util.Singleton;
+import android.view.textclassifier.TextClassifier;
 
 import com.android.ims.ImsCall;
 import com.android.ims.ImsEcbm;
@@ -313,6 +314,9 @@ public abstract class TelephonyTest {
     private final List<InstanceKey> mInstanceKeys = new ArrayList<>();
 
     protected int mIntegerConsumerResult;
+
+    protected TextClassifier mTextClassifier;
+
     protected Semaphore mIntegerConsumerSemaphore = new Semaphore(0);
     protected  Consumer<Integer> mIntegerConsumer = new Consumer<Integer>() {
         @Override
@@ -463,6 +467,7 @@ public abstract class TelephonyTest {
         mFeatureFlags = Mockito.mock(FeatureFlags.class);
         mPhone = Mockito.mock(GsmCdmaPhone.class);
         mPhone2 = Mockito.mock(GsmCdmaPhone.class);
+        mTextClassifier = Mockito.mock(TextClassifier.class);
         mImsPhone = Mockito.mock(ImsPhone.class);
         mSST = Mockito.mock(ServiceStateTracker.class);
         mEmergencyNumberTracker = Mockito.mock(EmergencyNumberTracker.class);
@@ -566,6 +571,8 @@ public abstract class TelephonyTest {
         lenient().doReturn(true).when(mFeatureFlags).cleanupCdma();
         lenient().doReturn(true).when(mFeatureFlags).threadShred();
         lenient().doReturn(true).when(mFeatureFlags).dynamicModemShutdown();
+        lenient().doReturn(true).when(mFeatureFlags).dataServiceNotifyImsDataNetwork();
+        lenient().doReturn(true).when(mFeatureFlags).keepWfcOnApm();
 
         WorkerThread.reset();
         TelephonyManager.disableServiceHandleCaching();
@@ -599,6 +606,7 @@ public abstract class TelephonyTest {
 // QTI_END: 2023-11-10: Telephony: Remove legacy subscription code
 
         mPhone.mCi = mSimulatedCommands;
+        mPhone.mCT = mCT;
         mCT.mCi = mSimulatedCommands;
         lenient().doReturn(mUiccCard).when(mPhone).getUiccCard();
         lenient().doReturn(mUiccCard).when(mUiccSlot).getUiccCard();
@@ -809,6 +817,7 @@ public abstract class TelephonyTest {
         lenient().doReturn(mPhone).when(mCT).getPhone();
         lenient().doReturn(mImsEcbm).when(mImsManager).getEcbmInterface();
         lenient().doReturn(mPhone).when(mInboundSmsHandler).getPhone();
+        Mockito.when(mInboundSmsHandler.getTextClassifier()).thenReturn(mTextClassifier);
         lenient().doReturn(mImsCallProfile).when(mImsCall).getCallProfile();
         lenient().doReturn(mIBinder).when(mIIntentSender).asBinder();
         doAnswer(invocation -> {

@@ -744,6 +744,8 @@ message SatelliteController {
     optional int32 count_of_outgoing_datagram_type_sms_fail = 41;
     optional int32 count_of_incoming_datagram_type_sms_success = 42;
     optional int32 count_of_incoming_datagram_type_sms_fail = 43;
+    optional int32 carrier_roaming_satellite_config_version = 44;
+    optional int32 max_allowed_data_mode = 45;
 }
 
 message SatelliteSession {

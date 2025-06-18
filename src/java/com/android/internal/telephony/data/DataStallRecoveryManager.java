@@ -520,6 +520,10 @@ public class DataStallRecoveryManager extends Handler {
      */
     @VisibleForTesting
     public long getDataStallRecoveryDelayMillis(@RecoveryAction int recoveryAction) {
+        if (recoveryAction == RECOVERY_ACTION_RESET_MODEM && !mIsAttemptedAllSteps) {
+            // Use the previous delay time if attempting to retry the modem reset.
+            recoveryAction = RECOVERY_ACTION_RADIO_RESTART;
+        }
         return mDataStallRecoveryDelayMillisArray[recoveryAction];
     }
 
@@ -592,12 +596,17 @@ public class DataStallRecoveryManager extends Handler {
             // Broadcast intent that data stall recovered.
             broadcastDataStallDetected(mLastAction);
             reset(false);
-        } else if (isRecoveryNeeded(true)) {
-            // Set the network as invalid, because recovery is needed
-            mIsValidNetwork = false;
-            log("trigger data stall recovery");
-            mTimeLastRecoveryStartMs = SystemClock.elapsedRealtime();
-            sendMessage(obtainMessage(EVENT_SEND_DATA_STALL_BROADCAST));
+        } else {
+            if (mRecoveryTriggered) {
+                logl("Validation failed, but recovery has already started.");
+            } else {
+                if (isRecoveryNeeded(true)) {
+                    mIsValidNetwork = false;
+                    log("trigger data stall recovery");
+                    mTimeLastRecoveryStartMs = SystemClock.elapsedRealtime();
+                    sendMessage(obtainMessage(EVENT_SEND_DATA_STALL_BROADCAST));
+                }
+            }
         }
     }
 
@@ -764,15 +773,27 @@ public class DataStallRecoveryManager extends Handler {
      * @param action The recovery action to start the network check timer.
      */
     private void startNetworkCheckTimer(@RecoveryAction int action) {
+        int delayMillisIdx = -1;
         // Ignore send message delayed due to reached the last action.
-        if (action == RECOVERY_ACTION_RESET_MODEM) return;
+        if (action == RECOVERY_ACTION_RESET_MODEM && mIsAttemptedAllSteps) {
+            log("startNetworkCheckTimer: RESET_MODEM was the last action and all steps completed, "
+                    + "no further timer scheduled.");
+            return;
+        }
+
+        if (action == RECOVERY_ACTION_RESET_MODEM) {
+            delayMillisIdx = RECOVERY_ACTION_RADIO_RESTART;
+        } else {
+            delayMillisIdx = action;
+        }
+
         log("startNetworkCheckTimer(): " + getDataStallRecoveryDelayMillis(action) + "ms");
         if (!mNetworkCheckTimerStarted) {
             mNetworkCheckTimerStarted = true;
             mTimeLastRecoveryStartMs = SystemClock.elapsedRealtime();
             sendMessageDelayed(
                     obtainMessage(EVENT_SEND_DATA_STALL_BROADCAST),
-                    getDataStallRecoveryDelayMillis(action));
+                    getDataStallRecoveryDelayMillis(delayMillisIdx));
         }
     }
 
@@ -1011,6 +1032,13 @@ public class DataStallRecoveryManager extends Handler {
         mLastActionReported = false;
         mNetworkCheckTimerStarted = false;
         mTimeElapsedOfCurrentAction = SystemClock.elapsedRealtime();
+
+        if (!isRecoveryNeeded(false)) {
+            logl("doRecovery: Action " + recoveryActionToString(recoveryAction)
+                    + " skipped because isRecoveryNeeded failed.");
+            startNetworkCheckTimer(recoveryAction);
+            return;
+        }
 
         switch (recoveryAction) {
             case RECOVERY_ACTION_GET_DATA_CALL_LIST:

@@ -26,6 +26,9 @@ import android.os.AsyncResult;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
+import android.telephony.AccessNetworkConstants.RadioAccessNetworkType;
+import android.telephony.AccessNetworkConstants.TransportType;
+import android.telephony.Annotation.DataState;
 import android.telephony.SubscriptionManager;
 import android.telephony.data.DataCallResponse;
 import android.telephony.data.DataProfile;
@@ -67,6 +70,7 @@ public class CellularDataService extends DataService {
     private static final int APN_UNTHROTTLED                        = 9;
     private static final int SET_USER_DATA_ENABLED_COMPLETED        = 10;
     private static final int SET_USER_DATA_ROAMING_ENABLED_COMPLETED = 11;
+    private static final int NOTIFY_IMS_DATA_NETWORK_COMPLETED        = 12;
 
     @SuppressWarnings("unchecked")
     private class CellularDataServiceProvider extends DataService.DataServiceProvider {
@@ -154,6 +158,9 @@ public class CellularDataService extends DataService {
                             resultCodeCallback.accept(toResultCode(ar.exception));
                             break;
                         case SET_USER_DATA_ROAMING_ENABLED_COMPLETED:
+                            resultCodeCallback.accept(toResultCode(ar.exception));
+                            break;
+                        case NOTIFY_IMS_DATA_NETWORK_COMPLETED:
                             resultCodeCallback.accept(toResultCode(ar.exception));
                             break;
                         default:
@@ -322,6 +329,21 @@ public class CellularDataService extends DataService {
             mResultCodeCallbackMap.put(message,
                     new ResultCodeCallback(executor, resultCodeCallback));
             mPhone.mCi.setUserDataRoamingEnabled(message, enabled);
+        }
+
+        @Override
+        public void notifyImsDataNetwork(@RadioAccessNetworkType int accessNetwork,
+                @DataState int dataNetworkState, @TransportType int physicalTransportType,
+                int physicalNetworkSlotIndex, @NonNull @CallbackExecutor Executor executor,
+                @NonNull @DataServiceCallback.ResultCode Consumer<Integer> resultCodeCallback) {
+            Objects.requireNonNull(executor, "executor cannot be null");
+            Objects.requireNonNull(resultCodeCallback, "resultCodeCallback cannot be null");
+            if (DBG) log("notifyImsDataNetwork " + getSlotIndex());
+            Message message = Message.obtain(mHandler, NOTIFY_IMS_DATA_NETWORK_COMPLETED);
+            mResultCodeCallbackMap.put(message,
+                    new ResultCodeCallback(executor, resultCodeCallback));
+            mPhone.mCi.notifyImsDataNetwork(accessNetwork, dataNetworkState, physicalTransportType,
+                    physicalNetworkSlotIndex, message);
         }
 
         @Override

@@ -919,14 +919,10 @@ public final class ImsPhoneMmiCode extends Handler implements MmiCode {
                 int serviceClass = siToServiceClass(mSib);
                 int time;
 
-                if (mFeatureFlags.useCarrierConfigForCfnryTimeViaMmi()) {
-                    // If the code is CFNRy and time is null(empty)
-                    // use the default time value from CarrierConfig
-                    if (mSc.equals(SC_CFNRy) && isEmptyOrNull(mSic)) {
-                        time = getCfnryTime();
-                    } else {
-                        time = siToTime(mSic);
-                    }
+                // If the code is CFNRy and time is null(empty)
+                // use the default time value from CarrierConfig
+                if (mSc.equals(SC_CFNRy) && isEmptyOrNull(mSic)) {
+                    time = getCfnryTime();
                 } else {
                     time = siToTime(mSic);
                 }

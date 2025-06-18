@@ -128,6 +128,7 @@ import static com.android.internal.telephony.RILConstants.RIL_REQUEST_IS_SECURIT
 import static com.android.internal.telephony.RILConstants.RIL_REQUEST_IS_VONR_ENABLED;
 import static com.android.internal.telephony.RILConstants.RIL_REQUEST_LAST_CALL_FAIL_CAUSE;
 import static com.android.internal.telephony.RILConstants.RIL_REQUEST_LAST_DATA_CALL_FAIL_CAUSE;
+import static com.android.internal.telephony.RILConstants.RIL_REQUEST_NOTIFY_IMS_DATA_NETWORK;
 import static com.android.internal.telephony.RILConstants.RIL_REQUEST_NV_READ_ITEM;
 import static com.android.internal.telephony.RILConstants.RIL_REQUEST_NV_RESET_CONFIG;
 import static com.android.internal.telephony.RILConstants.RIL_REQUEST_NV_WRITE_CDMA_PRL;
@@ -315,6 +316,7 @@ import android.os.SystemClock;
 import android.service.carrier.CarrierIdentifier;
 import android.telephony.AccessNetworkConstants;
 import android.telephony.Annotation;
+import android.telephony.Annotation.DataState;
 import android.telephony.BarringInfo;
 import android.telephony.CarrierInfo;
 import android.telephony.CarrierRestrictionRules;
@@ -4828,6 +4830,29 @@ public class RILUtils {
         };
     }
 
+    /**
+     * Convert to HAL data network state.
+     * @param state Telephony data state.
+     * @return The converted HAL data network state.
+     */
+    public static int convertToHalDataNetworkState(@DataState int state) {
+        return switch (state) {
+            case TelephonyManager.DATA_UNKNOWN ->
+                    android.hardware.radio.data.DataNetworkState.UNKNOWN;
+            case TelephonyManager.DATA_DISCONNECTED ->
+                    android.hardware.radio.data.DataNetworkState.DISCONNECTED;
+            case TelephonyManager.DATA_CONNECTING ->
+                    android.hardware.radio.data.DataNetworkState.CONNECTING;
+            case TelephonyManager.DATA_CONNECTED ->
+                    android.hardware.radio.data.DataNetworkState.CONNECTED;
+            case TelephonyManager.DATA_DISCONNECTING ->
+                    android.hardware.radio.data.DataNetworkState.DISCONNECTING;
+            default ->
+                    // Throw an exception for any unsupported state.
+                    throw new IllegalArgumentException("Unsupported data state: " + state);
+        };
+    }
+
     /** Append the data to the end of an ArrayList */
     public static void appendPrimitiveArrayToArrayList(byte[] src, ArrayList<Byte> dst) {
         for (byte b : src) {
@@ -5338,6 +5363,8 @@ public class RILUtils {
                 return "SET_USER_DATA_ROAMING_ENABLED";
             case RIL_REQUEST_UPDATE_ALLOWED_IMS_SERVICES:
                 return "UPDATE_ALLOWED_IMS_SERVICES";
+            case RIL_REQUEST_NOTIFY_IMS_DATA_NETWORK:
+                return "NOTIFY_IMS_DATA_NETWORK";
             default:
                 return "<unknown request " + request + ">";
         }

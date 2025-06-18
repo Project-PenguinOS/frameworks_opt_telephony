@@ -112,6 +112,8 @@ public class SatelliteStats {
         private final int mCountOfOutgoingDatagramTypeSmsFail;
         private final int mCountOfIncomingDatagramTypeSmsSuccess;
         private final int mCountOfIncomingDatagramTypeSmsFail;
+        private static int sCarrierRoamingSatelliteConfigVersion;
+        private static int sMaxAllowedDataMode;
 
         private SatelliteControllerParams(Builder builder) {
             this.mCountOfSatelliteServiceEnablementsSuccess =
@@ -199,6 +201,16 @@ public class SatelliteStats {
             this.mCountOfIncomingDatagramTypeSmsSuccess =
                     builder.mCountOfIncomingDatagramTypeSmsSuccess;
             this.mCountOfIncomingDatagramTypeSmsFail = builder.mCountOfIncomingDatagramTypeSmsFail;
+
+            // carrier roaming satellite config version should be updated only when it's meaningful.
+            if (builder.mCarrierRoamingSatelliteConfigVersion.isPresent()) {
+                this.sCarrierRoamingSatelliteConfigVersion =
+                        builder.mCarrierRoamingSatelliteConfigVersion.get();
+            }
+            // max allowed data mode value should be updated only when it is meaningful.
+            if (builder.mMaxAllowedDataMode.isPresent()) {
+                this.sMaxAllowedDataMode = builder.mMaxAllowedDataMode.get();
+            }
         }
 
         public int getCountOfSatelliteServiceEnablementsSuccess() {
@@ -373,6 +385,14 @@ public class SatelliteStats {
             return mCountOfIncomingDatagramTypeSmsFail;
         }
 
+        public static int getCarrierRoamingSatelliteConfigVersion() {
+            return sCarrierRoamingSatelliteConfigVersion;
+        }
+
+        public static int getMaxAllowedDataMode() {
+            return sMaxAllowedDataMode;
+        }
+
         /**
          * A builder class to create {@link SatelliteControllerParams} data structure class
          */
@@ -420,6 +440,9 @@ public class SatelliteStats {
             private int mCountOfOutgoingDatagramTypeSmsFail;
             private int mCountOfIncomingDatagramTypeSmsSuccess;
             private int mCountOfIncomingDatagramTypeSmsFail;
+            private Optional<Integer> mCarrierRoamingSatelliteConfigVersion = Optional.empty();
+            private Optional<Integer> mMaxAllowedDataMode = Optional.empty();
+
 
             /**
              * Sets countOfSatelliteServiceEnablementsSuccess value of {@link SatelliteController}
@@ -849,6 +872,26 @@ public class SatelliteStats {
             }
 
             /**
+             * Sets carrier roaming satellite config version of {@link SatelliteController} atom
+             * then returns Builder class
+             */
+            public Builder setCarrierRoamingSatelliteConfigVersion(
+                    int carrierRoamingSatelliteConfigVersion) {
+                this.mCarrierRoamingSatelliteConfigVersion =
+                        Optional.of(carrierRoamingSatelliteConfigVersion);
+                return this;
+            }
+
+            /**
+             * Sets max allowed data mode value of {@link SatelliteController} atom
+             * then returns Builder class
+             */
+            public Builder setMaxAllowedDataMode(int maxAllowedDataMode) {
+                this.mMaxAllowedDataMode = Optional.of(maxAllowedDataMode);
+                return this;
+            }
+
+            /**
              * Returns ControllerParams, which contains whole component of
              * {@link SatelliteController} atom
              */
@@ -918,6 +961,9 @@ public class SatelliteStats {
                     + ", countOfIncomingDatagramTypeSmsSuccess="
                     + mCountOfIncomingDatagramTypeSmsSuccess
                     + ", countOfIncomingDatagramTypeSmsFail=" + mCountOfIncomingDatagramTypeSmsFail
+                    + ", carrierRoamingSatelliteConfigVersion="
+                    + sCarrierRoamingSatelliteConfigVersion
+                    + ", maxAllowedDataMode=" + sMaxAllowedDataMode
                     + ")";
         }
     }
@@ -3312,6 +3358,10 @@ public class SatelliteStats {
         proto.countOfIncomingDatagramTypeSmsSuccess =
                 param.getCountOfIncomingDatagramTypeSmsSuccess();
         proto.countOfIncomingDatagramTypeSmsFail = param.getCountOfIncomingDatagramTypeSmsFail();
+        proto.carrierRoamingSatelliteConfigVersion =
+                param.getCarrierRoamingSatelliteConfigVersion();
+        proto.maxAllowedDataMode = param.getMaxAllowedDataMode();
+
         if (DBG) logd("onSatelliteControllerMetrics" + param);
         mAtomsStorage.addSatelliteControllerStats(proto);
     }

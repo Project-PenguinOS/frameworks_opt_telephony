@@ -1501,7 +1501,9 @@ public class MetricsCollector implements StatsManager.StatsPullAtomCallback {
                 satelliteController.countOfOutgoingDatagramTypeSmsSuccess,
                 satelliteController.countOfOutgoingDatagramTypeSmsFail,
                 satelliteController.countOfIncomingDatagramTypeSmsSuccess,
-                satelliteController.countOfIncomingDatagramTypeSmsFail);
+                satelliteController.countOfIncomingDatagramTypeSmsFail,
+                satelliteController.carrierRoamingSatelliteConfigVersion,
+                satelliteController.maxAllowedDataMode);
     }
 
     private static StatsEvent buildStatsEvent(SatelliteSession satelliteSession) {

@@ -99,3 +99,11 @@ flag {
     purpose: PURPOSE_BUGFIX
   }
 }
+
+# OWNER=gwenlin TARGET=26Q2
+flag {
+  name: "data_service_notify_ims_data_network"
+  namespace: "telephony"
+  description: "Support notifying IMS data network"
+  bug:"389103112"
+}

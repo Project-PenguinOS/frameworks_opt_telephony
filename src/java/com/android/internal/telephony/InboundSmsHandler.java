@@ -16,6 +16,7 @@
 
 package com.android.internal.telephony;
 
+import static android.Manifest.permission.RECEIVE_SENSITIVE_NOTIFICATIONS;
 import static android.os.PowerWhitelistManager.REASON_EVENT_MMS;
 import static android.os.PowerWhitelistManager.REASON_EVENT_SMS;
 import static android.os.PowerWhitelistManager.TEMPORARY_ALLOWLIST_TYPE_FOREGROUND_SERVICE_ALLOWED;
@@ -24,6 +25,7 @@ import static android.provider.Telephony.Sms.Intents.RESULT_SMS_DISPATCH_FAILURE
 import static android.provider.Telephony.Sms.Intents.RESULT_SMS_INVALID_URI;
 import static android.provider.Telephony.Sms.Intents.RESULT_SMS_NULL_MESSAGE;
 import static android.provider.Telephony.Sms.Intents.RESULT_SMS_NULL_PDU;
+import static android.provider.Telephony.Sms.Intents.SMS_RECEIVED_ACTION;
 import static android.service.carrier.CarrierMessagingService.RECEIVE_OPTIONS_SKIP_NOTIFY_WHEN_CREDENTIAL_PROTECTED_STORAGE_UNAVAILABLE;
 import static android.telephony.TelephonyManager.PHONE_TYPE_CDMA;
 
@@ -31,6 +33,7 @@ import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.SuppressLint;
+import android.annotation.WorkerThread;
 import android.app.Activity;
 import android.app.AppOpsManager;
 import android.app.BroadcastOptions;
@@ -53,6 +56,7 @@ import android.net.Uri;
 import android.os.AsyncResult;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
 import android.os.PowerManager;
@@ -69,6 +73,9 @@ import android.telephony.TelephonyManager;
 import android.text.TextUtils;
 import android.util.LocalLog;
 import android.util.Pair;
+import android.view.textclassifier.TextClassificationManager;
+import android.view.textclassifier.TextClassifier;
+import android.view.textclassifier.TextLinks;
 
 import com.android.internal.R;
 import com.android.internal.annotations.VisibleForTesting;
@@ -97,6 +104,10 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * This class broadcasts incoming SMS messages to interested apps after storing them in the
@@ -280,6 +291,22 @@ public abstract class InboundSmsHandler extends StateMachine {
     // Only mark deleted, but keep in db for message de-duping
     private final int MARK_DELETED = 2;
 
+    /** A possible OTP message should only have its broadcast delayed for up to 5 seconds
+     */
+    private static final long MAXIMUM_BROADCAST_DELAY_TIME_MS = TimeUnit.SECONDS.toMillis(5);
+
+    private static final TextClassifier.EntityConfig TC_REQUEST_CONFIG =
+            new TextClassifier.EntityConfig.Builder()
+                    .setIncludedTypes(List.of(TextClassifier.TYPE_OTP))
+                    .includeTypesFromTextClassifier(false)
+                    .build();
+
+    private final Executor mBackgroundExecutor = Executors.newSingleThreadExecutor();
+
+    private final Handler mMainThreadHandler = new Handler(Looper.getMainLooper());
+
+    private TextClassifier mTextClassifier;
+
     private static String ACTION_OPEN_SMS_APP =
         "com.android.internal.telephony.OPEN_DEFAULT_SMS_APP";
 
@@ -330,6 +357,18 @@ public abstract class InboundSmsHandler extends StateMachine {
 
         setInitialState(mStartupState);
         if (DBG) log("created InboundSmsHandler");
+    }
+
+    @VisibleForTesting
+    // Required for the unit tests to function as TextClassificationManager is a final class that
+    // cannot be mocked and hence cannot return in mock object in mocked method getSystemService.
+    // Instead this particular method is being mocked in the unit tests.
+    public TextClassifier getTextClassifier() {
+        if (mTextClassifier == null) {
+            mTextClassifier = mContext.getSystemService(TextClassificationManager.class)
+                    .getTextClassifier(TextClassifier.CLASSIFIER_TYPE_ANDROID_DEFAULT);
+        }
+        return mTextClassifier;
     }
 
     /**
@@ -1446,27 +1485,157 @@ public abstract class InboundSmsHandler extends StateMachine {
                     }
                 }
                 // Only pass in the resultReceiver when the MAIN user is processed.
-                try {
-                    if (isMainUser(users[i])) {
-                        resultReceiver.setWaitingForIntent(intent);
-                    }
-                    mContext.createPackageContextAsUser(mContext.getPackageName(), 0, targetUser)
-                            .sendOrderedBroadcast(intent, Activity.RESULT_OK, permission, appOp,
-                                    isMainUser(users[i])
-                                            ? resultReceiver : null, getHandler(),
-                                    null /* initialData */, null /* initialExtras */, opts);
-                } catch (PackageManager.NameNotFoundException ignored) {
-                }
+                sendBroadcast(intent, permission, appOp, opts,
+                        isMainUser(users[i]) ? resultReceiver : null, targetUser);
             }
         } else {
+            resultReceiver.setWaitingForIntent(intent);
+            sendBroadcast(intent, permission, appOp, opts, resultReceiver, user);
+        }
+    }
+
+    private boolean shouldCheckForOtp(Intent intent) {
+        // We only care about this for the SMS_RECEIVED broadcast
+        if (!SMS_RECEIVED_ACTION.equals(intent.getAction())) {
+            return false;
+        }
+        SmsMessage[] messages = Telephony.Sms.Intents.getMessagesFromIntent(intent);
+        if (messages == null) {
+            return false;
+        }
+
+        for (SmsMessage message: messages) {
+            if (message != null && message.getDisplayMessageBody() != null
+                    && Telephony.Sms.shouldCheckForOtp(message.getDisplayMessageBody())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void sendBroadcast(Intent intent, String permission, String appOp,
+            Bundle opts, SmsBroadcastReceiver resultReceiver, UserHandle user) {
+        if (resultReceiver != null) {
+            // Set the intent that the result receiver is waiting for, so that it can be handled
+            // correctly when the broadcast is received. This is needed to wait for the main user
+            // broadcast to complete before continuing with the next message.
+            resultReceiver.setWaitingForIntent(intent);
+        }
+        if (!shouldCheckForOtp(intent)) {
             try {
-                resultReceiver.setWaitingForIntent(intent);
                 mContext.createPackageContextAsUser(mContext.getPackageName(), 0, user)
                         .sendOrderedBroadcast(intent, Activity.RESULT_OK, permission, appOp,
                                 resultReceiver, getHandler(), null /* initialData */,
                                 null /* initialExtras */, opts);
             } catch (PackageManager.NameNotFoundException ignored) {
             }
+        } else {
+            checkOtpAndSendBroadcast(intent, permission, appOp, opts, resultReceiver, user);
+        }
+    }
+
+    private void checkOtpAndSendBroadcast(Intent intent, String permission, String appOp,
+            Bundle opts, SmsBroadcastReceiver resultReceiver, UserHandle user) {
+        mBackgroundExecutor.execute(() -> {
+            AtomicBoolean containsOtpCallPending = new AtomicBoolean(true);
+            AtomicBoolean sentBroadcastAfterWaitingMaxTime = new AtomicBoolean(false);
+            mMainThreadHandler.postDelayed(() -> {
+                if (containsOtpCallPending.get()) {
+                    // If we've waited the maximum time, and still haven't classified, send the
+                    // broadcast.
+                    sentBroadcastAfterWaitingMaxTime.set(true);
+                    sendBroadcastWithStandardPermissions(intent, permission, appOp, opts,
+                            resultReceiver, user);
+                }
+            }, MAXIMUM_BROADCAST_DELAY_TIME_MS);
+            boolean containsOtp = containsOtp(intent);
+            containsOtpCallPending.set(false);
+            if (sentBroadcastAfterWaitingMaxTime.get()) {
+                // Broadcast was already sent, don't re-send
+                return;
+            }
+            if (containsOtp) {
+                sendBroadcastWithRedactedPermissionChecks(intent, permission, appOp, opts,
+                        resultReceiver, user);
+            } else {
+                sendBroadcastWithStandardPermissions(intent, permission, appOp, opts,
+                        resultReceiver, user);
+            }
+
+        });
+    }
+
+    @WorkerThread
+    private boolean containsOtp(Intent intent) {
+        SmsMessage[] messages = Telephony.Sms.Intents.getMessagesFromIntent(intent);
+        if (messages == null) {
+            return false;
+        }
+
+        StringBuilder textBuilder = new StringBuilder();
+        for (SmsMessage message : messages) {
+            if (message != null && message.getDisplayMessageBody() != null) {
+                textBuilder.append(message.getDisplayMessageBody());
+            }
+        }
+        if (textBuilder.isEmpty()) {
+            return false;
+        }
+        String text = textBuilder.toString();
+
+        TextLinks.Request request =
+                new TextLinks.Request.Builder(text).setEntityConfig(TC_REQUEST_CONFIG).build();
+
+        TextLinks links = getTextClassifier().generateLinks(request);
+
+        for (TextLinks.TextLink link : links.getLinks()) {
+            for (int i = 0; i < link.getEntityCount(); i++) {
+                if (link.getEntity(i).equals(TextClassifier.TYPE_OTP)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private void sendBroadcastWithStandardPermissions(Intent intent, String permission,
+            String appOp, Bundle opts, SmsBroadcastReceiver resultReceiver, UserHandle user) {
+        try {
+            mContext.createPackageContextAsUser(mContext.getPackageName(), 0, user)
+                    .sendOrderedBroadcast(intent, Activity.RESULT_OK, permission, appOp,
+                            resultReceiver, getHandler(), null /* initialData */,
+                            null /* initialExtras */, opts);
+        } catch (PackageManager.NameNotFoundException ignored) {
+        }
+    }
+
+    private void sendBroadcastWithRedactedPermissionChecks(Intent intent, String permission,
+            String appOp, Bundle opts, SmsBroadcastReceiver resultReceiver, UserHandle user) {
+        // Send a message with the RECEIVE_SENSITIVE_NOTIFICATIONS permission. The result receiver
+        // is not passed, as we will pass it when sending the second copy of this broadcast.
+        String[] permissions = new String[]{permission, RECEIVE_SENSITIVE_NOTIFICATIONS};
+        try {
+            mContext.createPackageContextAsUser(mContext.getPackageName(), 0, user)
+                    .sendOrderedBroadcastMultiplePermissions(intent, permissions, appOp,
+                            /* resultReceiver */ null, getHandler(), Activity.RESULT_OK,
+                            null /* initialData */, null /* initialExtras */, opts);
+        } catch (PackageManager.NameNotFoundException ignored) {
+        }
+
+        // Send a message with the RECEIVE_SENSITIVE_NOTIFICATIONS app op. While this does override
+        // the specified app op, for the RECEIVE_SMS permission, the app op is automatically checked
+        // at the same time as the permission, so specifying the app op is superfluous.
+        try {
+            permissions = new String[]{permission};
+            appOp = AppOpsManager.OPSTR_RECEIVE_SENSITIVE_NOTIFICATIONS;
+            // Don't send this to receivers that got the first broadcast
+            String[] excludedPermissions = new String[]{RECEIVE_SENSITIVE_NOTIFICATIONS};
+            mContext.createPackageContextAsUser(mContext.getPackageName(), 0, user)
+                    .sendOrderedBroadcastMultiplePermissions(intent, permissions,
+                            excludedPermissions, appOp, resultReceiver, getHandler(),
+                            Activity.RESULT_OK, null /* initialData */, null /* initialExtras */,
+                            opts);
+        } catch (PackageManager.NameNotFoundException ignored) {
         }
     }
 
@@ -1817,7 +1986,7 @@ public abstract class InboundSmsHandler extends StateMachine {
             String action = intent.getAction();
             if (mWaitingForIntent == null || !mWaitingForIntent.getAction().equals(action)) {
                 logeWithLocalLog("handleAction: Received " + action + " when expecting "
-                        + mWaitingForIntent == null ? "none" : mWaitingForIntent.getAction(),
+                        + (mWaitingForIntent == null ? "none" : mWaitingForIntent.getAction()),
                         mInboundSmsTracker.getMessageId());
                 return;
             }

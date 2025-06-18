@@ -1723,6 +1723,42 @@ public class ImsPhoneTest extends TelephonyTest {
                 && regInfo[2] == SUGGESTED_ACTION_TRIGGER_CLEAR_RAT_BLOCKS);
     }
 
+    /**
+     * Verifies that valid throttle time is passed to RIL when IMS registration state changes to
+     * unregistered.
+     */
+    @Test
+    @SmallTest
+    public void testUpdateImsRegistrationInfoWithThrottleTime() {
+        doReturn(true).when(mFeatureFlags).supportThrottleTimeForDeregistration();
+
+        mSimulatedCommands.updateImsRegistrationInfo(0, 0, 0, 0, 0, null);
+
+        int[] regInfo = mSimulatedCommands.getImsRegistrationInfo();
+        assertNotNull(regInfo);
+        assertTrue(regInfo[0] == 0 && regInfo[1] == 0 && regInfo[2] == 0 && regInfo[4] == 0);
+
+        RegistrationManager.RegistrationCallback registrationCallback =
+                mImsPhoneUT.getImsMmTelRegistrationCallback();
+
+        ImsReasonInfo reasonInfo = new ImsReasonInfo(ImsReasonInfo.CODE_REGISTRATION_ERROR,
+                ImsReasonInfo.CODE_UNSPECIFIED, "");
+
+        // unregistered with throttle time
+        int testThrottleTimeSec = 30;
+
+        registrationCallback.onUnregistered(reasonInfo,
+                SUGGESTED_ACTION_NONE,
+                REGISTRATION_TECH_LTE,
+                testThrottleTimeSec);
+        regInfo = mSimulatedCommands.getImsRegistrationInfo();
+
+        assertTrue(regInfo[0] == RegistrationManager.REGISTRATION_STATE_NOT_REGISTERED
+                && regInfo[1] == REGISTRATION_TECH_LTE
+                && regInfo[2] == SUGGESTED_ACTION_NONE
+                && regInfo[4] == testThrottleTimeSec);
+    }
+
     @Test
     @SmallTest
     public void testImsDialArgsBuilderFromForAlternateService() {

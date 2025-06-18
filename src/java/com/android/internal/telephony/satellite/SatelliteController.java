@@ -244,6 +244,8 @@ public class SatelliteController extends Handler {
     public static final int TIMEOUT_TYPE_EVALUATE_ESOS_PROFILES_PRIORITIZATION_DURATION_MILLIS = 4;
     /** This is used by CTS to override evaluate carrier roaming ntn eligibility change duration. */
     public static final int TIMEOUT_TYPE_EMERGENCY_CALL_MONITORING_DURATION_MILLIS = 5;
+    /** This is used by CTS to override last emergency call time. */
+    public static final int TIMEOUT_TYPE_LAST_EMERGENCY_CALL_TIME = 6;
     /** Key used to read/write OEM-enabled satellite provision status in shared preferences. */
     private static final String OEM_ENABLED_SATELLITE_PROVISION_STATUS_KEY =
             "oem_enabled_satellite_provision_status_key";
@@ -360,6 +362,10 @@ public class SatelliteController extends Handler {
     private static final int EVENT_BT_WIFI_NFC_STATE_CHANGED = 90;
     private static final int EVENT_UWB_STATE_CHANGED = 91;
     private static final int EVENT_CARRIER_CONFIG_CHANGED = 92;
+    private static final int EVENT_SATELLITE_ENTILEMENT_STATUS_UPDATED = 93;
+
+    private static final int TRUE = 1;
+    private static final int FALSE = 0;
 
     @NonNull private static SatelliteController sInstance;
     @NonNull private final Context mContext;
@@ -2139,6 +2145,9 @@ public class SatelliteController extends Handler {
             case EVENT_WAIT_FOR_REGULAR_METRICS_REPORT_HYSTERESIS_TIMED_OUT: {
                 handleEntireEntitlementMetricReport();
                 handleEntireProvisionMetricReport();
+                handleCarrierRoamingConfigVersionReport();
+                handleMaxAllowedDataMetricsReport();
+                scheduleRegularMetricReportTimer();
                 break;
             }
 
@@ -2594,6 +2603,29 @@ public class SatelliteController extends Handler {
                 int specificCarrierId = (int) args.arg4;
                 try {
                     handleCarrierConfigChanged(slotIndex, subId, carrierId, specificCarrierId);
+                } finally {
+                    args.recycle();
+                }
+                break;
+            }
+
+            case EVENT_SATELLITE_ENTILEMENT_STATUS_UPDATED: {
+                plogd("EVENT_SATELLITE_ENTILEMENT_STATUS_UPDATED");
+                SomeArgs args = (SomeArgs) msg.obj;
+                int subId = args.argi1;
+                boolean entitlementEnabled = args.argi2 == TRUE ? true : false;
+                List<String> allowedPlmnList = (List<String>) args.arg1;
+                List<String> barredPlmnList = (List<String>) args.arg2;
+                Map<String, Integer> plmnDataPlanMap = (Map<String, Integer>) args.arg3;
+                Map<String, List<Integer>> plmnServiceTypeMap =
+                    (Map<String, List<Integer>>) args.arg4;
+                Map<String, Integer> plmnDataServicePolicyMap = (Map<String, Integer>) args.arg5;
+                Map<String, Integer> plmnVoiceServicePolicyMap = (Map<String, Integer>) args.arg6;
+                IIntegerConsumer callback = (IIntegerConsumer) args.arg7;
+                try {
+                    handleSatelliteEntitlementStatusUpdated(subId, entitlementEnabled,
+                        allowedPlmnList, barredPlmnList, plmnDataPlanMap, plmnServiceTypeMap,
+                        plmnDataServicePolicyMap, plmnVoiceServicePolicyMap, callback);
                 } finally {
                     args.recycle();
                 }
@@ -4198,6 +4230,12 @@ public class SatelliteController extends Handler {
             } else {
                 mEmergencyCallMonitoringDurationMillisForCtsTest.set(timeoutMillis);
             }
+        } else if (timeoutType == TIMEOUT_TYPE_LAST_EMERGENCY_CALL_TIME) {
+            if (reset) {
+                mLastEmergencyCallTime.set(0);
+            } else {
+                mLastEmergencyCallTime.set(timeoutMillis);
+            }
         } else {
             plogw("Invalid timeoutType=" + timeoutType);
             return false;
@@ -4917,10 +4955,39 @@ public class SatelliteController extends Handler {
      */
     public void onSatelliteEntitlementStatusUpdated(int subId, boolean entitlementEnabled,
             @Nullable List<String> allowedPlmnList, @Nullable List<String> barredPlmnList,
-            @Nullable Map<String,Integer> plmnDataPlanMap,
-            @Nullable Map<String,List<Integer>> plmnServiceTypeMap,
-            @Nullable Map<String,Integer> plmnDataServicePolicyMap,
-            @Nullable Map<String,Integer> plmnVoiceServicePolicyMap,
+            @Nullable Map<String, Integer> plmnDataPlanMap,
+            @Nullable Map<String, List<Integer>> plmnServiceTypeMap,
+            @Nullable Map<String, Integer> plmnDataServicePolicyMap,
+            @Nullable Map<String, Integer> plmnVoiceServicePolicyMap,
+            @Nullable IIntegerConsumer callback) {
+        plogd("onSatelliteEntitlementStatusUpdated: subId=" + subId
+                + ", entitlementEnabled=" + entitlementEnabled);
+        if (mFeatureFlags.satelliteImproveMultiThreadDesign()) {
+            SomeArgs args = SomeArgs.obtain();
+            args.argi1 = subId;
+            args.argi2 = entitlementEnabled ? TRUE : FALSE;
+            args.arg1 = allowedPlmnList;
+            args.arg2 = barredPlmnList;
+            args.arg3 = plmnDataPlanMap;
+            args.arg4 = plmnServiceTypeMap;
+            args.arg5 = plmnDataServicePolicyMap;
+            args.arg6 = plmnVoiceServicePolicyMap;
+            args.arg7 = callback;
+            sendMessage(obtainMessage(EVENT_SATELLITE_ENTILEMENT_STATUS_UPDATED, args));
+            return;
+        }
+
+        handleSatelliteEntitlementStatusUpdated(subId, entitlementEnabled, allowedPlmnList,
+                barredPlmnList, plmnDataPlanMap, plmnServiceTypeMap, plmnDataServicePolicyMap,
+                plmnVoiceServicePolicyMap, callback);
+    }
+
+    private void handleSatelliteEntitlementStatusUpdated(int subId, boolean entitlementEnabled,
+            @Nullable List<String> allowedPlmnList, @Nullable List<String> barredPlmnList,
+            @Nullable Map<String, Integer> plmnDataPlanMap,
+            @Nullable Map<String, List<Integer>> plmnServiceTypeMap,
+            @Nullable Map<String, Integer> plmnDataServicePolicyMap,
+            @Nullable Map<String, Integer> plmnVoiceServicePolicyMap,
             @Nullable IIntegerConsumer callback) {
         if (callback == null) {
             callback = new IIntegerConsumer.Stub() {
@@ -4948,7 +5015,8 @@ public class SatelliteController extends Handler {
         if (plmnVoiceServicePolicyMap == null) {
             plmnVoiceServicePolicyMap = new HashMap<>();
         }
-        logd("onSatelliteEntitlementStatusUpdated subId=" + subId + ", entitlementEnabled="
+        logd("handleSatelliteEntitlementStatusUpdated: "
+                + "subId=" + subId + ", entitlementEnabled="
                 + entitlementEnabled + ", allowedPlmnList=["
                 + String.join(",", allowedPlmnList) + "]" + ", barredPlmnList=["
                 + String.join(",", barredPlmnList) + "]"
@@ -4965,7 +5033,7 @@ public class SatelliteController extends Handler {
                 mSubscriptionManagerService.setSubscriptionProperty(subId,
                         SATELLITE_ENTITLEMENT_STATUS, entitlementEnabled ? "1" : "0");
             } catch (IllegalArgumentException | SecurityException e) {
-                loge("onSatelliteEntitlementStatusUpdated: setSubscriptionProperty, e=" + e);
+                loge("handleSatelliteEntitlementStatusUpdated: setSubscriptionProperty, e=" + e);
             }
         }
 
@@ -4988,7 +5056,7 @@ public class SatelliteController extends Handler {
                     plmnDataServicePolicyMap, plmnVoiceServicePolicyMap);
 
         } else {
-            loge("onSatelliteEntitlementStatusUpdated: either invalid allowedPlmnList "
+            loge("handleSatelliteEntitlementStatusUpdated: either invalid allowedPlmnList "
                     + "or invalid barredPlmnList");
         }
 
@@ -5447,6 +5515,7 @@ public class SatelliteController extends Handler {
         updateCachedDeviceProvisionStatus();
         // Report updated provisioned status to metrics.
         handleEntireProvisionMetricReport();
+        scheduleRegularMetricReportTimer();
         selectBindingSatelliteSubscription(false);
         handleCarrierRoamingNtnAvailableServicesChanged();
     }
@@ -5974,6 +6043,7 @@ public class SatelliteController extends Handler {
     }
 
     private void updateSupportedSatelliteServicesForActiveSubscriptions() {
+        plogd("updateSupportedSatelliteServicesForActiveSubscriptions");
         mSatelliteServicesSupportedByCarriersFromConfig.clear();
         mMergedPlmnListPerCarrier.clear();
         int[] activeSubIds = mSubscriptionManagerService.getActiveSubIdList(true);
@@ -6269,7 +6339,6 @@ public class SatelliteController extends Handler {
                     mSubscriptionManagerService.getSatelliteEntitlementBarredPlmnList(subId);
             if (entitlementBarredPlmnList.isEmpty()) {
                 plogd("updateEntitlementBarredPlmnList: read empty list");
-                return;
             }
             plogd("updateEntitlementBarredPlmnList: entitlementBarredPlmnList=" + String.join(
                     ",", entitlementBarredPlmnList));
@@ -6283,7 +6352,6 @@ public class SatelliteController extends Handler {
                     mSubscriptionManagerService.getSatelliteEntitlementDataPlanForPlmns(subId);
             if (entitlementDataPlanForPlmns.isEmpty()) {
                 plogd("updateEntitlementBarredPlmnList: read empty list");
-                return;
             }
             plogd("updateEntitlementDataPlanForPlmns: entitlementDataPlanForPlmns="
                     + entitlementDataPlanForPlmns);
@@ -6298,7 +6366,6 @@ public class SatelliteController extends Handler {
                             subId);
             if (entitlementTypeMapPerCarrier.isEmpty()) {
                 plogd("updateEntitlementTypeMapPerCarrier: read empty list");
-                return;
             }
             plogd("updateEntitlementTypeMapPerCarrier: entitlementTypeMapPerCarrier="
                     + entitlementTypeMapPerCarrier);
@@ -6313,7 +6380,6 @@ public class SatelliteController extends Handler {
                             subId);
             if (entitlementDataServicePolicy.isEmpty()) {
                 plogd("updateEntitlementDataServicePolicy: read empty list");
-                return;
             }
             plogd("updateEntitlementDataServicePolicy: entitlementDataServicePolicy="
                     + entitlementDataServicePolicy);
@@ -6328,7 +6394,6 @@ public class SatelliteController extends Handler {
                             subId);
             if (entitlementVoiceServicePolicy.isEmpty()) {
                 plogd("updateEntitlementVoiceServicePolicy: read empty list");
-                return;
             }
             plogd("updateEntitlementVoiceServicePolicy: entitlementVoiceServicePolicy="
                     + entitlementVoiceServicePolicy);
@@ -7885,7 +7950,10 @@ public class SatelliteController extends Handler {
      * Check if satellite is in emergency mode.
      */
     public boolean isInEmergencyMode() {
-        if (mLastEmergencyCallTime.get() == 0) return false;
+        if (mLastEmergencyCallTime.get() == 0) {
+            plogd("mLastEmergencyCallTime is 0, isInEmergencyMode() return false");
+            return false;
+        }
 
         long currentTime = getElapsedRealtime();
         if ((currentTime - mLastEmergencyCallTime.get())
@@ -7893,6 +7961,8 @@ public class SatelliteController extends Handler {
             plogd("Satellite is in emergency mode");
             return true;
         }
+
+        plogd("isInEmergencyMode() return false");
         return false;
     }
 
@@ -9714,6 +9784,41 @@ public class SatelliteController extends Handler {
         return mWifiStateEnabled.get();
     }
 
+    private void handleCarrierRoamingConfigVersionReport() {
+        logd("handleCarrierRoamingConfigVersionReport");
+        int[] activeSubIds = mSubscriptionManagerService.getActiveSubIdList(true);
+        if (activeSubIds != null && activeSubIds.length > 0) {
+            for (int subId : activeSubIds) {
+                SatelliteConfig satelliteConfig = getSatelliteConfig();
+                if (satelliteConfig != null) {
+                    int carrierId = SatelliteServiceUtils.getCarrierIdFromSubscription(subId);
+                    mControllerMetricsStats.reportCurrentVersionOfCarrierRoamingSatelliteConfig(
+                            carrierId, satelliteConfig.getSatelliteConfigDataVersion());
+                } else {
+                    loge("handleCarrierRoamingConfigVersionReport: "
+                            + "no satellite config by configupdater");
+                }
+            }
+        } else {
+            loge("handleMaxAllowedDataMetricsReport: no active subId");
+        }
+    }
+
+    private void handleMaxAllowedDataMetricsReport() {
+        logd("handleMaxAllowedDataMetricsReport");
+        int[] activeSubIds = mSubscriptionManagerService.getActiveSubIdList(true);
+        if (activeSubIds != null && activeSubIds.length > 0) {
+            for (int subId : activeSubIds) {
+                int maxAllowedDataMode = getMaxAllowedDataMode();
+                int carrierId = SatelliteServiceUtils.getCarrierIdFromSubscription(subId);
+                mControllerMetricsStats
+                        .reportCurrentMaxAllowedDataMode(carrierId, maxAllowedDataMode);
+            }
+        } else {
+            loge("handleMaxAllowedDataMetricsReport: no active subId");
+        }
+    }
+
     private void handleEntireEntitlementMetricReport() {
         int[] activeSubIds = mSubscriptionManagerService.getActiveSubIdList(true);
         if (activeSubIds != null && activeSubIds.length > 0) {
@@ -9728,7 +9833,6 @@ public class SatelliteController extends Handler {
         } else {
             loge("handleEntireEntitlementMetricReport: no active subId");
         }
-        scheduleRegularMetricReportTimer();
     }
 
     private void handleIndividualEntitlementMetricReport(int subId,
@@ -9792,7 +9896,6 @@ public class SatelliteController extends Handler {
                         info.mIsNtnOnlyCarrier);
             }
         }
-        scheduleRegularMetricReportTimer();
     }
 
     // Helper class to store aggregated information per carrierId.
