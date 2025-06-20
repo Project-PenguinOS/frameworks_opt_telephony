@@ -1493,6 +1493,11 @@ public class SimulatedCommandsVerifier implements CommandsInterface {
     public void setUserDataRoamingEnabled(Message result, boolean enabled) {
     }
 
+    @Override
+    public void notifyImsDataNetwork(int accessNetwork, int dataNetworkState,
+            int physicalTransportType, int physicalNetworkSlotIndex, Message result) {
+    }
+
     /**
      * Register to listen for the changes in the primary IMEI with respect to the sim slot.
      */

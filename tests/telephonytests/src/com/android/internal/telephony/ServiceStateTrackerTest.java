@@ -97,6 +97,7 @@ import androidx.test.filters.FlakyTest;
 
 import com.android.internal.R;
 import com.android.internal.telephony.data.AccessNetworksManager;
+import com.android.internal.telephony.data.DataNetwork;
 import com.android.internal.telephony.data.DataNetworkController;
 import com.android.internal.telephony.emergency.EmergencyStateTracker;
 import com.android.internal.telephony.metrics.ServiceStateStats;
@@ -252,7 +253,7 @@ public class ServiceStateTrackerTest extends TelephonyTest {
         monitorTestableLooper(new TestableLooper(
                 ((HandlerThread) field.get(mCellularNetworkService)).getLooper()));
 
-        doReturn(true).when(mDataNetworkController).areAllDataDisconnected();
+        doReturn(true).when(mDataNetworkController).areAllDataDisconnected(anyBoolean());
 
         doReturn(new ServiceState()).when(mPhone).getServiceState();
 
@@ -389,6 +390,7 @@ public class ServiceStateTrackerTest extends TelephonyTest {
         mEmergencyStateTracker = Mockito.mock(EmergencyStateTracker.class);
         replaceInstance(EmergencyStateTracker.class, "INSTANCE", null, mEmergencyStateTracker);
 
+        doReturn(true).when(mFeatureFlags).keepWfcOnApm();
         logd("ServiceStateTrackerTest -Setup!");
     }
 
@@ -422,7 +424,7 @@ public class ServiceStateTrackerTest extends TelephonyTest {
     }
 
     @Test
-    public void testSetRadioPowerAfterShuttingDownRequest() throws Exception {
+    public void testSetRadioPowerAfterShuttingDownRequest() {
         sst.setRadioPower(true);
         processAllMessages();
 
@@ -437,7 +439,7 @@ public class ServiceStateTrackerTest extends TelephonyTest {
     }
 
     @Test
-    public void testSetRadioPowerWaitForAllDataDisconnected() throws Exception {
+    public void testSetRadioPowerWaitForAllDataDisconnectedShutDown() throws Exception {
         // Set up DSDS environment
         GsmCdmaPhone phone2 = Mockito.mock(GsmCdmaPhone.class);
         DataNetworkController dataNetworkController_phone2 =
@@ -446,8 +448,8 @@ public class ServiceStateTrackerTest extends TelephonyTest {
         replaceInstance(PhoneFactory.class, "sPhones", null, mPhones);
         doReturn(dataNetworkController_phone2).when(phone2).getDataNetworkController();
         doReturn(mSST).when(phone2).getServiceStateTracker();
-        doReturn(false).when(mDataNetworkController).areAllDataDisconnected();
-        doReturn(false).when(dataNetworkController_phone2).areAllDataDisconnected();
+        doReturn(false).when(mDataNetworkController).areAllDataDisconnected(anyBoolean());
+        doReturn(false).when(dataNetworkController_phone2).areAllDataDisconnected(anyBoolean());
         doReturn(1).when(mPhone).getSubId();
         doReturn(2).when(phone2).getSubId();
 
@@ -473,7 +475,7 @@ public class ServiceStateTrackerTest extends TelephonyTest {
                 callback2.capture());
 
         // Data disconnected on sub 2, still waiting for data disconnected on sub 1
-        doReturn(true).when(dataNetworkController_phone2).areAllDataDisconnected();
+        doReturn(true).when(dataNetworkController_phone2).areAllDataDisconnected(anyBoolean());
         callback2.getValue().onAnyDataNetworkExistingChanged(false, false);
         processAllMessages();
         assertEquals(TelephonyManager.RADIO_POWER_ON, mSimulatedCommands.getRadioState());
@@ -481,7 +483,7 @@ public class ServiceStateTrackerTest extends TelephonyTest {
                 any());
 
         // Data disconnected on sub 1, radio should power off now
-        doReturn(true).when(mDataNetworkController).areAllDataDisconnected();
+        doReturn(true).when(mDataNetworkController).areAllDataDisconnected(anyBoolean());
         callback1.getValue().onAnyDataNetworkExistingChanged(false, false);
         processAllMessages();
         verify(mDataNetworkController, times(1)).unregisterDataNetworkControllerCallback(any());
@@ -501,8 +503,8 @@ public class ServiceStateTrackerTest extends TelephonyTest {
         replaceInstance(PhoneFactory.class, "sPhones", null, mPhones);
         doReturn(dataNetworkController_phone2).when(phone2).getDataNetworkController();
         doReturn(mSST).when(phone2).getServiceStateTracker();
-        doReturn(false).when(mDataNetworkController).areAllDataDisconnected();
-        doReturn(false).when(dataNetworkController_phone2).areAllDataDisconnected();
+        doReturn(false).when(mDataNetworkController).areAllDataDisconnected(anyBoolean());
+        doReturn(false).when(dataNetworkController_phone2).areAllDataDisconnected(anyBoolean());
         doReturn(1).when(mPhone).getSubId();
         doReturn(2).when(phone2).getSubId();
 
@@ -533,7 +535,7 @@ public class ServiceStateTrackerTest extends TelephonyTest {
                 callback2.capture());
 
         // Data disconnected on sub 2, still waiting for data disconnected on sub 1
-        doReturn(true).when(dataNetworkController_phone2).areAllDataDisconnected();
+        doReturn(true).when(dataNetworkController_phone2).areAllDataDisconnected(anyBoolean());
         callback2.getValue().onAnyDataNetworkExistingChanged(false, false);
         processAllMessages();
         assertEquals(TelephonyManager.RADIO_POWER_ON, mSimulatedCommands.getRadioState());
@@ -541,7 +543,7 @@ public class ServiceStateTrackerTest extends TelephonyTest {
                 any());
 
         // Data disconnected on sub 1, radio should power off now
-        doReturn(true).when(mDataNetworkController).areAllDataDisconnected();
+        doReturn(true).when(mDataNetworkController).areAllDataDisconnected(anyBoolean());
         callback1.getValue().onAnyDataNetworkExistingChanged(false, false);
         processAllMessages();
         verify(mDataNetworkController, times(1)).unregisterDataNetworkControllerCallback(any());
@@ -662,6 +664,74 @@ public class ServiceStateTrackerTest extends TelephonyTest {
         processAllMessages();
         assertTrue(mSimulatedCommands.getRadioState() == expectedRadioPowerState);
     }
+
+    @Test
+    public void testSetRadioPowerWaitForAllDataDisconnectedApmThenShutDown() throws Exception {
+        // Set up DSDS environment
+        DataNetworkController dataNetworkController2 =
+                Mockito.mock(DataNetworkController.class);
+        mPhones = new Phone[] {mPhone, mPhone2};
+        replaceInstance(PhoneFactory.class, "sPhones", null, mPhones);
+        doReturn(dataNetworkController2).when(mPhone2).getDataNetworkController();
+        doReturn(mSST).when(mPhone2).getServiceStateTracker();
+        doReturn(false).when(mDataNetworkController).areAllDataDisconnected(true);
+        doReturn(false).when(dataNetworkController2).areAllDataDisconnected(true);
+        doReturn(1).when(mPhone).getSubId();
+        doReturn(2).when(mPhone2).getSubId();
+
+        // Start with radio on
+        sst.setRadioPower(true);
+        processAllMessages();
+        assertEquals(TelephonyManager.RADIO_POWER_ON, mSimulatedCommands.getRadioState());
+
+        // Turn on APM and verify that both subs are waiting for all data disconnected
+        sst.setRadioPower(false);
+        processAllMessages();
+        assertEquals(TelephonyManager.RADIO_POWER_ON, mSimulatedCommands.getRadioState());
+        verify(mDataNetworkController).tearDownAllDataNetworks(
+                eq(3 /* TEAR_DOWN_REASON_AIRPLANE_MODE_ON */));
+        verify(dataNetworkController2, never()).tearDownAllDataNetworks(anyInt());
+        ArgumentCaptor<DataNetworkController.DataNetworkControllerCallback> callback1 =
+                ArgumentCaptor.forClass(DataNetworkController.DataNetworkControllerCallback.class);
+        ArgumentCaptor<DataNetworkController.DataNetworkControllerCallback> callback2 =
+                ArgumentCaptor.forClass(DataNetworkController.DataNetworkControllerCallback.class);
+        verify(mDataNetworkController, times(1)).registerDataNetworkControllerCallback(
+                callback1.capture());
+        verify(dataNetworkController2, times(1)).registerDataNetworkControllerCallback(
+                callback2.capture());
+
+        // Data disconnected on sub 2, still waiting for data disconnected on sub 1
+        doReturn(true).when(dataNetworkController2).areAllDataDisconnected(true);
+        callback2.getValue().onAnyDataNetworkExistingChanged(true, false);
+        processAllMessages();
+        assertEquals(TelephonyManager.RADIO_POWER_ON, mSimulatedCommands.getRadioState());
+        verify(dataNetworkController2, times(1)).unregisterDataNetworkControllerCallback(
+                any());
+
+        // Shut down device, verify disconnect all data networks
+        doReturn(false).when(mDataNetworkController).areAllDataDisconnected(false);
+        doReturn(false).when(dataNetworkController2).areAllDataDisconnected(false);
+        clearInvocations(mDataNetworkController, dataNetworkController2);
+        sst.requestShutdown();
+        processAllMessages();
+        verify(mDataNetworkController).tearDownAllDataNetworks(
+                DataNetwork.TEAR_DOWN_REASON_DEVICE_SHUT_DOWN);
+        verify(mDataNetworkController, times(1)).registerDataNetworkControllerCallback(
+                callback1.capture());
+        verify(dataNetworkController2, times(1)).registerDataNetworkControllerCallback(
+                callback2.capture());
+
+        // Data disconnected on sub 1, radio should power off now
+        doReturn(true).when(mDataNetworkController).areAllDataDisconnected(false);
+        doReturn(true).when(dataNetworkController2).areAllDataDisconnected(false);
+        callback2.getValue().onAnyDataNetworkExistingChanged(false, false);
+        callback1.getValue().onAnyDataNetworkExistingChanged(false, false);
+        processAllMessages();
+        verify(mDataNetworkController, times(1)).unregisterDataNetworkControllerCallback(any());
+        assertEquals(TelephonyManager.RADIO_POWER_UNAVAILABLE, mSimulatedCommands.getRadioState());
+        verify(mEmergencyStateTracker, never()).onCellularRadioPowerOffRequested();
+    }
+
 
     @Test
     public void testSetRadioPowerForReasonCarrier() {

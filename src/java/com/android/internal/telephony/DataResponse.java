@@ -244,6 +244,13 @@ public class DataResponse extends IRadioDataResponse.Stub {
         RadioResponse.responseVoid(HAL_SERVICE_DATA, mRil, responseInfo);
     }
 
+    /**
+     * @param responseInfo Response info struct containing response type, serial no. and error
+     */
+    public void notifyImsDataNetworkResponse(RadioResponseInfo responseInfo) {
+        RadioResponse.responseVoid(HAL_SERVICE_DATA, mRil, responseInfo);
+    }
+
     @Override
     public String getInterfaceHash() {
         return IRadioDataResponse.HASH;

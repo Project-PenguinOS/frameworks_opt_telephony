@@ -358,4 +358,43 @@ public class DataServiceManagerTest extends TelephonyTest {
         verify(mSimulatedCommandsVerifier).setUserDataRoamingEnabled(any(Message.class),
                 anyBoolean());
     }
+
+    @Test
+    public void testNotifyImsDataNetwork_FlagDisabled() throws Exception {
+        doReturn(false).when(mFeatureFlags).dataServiceNotifyImsDataNetwork();
+        createDataServiceManager(true);
+        Message message = mHandler.obtainMessage(1234);
+        mDataServiceManagerUT.notifyImsDataNetwork(AccessNetworkType.EUTRAN,
+                TelephonyManager.DATA_CONNECTED, AccessNetworkConstants.TRANSPORT_TYPE_WWAN, 0,
+                message);
+        waitAndVerifyResult(message, DataServiceCallback.RESULT_ERROR_UNSUPPORTED);
+        verify(mSimulatedCommandsVerifier, never()).notifyImsDataNetwork(anyInt(), anyInt(),
+                anyInt(), anyInt(), any(Message.class));
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_DATA_SERVICE_NOTIFY_IMS_DATA_NETWORK)
+    public void testNotifyImsDataNetwork_ServiceNotBound() throws Exception {
+        createDataServiceManager(false);
+        Message message = mHandler.obtainMessage(1234);
+        mDataServiceManagerUT.notifyImsDataNetwork(AccessNetworkType.EUTRAN,
+                TelephonyManager.DATA_CONNECTED, AccessNetworkConstants.TRANSPORT_TYPE_WWAN, 0,
+                message);
+        waitAndVerifyResult(message, DataServiceCallback.RESULT_ERROR_ILLEGAL_STATE);
+        verify(mSimulatedCommandsVerifier, never()).notifyImsDataNetwork(anyInt(), anyInt(),
+                anyInt(), anyInt(), any(Message.class));
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_DATA_SERVICE_NOTIFY_IMS_DATA_NETWORK)
+    public void testNotifyImsDataNetwork_FlagEnabled() throws Exception {
+        createDataServiceManager(true);
+        Message message = mHandler.obtainMessage(1234);
+        mDataServiceManagerUT.notifyImsDataNetwork(AccessNetworkType.EUTRAN,
+                TelephonyManager.DATA_CONNECTED, AccessNetworkConstants.TRANSPORT_TYPE_WWAN, 0,
+                message);
+        waitAndVerifyResult(message, DataServiceCallback.RESULT_SUCCESS);
+        verify(mSimulatedCommandsVerifier).notifyImsDataNetwork(anyInt(), anyInt(),
+                anyInt(), anyInt(), any(Message.class));
+    }
 }

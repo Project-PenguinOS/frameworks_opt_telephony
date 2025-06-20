@@ -449,6 +449,32 @@ public class ControllerMetricsStats {
     }
 
     /**
+     * Report a current version of carrier roaming satellite config.
+     */
+    public void reportCurrentVersionOfCarrierRoamingSatelliteConfig(int cid, int version) {
+        logd("reportCurrentVersionOfCarrierRoamingSatelliteConfig: cid=" + cid
+                + " version=" + version);
+        mSatelliteStats.onSatelliteControllerMetrics(
+                new SatelliteStats.SatelliteControllerParams.Builder()
+                        .setCarrierId(cid)
+                        .setCarrierRoamingSatelliteConfigVersion(version)
+                        .build());
+    }
+
+    /**
+     * Report a current max allowed data mode.
+     */
+    public void reportCurrentMaxAllowedDataMode(int cid, int maxAllowedDataMode) {
+        logd("reportCurrentMaxAllowedDataMode: cid=" + cid
+                + " maxAllowedDataMode=" + maxAllowedDataMode);
+        mSatelliteStats.onSatelliteControllerMetrics(
+                new SatelliteStats.SatelliteControllerParams.Builder()
+                        .setCarrierId(cid)
+                        .setMaxAllowedDataMode(maxAllowedDataMode)
+                        .build());
+    }
+
+    /**
      * Add count when the notification for P2P SMS over satellite avaibility is shown or removed.
      */
     public void reportP2PSmsEligibilityNotificationsCount(boolean isEligible) {

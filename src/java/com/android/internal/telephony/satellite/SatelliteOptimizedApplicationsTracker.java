@@ -203,6 +203,9 @@ public class SatelliteOptimizedApplicationsTracker {
         if (metadata != null) {
             try {
                 final Object value = metadata.get(APP_PROPERTY);
+                loge(String.format("packageName: %s, value: %s",
+                        packageName,
+                        (value == null ? null : value.toString())));
                 if (value == null) return false; // No expected meta-data.
 
                 // Check if the retrieved object is a matched String.

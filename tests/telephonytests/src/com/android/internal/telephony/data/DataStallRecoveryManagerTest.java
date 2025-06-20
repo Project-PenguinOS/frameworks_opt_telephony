@@ -743,4 +743,47 @@ public class DataStallRecoveryManagerTest extends TelephonyTest {
                 .isEqualTo(DataStallRecoveryManager.RECOVERY_ACTION_CLEANUP);
     }
 
+    /**
+     * Test that doRecovery is skipped if isRecoveryNeeded fails, which can happen if conditions
+     * change between the check and the execution of the recovery action.
+     */
+    @Test
+    public void testDoRecovery_skippedWhenRecoveryNotNeeded() throws Exception {
+        // Set phone to be in a call
+        doReturn(PhoneConstants.State.OFFHOOK).when(mPhone).getState();
+        mDataStallRecoveryManager.setRecoveryAction(
+                DataStallRecoveryManager.RECOVERY_ACTION_RADIO_RESTART);
+        setPrivateBooleanField(mDataStallRecoveryManager, "mRecoveryTriggered", true);
+
+        // Send the DO_RECOVERY event to bypass the initial checks.
+        mDataStallRecoveryManager.sendEmptyMessage(2 /* EVENT_DO_RECOVERY */);
+        processAllMessages();
+
+        // Verify the recovery action was NOT performed because isRecoveryNeeded() fail.
+        verify(mSST, never()).powerOffRadioSafely();
+        // Verify that the check timer was rescheduled (EVENT_SEND_DATA_STALL_BROADCAST)
+        assertThat(mDataStallRecoveryManager.hasMessages(1)).isTrue();
+    }
+
+    /**
+     * Test that if validation fails while a recovery is already in progress (triggered),
+     * a new recovery sequence is not started.
+     */
+    @Test
+    public void testOnInternetValidationStatusChanged_skipWhenRecoveryTriggered() throws Exception {
+        sendValidationStatusCallback(NetworkAgent.VALIDATION_STATUS_VALID);
+        sendOnInternetDataNetworkCallback(true);
+        doReturn(mSignalStrength).when(mPhone).getSignalStrength();
+        doReturn(PhoneConstants.State.IDLE).when(mPhone).getState();
+
+        // Manually set recovery as triggered.
+        setPrivateBooleanField(mDataStallRecoveryManager, "mRecoveryTriggered", true);
+
+        // Sending a validation failure.
+        sendValidationStatusCallback(NetworkAgent.VALIDATION_STATUS_NOT_VALID);
+        processAllMessages();
+
+        // Verify that a new recovery was not triggered (EVENT_SEND_DATA_STALL_BROADCAST)
+        assertThat(mDataStallRecoveryManager.hasMessages(1)).isFalse();
+    }
 }

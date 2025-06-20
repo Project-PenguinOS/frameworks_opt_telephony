@@ -69,14 +69,6 @@ flag {
 
 # OWNER=joonhunshin TARGET=24Q3
 flag {
-    name: "enable_sip_subscribe_retry"
-    namespace: "telephony"
-    description: "This flag controls whether framework supports SIP subscribe retry or not"
-    bug:"297023230"
-}
-
-# OWNER=joonhunshin TARGET=24Q3
-flag {
     name: "answer_audio_only_when_answering_via_mmi_code"
     namespace: "telephony"
     description: "This flag changes the media type when answering incoming call via MMI code"
@@ -167,6 +159,18 @@ flag {
     bug:"378065922"
     metadata {
         purpose: PURPOSE_BUGFIX
+    }
+}
+
+# OWNER=yongnamcha TARGET=26Q2
+flag {
+    name: "support_throttle_time_for_deregistration"
+    namespace: "telephony"
+    description: "This flag controls whether the IMS registration throttling time is sent to the modem upon deregistration to support time-based carrier requirements."
+    bug:"408139522"
+    is_exported: true
+    metadata {
+        purpose: PURPOSE_FEATURE
     }
 }
 

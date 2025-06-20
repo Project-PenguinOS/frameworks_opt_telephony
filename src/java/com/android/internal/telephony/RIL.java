@@ -69,6 +69,9 @@ import android.provider.Settings;
 import android.sysprop.TelephonyProperties;
 import android.telephony.AccessNetworkConstants;
 import android.telephony.AccessNetworkConstants.AccessNetworkType;
+import android.telephony.AccessNetworkConstants.RadioAccessNetworkType;
+import android.telephony.AccessNetworkConstants.TransportType;
+import android.telephony.Annotation.DataState;
 import android.telephony.BarringInfo;
 import android.telephony.CarrierRestrictionRules;
 import android.telephony.ClientRequestStats;
@@ -195,6 +198,9 @@ public class RIL extends BaseCommands implements CommandsInterface {
 
     /** @hide */
     public static final HalVersion RADIO_HAL_VERSION_2_4 = new HalVersion(2, 4);
+
+    /** @hide */
+    public static final HalVersion RADIO_HAL_VERSION_2_5 = new HalVersion(2, 5);
 
     // Hal version
     private final Map<Integer, HalVersion> mHalVersion = new HashMap<>();
@@ -4850,6 +4856,42 @@ public class RIL extends BaseCommands implements CommandsInterface {
      * {@inheritDoc}
      */
     @Override
+    public void notifyImsDataNetwork(@RadioAccessNetworkType int accessNetwork,
+            @DataState int dataNetworkState, @TransportType int physicalTransportType,
+            int physicalNetworkSlotIndex, @Nullable Message result) {
+        RadioDataProxy dataProxy = getRadioServiceProxy(RadioDataProxy.class);
+        if (!canMakeRequest("notifyImsDataNetwork", dataProxy, result, RADIO_HAL_VERSION_2_4)) {
+            return;
+        }
+
+        RILRequest rr = obtainRequest(RIL_REQUEST_NOTIFY_IMS_DATA_NETWORK, result,
+                mRILDefaultWorkSource);
+        if (RILJ_LOGD) {
+            riljLog(
+                    rr.serialString()
+                            + "> "
+                            + RILUtils.requestToString(rr.mRequest)
+                            + " accessNetwork="
+                            + AccessNetworkConstants.AccessNetworkType.toString(accessNetwork)
+                            + " dataNetworkState="
+                            + TelephonyUtils.dataStateToString(dataNetworkState)
+                            + " physicalTransportType="
+                            + AccessNetworkConstants.transportTypeToString(physicalTransportType)
+                            + " physicalNetworkSlotIndex="
+                            + physicalNetworkSlotIndex);
+        }
+
+        radioServiceInvokeHelper(HAL_SERVICE_DATA, rr, "notifyImsDataNetwork", () -> {
+            dataProxy.notifyImsDataNetwork(rr.mSerial, accessNetwork,
+                    RILUtils.convertToHalDataNetworkState(dataNetworkState),
+                    physicalTransportType, physicalNetworkSlotIndex);
+        });
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public void getSlicingConfig(Message result) {
         RadioDataProxy dataProxy = getRadioServiceProxy(RadioDataProxy.class);
         if (!canMakeRequest("getSlicingConfig", dataProxy, result, RADIO_HAL_VERSION_1_6)) {
@@ -5020,6 +5062,40 @@ public class RIL extends BaseCommands implements CommandsInterface {
         registrationInfo.accessNetworkType = RILUtils.convertImsRegistrationTech(imsRadioTech);
         registrationInfo.suggestedAction = suggestedAction;
         registrationInfo.capabilities = RILUtils.convertImsCapability(capabilities);
+
+        radioServiceInvokeHelper(HAL_SERVICE_IMS, rr, "updateImsRegistrationInfo", () -> {
+            imsProxy.updateImsRegistrationInfo(rr.mSerial, registrationInfo);
+        });
+    }
+
+    @Override
+    public void updateImsRegistrationInfo(
+            @RegistrationManager.ImsRegistrationState int state,
+            @ImsRegistrationImplBase.ImsRegistrationTech int imsRadioTech,
+            @RegistrationManager.SuggestedAction int suggestedAction,
+            int capabilities, int throttlingTimeSec, Message result) {
+        RadioImsProxy imsProxy = getRadioServiceProxy(RadioImsProxy.class);
+        if (!canMakeRequest("updateImsRegistrationInfo", imsProxy, result, RADIO_HAL_VERSION_2_5)) {
+            return;
+        }
+
+        RILRequest rr = obtainRequest(RIL_REQUEST_UPDATE_IMS_REGISTRATION_INFO, result,
+                mRILDefaultWorkSource);
+
+        if (RILJ_LOGD) {
+            riljLog(rr.serialString() + "> " + RILUtils.requestToString(rr.mRequest)
+                    + " state=" + state + ", radioTech=" + imsRadioTech
+                    + ", suggested=" + suggestedAction + ", cap=" + capabilities
+                    + ", throttlingTimeSec=" + throttlingTimeSec);
+        }
+
+        android.hardware.radio.ims.ImsRegistration registrationInfo =
+                new android.hardware.radio.ims.ImsRegistration();
+        registrationInfo.regState = RILUtils.convertImsRegistrationState(state);
+        registrationInfo.accessNetworkType = RILUtils.convertImsRegistrationTech(imsRadioTech);
+        registrationInfo.suggestedAction = suggestedAction;
+        registrationInfo.capabilities = RILUtils.convertImsCapability(capabilities);
+        registrationInfo.throttlingTimeSec = throttlingTimeSec;
 
         radioServiceInvokeHelper(HAL_SERVICE_IMS, rr, "updateImsRegistrationInfo", () -> {
             imsProxy.updateImsRegistrationInfo(rr.mSerial, registrationInfo);
@@ -6456,6 +6532,7 @@ public class RIL extends BaseCommands implements CommandsInterface {
             case 3: return RADIO_HAL_VERSION_2_2;
             case 4: return RADIO_HAL_VERSION_2_3;
             case 5: return RADIO_HAL_VERSION_2_4;
+            case 6: return RADIO_HAL_VERSION_2_5;
             default: return RADIO_HAL_VERSION_UNKNOWN;
         }
     }
