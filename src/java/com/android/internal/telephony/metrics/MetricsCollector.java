@@ -455,7 +455,8 @@ public class MetricsCollector implements StatsManager.StatsPullAtomCallback {
                         state.numActiveSims,
                         state.numActiveEsims,
                         state.numActiveEsimSlots,
-                        state.numActiveMepSlots));
+                        state.numActiveMepSlots,
+                        state.numEsimSlots));
         return StatsManager.PULL_SUCCESS;
     }
 

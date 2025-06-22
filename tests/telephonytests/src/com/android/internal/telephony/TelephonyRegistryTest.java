@@ -1236,8 +1236,11 @@ public class TelephonyRegistryTest extends TelephonyTest {
                         false /*isConditionallyBarred*/,
                         30 /*conditionalBarringFactor*/,
                         10 /*conditionalBarringTimeSeconds*/));
-        BarringInfo info = new BarringInfo(
-                new CellIdentityLte(777, 333, 12345, 222, 13579), bsi);
+        final CellIdentityLte testCellIdentity = new CellIdentityLte(
+                777 /*mcc*/, 333 /*mnc*/,
+                12345 /*ci*/, 222 /*pci*/,
+                13579 /*tac*/);
+        BarringInfo info = new BarringInfo(testCellIdentity, bsi);
         // 1. Register listener which requires location access.
         mTelephonyRegistry.listenWithEventList(false, false, subId, mContext.getOpPackageName(),
                 mContext.getAttributionTag(), mTelephonyCallback.callback, events, true);
@@ -1252,17 +1255,13 @@ public class TelephonyRegistryTest extends TelephonyTest {
         assertEquals(mBarringInfo
                         .getBarringServiceInfo(BarringInfo.BARRING_SERVICE_TYPE_MMTEL_VOICE),
                 info.getBarringServiceInfo(BarringInfo.BARRING_SERVICE_TYPE_MMTEL_VOICE));
-        String log = mBarringInfo.toString();
-        assertTrue(log.contains("777"));
-        assertTrue(log.contains("333"));
-        if (permission != null && permission.equals(Manifest.permission.ACCESS_FINE_LOCATION)) {
-            assertTrue(log.contains("12345"));
-            assertTrue(log.contains("222"));
-            assertTrue(log.contains("13579"));
+
+        if (TextUtils.equals(Manifest.permission.ACCESS_FINE_LOCATION, permission)) {
+            assertEquals(testCellIdentity, mBarringInfo.getCellIdentity());
         } else {
-            assertFalse(log.contains("12345"));
-            assertFalse(log.contains("222"));
-            assertFalse(log.contains("13579"));
+            assertEquals(
+                    testCellIdentity.sanitizeLocationInfo(),
+                    mBarringInfo.getCellIdentity());
         }
 
         // Duplicate BarringInfo notifications do not trigger callback
@@ -1280,14 +1279,11 @@ public class TelephonyRegistryTest extends TelephonyTest {
         assertEquals(3, mTelephonyCallback.invocationCount.get());
         assertNotNull(mBarringInfo);
         assertEquals(mBarringInfo
-                        .getBarringServiceInfo(BarringInfo.BARRING_SERVICE_TYPE_MMTEL_VOICE),
+                .getBarringServiceInfo(BarringInfo.BARRING_SERVICE_TYPE_MMTEL_VOICE),
                 info.getBarringServiceInfo(BarringInfo.BARRING_SERVICE_TYPE_MMTEL_VOICE));
-        log = mBarringInfo.toString();
-        assertTrue(log.contains("777"));
-        assertTrue(log.contains("333"));
-        assertFalse(log.contains("12345"));
-        assertFalse(log.contains("222"));
-        assertFalse(log.contains("13579"));
+        assertEquals(
+                testCellIdentity.sanitizeLocationInfo(),
+                mBarringInfo.getCellIdentity());
     }
 
     @Test
