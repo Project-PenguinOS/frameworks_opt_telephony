@@ -53,14 +53,6 @@ flag {
 
 # OWNER=joonhunshin TARGET=24Q3
 flag {
-    name: "update_roaming_state_to_set_wfc_mode"
-    namespace: "telephony"
-    description: "This flag updates roaming state to set wfc mode"
-    bug:"317298331"
-}
-
-# OWNER=joonhunshin TARGET=24Q3
-flag {
     name: "answer_audio_only_when_answering_via_mmi_code"
     namespace: "telephony"
     description: "This flag changes the media type when answering incoming call via MMI code"
@@ -108,17 +100,6 @@ flag {
     description: "This flag controls the type of API regarding MmTelFeature, either hidden or system type."
     bug:"359721349"
     is_exported: true
-}
-
-# OWNER=joonhunshin TARGET=25Q2
-flag {
-    name: "skip_mmi_code_check_for_emergency_call"
-    namespace: "telephony"
-    description: "This flag allows to skip the MMI code check for the emergency number."
-    bug:"378065922"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
 }
 
 # OWNER=yongnamcha TARGET=26Q2

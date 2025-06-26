@@ -489,11 +489,6 @@ public class ImsPhoneTest extends TelephonyTest {
 
         Connection connection = mImsPhoneUT.dial(dialString, imsDialArgs);
         assertEquals(null, connection);
-        verify(mImsCT, never()).dial(eq(dialString), any(ImsPhone.ImsDialArgs.class));
-
-        doReturn(true).when(mFeatureFlags).skipMmiCodeCheckForEmergencyCall();
-
-        mImsPhoneUT.dial(dialString, imsDialArgs);
         verify(mImsCT).dial(eq(dialString), any(ImsPhone.ImsDialArgs.class));
     }
 
@@ -943,7 +938,6 @@ public class ImsPhoneTest extends TelephonyTest {
     @Test
     @SmallTest
     public void testSetWfcModeInRoaming() throws Exception {
-        doReturn(true).when(mFeatureFlags).updateRoamingStateToSetWfcMode();
         doReturn(PhoneConstants.State.IDLE).when(mImsCT).getState();
         doReturn(true).when(mPhone).isRadioOn();
 

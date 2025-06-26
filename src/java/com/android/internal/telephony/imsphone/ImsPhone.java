@@ -1051,7 +1051,7 @@ public class ImsPhone extends ImsPhoneBase {
 
 // QTI_BEGIN: 2025-01-28: Telephony: Revert "DSDA: Add support for MMI codes, adhoc conference"
         // handle in-call MMI first if applicable
-        if (handleInCallMmiCommands(newDialString)) {
+        if (!dialArgs.isEmergency && handleInCallMmiCommands(newDialString)) {
             return null;
         }
 
@@ -1067,12 +1067,10 @@ public class ImsPhone extends ImsPhoneBase {
 // QTI_END: 2025-01-28: Telephony: Revert "DSDA: Add support for MMI codes, adhoc conference"
         }
 
-        if (mFeatureFlags.skipMmiCodeCheckForEmergencyCall()) {
-            // Skip to check mmi code if outgoing call is emergency
-            if (dialArgs.isEmergency) {
-                logd("dialInternal: emergency number, skip to check mmi code");
-                return mCT.dial(dialString, imsDialArgsBuilder.build());
-            }
+        // Skip to check mmi code if outgoing call is emergency
+        if (dialArgs.isEmergency) {
+            logd("dialInternal: emergency number, skip to check mmi code");
+            return mCT.dial(dialString, imsDialArgsBuilder.build());
         }
 
         // Only look at the Network portion for mmi
@@ -2521,9 +2519,7 @@ public class ImsPhone extends ImsPhoneBase {
 // QTI_END: 2023-06-13: Telephony: Revert "Removed IWLAN legacy mode support"
         if (mCT.getState() == PhoneConstants.State.IDLE) {
             if (DBG) logd("updateRoamingState now: " + newRoamingState);
-            if (!mFeatureFlags.updateRoamingStateToSetWfcMode()) {
-                mLastKnownRoamingState = newRoamingState;
-            }
+
             CarrierConfigManager configManager = (CarrierConfigManager)
                     getContext().getSystemService(Context.CARRIER_CONFIG_SERVICE);
             // Don't set wfc mode if carrierconfig has not loaded. It will be set by GsmCdmaPhone
@@ -2532,9 +2528,7 @@ public class ImsPhone extends ImsPhoneBase {
                     configManager.getConfigForSubId(getSubId()))) {
                 ImsManager imsManager = mImsManagerFactory.create(mContext, mPhoneId);
                 imsManager.setWfcMode(imsManager.getWfcMode(newRoamingState), newRoamingState);
-                if (mFeatureFlags.updateRoamingStateToSetWfcMode()) {
-                    mLastKnownRoamingState = newRoamingState;
-                }
+                mLastKnownRoamingState = newRoamingState;
             }
         } else {
             if (DBG) logd("updateRoamingState postponed: " + newRoamingState);

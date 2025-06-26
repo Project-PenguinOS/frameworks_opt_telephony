@@ -451,14 +451,6 @@ public class GsmCdmaPhoneTest extends TelephonyTest {
                         .setIsEmergency(true)
                         .build());
         assertNull(connection);
-        verify(mCT, never()).dialGsm(eq("17"), any(PhoneInternalInterface.DialArgs.class));
-
-        // Enable feature flag.
-        doReturn(true).when(mFeatureFlags).skipMmiCodeCheckForEmergencyCall();
-        mPhoneUT.dial("17",
-                new PhoneInternalInterface.DialArgs.Builder()
-                        .setIsEmergency(true)
-                        .build());
         verify(mCT).dialGsm(eq("17"), any(PhoneInternalInterface.DialArgs.class));
     }
 
