@@ -42,14 +42,6 @@ flag {
     bug:"290573256"
 }
 
-# OWNER=joonhunshin TARGET=24Q3
-flag {
-    name: "terminate_active_video_call_when_accepting_second_video_call_as_audio_only"
-    namespace: "telephony"
-    description: "This flag terminates active video call instead holding when accepting 2nd incoming video call as audio only"
-    bug:"309548300"
-}
-
 # OWNER=sewookseo TARGET=24Q3
 flag {
     name: "emergency_registration_state"
@@ -84,17 +76,6 @@ flag {
     namespace: "telephony"
     description: "This flag allows to notify initial IMS provisioning status when IFeatureProvisioningCallback registered or ImsService connected"
     bug:"330082572"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-# OWNER=joonhunshin TARGET=24Q3
-flag {
-    name: "set_number_of_sim_for_ims_enable"
-    namespace: "telephony"
-    description: "This flag allows to set number of SIM for IMS enable/disable for each slot when the eSIM is added while the binding with ImsService exists"
-    bug:"331971397"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
