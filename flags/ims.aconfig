@@ -42,14 +42,6 @@ flag {
     bug:"290573256"
 }
 
-# OWNER=joonhunshin TARGET=24Q3
-flag {
-    name: "terminate_active_video_call_when_accepting_second_video_call_as_audio_only"
-    namespace: "telephony"
-    description: "This flag terminates active video call instead holding when accepting 2nd incoming video call as audio only"
-    bug:"309548300"
-}
-
 # OWNER=sewookseo TARGET=24Q3
 flag {
     name: "emergency_registration_state"
@@ -57,14 +49,6 @@ flag {
     namespace: "telephony"
     description: "This flag is created to notify emergency registration state changed."
     bug:"312101946"
-}
-
-# OWNER=joonhunshin TARGET=24Q3
-flag {
-    name: "update_roaming_state_to_set_wfc_mode"
-    namespace: "telephony"
-    description: "This flag updates roaming state to set wfc mode"
-    bug:"317298331"
 }
 
 # OWNER=joonhunshin TARGET=24Q3
@@ -78,45 +62,12 @@ flag {
     }
 }
 
-# OWNER=joonhunshin TARGET=24Q3
-flag {
-    name: "notify_initial_ims_provisioning_status"
-    namespace: "telephony"
-    description: "This flag allows to notify initial IMS provisioning status when IFeatureProvisioningCallback registered or ImsService connected"
-    bug:"330082572"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-# OWNER=joonhunshin TARGET=24Q3
-flag {
-    name: "set_number_of_sim_for_ims_enable"
-    namespace: "telephony"
-    description: "This flag allows to set number of SIM for IMS enable/disable for each slot when the eSIM is added while the binding with ImsService exists"
-    bug:"331971397"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
 # OWNER=joonhunshin TARGET=24Q4
 flag {
     name: "prevent_hangup_during_call_merge"
     namespace: "telephony"
     description: "This flag prevents hangup call during call merge"
     bug:"317070933"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-# OWNER=joonhunshin TARGET=24Q4
-flag {
-    name: "avoid_deleting_ims_object_from_cache"
-    namespace: "telephony"
-    description: "This flag controls deleting cached object to synchronize part of application callback and part of ImsFeature behavior"
-    bug:"353577279"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
@@ -149,17 +100,6 @@ flag {
     description: "This flag controls the type of API regarding MmTelFeature, either hidden or system type."
     bug:"359721349"
     is_exported: true
-}
-
-# OWNER=joonhunshin TARGET=25Q2
-flag {
-    name: "skip_mmi_code_check_for_emergency_call"
-    namespace: "telephony"
-    description: "This flag allows to skip the MMI code check for the emergency number."
-    bug:"378065922"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
 }
 
 # OWNER=yongnamcha TARGET=26Q2

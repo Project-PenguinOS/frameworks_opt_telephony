@@ -4685,8 +4685,7 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
             ImsPhoneConnection conn = findConnection(imsCall);
             // Send connection event so that Telecom can unhold the call the bg call that was held
             // for calls across phone accounts.
-            if (mTelecomFlags.enableCallSequencing() && conn != null
-                    && conn.getState() != ImsPhoneCall.State.DISCONNECTED) {
+            if (conn != null && conn.getState() != ImsPhoneCall.State.DISCONNECTED) {
                 conn.onConnectionEvent(android.telecom.Connection.EVENT_CALL_RESUME_FAILED, null);
             }
             mPhone.notifySuppServiceFailed(Phone.SuppService.RESUME);
