@@ -774,6 +774,7 @@ public class PersistAtomsStorage {
             existingStats.countOfDisallowedSatelliteAccess
                     += stats.countOfDisallowedSatelliteAccess;
             existingStats.countOfSatelliteAccessCheckFail += stats.countOfSatelliteAccessCheckFail;
+            existingStats.isProvisioned = stats.isProvisioned;
             // Does not update isProvisioned and carrierId due to they are dimension fields.
             existingStats.countOfSatelliteAllowedStateChangedEvents
                     += stats.countOfSatelliteAllowedStateChangedEvents;
@@ -784,7 +785,7 @@ public class PersistAtomsStorage {
                     += stats.countOfP2PSmsAvailableNotificationShown;
             existingStats.countOfP2PSmsAvailableNotificationRemoved
                     += stats.countOfP2PSmsAvailableNotificationRemoved;
-            // Does not update isNtnOnlyCarrier due to it is a dimension field.
+            existingStats.isNtnOnlyCarrier = stats.isNtnOnlyCarrier;
             existingStats.versionOfSatelliteAccessConfig = stats.versionOfSatelliteAccessConfig;
             existingStats.countOfIncomingDatagramTypeSosSmsSuccess
                     += stats.countOfIncomingDatagramTypeSosSmsSuccess;
@@ -1728,6 +1729,25 @@ public class PersistAtomsStorage {
         saveAtomsToFile(0);
     }
 
+    /**
+     * Gets the in-memory atoms as a serialized byte array.
+     * <p>
+     * This method serializes the current state of the in-memory {@link PersistAtoms}
+     * into a byte array, which can be used for exporting or debugging.
+     *
+     * @return A byte array representing the serialized atom data, or null if the
+     *         in-memory atoms object is null.
+     */
+    @Nullable
+    public synchronized byte[] getAtomsProtoBytes() {
+        if (mAtoms == null) {
+            Rlog.w(TAG, "getAtomsProtoBytes: mAtoms is null, returning null.");
+            return null;
+        }
+
+        return PersistAtoms.toByteArray(mAtoms);
+    }
+
     /** Loads {@link PersistAtoms} from a file in private storage. */
     private PersistAtoms loadAtomsFromFile() {
         try {
@@ -2432,9 +2452,7 @@ public class PersistAtomsStorage {
      */
     private @Nullable SatelliteController find(SatelliteController key) {
         for (SatelliteController stats : mAtoms.satelliteController) {
-            if (stats.carrierId == key.carrierId
-                    && stats.isProvisioned == key.isProvisioned
-                    && stats.isNtnOnlyCarrier == key.isNtnOnlyCarrier) {
+            if (stats.carrierId == key.carrierId) {
                 return stats;
             }
         }
@@ -2757,5 +2775,15 @@ public class PersistAtomsStorage {
     protected long getWallTimeMillis() {
         // Epoch time in UTC, preserved across reboots, but can be adjusted e.g. by the user or NTP
         return System.currentTimeMillis();
+    }
+
+    /**
+     * For CTS test purpose only. Sets whether atoms should be saved immediately.
+     *
+     * @param enabled true to enable immediate saving.
+     */
+    public synchronized void setSaveImmediately(boolean enabled) {
+        Rlog.d(TAG, "setSaveImmediately(" + enabled + ")");
+        mSaveImmediately = enabled;
     }
 }

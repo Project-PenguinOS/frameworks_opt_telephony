@@ -950,6 +950,7 @@ public class SatelliteStats {
                     + mCountOfP2PSmsAvailableNotificationShown
                     + ", countOfP2PSmsAvailableNotificationRemoved="
                     + mCountOfP2PSmsAvailableNotificationRemoved
+                    + ", isNtnOnlyCarrier=" + sIsNtnOnlyCarrier
                     + ", versionOfSatelliteAccessConfig=" + sVersionOfSatelliteAccessConfig
                     + ", countOfIncomingDatagramTypeSosSmsSuccess="
                     + mCountOfIncomingDatagramTypeSosSmsSuccess
@@ -3377,10 +3378,10 @@ public class SatelliteStats {
         proto.initializationProcessingTimeMillis = param.getInitializationProcessingTime();
         proto.terminationProcessingTimeMillis = param.getTerminationProcessingTime();
         proto.sessionDurationSeconds = param.getSessionDuration();
-        proto.countOfOutgoingDatagramSuccess = param.getCountOfIncomingDatagramSuccess();
+        proto.countOfOutgoingDatagramSuccess = param.getCountOfOutgoingDatagramSuccess();
         proto.countOfOutgoingDatagramFailed = param.getCountOfOutgoingDatagramFailed();
         proto.countOfIncomingDatagramSuccess = param.getCountOfIncomingDatagramSuccess();
-        proto.countOfIncomingDatagramFailed = param.getCountOfOutgoingDatagramFailed();
+        proto.countOfIncomingDatagramFailed = param.getCountOfIncomingDatagramFailed();
         proto.isDemoMode = param.getIsDemoMode();
         proto.maxNtnSignalStrengthLevel = param.getMaxNtnSignalStrengthLevel();
         proto.carrierId = param.getCarrierId();

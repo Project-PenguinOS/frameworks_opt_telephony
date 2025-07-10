@@ -594,10 +594,8 @@ public class DatagramDispatcher extends Handler {
             return;
         }
 
-        if (mFeatureFlags.carrierRoamingNbIotNtn()) {
-            if (getPendingSmsCount() > 0) {
-                sendPendingSms();
-            }
+        if (getPendingSmsCount() > 0) {
+            sendPendingSms();
         }
     }
 
@@ -701,11 +699,7 @@ public class DatagramDispatcher extends Handler {
      * @return pending messages count
      */
     public int getPendingMessagesCount() {
-        if (mFeatureFlags.carrierRoamingNbIotNtn()) {
-            return getPendingDatagramCount() + getPendingSmsCount();
-        } else {
-            return getPendingDatagramCount();
-        }
+        return getPendingDatagramCount() + getPendingSmsCount();
     }
 
     /**

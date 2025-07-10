@@ -51,17 +51,6 @@ flag {
     bug: "290833783"
 }
 
-# OWNER=joonhunshin TARGET=24Q3
-flag {
-    name: "change_method_of_obtaining_ims_registration_radio_tech"
-    namespace: "telephony"
-    description: "This flag changes the method of obtaining IMS registration radio technology"
-    bug:"330120237"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
 # OWNER=rambowang TARGET=25Q2
 flag {
     name: "support_carrier_services_for_hsum"

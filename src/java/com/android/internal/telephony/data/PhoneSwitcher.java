@@ -634,14 +634,12 @@ public class PhoneSwitcher extends Handler {
                 if (phone.getImsPhone() != null) {
                     phone.getImsPhone().registerForPreciseCallStateChanged(
                             this, EVENT_PRECISE_CALL_STATE_CHANGED, null);
-                    if (mFlags.changeMethodOfObtainingImsRegistrationRadioTech()) {
-                        // Initialize IMS registration tech
-                        mImsRegistrationRadioTechMap.put(phoneId, REGISTRATION_TECH_NONE);
-                        ((ImsPhone) phone.getImsPhone()).registerForImsRegistrationChanges(
-                                this, EVENT_IMS_RADIO_TECH_CHANGED, null);
+                    // Initialize IMS registration tech
+                    mImsRegistrationRadioTechMap.put(phoneId, REGISTRATION_TECH_NONE);
+                    ((ImsPhone) phone.getImsPhone()).registerForImsRegistrationChanges(
+                            this, EVENT_IMS_RADIO_TECH_CHANGED, null);
 
-                        log("register handler to receive IMS registration : " + phoneId);
-                    }
+                    log("register handler to receive IMS registration : " + phoneId);
                 }
                 mDataSettingsManagerCallbacks.computeIfAbsent(phoneId,
                         v -> new DataSettingsManagerCallback(this::post) {
@@ -670,10 +668,6 @@ public class PhoneSwitcher extends Handler {
                             }});
                 phone.getDataSettingsManager().registerCallback(
                         mDataSettingsManagerCallbacks.get(phoneId));
-
-                if (!mFlags.changeMethodOfObtainingImsRegistrationRadioTech()) {
-                    registerForImsRadioTechChange(context, phoneId);
-                }
             }
             Set<CommandException.Error> ddsFailure = new HashSet<>();
 // QTI_BEGIN: 2021-04-19: Telephony: Add support to retry for DDS switch failures
@@ -863,19 +857,13 @@ public class PhoneSwitcher extends Handler {
                 break;
             }
             case EVENT_IMS_RADIO_TECH_CHANGED: {
-                // register for radio tech change to listen to radio tech handover in case previous
-                // attempt was not successful
-                if (!mFlags.changeMethodOfObtainingImsRegistrationRadioTech()) {
-                    registerForImsRadioTechChange();
-                } else {
-                    if (msg.obj == null) {
-                        log("EVENT_IMS_RADIO_TECH_CHANGED but parameter is not available");
-                        break;
-                    }
-                    if (!onImsRadioTechChanged((AsyncResult) (msg.obj))) {
-                        break;
-                    }
 // QTI_BEGIN: 2023-06-27: Telephony: Fix starting temp DDS switch by IMS radio tech changed
+                if (msg.obj == null) {
+                    log("EVENT_IMS_RADIO_TECH_CHANGED but parameter is not available");
+                    break;
+                }
+                if (!onImsRadioTechChanged((AsyncResult) (msg.obj))) {
+                    break;
                 }
 // QTI_END: 2023-06-27: Telephony: Fix starting temp DDS switch by IMS radio tech changed
 
@@ -888,12 +876,6 @@ public class PhoneSwitcher extends Handler {
                 break;
             }
             case EVENT_PRECISE_CALL_STATE_CHANGED: {
-                // register for radio tech change to listen to radio tech handover in case previous
-                // attempt was not successful
-                if (!mFlags.changeMethodOfObtainingImsRegistrationRadioTech()) {
-                    registerForImsRadioTechChange();
-                }
-
 // QTI_BEGIN: 2025-02-04: Telephony: Prevent AOSP auto DDS evaluation when UI disabled
                 // If the phoneId in voice call didn't change, do nothing.
                 if (!updatesIfPhoneInVoiceCallChanged()) {
@@ -1130,14 +1112,12 @@ public class PhoneSwitcher extends Handler {
             if (phone.getImsPhone() != null) {
                 phone.getImsPhone().registerForPreciseCallStateChanged(
                         this, EVENT_PRECISE_CALL_STATE_CHANGED, null);
-                if (mFlags.changeMethodOfObtainingImsRegistrationRadioTech()) {
-                    // Initialize IMS registration tech for new phoneId
-                    mImsRegistrationRadioTechMap.put(phoneId, REGISTRATION_TECH_NONE);
-                    ((ImsPhone) phone.getImsPhone()).registerForImsRegistrationChanges(
-                            this, EVENT_IMS_RADIO_TECH_CHANGED, null);
+                // Initialize IMS registration tech for new phoneId
+                mImsRegistrationRadioTechMap.put(phoneId, REGISTRATION_TECH_NONE);
+                ((ImsPhone) phone.getImsPhone()).registerForImsRegistrationChanges(
+                        this, EVENT_IMS_RADIO_TECH_CHANGED, null);
 
-                    log("register handler to receive IMS registration : " + phoneId);
-                }
+                log("register handler to receive IMS registration : " + phoneId);
             }
 
             mDataSettingsManagerCallbacks.computeIfAbsent(phone.getPhoneId(),
@@ -1176,10 +1156,6 @@ public class PhoneSwitcher extends Handler {
 // QTI_BEGIN: 2021-04-19: Telephony: Add support to retry for DDS switch failures
             mCurrentDdsSwitchFailure.add(ddsFailure);
 // QTI_END: 2021-04-19: Telephony: Add support to retry for DDS switch failures
-
-            if (!mFlags.changeMethodOfObtainingImsRegistrationRadioTech()) {
-                registerForImsRadioTechChange(mContext, phoneId);
-            }
         }
 
         mAutoDataSwitchController.onMultiSimConfigChanged(activeModemCount);
@@ -1311,14 +1287,6 @@ public class PhoneSwitcher extends Handler {
                     mAutoSelectedDataSubId = DEFAULT_SUBSCRIPTION_ID;
                 }
                 mPhoneSubscriptions[i] = sub;
-
-                if (!mFlags.changeMethodOfObtainingImsRegistrationRadioTech()) {
-                    // Listen to IMS radio tech change for new sub
-                    if (SubscriptionManager.isValidSubscriptionId(sub)) {
-                        registerForImsRadioTechChange(mContext, i);
-                    }
-                }
-
                 diffDetected = true;
                 mAutoDataSwitchController.notifySubscriptionsMappingChanged();
             }

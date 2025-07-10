@@ -858,11 +858,7 @@ public class ImsPhone extends ImsPhoneBase {
             try {
                 if (getRingingCall().getState() != ImsPhoneCall.State.IDLE) {
                     if (DBG) logd("MmiCode 2: accept ringing call");
-                    if (mFeatureFlags.answerAudioOnlyWhenAnsweringViaMmiCode()) {
-                        mCT.acceptCall(VideoProfile.STATE_AUDIO_ONLY);
-                    } else {
-                        mCT.acceptCall(ImsCallProfile.CALL_TYPE_VOICE);
-                    }
+                    mCT.acceptCall(VideoProfile.STATE_AUDIO_ONLY);
                 } else if (getBackgroundCall().getState() == ImsPhoneCall.State.HOLDING) {
                     // If there's an active ongoing call as well, hold it and the background one
                     // should automatically unhold. Otherwise just unhold the background call.
@@ -2601,13 +2597,9 @@ public class ImsPhone extends ImsPhoneBase {
                     imsTransportType);
 
             AsyncResult ar;
-            if (mFeatureFlags.changeMethodOfObtainingImsRegistrationRadioTech()) {
-                ar = new AsyncResult(null, new ImsRegistrationRadioTechInfo(mPhoneId,
-                        attributes.getRegistrationTechnology(), REGISTRATION_STATE_REGISTERED),
-                        null);
-            } else {
-                ar = new AsyncResult(null, null, null);
-            }
+            ar = new AsyncResult(null, new ImsRegistrationRadioTechInfo(mPhoneId,
+                    attributes.getRegistrationTechnology(), REGISTRATION_STATE_REGISTERED),
+                    null);
             mImsRegistrationUpdateRegistrants.notifyRegistrants(ar);
         }
 
@@ -2626,13 +2618,9 @@ public class ImsPhone extends ImsPhoneBase {
             mImsStats.onImsRegistering(imsRadioTech);
 
             AsyncResult ar;
-            if (mFeatureFlags.changeMethodOfObtainingImsRegistrationRadioTech()) {
-                ar = new AsyncResult(null, new ImsRegistrationRadioTechInfo(mPhoneId,
-                        imsRadioTech, REGISTRATION_STATE_REGISTERING),
-                        null);
-            } else {
-                ar = new AsyncResult(null, null, null);
-            }
+            ar = new AsyncResult(null, new ImsRegistrationRadioTechInfo(mPhoneId,
+                    imsRadioTech, REGISTRATION_STATE_REGISTERING),
+                    null);
             mImsRegistrationUpdateRegistrants.notifyRegistrants(ar);
         }
 
@@ -2713,13 +2701,9 @@ public class ImsPhone extends ImsPhoneBase {
                 }
 
                 AsyncResult ar;
-                if (mFeatureFlags.changeMethodOfObtainingImsRegistrationRadioTech()) {
-                    ar = new AsyncResult(null, new ImsRegistrationRadioTechInfo(mPhoneId,
-                            REGISTRATION_TECH_NONE, REGISTRATION_STATE_NOT_REGISTERED),
-                            null);
-                } else {
-                    ar = new AsyncResult(null, null, null);
-                }
+                ar = new AsyncResult(null, new ImsRegistrationRadioTechInfo(mPhoneId,
+                        REGISTRATION_TECH_NONE, REGISTRATION_STATE_NOT_REGISTERED),
+                        null);
                 mImsRegistrationUpdateRegistrants.notifyRegistrants(ar);
             }
         }
@@ -2794,13 +2778,9 @@ public class ImsPhone extends ImsPhoneBase {
         }
 
         AsyncResult ar;
-        if (mFeatureFlags.changeMethodOfObtainingImsRegistrationRadioTech()) {
-            ar = new AsyncResult(null, new ImsRegistrationRadioTechInfo(mPhoneId,
-                    REGISTRATION_TECH_NONE, REGISTRATION_STATE_NOT_REGISTERED),
-                    null);
-        } else {
-            ar = new AsyncResult(null, null, null);
-        }
+        ar = new AsyncResult(null, new ImsRegistrationRadioTechInfo(mPhoneId,
+                REGISTRATION_TECH_NONE, REGISTRATION_STATE_NOT_REGISTERED),
+                null);
         mImsRegistrationUpdateRegistrants.notifyRegistrants(ar);
     }
 

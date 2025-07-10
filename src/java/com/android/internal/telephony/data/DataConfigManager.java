@@ -1213,6 +1213,14 @@ public class DataConfigManager extends Handler {
     }
 
     /**
+     * @return Whether to bring up a default IMS APN when one is not configured for a carrier.
+     */
+    public boolean isDefaultImsApnEnabled() {
+        return mCarrierConfig.getBoolean(
+                CarrierConfigManager.KEY_USE_DEFAULT_IMS_APN_WHEN_ABSENT_BOOL);
+    }
+
+    /**
      * @return {@code true} if PDN should persist when IWLAN data service restarted/crashed.
      * {@code false} will cause all data networks on IWLAN torn down if IWLAN data service crashes.
      */

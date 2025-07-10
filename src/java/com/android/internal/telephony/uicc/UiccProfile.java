@@ -157,7 +157,6 @@ public class UiccProfile extends IccCard {
     private static final int EVENT_TRANSMIT_APDU_BASIC_CHANNEL_DONE = 11;
     private static final int EVENT_SIM_IO_DONE = 12;
     private static final int EVENT_CARRIER_PRIVILEGES_LOADED = 13;
-    private static final int EVENT_CARRIER_CONFIG_CHANGED = 14;
     private static final int EVENT_CARRIER_PRIVILEGES_TEST_OVERRIDE_SET = 15;
     private static final int EVENT_SUPPLY_ICC_PIN_DONE = 16;
     // NOTE: any new EVENT_* values must be added to eventToString.
@@ -208,9 +207,10 @@ public class UiccProfile extends IccCard {
                 @Override
                 public void onCarrierConfigChanged(int logicalSlotIndex, int subscriptionId,
                         int carrierId, int specificCarrierId) {
-                    if (logicalSlotIndex == mPhoneId) {
-                        log("onCarrierConfigChanged: slotIndex=" + logicalSlotIndex
-                                + ", subId=" + subscriptionId + ", carrierId=" + carrierId);
+                    if (logicalSlotIndex == mPhoneId && SubscriptionManager.isValidSubscriptionId(
+                            subscriptionId) && carrierId > -1) {
+                        log("onCarrierConfigChanged: slotIndex = " + logicalSlotIndex
+                                + ", subId=" + subscriptionId + ", carrierId = " + carrierId);
                         handleCarrierNameOverride();
                         handleSimCountryIsoOverride();
                     }
@@ -275,11 +275,6 @@ public class UiccProfile extends IccCard {
                     }
                     onCarrierPrivilegesLoadedMessage();
                     updateExternalState();
-                    break;
-
-                case EVENT_CARRIER_CONFIG_CHANGED:
-                    handleCarrierNameOverride();
-                    handleSimCountryIsoOverride();
                     break;
 
                 case EVENT_OPEN_LOGICAL_CHANNEL_DONE:
@@ -1850,7 +1845,6 @@ public class UiccProfile extends IccCard {
             case EVENT_TRANSMIT_APDU_BASIC_CHANNEL_DONE: return "TRANSMIT_APDU_BASIC_CHANNEL_DONE";
             case EVENT_SIM_IO_DONE: return "SIM_IO_DONE";
             case EVENT_CARRIER_PRIVILEGES_LOADED: return "CARRIER_PRIVILEGES_LOADED";
-            case EVENT_CARRIER_CONFIG_CHANGED: return "CARRIER_CONFIG_CHANGED";
             case EVENT_CARRIER_PRIVILEGES_TEST_OVERRIDE_SET:
                 return "CARRIER_PRIVILEGES_TEST_OVERRIDE_SET";
             case EVENT_SUPPLY_ICC_PIN_DONE: return "SUPPLY_ICC_PIN_DONE";

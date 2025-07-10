@@ -11,14 +11,6 @@ flag {
 
 # OWNER=joonhunshin TARGET=24Q2
 flag {
-    name: "ignore_already_terminated_incoming_call_before_registering_listener"
-    namespace: "telephony"
-    description: "This flag ignores the incoming call by throwing an exception if the call was already terminated before the framework registers the listener for the incoming call"
-    bug:"289461637"
-}
-
-# OWNER=joonhunshin TARGET=24Q2
-flag {
     name: "clear_cached_ims_phone_number_when_device_lost_ims_registration"
     namespace: "telephony"
     description: "This flag clears cached IMS phone number when device lost IMS registration"
@@ -49,17 +41,6 @@ flag {
     namespace: "telephony"
     description: "This flag is created to notify emergency registration state changed."
     bug:"312101946"
-}
-
-# OWNER=joonhunshin TARGET=24Q3
-flag {
-    name: "answer_audio_only_when_answering_via_mmi_code"
-    namespace: "telephony"
-    description: "This flag changes the media type when answering incoming call via MMI code"
-    bug:"286499659"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
 }
 
 # OWNER=joonhunshin TARGET=24Q4

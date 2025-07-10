@@ -727,13 +727,11 @@ public abstract class InboundSmsHandler extends StateMachine {
             result = RESULT_SMS_DISPATCH_FAILURE;
         }
 
-        if (mFeatureFlags.carrierRoamingNbIotNtn()) {
-            if (result == Intents.RESULT_SMS_HANDLED) {
-                SatelliteController satelliteController = SatelliteController.getInstance();
-                if (satelliteController != null
-                        && satelliteController.shouldSendSmsToDatagramDispatcher(mPhone)) {
-                    satelliteController.onSmsReceived(mPhone.getSubId());
-                }
+        if (result == Intents.RESULT_SMS_HANDLED) {
+            SatelliteController satelliteController = SatelliteController.getInstance();
+            if (satelliteController != null
+                    && satelliteController.shouldSendSmsToDatagramDispatcher(mPhone)) {
+                satelliteController.onSmsReceived(mPhone.getSubId());
             }
         }
 
@@ -802,13 +800,11 @@ public abstract class InboundSmsHandler extends StateMachine {
             return Intents.RESULT_SMS_HANDLED;
         }
 
-        if (mFeatureFlags.carrierRoamingNbIotNtn()) {
-            SatelliteController satelliteController = SatelliteController.getInstance();
-            if (satelliteController != null
-                    && satelliteController.shouldDropSms(mPhone)) {
-                log("SMS not supported during satellite session.");
-                return Intents.RESULT_SMS_HANDLED;
-            }
+        SatelliteController satelliteController = SatelliteController.getInstance();
+        if (satelliteController != null
+                && satelliteController.shouldDropSms(mPhone)) {
+            log("SMS not supported during satellite session.");
+            return Intents.RESULT_SMS_HANDLED;
         }
 
         int result = dispatchMessageRadioSpecific(smsb, smsSource, token);
@@ -2167,8 +2163,7 @@ public abstract class InboundSmsHandler extends StateMachine {
     }
 
     private boolean isMtSmsPollingMessage(@NonNull SmsMessageBase smsb) {
-        if (!mFeatureFlags.carrierRoamingNbIotNtn()
-                || !mContext.getResources().getBoolean(R.bool.config_enabled_mt_sms_polling)) {
+        if (!mContext.getResources().getBoolean(R.bool.config_enabled_mt_sms_polling)) {
             return false;
         }
         String mtSmsPollingText = mContext.getResources()

@@ -78,7 +78,6 @@ import android.telephony.CarrierConfigManager;
 import android.telephony.ServiceState;
 import android.telephony.SubscriptionInfo;
 import android.telephony.TelephonyManager;
-import android.telephony.ims.ImsCallProfile;
 import android.telephony.ims.ImsReasonInfo;
 import android.telephony.ims.ImsRegistrationAttributes;
 import android.telephony.ims.RegistrationManager;
@@ -290,15 +289,7 @@ public class ImsPhoneTest extends TelephonyTest {
         assertEquals(true, mImsPhoneUT.handleInCallMmiCommands("2"));
         verify(mImsCT, times(2)).holdActiveCall();
 
-        // ringing call is not idle
-        doReturn(Call.State.IDLE).when(mForegroundCall).getState();
-        doReturn(Call.State.IDLE).when(mBackgroundCall).getState();
-        doReturn(Call.State.INCOMING).when(mRingingCall).getState();
-        assertEquals(true, mImsPhoneUT.handleInCallMmiCommands("2"));
-        verify(mImsCT).acceptCall(ImsCallProfile.CALL_TYPE_VOICE);
-
         // Verify b/286499659, fixed media type
-        doReturn(true).when(mFeatureFlags).answerAudioOnlyWhenAnsweringViaMmiCode();
         doReturn(Call.State.IDLE).when(mForegroundCall).getState();
         doReturn(Call.State.IDLE).when(mBackgroundCall).getState();
         doReturn(Call.State.INCOMING).when(mRingingCall).getState();

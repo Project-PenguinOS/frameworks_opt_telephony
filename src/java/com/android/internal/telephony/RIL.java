@@ -5607,7 +5607,7 @@ public class RIL extends BaseCommands implements CommandsInterface {
             @NonNull Set<Integer> allowedImsServicesHomeOnly,
             @Nullable Message result) {
         RadioImsProxy imsProxy = getRadioServiceProxy(RadioImsProxy.class);
-        if (!canMakeRequest("updateAllowedImsServices", imsProxy, result, RADIO_HAL_VERSION_2_4)) {
+        if (!canMakeRequest("updateAllowedImsServices", imsProxy, result, RADIO_HAL_VERSION_2_3)) {
             return;
         }
 

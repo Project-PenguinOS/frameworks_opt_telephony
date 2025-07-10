@@ -169,7 +169,6 @@ public class DatagramDispatcherTest extends TelephonyTest {
         replaceInstance(SessionMetricsStats.class, "sInstance", null,
                 mMockSessionMetricsStats);
 
-        when(mFeatureFlags.carrierRoamingNbIotNtn()).thenReturn(true);
         doReturn(true).when(mFeatureFlags).satelliteImproveMultiThreadDesign();
         mDatagramDispatcherUT = new TestDatagramDispatcher(mContext, Looper.myLooper(),
                 mFeatureFlags,

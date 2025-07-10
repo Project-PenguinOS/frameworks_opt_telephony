@@ -625,11 +625,9 @@ public class DeviceStateMonitor extends Handler {
             mSignalStrengthReportDecisionCallbackRegistrants.notifyResult(false);
         }
 
-        if (mFeatureFlags.carrierRoamingNbIotNtn()) {
-            // Determine whether to notify registrants about the screen on, off state change.
-            if (wasScreenOn != mIsScreenOn) {
-                mScreenStateRegistrants.notifyResult(mIsScreenOn);
-            }
+        // Determine whether to notify registrants about the screen on, off state change.
+        if (wasScreenOn != mIsScreenOn) {
+            mScreenStateRegistrants.notifyResult(mIsScreenOn);
         }
     }
 
@@ -822,11 +820,6 @@ public class DeviceStateMonitor extends Handler {
      * @param h Handler to notify
      */
     public void unregisterForScreenStateChanged(Handler h) {
-        if (!mFeatureFlags.carrierRoamingNbIotNtn()) {
-            Rlog.d(TAG, "unregisterForScreenStateChanged: carrierRoamingNbIotNtn is disabled");
-            return;
-        }
-
         mScreenStateRegistrants.remove(h);
     }
 
@@ -837,10 +830,6 @@ public class DeviceStateMonitor extends Handler {
      * @param obj AsyncResult.userObj when the message is delivered
      */
     public void registerForScreenStateChanged(Handler h, int what, Object obj) {
-        if (!mFeatureFlags.carrierRoamingNbIotNtn()) {
-            Rlog.d(TAG, "registerForScreenStateChanged: carrierRoamingNbIotNtn is disabled");
-            return;
-        }
         Registrant r = new Registrant(h, what, obj);
         mScreenStateRegistrants.add(r);
 
