@@ -114,6 +114,7 @@ import com.android.internal.telephony.domainselection.DomainSelectionResolver;
 import com.android.internal.telephony.emergency.EmergencyNumberTracker;
 import com.android.internal.telephony.emergency.EmergencyStateTracker;
 import com.android.internal.telephony.flags.FeatureFlags;
+import com.android.internal.telephony.flags.Flags;
 import com.android.internal.telephony.gsm.GsmMmiCode;
 import com.android.internal.telephony.gsm.SsData;
 import com.android.internal.telephony.gsm.SuppServiceNotification;
@@ -1648,7 +1649,9 @@ public class GsmCdmaPhone extends Phone {
         }
 
         // Perform FDN check for non-emergency calls - shouldn't dial if number is blocked by FDN
-        if(!isEmergency && FdnUtils.isNumberBlockedByFDN(mPhoneId, dialString, getCountryIso())) {
+        if (!isEmergency
+                && (!Flags.supportStkCommandUssdAndCall() || !dialArgs.skipFdnCheck)
+                && FdnUtils.isNumberBlockedByFDN(mPhoneId, dialString, getCountryIso())) {
             throw new CallStateException(CallStateException.ERROR_FDN_BLOCKED,
                     "cannot dial number blocked by FDN");
         }

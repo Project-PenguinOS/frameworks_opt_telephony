@@ -2476,6 +2476,17 @@ public class ImsPhone extends ImsPhoneBase {
         return mWakeLock;
     }
 
+    @VisibleForTesting
+    protected int getSimState(int phoneId) {
+        TelephonyManager telephonyManager = getContext().getSystemService(TelephonyManager.class);
+        if (telephonyManager == null) {
+            loge("getSimState: can't access TelephonyManager");
+            return TelephonyManager.SIM_STATE_UNKNOWN;
+        }
+
+        return telephonyManager.getSimStateForSlotIndex(phoneId);
+    }
+
     /**
      * Update roaming state and WFC mode in the following situations:
      *     1) voice is in service.
@@ -2496,9 +2507,10 @@ public class ImsPhone extends ImsPhoneBase {
         }
         boolean isInService = (ss.getState() == ServiceState.STATE_IN_SERVICE
                 || ss.getDataRegistrationState() == ServiceState.STATE_IN_SERVICE);
-        // If we are not IN_SERVICE for voice or data, ignore change roaming state, as we always
-        // move to home in this case.
-        if (!isInService || !mDefaultPhone.isRadioOn()) {
+        // If we are not IN_SERVICE for voice or data or sim has not loaded, ignore change
+        // roaming state, as we always move to home in this case.
+        if (!isInService || !mDefaultPhone.isRadioOn()
+                || getSimState(mPhoneId) != TelephonyManager.SIM_STATE_LOADED) {
             logi("updateRoamingState: we are not IN_SERVICE, ignoring roaming change.");
             return;
         }

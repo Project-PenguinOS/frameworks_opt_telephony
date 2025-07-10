@@ -36,6 +36,7 @@ import android.content.Intent;
 import android.os.UserHandle;
 import android.telephony.SmsManager;
 import android.telephony.SmsMessage;
+import android.telephony.TelephonyManager;
 import android.testing.AndroidTestingRunner;
 import android.testing.TestableLooper;
 
@@ -55,6 +56,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 
@@ -311,5 +313,34 @@ public class CATServiceTest extends TelephonyTest {
         //Verify if the command is encoded with correct Result byte as per TS 101.267
         verify(mSimulatedCommands, atLeastOnce()).sendTerminalResponse(
                 eq(mTerminalResponseForDeliverySuccess), any());
+    }
+
+    @Test
+    public void testSendUssdAndReceivesUssdResponse() {
+        ArgumentCaptor<TelephonyManager.UssdResponseCallback> callbackCaptor =
+                ArgumentCaptor.forClass(TelephonyManager.UssdResponseCallback.class);
+
+        mCatService.sendUssd(mCommandDetails, "*100#", (byte) 0x04);
+        verify(mTelephonyManager).sendUssdRequest(eq("*100#"), callbackCaptor.capture(), any());
+        callbackCaptor.getValue().onReceiveUssdResponse(mTelephonyManager, "*100#", "response");
+
+        final String terminalResponseForOkWithResponse =
+                "8103011300020282818301008D0904726573706F6E7365";
+        verify(mSimulatedCommands, atLeastOnce()).sendTerminalResponse(
+                eq(terminalResponseForOkWithResponse), any());
+    }
+
+    @Test
+    public void testSendUssdAndReceivesUssdResponseFailed() {
+        ArgumentCaptor<TelephonyManager.UssdResponseCallback> callbackCaptor =
+                ArgumentCaptor.forClass(TelephonyManager.UssdResponseCallback.class);
+
+        mCatService.sendUssd(mCommandDetails, "*100#", (byte) 0x04);
+        verify(mTelephonyManager).sendUssdRequest(eq("*100#"), callbackCaptor.capture(), any());
+        callbackCaptor.getValue().onReceiveUssdResponseFailed(mTelephonyManager, "*100#", 0);
+
+        final String terminalResponseForUssdReturnError = "810301130002028281830137";
+        verify(mSimulatedCommands, atLeastOnce()).sendTerminalResponse(
+                eq(terminalResponseForUssdReturnError), any());
     }
 }

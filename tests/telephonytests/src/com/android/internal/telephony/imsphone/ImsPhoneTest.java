@@ -41,12 +41,12 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.ArgumentMatchers.anyBoolean;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyChar;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.clearInvocations;
@@ -100,6 +100,7 @@ import com.android.internal.telephony.EcbmHandler;
 // QTI_END: 2019-04-16: Telephony: Handle ECBM mode for both the SUBs to place calls in ECBM mode
 import com.android.internal.telephony.Phone;
 import com.android.internal.telephony.PhoneConstants;
+import com.android.internal.telephony.PhoneNotifier;
 import com.android.internal.telephony.TelephonyIntents;
 import com.android.internal.telephony.TelephonyTest;
 import com.android.internal.telephony.domainselection.DomainSelectionResolver;
@@ -138,7 +139,7 @@ public class ImsPhoneTest extends TelephonyTest {
 
     private final Executor mExecutor = Runnable::run;
 
-    private ImsPhone mImsPhoneUT;
+    private ImsPhoneUT mImsPhoneUT;
     private PersistableBundle mBundle;
     private boolean mDoesRilSendMultipleCallRing;
     private static final int EVENT_SUPP_SERVICE_NOTIFICATION = 1;
@@ -148,6 +149,25 @@ public class ImsPhoneTest extends TelephonyTest {
     private static final int EVENT_CALL_RING_CONTINUE = 15;
 
     private boolean mIsPhoneUtInEcm = false;
+
+    private static class ImsPhoneUT extends ImsPhone {
+        private int mSimState = TelephonyManager.SIM_STATE_UNKNOWN;
+
+        ImsPhoneUT(Context context, PhoneNotifier notifier, Phone defaultPhone,
+                ImsManagerFactory imsManagerFactory, boolean unitTestMode,
+                FeatureFlags featureFlags) {
+            super(context, notifier, defaultPhone, imsManagerFactory, unitTestMode,
+                    featureFlags);
+        }
+
+        public int getSimState(int phoneId) {
+            return mSimState;
+        }
+
+        public void setSimState(int simState) {
+            mSimState = simState;
+        }
+    }
 
     @Before
     public void setUp() throws Exception {
@@ -170,8 +190,9 @@ public class ImsPhoneTest extends TelephonyTest {
 
         doReturn(true).when(mTelephonyManager).isVoiceCapable();
 
-        mImsPhoneUT = new ImsPhone(mContext, mNotifier, mPhone, (c, p) -> mImsManager, true,
+        mImsPhoneUT = new ImsPhoneUT(mContext, mNotifier, mPhone, (c, p) -> mImsManager, true,
                 mFeatureFlags);
+        mImsPhoneUT.setSimState(TelephonyManager.SIM_STATE_LOADED);
 
         mDoesRilSendMultipleCallRing = TelephonyProperties.ril_sends_multiple_call_ring()
                 .orElse(true);

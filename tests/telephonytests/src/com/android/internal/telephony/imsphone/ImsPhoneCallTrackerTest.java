@@ -3000,5 +3000,34 @@ public class ImsPhoneCallTrackerTest extends TelephonyTest {
 
         return profile;
     }
+
+    @Test
+    public void testHandleMergeFailure() throws Exception {
+        doReturn(true).when(mFeatureFlags).sendMergeFailureOnHandleConferenceFailed();
+
+        // Change carrier config to allow call hold for 2nd call setup
+        PersistableBundle bundle = mContextFixture.getCarrierConfigBundle();
+        bundle.putBoolean(CarrierConfigManager.KEY_ALLOW_HOLD_VIDEO_CALL_BOOL, true);
+        mCTUT.updateCarrierConfigCache(bundle);
+
+        placeCallAndMakeActive();
+        // Place a 2nd call
+        placeCallAndMakeActive();
+
+        ImsPhoneCall fgCall = mock(ImsPhoneCall.class);
+        mCTUT.mForegroundCall = fgCall;
+        when(fgCall.getImsCall()).thenReturn(mImsCall);
+        when(fgCall.getFirstConnection()).thenReturn(mImsPhoneConnection);
+
+        //Throw exception when Merge is triggered
+        doThrow(new ImsException("test Exception Handling for Merge Failure",
+                ImsReasonInfo.CODE_LOCAL_ILLEGAL_STATE)).when(mImsCall).merge(any());
+
+        mCTUT.conference();
+
+        //verify invocation
+        verify(mImsPhoneConnection).onConferenceMergeFailed();
+        verify(mImsPhoneConnection).handleMergeComplete();
+    }
 }
 

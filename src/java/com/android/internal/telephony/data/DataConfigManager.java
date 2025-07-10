@@ -350,6 +350,9 @@ public class DataConfigManager extends Handler {
     @DataConfigNetworkType
     private final Map<String, int[]> mAutoDataSwitchNetworkTypeSignalMap =
             new ConcurrentHashMap<>();
+    /** Carrier overridden auto data switch policy between primary and opportunistic networks. */
+    private int mCarrierOverriddenAutoDataSwitchPolicyForOppt =
+            CarrierConfigManager.OPP_AUTO_DATA_SWITCH_POLICY_DISABLED;
 
     /**
      * Constructor
@@ -1109,6 +1112,8 @@ public class DataConfigManager extends Handler {
                     }
                 }
             }
+            mCarrierOverriddenAutoDataSwitchPolicyForOppt = mCarrierConfig.getInt(
+                    CarrierConfigManager.KEY_OPP_AUTO_DATA_SWITCH_POLICY_INT);
         }
     }
 
@@ -1560,6 +1565,15 @@ public class DataConfigManager extends Handler {
     }
 
     /**
+     * @return Auto data switch policy for opportunistic network from carrier config
+     */
+    public int getCarrierOverriddenAutoDataSwitchPolicyForOppt() {
+        synchronized (this) {
+            return mCarrierOverriddenAutoDataSwitchPolicyForOppt;
+        }
+    }
+
+    /**
      * Log debug messages.
      * @param s debug messages
      */
@@ -1674,6 +1688,8 @@ public class DataConfigManager extends Handler {
         pw.println("forcedCellularTransportCapabilities=" + getForcedCellularTransportCapabilities()
                 .stream().map(DataUtils::networkCapabilityToString)
                 .collect(Collectors.joining(",")));
+        pw.println(
+                "autoDataSwitchPolicyForOppt=" + getCarrierOverriddenAutoDataSwitchPolicyForOppt());
         pw.decreaseIndent();
     }
 }

@@ -25,6 +25,10 @@
 package com.android.internal.telephony.data;
 
 import static android.net.NetworkCapabilities.TRANSPORT_CELLULAR;
+import static android.telephony.CarrierConfigManager.OPP_AUTO_DATA_SWITCH_POLICY_BITMASK_AVAILABILITY;
+import static android.telephony.CarrierConfigManager.OPP_AUTO_DATA_SWITCH_POLICY_BITMASK_PERFORMANCE;
+import static android.telephony.CarrierConfigManager.OPP_AUTO_DATA_SWITCH_POLICY_DISABLED;
+import static android.telephony.CarrierConfigManager.OpportunisticNetworkSwitchPolicy;
 import static android.telephony.SubscriptionManager.DEFAULT_PHONE_INDEX;
 import static android.telephony.SubscriptionManager.INVALID_PHONE_INDEX;
 
@@ -438,11 +442,12 @@ public class AutoDataSwitchController extends Handler {
             if (changed) logl("onSubscriptionChanged: " + Arrays.toString(mPhonesSignalStatus));
         } else {
             Set<Integer> activePhoneIds = Arrays.stream(mSubscriptionManagerService
-                            .getActiveSubIdList(true /*visibleOnly*/))
+                            .getActiveSubIdList(shouldExcludeOpportunisticForSwitch()
+                                    /*visibleOnly*/))
                     .map(mSubscriptionManagerService::getPhoneId)
                     .boxed()
                     .collect(Collectors.toSet());
-            // Track events only if there are at least two active visible subscriptions.
+            // Track events only if there are at least two active subscriptions.
             if (activePhoneIds.size() < 2) activePhoneIds.clear();
             boolean changed = false;
             for (int phoneId = 0; phoneId < mPhonesSignalStatus.length; phoneId++) {
@@ -482,7 +487,8 @@ public class AutoDataSwitchController extends Handler {
         boolean shouldUnregister = false;
         String reason = "";
 
-        if (mSubscriptionManagerService.getActiveSubIdList(true).length < 2) {
+        if (mSubscriptionManagerService.getActiveSubIdList(
+                shouldExcludeOpportunisticForSwitch()).length < 2) {
             shouldUnregister = true;
             reason = "only have one active subscription";
         } else if (mDefaultNetworkIsOnNonCellular) {
@@ -791,12 +797,14 @@ public class AutoDataSwitchController extends Handler {
      */
     private void onEvaluateAutoDataSwitch(@AutoDataSwitchEvaluationReason int reason) {
         // auto data switch feature is disabled.
-        if (STABILITY_CHECK_TIMER_MAP.get(STABILITY_CHECK_AVAILABILITY_SWITCH) < 0) return;
+        if (!isAvailabilityBasedSwitchEnabled()) return;
         int defaultDataSubId = mSubscriptionManagerService.getDefaultDataSubId();
         // check is valid DSDS
-        if (mSubscriptionManagerService.getActiveSubIdList(true).length < 2) return;
-        int defaultDataPhoneId = mSubscriptionManagerService.getPhoneId(
-                defaultDataSubId);
+        if (mSubscriptionManagerService.getActiveSubIdList(
+                shouldExcludeOpportunisticForSwitch()).length < 2) {
+            return;
+        }
+        int defaultDataPhoneId = mSubscriptionManagerService.getPhoneId(defaultDataSubId);
         Phone defaultDataPhone = PhoneFactory.getPhone(defaultDataPhoneId);
         if (defaultDataPhone == null) {
             loge("onEvaluateAutoDataSwitch: cannot find the phone associated with default data"
@@ -1035,11 +1043,31 @@ public class AutoDataSwitchController extends Handler {
     }
 
     /**
+     * @return {@code true} If the availability based switching is enabled.
+     */
+    private boolean isAvailabilityBasedSwitchEnabled() {
+        final boolean enabledByDeviceConfig = STABILITY_CHECK_TIMER_MAP.get(
+                STABILITY_CHECK_AVAILABILITY_SWITCH) >= 0;
+
+        // Switch between primary networks only controlled by device config
+        if (!enabledByDeviceConfig) return false;
+
+        // Switch between primary and OPPT networks is controlled by both device and carrier configs
+        return shouldExcludeOpportunisticForSwitch() || isAvailabilityBasedSwitchEnabledForOppt();
+    }
+
+    /**
      * @return {@code true} If the feature of switching base on RAT and signal strength is enabled.
      */
     private boolean isRatSignalStrengthBasedSwitchEnabled() {
-        return mScoreTolerance >= 0
+        final boolean enabledByDeviceConfig = mScoreTolerance >= 0
                 && STABILITY_CHECK_TIMER_MAP.get(STABILITY_CHECK_PERFORMANCE_SWITCH) >= 0;
+
+        // Switch between primary networks only controlled by device config
+        if (!enabledByDeviceConfig) return false;
+
+        // Switch between primary and OPPT networks is controlled by both device and carrier configs
+        return shouldExcludeOpportunisticForSwitch() || isPerformanceBasedSwitchEnabledForOppt();
     }
 
     /**
@@ -1178,6 +1206,9 @@ public class AutoDataSwitchController extends Handler {
      * @param isDueToAutoSwitch {@code true} if the switch was due to auto data switch feature.
      */
     public void displayAutoDataSwitchNotification(int phoneId, boolean isDueToAutoSwitch) {
+        // Don't display notification when networks switched between primary and opportunistic
+        if (!shouldExcludeOpportunisticForSwitch()) return;
+
         NotificationManager notificationManager = mContext.getSystemService(
                 NotificationManager.class);
         if (notificationManager == null) return;
@@ -1267,6 +1298,44 @@ public class AutoDataSwitchController extends Handler {
             case STABILITY_CHECK_AVAILABILITY_SWITCH_BACK -> "AVAILABILITY_SWITCH_BACK";
             default -> "Unknown(" + switchType + ")";
         };
+    }
+
+    /**
+     * Exclude opportunistic profiles for switch when ANY of condition below is fulfilled:
+     * - Feature flag is disabled
+     * - Not only one primary (visible) profile is active
+     * - Primary profile doesn't override carrier config to enable the feature
+     */
+    private boolean shouldExcludeOpportunisticForSwitch() {
+        return !sFeatureFlags.macroBasedOpportunisticNetworks()
+                || mSubscriptionManagerService.getActiveSubIdList(true /*visibleOnly*/).length != 1
+                || getOpptSwitchPolicyForPrimaryPhone()
+                == OPP_AUTO_DATA_SWITCH_POLICY_DISABLED;
+    }
+
+    /**
+     * @return switch policy from carrier config for primary subscription.
+     */
+    @OpportunisticNetworkSwitchPolicy
+    private int getOpptSwitchPolicyForPrimaryPhone() {
+        int[] activeSubs = mSubscriptionManagerService.getActiveSubIdList(true /*visibleOnly*/);
+        if (activeSubs.length != 1) {
+            return OPP_AUTO_DATA_SWITCH_POLICY_DISABLED;
+        }
+        return PhoneFactory.getPhone(mSubscriptionManagerService.getPhoneId(activeSubs[0]))
+                .getDataNetworkController()
+                .getDataConfigManager()
+                .getCarrierOverriddenAutoDataSwitchPolicyForOppt();
+    }
+
+    private boolean isAvailabilityBasedSwitchEnabledForOppt() {
+        final int policy = getOpptSwitchPolicyForPrimaryPhone();
+        return (policy & OPP_AUTO_DATA_SWITCH_POLICY_BITMASK_AVAILABILITY) != 0;
+    }
+
+    private boolean isPerformanceBasedSwitchEnabledForOppt() {
+        final int policy = getOpptSwitchPolicyForPrimaryPhone();
+        return (policy & OPP_AUTO_DATA_SWITCH_POLICY_BITMASK_PERFORMANCE) != 0;
     }
 
     /**
