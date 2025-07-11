@@ -101,3 +101,14 @@ flag {
     description: "Flag fix is to create the catService object with valid SIM Application"
     bug:"417398404"
 }
+
+# OWNER=juhokim TARGET=26Q2
+flag {
+    name: "support_stk_command_ussd_and_call"
+    namespace: "telephony"
+    description: "When enabled, SEND USSD and SET UP CALL commands from STK are handled through the telephony framework."
+    bug:"404099417"
+    metadata {
+        purpose: PURPOSE_FEATURE
+    }
+}

@@ -177,6 +177,7 @@ public class EmergencyStateTracker {
     private int mOngoingCallProperties;
     private boolean mSentEmergencyCallState;
     private android.telecom.Connection mNormalRoutingEmergencyConnection;
+    private boolean mIsEmergencyCallWaitingForEmergencyModeCompletion;
 
     /** For emergency SMS */
     private final Set<String> mOngoingEmergencySmsIds = new ArraySet<>();
@@ -370,6 +371,14 @@ public class EmergencyStateTracker {
                                 }
                             } else {
                                 completeEmergencyMode(emergencyType);
+
+                                // Emergency SMS is being started
+                                // while DDS switch condition is being checked.
+                                if (mIsEmergencyCallWaitingForEmergencyModeCompletion) {
+                                    mIsEmergencyCallWaitingForEmergencyModeCompletion = false;
+                                    setIsInEmergencyCall(true);
+                                    completeEmergencyMode(EMERGENCY_TYPE_CALL);
+                                }
                             }
                         } else {
                             completeEmergencyMode(emergencyType);
@@ -380,6 +389,14 @@ public class EmergencyStateTracker {
                                         STOP_REASON_OUTGOING_EMERGENCY_CALL_INITIATED);
                                 turnOnRadioAndSwitchDds(mPhone, EMERGENCY_TYPE_CALL,
                                         mIsTestEmergencyNumber);
+                            } else if (mPhone != null) {
+                                // Emergency SMS is being started
+                                // while DDS switch condition is being checked.
+                                if (mIsEmergencyCallWaitingForEmergencyModeCompletion) {
+                                    mIsEmergencyCallWaitingForEmergencyModeCompletion = false;
+                                    setIsInEmergencyCall(true);
+                                    completeEmergencyMode(EMERGENCY_TYPE_CALL);
+                                }
                             }
                         }
                     }
@@ -670,11 +687,10 @@ public class EmergencyStateTracker {
                             MSG_SET_EMERGENCY_MODE_DONE);
                     return mCallEmergencyModeFuture;
                 }
-                // Ensure that domain selector requests scan.
-                mLastEmergencyRegistrationResult = new EmergencyRegistrationResult(
-                        AccessNetworkConstants.AccessNetworkType.UNKNOWN,
-                        NetworkRegistrationInfo.REGISTRATION_STATE_UNKNOWN,
-                        NetworkRegistrationInfo.DOMAIN_UNKNOWN, false, false, 0, 0, "", "", "");
+                // If the last emergency registration result is available, it's used for initial
+                // domain selection. Otherwise, an unknown emergency registration result is created,
+                // prompting the domain selector to request a network scan.
+                setUnknownEmergencyRegistrationResultIfNotAvailable();
                 return CompletableFuture.completedFuture(DisconnectCause.NOT_DISCONNECTED);
             }
 
@@ -792,6 +808,7 @@ public class EmergencyStateTracker {
     }
 
     private void clearEmergencyCallInfo() {
+        mIsEmergencyCallWaitingForEmergencyModeCompletion = false;
         mEmergencyCallDomain = NetworkRegistrationInfo.DOMAIN_UNKNOWN;
         mEmergencyCallPhoneType = PhoneConstants.PHONE_TYPE_NONE;
         mIsTestEmergencyNumber = false;
@@ -800,6 +817,15 @@ public class EmergencyStateTracker {
         mOngoingConnection = null;
         mOngoingCallProperties = 0;
         mPhone = null;
+    }
+
+    private void setUnknownEmergencyRegistrationResultIfNotAvailable() {
+        if (mLastEmergencyRegistrationResult == null) {
+            mLastEmergencyRegistrationResult = new EmergencyRegistrationResult(
+                    AccessNetworkConstants.AccessNetworkType.UNKNOWN,
+                    NetworkRegistrationInfo.REGISTRATION_STATE_UNKNOWN,
+                    NetworkRegistrationInfo.DOMAIN_UNKNOWN, false, false, 0, 0, "", "", "");
+        }
     }
 
     private void switchDdsAndSetEmergencyMode(Phone phone, @EmergencyType int emergencyType) {
@@ -817,16 +843,21 @@ public class EmergencyStateTracker {
             if (mEmergencyMode != MODE_EMERGENCY_WWAN) {
                 setEmergencyMode(phone, emergencyType, MODE_EMERGENCY_WWAN,
                         MSG_SET_EMERGENCY_MODE_DONE);
-            } else {
-                // Ensure that domain selector requests the network scan.
-                mLastEmergencyRegistrationResult = new EmergencyRegistrationResult(
-                        AccessNetworkConstants.AccessNetworkType.UNKNOWN,
-                        NetworkRegistrationInfo.REGISTRATION_STATE_UNKNOWN,
-                        NetworkRegistrationInfo.DOMAIN_UNKNOWN, false, false, 0, 0, "", "", "");
+            } else if (!isEmergencyModeInProgress()) {
+                // If the last emergency registration result is available, it's used for initial
+                // domain selection. Otherwise, an unknown emergency registration result is created,
+                // prompting the domain selector to request a network scan.
+                setUnknownEmergencyRegistrationResultIfNotAvailable();
+
                 if (emergencyType == EMERGENCY_TYPE_CALL) {
                     setIsInEmergencyCall(true);
                 }
                 completeEmergencyMode(emergencyType);
+            } else {
+                // If emergency mode is set by SMS while the radio is ON and
+                // the DDS switch condition is being checked, the emergency call should wait for
+                // the emergency mode to be set.
+                mIsEmergencyCallWaitingForEmergencyModeCompletion = true;
             }
         });
     }
@@ -1000,6 +1031,7 @@ public class EmergencyStateTracker {
         }
         mEmergencyMode = MODE_EMERGENCY_NONE;
         setEmergencyModeInProgress(true);
+        mLastEmergencyRegistrationResult = null;
 
         Message m = mHandler.obtainMessage(
                 MSG_EXIT_EMERGENCY_MODE_DONE, Integer.valueOf(emergencyType));
@@ -2392,30 +2424,25 @@ public class EmergencyStateTracker {
         if (satelliteController.isDemoModeEnabled()) {
             // If user makes emergency call in demo mode, end the satellite session
             return true;
-        } else if (mFeatureFlags.carrierRoamingNbIotNtn()
-                && !satelliteController.getRequestIsEmergency()) {
+        } else if (!satelliteController.getRequestIsEmergency()) {
             // If satellite is not for emergency, end the satellite session
             return true;
         } else { // satellite is for emergency
-            if (mFeatureFlags.carrierRoamingNbIotNtn()) {
-                int subId = satelliteController.getSelectedSatelliteSubId();
-                SubscriptionInfoInternal info = SubscriptionManagerService.getInstance()
-                        .getSubscriptionInfoInternal(subId);
-                if (info == null) {
-                    Rlog.e(TAG, "satellite is/being enabled, but satellite sub "
-                            + subId + " is null");
-                    return false;
-                }
+            int subId = satelliteController.getSelectedSatelliteSubId();
+            SubscriptionInfoInternal info = SubscriptionManagerService.getInstance()
+                    .getSubscriptionInfoInternal(subId);
+            if (info == null) {
+                Rlog.e(TAG, "satellite is/being enabled, but satellite sub "
+                        + subId + " is null");
+                return false;
+            }
 
-                if (info.getOnlyNonTerrestrialNetwork() == 1) {
-                    // OEM
-                    return mTurnOffOemEnabledSatelliteDuringEmergencyCall;
-                } else {
-                    // Carrier
-                    return satelliteController.shouldTurnOffCarrierSatelliteForEmergencyCall();
-                }
-            } else {
+            if (info.getOnlyNonTerrestrialNetwork() == 1) {
+                // OEM
                 return mTurnOffOemEnabledSatelliteDuringEmergencyCall;
+            } else {
+                // Carrier
+                return satelliteController.shouldTurnOffCarrierSatelliteForEmergencyCall();
             }
         }
     }

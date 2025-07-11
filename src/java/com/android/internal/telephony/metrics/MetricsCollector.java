@@ -384,6 +384,24 @@ public class MetricsCollector implements StatsManager.StatsPullAtomCallback {
         mStorage.clearAtoms();
     }
 
+    /** For CTS test purpose only. Sets whether atoms should be saved immediately. */
+    public void setSaveFileImmediately(boolean enable) {
+        mStorage.setSaveImmediately(enable);
+    }
+
+    /**
+     * Retrieves the persisted atoms from storage as a serialized byte array.
+     * <p>
+     * This is a pass-through method to get the raw protobuf data for debugging
+     * or CTS verification purposes.
+     *
+     * @return A byte array representing the serialized atom data.
+     */
+    public byte[] getAtomsProtoBytes() {
+        concludeAll();
+        return mStorage.getAtomsProtoBytes();
+    }
+
     /**
      * Registers a {@link DataCallSessionStats} which will be pinged for on-going data calls when
      * data call atoms are pulled.

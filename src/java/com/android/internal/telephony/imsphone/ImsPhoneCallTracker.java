@@ -6924,11 +6924,15 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
     private void handleConferenceFailed(ImsPhoneConnection fgConnection,
             ImsPhoneConnection bgConnection) {
         if (fgConnection != null) {
-            fgConnection.onConferenceMergeFailed();
+            if(mFeatureFlags.sendMergeFailureOnHandleConferenceFailed()){
+                fgConnection.onConferenceMergeFailed();
+            }
             fgConnection.handleMergeComplete();
         }
         if (bgConnection != null) {
-            bgConnection.onConferenceMergeFailed();
+            if(mFeatureFlags.sendMergeFailureOnHandleConferenceFailed()){
+                bgConnection.onConferenceMergeFailed();
+            }
             bgConnection.handleMergeComplete();
         }
         mPhone.notifySuppServiceFailed(Phone.SuppService.CONFERENCE);

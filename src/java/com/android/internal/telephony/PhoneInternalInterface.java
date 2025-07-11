@@ -83,6 +83,7 @@ public interface PhoneInternalInterface {
             protected int mVideoState = VideoProfile.STATE_AUDIO_ONLY;
             protected Bundle mIntentExtras;
             protected int mEccCategory = EmergencyNumber.EMERGENCY_SERVICE_CATEGORY_UNSPECIFIED;
+            protected boolean mSkipFdnCheck = false;
 
             public static DialArgs.Builder from(DialArgs dialArgs) {
                 return new DialArgs.Builder()
@@ -91,7 +92,8 @@ public interface PhoneInternalInterface {
                     .setIsEmergency(dialArgs.isEmergency)
                     .setVideoState(dialArgs.videoState)
                     .setIntentExtras(dialArgs.intentExtras)
-                    .setEccCategory(dialArgs.eccCategory);
+                    .setEccCategory(dialArgs.eccCategory)
+                    .setSkipFdnCheck(dialArgs.skipFdnCheck);
             }
 
             public T setUusInfo(UUSInfo uusInfo) {
@@ -124,6 +126,12 @@ public interface PhoneInternalInterface {
                 return (T) this;
             }
 
+            /** Set argument that decides whether skip the FDN check or not. */
+            public T setSkipFdnCheck(boolean skipFdnCheck) {
+                mSkipFdnCheck = skipFdnCheck;
+                return (T) this;
+            }
+
             public PhoneInternalInterface.DialArgs build() {
                 return new DialArgs(this);
             }
@@ -147,6 +155,9 @@ public interface PhoneInternalInterface {
         /** Indicates emergency service category */
         public final int eccCategory;
 
+        /** Skips FDN check if set */
+        public final boolean skipFdnCheck;
+
         protected DialArgs(Builder b) {
             this.uusInfo = b.mUusInfo;
             this.clirMode = b.mClirMode;
@@ -154,6 +165,7 @@ public interface PhoneInternalInterface {
             this.videoState = b.mVideoState;
             this.intentExtras = b.mIntentExtras;
             this.eccCategory = b.mEccCategory;
+            this.skipFdnCheck = b.mSkipFdnCheck;
         }
     }
 

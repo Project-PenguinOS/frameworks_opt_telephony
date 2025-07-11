@@ -37,6 +37,8 @@ public enum ComprehensionTlvTag {
     ALPHA_ID(0x05),
     @UnsupportedAppUsage
     ADDRESS(0x06),
+    CAPABILITY_CONFIGURATION_PARAMETERS(0x07),
+    SUBADDRESS(0x08),
     @UnsupportedAppUsage
     USSD_STRING(0x0a),
     @UnsupportedAppUsage

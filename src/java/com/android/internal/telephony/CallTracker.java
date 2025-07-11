@@ -107,12 +107,10 @@ public abstract class CallTracker extends Handler {
 
     protected void
     pollCallsAfterDelay() {
-        if (mFeatureFlags.preventInvocationRepeatOfRilCallWhenDeviceDoesNotSupportVoice()) {
-            if (!mCi.getHalVersion(TelephonyManager.HAL_SERVICE_VOICE)
-                    .greaterOrEqual(RIL.RADIO_HAL_VERSION_1_4)) {
-                log("Skip polling because HAL_SERVICE_VOICE < RADIO_HAL_VERSION_1.4");
-                return;
-            }
+        if (!mCi.getHalVersion(TelephonyManager.HAL_SERVICE_VOICE)
+                .greaterOrEqual(RIL.RADIO_HAL_VERSION_1_4)) {
+            log("Skip polling because HAL_SERVICE_VOICE < RADIO_HAL_VERSION_1.4");
+            return;
         }
 
         Message msg = obtainMessage();

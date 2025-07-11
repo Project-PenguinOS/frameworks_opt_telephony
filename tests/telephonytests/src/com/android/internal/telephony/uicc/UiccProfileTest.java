@@ -83,6 +83,7 @@ public class UiccProfileTest extends TelephonyTest {
     private UiccCard mUiccCard;
     private SubscriptionInfo mSubscriptionInfo;
     private ISub mMockedIsub;
+    private static final int TEST_CARRIER_ID = 1;
 
     private IccCardApplicationStatus composeUiccApplicationStatus(
             IccCardApplicationStatus.AppType appType,
@@ -523,7 +524,7 @@ public class UiccProfileTest extends TelephonyTest {
 
         // send carrier config change
         mCarrierConfigChangeListener.onCarrierConfigChanged(mPhone.getPhoneId(), mPhone.getSubId(),
-                TelephonyManager.UNKNOWN_CARRIER_ID, TelephonyManager.UNKNOWN_CARRIER_ID);
+                TEST_CARRIER_ID, TEST_CARRIER_ID);
         processAllMessages();
 
         // verify that setSimOperatorNameForPhone() is called with fakeCarrierName
@@ -538,6 +539,38 @@ public class UiccProfileTest extends TelephonyTest {
             }
         }
         assertTrue(carrierFound);
+    }
+
+    @Test
+    @SmallTest
+    public void testCarrierConfigHandlingForFailCase() {
+        testUpdateUiccProfileApplication();
+
+        // Fake carrier name
+        String fakeCarrierName = "fakeCarrierName";
+        PersistableBundle carrierConfigBundle = mContextFixture.getCarrierConfigBundle();
+        carrierConfigBundle.putBoolean(CarrierConfigManager.KEY_CARRIER_NAME_OVERRIDE_BOOL, true);
+        carrierConfigBundle.putString(CarrierConfigManager.KEY_CARRIER_NAME_STRING,
+                fakeCarrierName);
+
+        // send carrier config change
+        mCarrierConfigChangeListener.onCarrierConfigChanged(mPhone.getPhoneId(), mPhone.getSubId(),
+                TelephonyManager.UNKNOWN_CARRIER_ID, TelephonyManager.UNKNOWN_CARRIER_ID);
+        processAllMessages();
+
+        // verify that setSimOperatorNameForPhone() is called with fakeCarrierName
+        ArgumentCaptor<String> stringArgumentCaptor = ArgumentCaptor.forClass(String.class);
+        verify(mTelephonyManager, atLeast(1)).setSimOperatorNameForPhone(anyInt(),
+                stringArgumentCaptor.capture());
+        boolean carrierFound = false;
+        for (String carrierName : stringArgumentCaptor.getAllValues()) {
+            if (fakeCarrierName.equals(carrierName)) {
+                carrierFound = true;
+                break;
+            }
+        }
+        // As we are sending inValid carrierId it fails to set the carrierName
+        assertFalse(carrierFound);
     }
 
     @Test

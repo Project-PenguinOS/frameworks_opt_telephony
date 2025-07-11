@@ -211,7 +211,7 @@ public class CallManager {
      * get Phone object corresponds to subId
      * @return Phone
      */
-    private Phone getPhone(int subId) {
+    public Phone getPhone(int subId) {
         Phone p = null;
         for (Phone phone : mPhones) {
             if (phone.getSubId() == subId &&
@@ -764,7 +764,7 @@ public class CallManager {
      * dialing, alerting, ringing, or waiting.  Other errors are
      * handled asynchronously.
      */
-    public Connection dial(Phone phone, String dialString, int videoState)
+    public Connection dial(Phone phone, String dialString, PhoneInternalInterface.DialArgs dialArgs)
             throws CallStateException {
         int subId = phone.getSubId();
         Connection result;
@@ -812,8 +812,7 @@ public class CallManager {
             }
         }
 
-        result = phone.dial(dialString, new PhoneInternalInterface.DialArgs.Builder<>()
-                .setVideoState(videoState).build());
+        result = phone.dial(dialString, dialArgs);
 
         if (VDBG) {
             Rlog.d(LOG_TAG, "End dial(" + phone + ", "+ dialString + ")");
@@ -821,6 +820,22 @@ public class CallManager {
         }
 
         return result;
+    }
+
+    /**
+     * Initiate a new voice connection. This happens asynchronously, so you
+     * cannot assume the audio path is connected (or a call index has been
+     * assigned) until PhoneStateChanged notification has occurred.
+     *
+     * @exception CallStateException if a new outgoing call is not currently
+     * possible because no more call slots exist or a call exists that is
+     * dialing, alerting, ringing, or waiting.  Other errors are
+     * handled asynchronously.
+     */
+    public Connection dial(Phone phone, String dialString, int videoState)
+            throws CallStateException {
+        return dial(phone, dialString, new PhoneInternalInterface.DialArgs.Builder<>()
+                .setVideoState(videoState).build());
     }
 
     /**

@@ -16,7 +16,11 @@
 
 package com.android.internal.telephony;
 
+import android.annotation.NonNull;
+import android.content.Context;
+import android.content.pm.PackageManager;
 import android.os.Build;
+import android.util.Base64;
 
 import com.android.internal.telephony.metrics.TelephonyMetrics;
 import com.android.telephony.Rlog;
@@ -33,10 +37,12 @@ import java.io.PrintWriter;
  */
 public class DebugService {
     private static String TAG = "DebugService";
+    private final Context mContext;
 
     /** Constructor */
-    public DebugService() {
+    public DebugService(@NonNull Context context) {
         log("DebugService:");
+        mContext = context;
     }
 
     /**
@@ -58,9 +64,52 @@ public class DebugService {
                     }
                     return;
                 case "--clearatoms":
-                    if (Build.IS_DEBUGGABLE) {
+                    if (Build.IS_DEBUGGABLE || mContext.checkCallingOrSelfPermission(
+                            android.Manifest.permission.DUMP)
+                            == PackageManager.PERMISSION_GRANTED) {
                         log("Clearing atoms..");
                         PhoneFactory.getMetricsCollector().clearAtomsStorage();
+
+                        if (args.length > 1 && "--saveFileImmediately".equals(args[1])) {
+                            log("Setting save-immediately mode to true after clearing.");
+                            PhoneFactory.getMetricsCollector().setSaveFileImmediately(true);
+                        } else {
+                            log("Restoring default save-delay mode after clearing.");
+                            PhoneFactory.getMetricsCollector().setSaveFileImmediately(false);
+                        }
+                    } else {
+                        pw.println("ERROR: Failed to clear atom, does not have permission.");
+                        logw("Clearing atoms.. failed, does not have permission");
+                    }
+                    return;
+                case "--pullAtomsBase64":
+                    if (Build.IS_DEBUGGABLE || mContext.checkCallingOrSelfPermission(
+                            android.Manifest.permission.DUMP)
+                            == PackageManager.PERMISSION_GRANTED) {
+                        log("Pulling atoms..");
+                        try {
+                            // This method should be implemented to get the real atom proto
+                            // from PersistAtomsStorage and serialize it to bytes.
+                            byte[] atomProtoBytes =
+                                    PhoneFactory.getMetricsCollector().getAtomsProtoBytes();
+
+                            if (atomProtoBytes != null) {
+                                // Encode byte array to Base64 String and print it.
+                                String base64String = Base64.encodeToString(atomProtoBytes,
+                                        Base64.NO_WRAP);
+                                pw.println(base64String);
+                            }
+
+                            if (args.length > 1 && "--clearAtoms".equals(args[1])) {
+                                log("clear atoms after pulling.");
+                                PhoneFactory.getMetricsCollector().clearAtomsStorage();
+                                PhoneFactory.getMetricsCollector().setSaveFileImmediately(true);
+                            }
+                        } catch (Exception e) {
+                            Rlog.e(TAG, "Failed to get/encode atom data", e);
+                        }
+                    } else {
+                        logw("Pulling atoms.. failed does not have permission");
                     }
                     return;
             }
@@ -71,5 +120,9 @@ public class DebugService {
 
     private static void log(String s) {
         Rlog.d(TAG, "DebugService " + s);
+    }
+
+    private static void logw(String s) {
+        Rlog.w(TAG, "DebugService " + s);
     }
 }

@@ -4753,9 +4753,6 @@ public class SubscriptionManagerService extends ISub.Stub {
      * @param isSatelliteESOSSupported {@code true} satellite ESOS supported true.
      */
     public void setSatelliteESOSSupported(int subId, @NonNull boolean isSatelliteESOSSupported) {
-        if (!mFeatureFlags.carrierRoamingNbIotNtn()) {
-            return;
-        }
         try {
             mSubscriptionDatabaseManager.setSatelliteESOSSupported(subId,
                     isSatelliteESOSSupported ? 1 : 0);
@@ -4789,9 +4786,6 @@ public class SubscriptionManagerService extends ISub.Stub {
      * @return the satellite ESOS supported true or false.
      */
     public boolean getSatelliteESOSSupported(int subId) {
-        if (!mFeatureFlags.carrierRoamingNbIotNtn()) {
-            return false;
-        }
         SubscriptionInfoInternal subInfo = mSubscriptionDatabaseManager.getSubscriptionInfoInternal(
                 subId);
         if (subInfo == null) {

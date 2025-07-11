@@ -19,14 +19,6 @@ flag {
     bug:"296437388"
 }
 
-# OWNER=xalle TARGET=24Q3
-flag {
-    name: "satellite_persistent_logging"
-    namespace: "telephony"
-    description: "This flag enables satellite persistent logging"
-    bug:"339877723"
-}
-
 # OWNER=hyosunkim TARGET=24Q3
 flag {
     name: "carrier_roaming_nb_iot_ntn"
