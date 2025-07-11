@@ -16,7 +16,6 @@
 
 package com.android.internal.telephony;
 
-import static android.Manifest.permission.RECEIVE_SENSITIVE_NOTIFICATIONS;
 import static android.os.PowerWhitelistManager.REASON_EVENT_MMS;
 import static android.os.PowerWhitelistManager.REASON_EVENT_SMS;
 import static android.os.PowerWhitelistManager.TEMPORARY_ALLOWLIST_TYPE_FOREGROUND_SERVICE_ALLOWED;
@@ -67,6 +66,7 @@ import android.os.storage.StorageManager;
 import android.provider.Telephony;
 import android.provider.Telephony.Sms.Intents;
 import android.service.carrier.CarrierMessagingService;
+import android.telephony.SmsManager;
 import android.telephony.SmsMessage;
 import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyManager;
@@ -104,6 +104,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -1605,32 +1606,24 @@ public abstract class InboundSmsHandler extends StateMachine {
         }
     }
 
+    @SuppressLint("MissingPermission")
     private void sendBroadcastWithRedactedPermissionChecks(Intent intent, String permission,
             String appOp, Bundle opts, SmsBroadcastReceiver resultReceiver, UserHandle user) {
-        // Send a message with the RECEIVE_SENSITIVE_NOTIFICATIONS permission. The result receiver
-        // is not passed, as we will pass it when sending the second copy of this broadcast.
-        String[] permissions = new String[]{permission, RECEIVE_SENSITIVE_NOTIFICATIONS};
-        try {
-            mContext.createPackageContextAsUser(mContext.getPackageName(), 0, user)
-                    .sendOrderedBroadcastMultiplePermissions(intent, permissions, appOp,
-                            /* resultReceiver */ null, getHandler(), Activity.RESULT_OK,
-                            null /* initialData */, null /* initialExtras */, opts);
-        } catch (PackageManager.NameNotFoundException ignored) {
+        Set<String> trustedPackagess = SmsManager.getSmsOtpTrustedPackages(mContext);
+        String[] trustedPackagesArray = new String[trustedPackagess.size()];
+        int i = 0;
+        for (String trusted: trustedPackagess) {
+            trustedPackagesArray[i] = trusted;
+            i++;
         }
 
-        // Send a message with the RECEIVE_SENSITIVE_NOTIFICATIONS app op. While this does override
-        // the specified app op, for the RECEIVE_SMS permission, the app op is automatically checked
-        // at the same time as the permission, so specifying the app op is superfluous.
         try {
-            permissions = new String[]{permission};
-            appOp = AppOpsManager.OPSTR_RECEIVE_SENSITIVE_NOTIFICATIONS;
-            // Don't send this to receivers that got the first broadcast
-            String[] excludedPermissions = new String[]{RECEIVE_SENSITIVE_NOTIFICATIONS};
+            BroadcastOptions options = new BroadcastOptions(opts);
+            options.setIncludedPackages(trustedPackagesArray);
             mContext.createPackageContextAsUser(mContext.getPackageName(), 0, user)
-                    .sendOrderedBroadcastMultiplePermissions(intent, permissions,
-                            excludedPermissions, appOp, resultReceiver, getHandler(),
-                            Activity.RESULT_OK, null /* initialData */, null /* initialExtras */,
-                            opts);
+                    .sendOrderedBroadcast(intent, Activity.RESULT_OK, permission, appOp,
+                            resultReceiver, getHandler(), null /* initialData */,
+                            null /* initialExtras */, options.toBundle());
         } catch (PackageManager.NameNotFoundException ignored) {
         }
     }

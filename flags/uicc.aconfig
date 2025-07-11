@@ -112,3 +112,12 @@ flag {
         purpose: PURPOSE_FEATURE
     }
 }
+
+# OWNER=muralidharm TARGET=25Q4
+flag {
+    name: "support_slot_switching_2psim_1esim_config"
+    namespace: "telephony"
+    description: "Flag to control supporting slow switching in 2pSIM+1eSIM configured devices"
+    bug:"427638226"
+    is_exported: true
+}

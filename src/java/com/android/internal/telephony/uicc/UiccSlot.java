@@ -32,17 +32,18 @@ import android.os.UserHandle;
 import android.telephony.SubscriptionInfo;
 import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyManager;
+import android.telephony.TelephonyManager.SimType;
 import android.text.TextUtils;
 import android.util.IndentingPrintWriter;
 import android.util.Log;
 import android.view.WindowManager;
 
 import com.android.internal.R;
-import com.android.internal.annotations.GuardedBy;
 import com.android.internal.telephony.CommandsInterface;
 import com.android.internal.telephony.IccCardConstants;
 import com.android.internal.telephony.Phone;
 import com.android.internal.telephony.PhoneFactory;
+import com.android.internal.telephony.flags.Flags;
 import com.android.internal.telephony.uicc.IccCardStatus.CardState;
 import com.android.internal.telephony.uicc.IccSlotStatus.MultipleEnabledProfilesMode;
 import com.android.internal.telephony.uicc.euicc.EuiccCard;
@@ -54,6 +55,7 @@ import java.io.FileDescriptor;
 import java.io.PrintWriter;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -102,6 +104,8 @@ public class UiccSlot extends Handler {
     // IccCardStatus and IccSlotStatus events order is not guaranteed. Inorder to handle MEP mode,
     // map each available portIdx with CardState for card state checking
     private HashMap<Integer, CardState> mCardState = new HashMap<>();
+    private @TelephonyManager.SimType int mActiveSimType = TelephonyManager.SIM_TYPE_UNKNOWN;
+    private @TelephonyManager.SimType int[] mSupportedSimTypes;
 
     private static final int EVENT_CARD_REMOVED = 13;
     private static final int EVENT_CARD_ADDED = 14;
@@ -654,6 +658,71 @@ public class UiccSlot extends Handler {
         mCardState.put(portIndex, null);
     }
 
+    /**
+     * Update active sim type and supported sim types information.
+     */
+    public void updateSimTypeInfo(SimTypeInfo simTypeInfo) {
+        if (simTypeInfo == null) {
+            loge("simTypeInfo is null");
+            return;
+        }
+        mActiveSimType = getMappedSimType(simTypeInfo.mCurrentSimType);
+        mSupportedSimTypes = convertSupportedSimTypesBitMaskToArray(simTypeInfo);
+        log("updateSimTypeInfo for slot-" + simTypeInfo.mPhysicalSlotIndex
+                + " mActiveSimType: " + mActiveSimType
+                + " mSupportedSimTypes: " + Arrays.toString(mSupportedSimTypes));
+    }
+
+    /**
+     * Converts bits of supported sim types to int[]
+     *
+     * @return TelephonyManager.SimType int[]
+     */
+    private @TelephonyManager.SimType int[] convertSupportedSimTypesBitMaskToArray(
+            SimTypeInfo simTypeInfo) {
+        @SimTypeInfo.SimType int[] allSimTypes = {
+                SimTypeInfo.SimType.SIM_TYPE_PHYSICAL,
+                SimTypeInfo.SimType.SIM_TYPE_ESIM
+        };
+        return Arrays.stream(allSimTypes)
+                .filter(type -> (simTypeInfo.mSupportedSimTypes & type) != 0)
+                .map(this::getMappedSimType)
+                .toArray();
+    }
+
+    /**
+     * Converts com.android.internal.telephony.uicc.SimTypeInfo.SimType to
+     * TelephonyManager.SimType
+     *
+     * @return TelephonyManager.SimType
+     */
+    private @SimType int getMappedSimType(@SimTypeInfo.SimType int simType) {
+        return switch (simType) {
+            case SimTypeInfo.SimType.SIM_TYPE_ESIM -> TelephonyManager.SIM_TYPE_EMBEDDED;
+            case SimTypeInfo.SimType.SIM_TYPE_PHYSICAL -> TelephonyManager.SIM_TYPE_PHYSICAL;
+            case SimTypeInfo.SimType.SIM_TYPE_UNKNOWN -> TelephonyManager.SIM_TYPE_UNKNOWN;
+            default -> TelephonyManager.SIM_TYPE_UNKNOWN;
+        };
+    }
+
+    /**
+     * Returns the current active sim type on the physical slot.
+     */
+    public @SimType int getSimType() {
+        return mActiveSimType;
+    }
+
+    /**
+     * Returns an array of supported sim types by the physical slot.
+     */
+    @NonNull
+    public @SimType int[] getSupportedSimTypes() {
+        // if mSupportedSimTypes is null, possibly modem is not supporting SimType.
+        // Return UNKNOWN sim type for consistency.
+        return mSupportedSimTypes != null ? mSupportedSimTypes
+                : new int[]{TelephonyManager.SIM_TYPE_UNKNOWN};
+    }
+
     private void log(String msg) {
         Rlog.d(TAG, msg);
     }
@@ -687,6 +756,10 @@ public class UiccSlot extends Handler {
         pw.println("mEid=" + Rlog.pii(TelephonyUtils.IS_DEBUGGABLE, mEid));
         pw.println("mCardState=" + mCardState);
         pw.println("mSupportedMepMode=" + mSupportedMepMode);
+        if (Flags.supportSlotSwitching2psim1esimConfig()) {
+            pw.println("mActiveSimType=" + mActiveSimType);
+            pw.println("mSupportedSimTypes=" + Arrays.toString(mSupportedSimTypes));
+        }
         if (mUiccCard != null) {
             pw.println("mUiccCard=");
             mUiccCard.dump(fd, pw, args);
@@ -700,9 +773,16 @@ public class UiccSlot extends Handler {
     @NonNull
     @Override
     public String toString() {
-        return "[UiccSlot: mActive=" + mActive + ", mIccId=" + getPrintableIccIds() + ", mIsEuicc="
-                + mIsEuicc + ", MEP=" + isMultipleEnabledProfileSupported() + ", mPortIdxToPhoneId="
+        StringBuilder sb = new StringBuilder("[UiccSlot: mActive=" + mActive
+                + ", mIccId=" + getPrintableIccIds() + ", mIsEuicc=" + mIsEuicc
+                + ", MEP=" + isMultipleEnabledProfileSupported() + ", mPortIdxToPhoneId="
                 + mPortIdxToPhoneId + ", mEid=" + Rlog.pii(TelephonyUtils.IS_DEBUGGABLE, mEid)
-                + ", mCardState=" + mCardState + " mSupportedMepMode=" + mSupportedMepMode + "]";
+                + ", mCardState=" + mCardState + " mSupportedMepMode=" + mSupportedMepMode);
+        if (Flags.supportSlotSwitching2psim1esimConfig()) {
+            sb.append(", mActiveSimType=").append(mActiveSimType);
+            sb.append(", mSupportedSimTypes=").append(Arrays.toString(mSupportedSimTypes));
+        }
+        sb.append("]");
+        return sb.toString();
     }
 }
