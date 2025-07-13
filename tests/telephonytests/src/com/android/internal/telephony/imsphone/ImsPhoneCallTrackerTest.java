@@ -2827,9 +2827,6 @@ public class ImsPhoneCallTrackerTest extends TelephonyTest {
 
     @Test
     public void testPreventHangupDuringCallMerge() {
-        // Enable feature flag
-        doReturn(true).when(mFeatureFlags).preventHangupDuringCallMerge();
-
         // Change carrier config to allow call hold for 2nd call setup
         PersistableBundle bundle = mContextFixture.getCarrierConfigBundle();
         bundle.putBoolean(CarrierConfigManager.KEY_ALLOW_HOLD_VIDEO_CALL_BOOL, true);

@@ -1006,6 +1006,7 @@ public class UiccCardApplication {
         pw.println("mPin1Replaced=" + mPin1Replaced);
         pw.println("mPin1State=" + mPin1State);
         pw.println("mPin2State=" + mPin2State);
+        pw.println("mIccFdnAvailable=" + mIccFdnAvailable);
         pw.println("mIccFdnEnabled=" + mIccFdnEnabled);
         pw.println("mDesiredFdnEnabled=" + mDesiredFdnEnabled);
         pw.println("mIccLockEnabled=" + mIccLockEnabled);

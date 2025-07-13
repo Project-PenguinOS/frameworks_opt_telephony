@@ -43,17 +43,6 @@ flag {
     bug:"312101946"
 }
 
-# OWNER=joonhunshin TARGET=24Q4
-flag {
-    name: "prevent_hangup_during_call_merge"
-    namespace: "telephony"
-    description: "This flag prevents hangup call during call merge"
-    bug:"317070933"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
 # OWNER=breadley TARGET=25Q1
 flag {
     name: "ims_resolver_user_aware"
@@ -125,5 +114,16 @@ flag {
     bug:"418942310"
     metadata {
         purpose: PURPOSE_BUGFIX
+    }
+}
+
+# OWNER=gpiecyk TARGET=25Q4
+flag {
+    name: "enable_rtt_hold_carrier_config"
+    namespace: "telephony"
+    description: "This flag controls the availability and functionality of the KEY_ALLOW_HOLD_IN_RTT_CALL_BOOL carrier config."
+    bug: "413765645"
+    metadata {
+        purpose: PURPOSE_FEATURE
     }
 }

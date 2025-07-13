@@ -65,7 +65,6 @@ import android.util.LocalLog;
 import android.util.Log;
 
 import com.android.internal.annotations.VisibleForTesting;
-import com.android.internal.hidden_from_bootclasspath.com.android.internal.telephony.flags.Flags;
 import com.android.internal.telephony.CarrierServiceBindHelper;
 import com.android.internal.telephony.CommandException;
 import com.android.internal.telephony.CommandsInterface;
@@ -78,6 +77,7 @@ import com.android.internal.telephony.PhoneFactory;
 import com.android.internal.telephony.RadioConfig;
 import com.android.internal.telephony.TelephonyIntents;
 import com.android.internal.telephony.flags.FeatureFlags;
+import com.android.internal.telephony.flags.Flags;
 import com.android.internal.telephony.metrics.TelephonyMetrics;
 import com.android.internal.telephony.subscription.SubscriptionManagerService;
 import com.android.internal.telephony.uicc.euicc.EuiccCard;
@@ -167,6 +167,7 @@ public class UiccController extends Handler {
     private static final int EVENT_SIM_REFRESH = 8;
     private static final int EVENT_EID_READY = 9;
     private static final int EVENT_MULTI_SIM_CONFIG_CHANGED = 10;
+    private static final int EVENT_GET_SIM_TYPE_INFO = 11;
     // NOTE: any new EVENT_* values must be added to eventToString.
 
     @NonNull
@@ -497,7 +498,45 @@ public class UiccController extends Handler {
      *  it is inactive. */
     public void switchSlots(List<UiccSlotMapping> slotMapping, Message response) {
         logl("switchSlots: " + slotMapping);
-        mRadioConfig.setSimSlotsMapping(slotMapping, response);
+        if (mFeatureFlags.supportSlotSwitching2psim1esimConfig()
+                && mRadioConfig.isGetOrSetSimTypeSupported()) {
+            if (isSimTypeChangeRequest(slotMapping)) {
+                logl("switchSlots: request for physical slot-simtype change");
+                @TelephonyManager.SimType int[] simTypes = new int[mUiccSlots.length];
+                for (UiccSlotMapping uiccSlotMapping : slotMapping) {
+                    simTypes[uiccSlotMapping.getPhysicalSlotIndex()] = uiccSlotMapping.getSimType();
+                }
+                mRadioConfig.setSimType(simTypes, response);
+            } else {
+                logl("switchSlots: request for logical slot to slot-port mapping");
+                mRadioConfig.setSimSlotsMapping(slotMapping, response);
+            }
+        } else {
+            mRadioConfig.setSimSlotsMapping(slotMapping, response);
+        }
+    }
+
+    /**
+     * Validates slot mapping data to know if the request is for sim slot mapping or changing
+     * sim type.
+     *
+     * @return {@code true} if the functionality is supported, {@code false} otherwise.
+     */
+    @VisibleForTesting
+    public boolean isSimTypeChangeRequest(List<UiccSlotMapping> uiccSlotMapping) {
+        boolean isSimTypeRequest = false;
+        for (UiccSlotMapping slotMapping : uiccSlotMapping) {
+            int slotIndex = slotMapping.getPhysicalSlotIndex();
+            // If sim type is not unknown and different from existing slot's sim type,
+            // consider this as sim type change request.
+            if (slotMapping.getSimType() != TelephonyManager.SIM_TYPE_UNKNOWN
+                    && isValidSlotIndex(slotIndex)
+                    && mUiccSlots[slotIndex].getSimType() != slotMapping.getSimType()) {
+                isSimTypeRequest = true;
+                break;
+            }
+        }
+        return isSimTypeRequest;
     }
 
     /**
@@ -705,10 +744,30 @@ public class UiccController extends Handler {
                     int activeModemCount = (int) ((AsyncResult) msg.obj).result;
                     onMultiSimConfigChanged(activeModemCount);
                     break;
+                case EVENT_GET_SIM_TYPE_INFO:
+                    if (DBG) log("Received EVENT_GET_SIM_TYPE_INFO");
+                    onGetSimTypeInfo(ar);
+                    break;
                 default:
                     logel(" Unknown Event " + msg.what);
                     break;
             }
+        }
+    }
+
+    private void onGetSimTypeInfo(AsyncResult ar) {
+        if (ar.exception != null) {
+            logel("onGetSimTypeInfo: Exception during getSimTypeInfo: " + ar.exception);
+            return;
+        }
+        ArrayList<SimTypeInfo> simTypeInfos = (ArrayList<SimTypeInfo>) ar.result;
+        logl("onGetSimTypeInfo: " + simTypeInfos);
+        for (SimTypeInfo simTypeInfo : simTypeInfos) {
+            if (simTypeInfo == null || !isValidSlotIndex(simTypeInfo.mPhysicalSlotIndex)) {
+                logel("onGetSimTypeInfo invalid sim type info: " + simTypeInfo);
+                continue;
+            }
+            mUiccSlots[simTypeInfo.mPhysicalSlotIndex].updateSimTypeInfo(simTypeInfo);
         }
     }
 
@@ -768,6 +827,7 @@ public class UiccController extends Handler {
             case EVENT_SIM_REFRESH: return "SIM_REFRESH";
             case EVENT_EID_READY: return "EID_READY";
             case EVENT_MULTI_SIM_CONFIG_CHANGED: return "MULTI_SIM_CONFIG_CHANGED";
+            case EVENT_GET_SIM_TYPE_INFO: return "GET_SIM_TYPE_INFO";
             default: return "UNKNOWN(" + event + ")";
         }
     }
@@ -1375,6 +1435,12 @@ public class UiccController extends Handler {
             return;
         }
         logl("onGetSlotStatusDone: " + status);
+
+        if (mFeatureFlags.supportSlotSwitching2psim1esimConfig()
+                && mRadioConfig.isGetOrSetSimTypeSupported()) {
+            logl("onGetSlotStatusDone: request simType info");
+            mRadioConfig.getSimTypeInfo(obtainMessage(EVENT_GET_SIM_TYPE_INFO));
+        }
 
         sLastSlotStatus = status;
 

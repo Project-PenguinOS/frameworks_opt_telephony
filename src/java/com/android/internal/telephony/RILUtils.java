@@ -104,6 +104,7 @@ import static com.android.internal.telephony.RILConstants.RIL_REQUEST_GET_SIMULT
 import static com.android.internal.telephony.RILConstants.RIL_REQUEST_GET_SIM_PHONEBOOK_CAPACITY;
 import static com.android.internal.telephony.RILConstants.RIL_REQUEST_GET_SIM_PHONEBOOK_RECORDS;
 import static com.android.internal.telephony.RILConstants.RIL_REQUEST_GET_SIM_STATUS;
+import static com.android.internal.telephony.RILConstants.RIL_REQUEST_GET_SIM_TYPE_INFO;
 import static com.android.internal.telephony.RILConstants.RIL_REQUEST_GET_SLICING_CONFIG;
 import static com.android.internal.telephony.RILConstants.RIL_REQUEST_GET_SLOT_STATUS;
 import static com.android.internal.telephony.RILConstants.RIL_REQUEST_GET_SMSC_ADDRESS;
@@ -189,6 +190,7 @@ import static com.android.internal.telephony.RILConstants.RIL_REQUEST_SET_SATELL
 import static com.android.internal.telephony.RILConstants.RIL_REQUEST_SET_SECURITY_ALGORITHMS_UPDATED_ENABLED;
 import static com.android.internal.telephony.RILConstants.RIL_REQUEST_SET_SIGNAL_STRENGTH_REPORTING_CRITERIA;
 import static com.android.internal.telephony.RILConstants.RIL_REQUEST_SET_SIM_CARD_POWER;
+import static com.android.internal.telephony.RILConstants.RIL_REQUEST_SET_SIM_TYPE;
 import static com.android.internal.telephony.RILConstants.RIL_REQUEST_SET_SMSC_ADDRESS;
 import static com.android.internal.telephony.RILConstants.RIL_REQUEST_SET_SRVCC_CALL_INFO;
 import static com.android.internal.telephony.RILConstants.RIL_REQUEST_SET_SUPP_SVC_NOTIFICATION;
@@ -5365,6 +5367,10 @@ public class RILUtils {
                 return "UPDATE_ALLOWED_IMS_SERVICES";
             case RIL_REQUEST_NOTIFY_IMS_DATA_NETWORK:
                 return "NOTIFY_IMS_DATA_NETWORK";
+            case RIL_REQUEST_SET_SIM_TYPE:
+                return "SET_SIM_TYPE";
+            case RIL_REQUEST_GET_SIM_TYPE_INFO:
+                return "GET_SIM_TYPE_INFO";
             default:
                 return "<unknown request " + request + ">";
         }
@@ -5952,17 +5958,44 @@ public class RILUtils {
     public static ArrayList<SimTypeInfo> convertAidlSimTypeInfo(
             android.hardware.radio.config.SimTypeInfo[] simTypeInfos) {
         ArrayList<SimTypeInfo> response = new ArrayList<>();
-        if (simTypeInfos == null) {
-            loge("convertAidlSimTypeInfo received NULL simTypeInfos");
+        if (simTypeInfos == null || simTypeInfos.length == 0) {
+            loge("convertAidlSimTypeInfo received NULL or empty simTypeInfos");
             return response;
         }
-        for (android.hardware.radio.config.SimTypeInfo simTypeInfo : simTypeInfos) {
+        logd("convertAidlSimTypeInfo: " + Arrays.toString(simTypeInfos));
+        for (int i = 0; i < simTypeInfos.length; i++) {
+            if (simTypeInfos[i] == null) {
+                loge("convertAidlSimTypeInfo received NULL SimTypeInfo");
+                continue;
+            }
             SimTypeInfo info = new SimTypeInfo();
-            info.mSupportedSimTypes = simTypeInfo.supportedSimTypes;
-            info.setCurrentSimType(simTypeInfo.currentSimType);
+            info.mPhysicalSlotIndex = i;
+            info.mSupportedSimTypes = simTypeInfos[i].supportedSimTypes;
+            info.setCurrentSimType(simTypeInfos[i].currentSimType);
             response.add(info);
         }
         return response;
+    }
+
+    /** Convert a TelephonyManager.SimType to an AIDL-based SimType. */
+    public static @SimTypeInfo.SimType int[] convertToAidlSimTypes(
+            @TelephonyManager.SimType int[] simTypes) {
+        @SimTypeInfo.SimType int[] types = new int[simTypes.length];
+        for (int i = 0; i < simTypes.length; i++) {
+            types[i] = getAidlMappedSimType(simTypes[i]);
+        }
+        return types;
+    }
+
+    /** Map TelephonyManager.SimType to SimTypeInfo.SimType which is an AIDL-based SimType. */
+    private static @SimTypeInfo.SimType int getAidlMappedSimType(
+            @TelephonyManager.SimType int simType) {
+        return switch (simType) {
+            case TelephonyManager.SIM_TYPE_PHYSICAL -> SimTypeInfo.SimType.SIM_TYPE_PHYSICAL;
+            case TelephonyManager.SIM_TYPE_EMBEDDED -> SimTypeInfo.SimType.SIM_TYPE_ESIM;
+            case TelephonyManager.SIM_TYPE_UNKNOWN -> SimTypeInfo.SimType.SIM_TYPE_UNKNOWN;
+            default -> SimTypeInfo.SimType.SIM_TYPE_UNKNOWN;
+        };
     }
 
     private static void logd(String log) {
