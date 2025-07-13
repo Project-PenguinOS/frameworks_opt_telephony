@@ -526,6 +526,20 @@ public class PhoneFactory {
     }
 
     /**
+     * Removes a local log category associated with the given key.
+     *
+     * <p>This is for use in tests to clean up specific resources after a test case has run,
+     * ensuring test isolation.
+     *
+     * @param key the name of the category to remove.
+     */
+    public static void removeLocalLogForTest(String key) {
+        synchronized (sLocalLogs) {
+            sLocalLogs.remove(key);
+        }
+    }
+
+    /**
      * Add a line to the named Local Log.
      *
      * This will appear in the TelephonyDebugService dump.
