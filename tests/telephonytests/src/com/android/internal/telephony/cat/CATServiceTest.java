@@ -16,6 +16,8 @@
 
 package com.android.internal.telephony.cat;
 
+import static com.google.common.truth.Truth.assertThat;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
@@ -25,6 +27,7 @@ import static org.mockito.Mockito.anyInt;
 import static org.mockito.Mockito.anyLong;
 import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -33,16 +36,20 @@ import static org.mockito.Mockito.when;
 import android.app.Activity;
 import android.content.BroadcastReceiver;
 import android.content.Intent;
+import android.os.AsyncResult;
+import android.os.Message;
 import android.os.UserHandle;
 import android.telephony.SmsManager;
 import android.telephony.SmsMessage;
 import android.telephony.TelephonyManager;
+import android.telephony.ims.feature.ImsFeature;
 import android.testing.AndroidTestingRunner;
 import android.testing.TestableLooper;
 
 import com.android.internal.telephony.ProxyController;
 import com.android.internal.telephony.SmsController;
 import com.android.internal.telephony.TelephonyTest;
+import com.android.internal.telephony.ims.ImsResolver;
 import com.android.internal.telephony.test.SimulatedCommands;
 import com.android.internal.telephony.uicc.IccCardApplicationStatus;
 import com.android.internal.telephony.uicc.IccCardStatus;
@@ -79,6 +86,7 @@ public class CATServiceTest extends TelephonyTest {
     private CommandDetails mCommandDetails;
     private CatService mCatService;
     private IccCardStatus mIccCardStatus;
+    private ImsResolver mImsResolver;
     private IccIoResult mIccIoResult;
     private String mData =
             "D059810301130082028183051353656E64696E672072657175657374202E2E2E0607911989548056780B"
@@ -135,6 +143,8 @@ public class CATServiceTest extends TelephonyTest {
         mIccCardStatus = mock(IccCardStatus.class);
         mProxyController = mock(ProxyController.class);
         mUiccCard = mock(UiccCard.class);
+        mImsResolver = mock(ImsResolver.class);
+        replaceInstance(ImsResolver.class, "sInstance", null, mImsResolver);
         IccCardApplicationStatus umtsApp = composeUiccApplicationStatus(
                 IccCardApplicationStatus.AppType.APPTYPE_USIM,
                 IccCardApplicationStatus.AppState.APPSTATE_UNKNOWN, "0xA2");
@@ -151,10 +161,13 @@ public class CATServiceTest extends TelephonyTest {
         logd("Created UiccProfile");
         processAllMessages();
         mCatService = CatService.getInstance(mSimulatedCommands, mContext,
-                mUiccProfile, mUiccController.getSlotIdFromPhoneId(0));
+                mUiccProfile, mUiccController.getSlotIdFromPhoneId(0), mFeatureFlags);
         logd("Created CATService");
         createCommandDetails();
         createComprehensionTlvList();
+
+        doReturn(true).when(mFeatureFlags).unregisterSmsBroadcastReceiverFromCatService();
+        doReturn(true).when(mFeatureFlags).supportImsRegistrationEventDownload();
     }
 
     @After
@@ -342,5 +355,42 @@ public class CATServiceTest extends TelephonyTest {
         final String terminalResponseForUssdReturnError = "810301130002028281830137";
         verify(mSimulatedCommands, atLeastOnce()).sendTerminalResponse(
                 eq(terminalResponseForUssdReturnError), any());
+    }
+
+    @Test
+    public void testBroadcastSetupEventList() {
+        doReturn("receiver1").when(mImsResolver)
+                .getConfiguredImsServicePackageName(anyInt(), eq(ImsFeature.FEATURE_MMTEL));
+        String data = "D00D81030105008202818299021704";
+        Message msg = mCatService.obtainMessage(CatService.MSG_ID_PROACTIVE_COMMAND,
+                new AsyncResult(null, data, null));
+        mCatService.handleMessage(msg);
+        processAllMessages();
+        waitForLastHandlerAction(mCatService);
+
+        ArgumentCaptor<Intent> captorIntent = ArgumentCaptor.forClass(Intent.class);
+        verify(mContext, atLeastOnce()).sendBroadcastAsUser(captorIntent.capture(),
+                eq(UserHandle.ALL), eq(AppInterface.STK_PERMISSION));
+        assertThat(captorIntent.getAllValues().stream().map(Intent::getAction).toList())
+                .contains(TelephonyManager.ACTION_STK_SETUP_EVENT_LIST);
+    }
+
+    @Test
+    public void testSkipBroadcastSetupEventListIfReceiverIsNotExist() {
+        doReturn(null).when(mImsResolver)
+                .getConfiguredImsServicePackageName(anyInt(), eq(ImsFeature.FEATURE_MMTEL));
+
+        String data = "D00D81030105008202818299021704";
+        Message msg = mCatService.obtainMessage(CatService.MSG_ID_PROACTIVE_COMMAND,
+                new AsyncResult(null, data, null));
+        mCatService.handleMessage(msg);
+        processAllMessages();
+        waitForLastHandlerAction(mCatService);
+
+        ArgumentCaptor<Intent> captorIntent = ArgumentCaptor.forClass(Intent.class);
+        verify(mContext, atLeastOnce()).sendBroadcastAsUser(captorIntent.capture(),
+                eq(UserHandle.ALL), eq(AppInterface.STK_PERMISSION));
+        assertThat(captorIntent.getAllValues().stream().map(Intent::getAction).toList())
+                .doesNotContain(TelephonyManager.ACTION_STK_SETUP_EVENT_LIST);
     }
 }

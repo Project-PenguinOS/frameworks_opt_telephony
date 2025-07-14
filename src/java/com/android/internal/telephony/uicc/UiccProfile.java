@@ -1204,7 +1204,7 @@ public class UiccProfile extends IccCard {
         if (mUiccApplications.length > 0 && mUiccApplications[0] != null) {
             // Initialize or Reinitialize CatService
             if (mCatService == null) {
-                mCatService = CatService.getInstance(mCi, mContext, this, mPhoneId);
+                mCatService = CatService.getInstance(mCi, mContext, this, mPhoneId, mFlags);
             } else {
                 mCatService.update(mCi, mContext, this);
             }

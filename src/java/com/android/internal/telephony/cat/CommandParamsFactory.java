@@ -19,6 +19,7 @@ package com.android.internal.telephony.cat;
 import static com.android.internal.telephony.cat.CatCmdMessage.SetupEventListConstants.BROWSER_TERMINATION_EVENT;
 import static com.android.internal.telephony.cat.CatCmdMessage.SetupEventListConstants.BROWSING_STATUS_EVENT;
 import static com.android.internal.telephony.cat.CatCmdMessage.SetupEventListConstants.IDLE_SCREEN_AVAILABLE_EVENT;
+import static com.android.internal.telephony.cat.CatCmdMessage.SetupEventListConstants.IMS_REGISTRATION_EVENT;
 import static com.android.internal.telephony.cat.CatCmdMessage.SetupEventListConstants.LANGUAGE_SELECTION_EVENT;
 import static com.android.internal.telephony.cat.CatCmdMessage.SetupEventListConstants.USER_ACTIVITY_EVENT;
 
@@ -913,6 +914,7 @@ public class CommandParamsFactory extends Handler {
                         case LANGUAGE_SELECTION_EVENT:
                         case BROWSER_TERMINATION_EVENT:
                         case BROWSING_STATUS_EVENT:
+                        case IMS_REGISTRATION_EVENT:
                             eventList[i] = eventValue;
                             i++;
                             break;

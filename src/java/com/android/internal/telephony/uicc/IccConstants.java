@@ -107,6 +107,9 @@ public interface IccConstants {
     //Search interval for higher priority PLMNs
     static final int EF_HPPLMN = 0x6F31;
 
+    // IMS Application Reference Identifier in TS 131.102 and TS131.103
+    int EF_IARI = 0x6FE7;
+
     static final String MF_SIM = "3F00";
     static final String DF_TELECOM = "7F10";
     static final String DF_PHONEBOOK = "5F3A";

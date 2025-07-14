@@ -118,3 +118,15 @@ flag {
     purpose: PURPOSE_BUGFIX
   }
 }
+
+# OWNER=youngtaecha TARGET=26Q2
+flag {
+  name: "telephony_satellite_mainline_phase1"
+  namespace: "telephony"
+  description: "Support Telephony Satellite Mainline Phase1"
+  bug: "428107131"
+  metadata {
+    purpose: PURPOSE_FEATURE
+  }
+}
+
