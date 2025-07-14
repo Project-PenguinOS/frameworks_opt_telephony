@@ -1476,6 +1476,8 @@ public class ImsPhoneCallTrackerTest extends TelephonyTest {
                 new ImsReasonInfo(ImsReasonInfo.CODE_SIP_BAD_REQUEST, 0), Call.State.INCOMING));
         assertEquals(DisconnectCause.INCOMING_AUTO_REJECTED, mCTUT.getDisconnectCauseFromReasonInfo(
                 new ImsReasonInfo(ImsReasonInfo.CODE_SIP_BAD_REQUEST, 0), Call.State.WAITING));
+        assertEquals(DisconnectCause.INCOMING_AUTO_REJECTED, mCTUT.getDisconnectCauseFromReasonInfo(
+                new ImsReasonInfo(ImsReasonInfo.CODE_REJECT_ONGOING_CS_CALL, 0), Call.State.IDLE));
         assertEquals(DisconnectCause.SERVER_ERROR, mCTUT.getDisconnectCauseFromReasonInfo(
                 new ImsReasonInfo(ImsReasonInfo.CODE_SIP_BAD_REQUEST, 0), Call.State.DIALING));
         assertEquals(DisconnectCause.SERVER_ERROR, mCTUT.getDisconnectCauseFromReasonInfo(
@@ -2583,6 +2585,32 @@ public class ImsPhoneCallTrackerTest extends TelephonyTest {
                 new ImsReasonInfo(ImsReasonInfo.CODE_USER_TERMINATED_BY_REMOTE, 0));
 
         verify(mImsPhone, times(2)).updateImsCallStatus(any(), any());
+    }
+
+    @Test
+    public void testUpdateImsCallStatusAutoRejectedIncoming() throws Exception {
+        IImsCallSession session = mock(IImsCallSession.class);
+        // Set a disconnect cause to CODE_REJECT_ONGOING_CS_CALL
+        mImsCallProfile.setCallExtra(ImsCallProfile.EXTRA_CALL_DISCONNECT_CAUSE, "1621");
+
+        // mock an auto rejected MT call
+        try {
+            doReturn(mImsCallProfile).when(session).getCallProfile();
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            Assert.fail("unexpected exception thrown" + ex.getMessage());
+        }
+        mMmTelListener.onIncomingCall(session, null, Bundle.EMPTY);
+        verify(mImsPhone, times(1)).notifyNewRingingConnection((Connection) any());
+        verify(mImsPhone, times(1)).notifyIncomingRing();
+        assertEquals(PhoneConstants.State.RINGING, mCTUT.getState());
+        assertTrue(mCTUT.mRingingCall.isRinging());
+        assertEquals(1, mCTUT.mRingingCall.getConnections().size());
+
+        ImsPhoneConnection connection =
+                (ImsPhoneConnection) mCTUT.mRingingCall.getConnections().get(0);
+        assertTrue(connection.isIncomingCallAutoRejected());
+        verify(mImsPhone, never()).updateImsCallStatus(any(), any());
     }
 
     @Test
