@@ -1449,6 +1449,9 @@ public class ImsPhoneConnection extends Connection implements
             if (com.android.server.telecom.flags.Flags.businessCallComposer()) {
                 maybeInjectBusinessComposerExtras(mExtras);
             }
+            if (com.android.server.telecom.flags.Flags.isUsingVideoRingback()) {
+                maybeInjectIsUsingVideoRingbackExtras(mExtras);
+            }
             setConnectionExtras(mExtras);
         }
         return changed;
@@ -1487,8 +1490,30 @@ public class ImsPhoneConnection extends Connection implements
                 extras.putString(android.telecom.Call.EXTRA_ASSERTED_DISPLAY_NAME, v);
             }
 
-        } catch (Exception e) {
-            e.printStackTrace();
+        } catch (RuntimeException e) {
+            Rlog.e(LOG_TAG, "maybeInjectBusinessComposerExtras: exception=" + e);
+        }
+    }
+
+    /**
+     * The Ims Vendor is responsible for setting the ImsCallProfile video color ring back tone
+     * value (ImsCallProfile.EXTRA_IS_USING_VIDEO_RINGBACK). This helper notifies
+     * Telecom of the video color ring back tone value which will then be injected into
+     * the android.telecom.Call object.
+     */
+    @VisibleForTesting
+    public void maybeInjectIsUsingVideoRingbackExtras(Bundle extras) {
+        if (extras == null) {
+            return;
+        }
+        try {
+            if (extras.containsKey(ImsCallProfile.EXTRA_IS_USING_VIDEO_RINGBACK)) {
+                boolean v = extras.getBoolean(ImsCallProfile.EXTRA_IS_USING_VIDEO_RINGBACK);
+                Rlog.i(LOG_TAG, String.format("mIBCE: EXTRA_IS_USING_VIDEO_RINGBACK=[%s]", v));
+                extras.putBoolean(android.telecom.Call.EXTRA_IS_USING_VIDEO_RINGBACK, v);
+            }
+        } catch (RuntimeException e) {
+            Rlog.e(LOG_TAG, "maybeInjectIsUsingVideoRingbackExtras: exception=" + e);
         }
     }
 

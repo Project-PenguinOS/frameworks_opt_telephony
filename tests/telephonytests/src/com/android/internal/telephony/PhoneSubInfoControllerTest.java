@@ -41,7 +41,10 @@ import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Binder;
 import android.os.Build;
+import android.os.Bundle;
+import android.os.ParcelableException;
 import android.os.RemoteException;
+import android.os.ResultReceiver;
 import android.telephony.TelephonyManager;
 
 import androidx.test.filters.SmallTest;
@@ -62,6 +65,7 @@ import org.junit.Test;
 import org.junit.rules.TestRule;
 import org.mockito.Mockito;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class PhoneSubInfoControllerTest extends TelephonyTest {
@@ -77,6 +81,17 @@ public class PhoneSubInfoControllerTest extends TelephonyTest {
     private PhoneSubInfoController mPhoneSubInfoControllerUT;
     private AppOpsManager mAppOsMgr;
     private PackageManager mPm;
+    private ArrayList<String> mUiccIaris = new ArrayList<>();
+    private ParcelableException mUiccException = null;
+    private ResultReceiver mIariResultReceiver = new ResultReceiver(null) {
+        @Override
+        protected void onReceiveResult(int resultCode, Bundle resultData) {
+            logd("mIariResultReceiver: onReceiveResult");
+            mUiccException = resultData.getParcelable(
+                    TelephonyManager.KEY_UICC_IARI_EXCEPTION, android.os.ParcelableException.class);
+            mUiccIaris = resultData.getStringArrayList(TelephonyManager.KEY_UICC_IARI_LIST);
+        }
+    };
 
     // Mocked classes
     GsmCdmaPhone mSecondPhone;
@@ -96,6 +111,7 @@ public class PhoneSubInfoControllerTest extends TelephonyTest {
         doReturn(true).when(mSubscriptionManagerService).isActiveSubId(1, TAG, FEATURE_ID);
         doReturn(new int[]{0, 1}).when(mSubscriptionManager)
                 .getCompleteActiveSubscriptionIdList();
+        doReturn(true).when(mFeatureFlags).supportImsRegistrationEventDownload();
 
         doReturn(mContext).when(mSecondPhone).getContext();
 
@@ -1357,7 +1373,7 @@ public class PhoneSubInfoControllerTest extends TelephonyTest {
     public void getImsPcscfAddresses_InvalidPcscf() {
         String[] preDefinedPcscfs = new String[3];
         preDefinedPcscfs[0] = null;
-        preDefinedPcscfs[2] = "";
+        preDefinedPcscfs[1] = "";
         preDefinedPcscfs[2] = "::1";
         doReturn(true).when(mFeatureFlags).supportIsimRecord();
         doReturn(mIsimUiccRecords).when(mPhone).getIsimRecords();
@@ -1428,5 +1444,83 @@ public class PhoneSubInfoControllerTest extends TelephonyTest {
 
         assertNotNull(pcscfAddresses);
         assertEquals(0, pcscfAddresses.size());
+    }
+
+    @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
+    public void getUiccIari() {
+        String[] preDefinedIaris = new String[3];
+        preDefinedIaris[0] = null;
+        preDefinedIaris[1] = "";
+        preDefinedIaris[2] = "urn:3gpp-access:apn-id.ims.mnc001.mcc001.gprs";
+
+        doReturn(mUiccCardApplicationIms).when(mUiccProfile).getApplicationByType(anyInt());
+        doReturn(mIsimUiccRecords).when(mUiccCardApplicationIms).getIccRecords();
+        doReturn(preDefinedIaris).when(mIsimUiccRecords).getUiccIari();
+
+        mPhoneSubInfoControllerUT.getUiccIari(0, 0, TAG, mIariResultReceiver);
+
+        // Null or Empty string is not added to the list
+        assertEquals(preDefinedIaris.length - 2, mUiccIaris.size());
+        assertEquals(preDefinedIaris[2], mUiccIaris.getFirst());
+    }
+
+    @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
+    public void getUiccIari_CorrespondingPhoneDoesNotExist() {
+        mPhone = null;
+
+        mPhoneSubInfoControllerUT.getUiccIari(0, 0, TAG, mIariResultReceiver);
+
+        assertEquals(0, mUiccIaris.size());
+    }
+
+    @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
+    public void getUiccIari_UiccPortDoesNotExist() {
+        doReturn(null).when(mPhone).getUiccPort();
+
+        mPhoneSubInfoControllerUT.getUiccIari(0, 0, TAG, mIariResultReceiver);
+
+        assertEquals(0, mUiccIaris.size());
+    }
+
+    @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
+    public void getUiccIari_UiccApplicationDoesNotExist() {
+        doReturn(null).when(mUiccProfile).getApplicationByType(anyInt());
+
+        mPhoneSubInfoControllerUT.getUiccIari(0, 0, TAG, mIariResultReceiver);
+
+        assertEquals(0, mUiccIaris.size());
+    }
+
+    @Test
+    public void getUiccIari_FlagDisabled() {
+        doReturn(false).when(mFeatureFlags).supportImsRegistrationEventDownload();
+
+        mPhoneSubInfoControllerUT.getUiccIari(0, 0, TAG, mIariResultReceiver);
+
+        assertEquals(0, mUiccIaris.size());
+    }
+
+    @Test
+    public void getUiccIari_InValidSubId() {
+        mPhoneSubInfoControllerUT.getUiccIari(-1, 0, TAG, mIariResultReceiver);
+
+        Throwable t = mUiccException.getCause();
+        assertTrue(t instanceof IllegalArgumentException);
+    }
+
+    @Test
+    public void getUiccIari_NoReadPrivilegedPermission() {
+        mContextFixture.removeCallingOrSelfPermission(ContextFixture.PERMISSION_ENABLE_ALL);
+
+        mPhoneSubInfoControllerUT.getUiccIari(0, 0, TAG, mIariResultReceiver);
+
+        Throwable t = mUiccException.getCause();
+        assertTrue(t instanceof SecurityException);
+
+        mContextFixture.addCallingOrSelfPermission(READ_PRIVILEGED_PHONE_STATE);
     }
 }

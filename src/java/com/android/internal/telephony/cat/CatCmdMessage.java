@@ -140,6 +140,7 @@ public class CatCmdMessage implements Parcelable {
         public static final int LANGUAGE_SELECTION_EVENT     = 0x07;
         public static final int BROWSER_TERMINATION_EVENT    = 0x08;
         public static final int BROWSING_STATUS_EVENT        = 0x0F;
+        public static final int IMS_REGISTRATION_EVENT       = 0x17;
     }
 
     public final class BrowserTerminationCauses {

@@ -121,3 +121,15 @@ flag {
     bug:"427638226"
     is_exported: true
 }
+
+# OWNER=jhyoon TARGET=26Q2
+flag {
+    name: "support_ims_registration_event_download"
+    is_exported: true
+    namespace: "telephony"
+    description: "This flag controls whether support APIs for the USAT IMS registration event download feature."
+    bug:"408143665"
+    metadata {
+        purpose: PURPOSE_FEATURE
+    }
+}
