@@ -298,7 +298,7 @@ public abstract class InboundSmsHandler extends StateMachine {
 
     private static final TextClassifier.EntityConfig TC_REQUEST_CONFIG =
             new TextClassifier.EntityConfig.Builder()
-                    .setIncludedTypes(List.of(TextClassifier.TYPE_OTP))
+                    .setIncludedTypes(List.of(TextClassifier.TYPE_SMS_RETRIEVER_OTP))
                     .includeTypesFromTextClassifier(false)
                     .build();
 
@@ -1587,7 +1587,7 @@ public abstract class InboundSmsHandler extends StateMachine {
 
         for (TextLinks.TextLink link : links.getLinks()) {
             for (int i = 0; i < link.getEntityCount(); i++) {
-                if (link.getEntity(i).equals(TextClassifier.TYPE_OTP)) {
+                if (link.getEntity(i).equals(TextClassifier.TYPE_SMS_RETRIEVER_OTP)) {
                     return true;
                 }
             }

@@ -369,7 +369,7 @@ public class ImsServiceController {
         mComponentName = componentName;
         mCallbacks = callbacks;
         Looper looper;
-        if (featureFlags.threadShred() && USE_WORKER_THREAD) {
+        if (USE_WORKER_THREAD) {
             mHandlerThread = null;
             mHandler = new Handler(WorkerThread.get().getLooper());
             looper = WorkerThread.get().getLooper();

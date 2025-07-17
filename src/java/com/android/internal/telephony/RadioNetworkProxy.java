@@ -59,7 +59,8 @@ public class RadioNetworkProxy extends RadioServiceProxy {
                     | android.hardware.radio.network.IndicationFilter.LINK_CAPACITY_ESTIMATE
                     | android.hardware.radio.network.IndicationFilter.PHYSICAL_CHANNEL_CONFIG
                     | android.hardware.radio.network.IndicationFilter.REGISTRATION_FAILURE
-                    | android.hardware.radio.network.IndicationFilter.BARRING_INFO;
+                    | android.hardware.radio.network.IndicationFilter.BARRING_INFO
+                    | android.hardware.radio.network.IndicationFilter.DISPLAY_NETWORK_TYPE_CHANGED;
 
     /**
      * Set IRadioNetwork as the AIDL implementation for RadioServiceProxy

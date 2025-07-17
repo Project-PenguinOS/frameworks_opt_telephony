@@ -21,6 +21,7 @@ import static android.telephony.TelephonyManager.UNKNOWN_CARRIER_ID;
 
 import static com.android.internal.telephony.RILConstants.RIL_UNSOL_CDMA_PRL_CHANGED;
 import static com.android.internal.telephony.RILConstants.RIL_UNSOL_CELL_INFO_LIST;
+import static com.android.internal.telephony.RILConstants.RIL_UNSOL_DISPLAY_NETWORK_TYPE_CHANGED;
 import static com.android.internal.telephony.RILConstants.RIL_UNSOL_EMERGENCY_NETWORK_SCAN_RESULT;
 import static com.android.internal.telephony.RILConstants.RIL_UNSOL_LCEDATA_RECV;
 import static com.android.internal.telephony.RILConstants.RIL_UNSOL_NETWORK_SCAN_RESULT;
@@ -464,6 +465,23 @@ public class NetworkIndication extends IRadioNetworkIndication.Stub {
 
         mRil.mSecurityAlgorithmUpdatedRegistrants.notifyRegistrants(
                 new AsyncResult(null, update, null));
+    }
+
+    /**
+     * Process radio's opinion on what network type should be displayed.
+     *
+     * @param indicationType is the indication type, which should be UNSOLICITED
+     * @param networkType is the network type that has changed to
+     */
+    public void displayNetworkTypeChanged(int indicationType, int networkType) {
+        mRil.processIndication(HAL_SERVICE_NETWORK, indicationType);
+
+        if (mRil.isLogOrTrace()) {
+            mRil.unsljLogRet(RIL_UNSOL_DISPLAY_NETWORK_TYPE_CHANGED, networkType);
+        }
+
+        mRil.mDisplayNetworkTypeChangedRegistrants.notifyRegistrants(
+                new AsyncResult(null, networkType, null));
     }
 
     @Override

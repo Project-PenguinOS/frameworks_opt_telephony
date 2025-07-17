@@ -42,7 +42,6 @@ import android.content.pm.PackageManager;
 import android.os.AsyncResult;
 import android.os.Build;
 import android.os.Handler;
-import android.os.Looper;
 import android.os.Message;
 import android.os.RegistrantList;
 import android.os.SystemProperties;
@@ -335,12 +334,9 @@ public class UiccController extends Handler {
         PhoneConfigurationManager.registerForMultiSimConfigChange(
                 this, EVENT_MULTI_SIM_CONFIG_CHANGED, null);
 
-        if (mFeatureFlags.threadShred()) {
-            mPinStorage = new PinStorage(mContext, WorkerThread.getHandler().getLooper(),
-                    mFeatureFlags);
-        } else {
-            mPinStorage = new PinStorage(mContext, Looper.myLooper(), mFeatureFlags);
-        }
+        mPinStorage = new PinStorage(mContext, WorkerThread.getHandler().getLooper(),
+                mFeatureFlags);
+
         if (!TelephonyUtils.IS_USER) {
             mUseRemovableEsimAsDefault = PreferenceManager.getDefaultSharedPreferences(mContext)
                     .getBoolean(REMOVABLE_ESIM_AS_DEFAULT, false);

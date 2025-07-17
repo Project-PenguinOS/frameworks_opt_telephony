@@ -23,14 +23,12 @@ import android.content.Context;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Handler;
-import android.os.HandlerThread;
 import android.telephony.TelephonyManager;
 import android.telephony.TelephonyManager.NetworkTypeBitMask;
 import android.util.SparseIntArray;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.os.BackgroundThread;
-import com.android.internal.telephony.flags.Flags;
 import com.android.internal.telephony.nano.PersistAtomsProto.CarrierIdMismatch;
 import com.android.internal.telephony.nano.PersistAtomsProto.CarrierRoamingSatelliteControllerStats;
 import com.android.internal.telephony.nano.PersistAtomsProto.CarrierRoamingSatelliteSession;
@@ -195,7 +193,6 @@ public class PersistAtomsStorage {
 
     private final Context mContext;
     private final Handler mHandler;
-    private final HandlerThread mHandlerThread;
     private static final SecureRandom sRandom = new SecureRandom();
 
     private Runnable mSaveRunnable =
@@ -265,15 +262,7 @@ public class PersistAtomsStorage {
         mAtoms = loadAtomsFromFile();
         mVoiceCallRatTracker = VoiceCallRatTracker.fromProto(mAtoms.voiceCallRatUsage);
 
-        if (Flags.threadShred()) {
-            mHandlerThread = null;
-            mHandler = new Handler(BackgroundThread.get().getLooper());
-        } else {
-            // TODO: we might be able to make mHandlerThread a local variable
-            mHandlerThread = new HandlerThread("PersistAtomsThread");
-            mHandlerThread.start();
-            mHandler = new Handler(mHandlerThread.getLooper());
-        }
+        mHandler = new Handler(BackgroundThread.get().getLooper());
         mSaveImmediately = false;
     }
 

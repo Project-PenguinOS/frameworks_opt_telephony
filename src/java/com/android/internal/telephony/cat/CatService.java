@@ -38,7 +38,6 @@ import android.content.res.Resources.NotFoundException;
 import android.os.AsyncResult;
 import android.os.Build;
 import android.os.Handler;
-import android.os.HandlerThread;
 import android.os.LocaleList;
 import android.os.Looper;
 import android.os.Message;
@@ -170,7 +169,6 @@ public class CatService extends Handler implements AppInterface {
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     private int mSlotId;
     private SetUpCallCommandHandler mSetUpCallHandler = null;
-    private static HandlerThread sCatServiceThread;
 
     /* For multisim catservice should not be singleton */
     private CatService(CommandsInterface ci, UiccCardApplication ca, IccRecords ir,
@@ -281,12 +279,6 @@ public class CatService extends Handler implements AppInterface {
      */
     public static CatService getInstance(CommandsInterface ci, Context context,
             UiccProfile uiccProfile, int slotId, @NonNull FeatureFlags featureFlags) {
-        if (!featureFlags.threadShred()) {
-            if (sCatServiceThread == null) {
-                sCatServiceThread = new HandlerThread("CatServiceThread");
-                sCatServiceThread.start();
-            }
-        }
         UiccCardApplication ca = null;
         IccFileHandler fh = null;
         IccRecords ir = null;
@@ -309,13 +301,8 @@ public class CatService extends Handler implements AppInterface {
                         || uiccProfile == null) {
                     return null;
                 }
-                if (featureFlags.threadShred()) {
-                    sInstance[slotId] = new CatService(ci, ca, ir, context, fh, uiccProfile, slotId,
-                            WorkerThread.get().getLooper(), featureFlags);
-                } else {
-                    sInstance[slotId] = new CatService(ci, ca, ir, context, fh, uiccProfile, slotId,
-                            sCatServiceThread.getLooper(), featureFlags);
-                }
+                sInstance[slotId] = new CatService(ci, ca, ir, context, fh, uiccProfile, slotId,
+                        WorkerThread.get().getLooper(), featureFlags);
             } else if ((ir != null) && (mIccRecords != ir)) {
                 if (mIccRecords != null) {
                     mIccRecords.unregisterForRecordsLoaded(sInstance[slotId]);
