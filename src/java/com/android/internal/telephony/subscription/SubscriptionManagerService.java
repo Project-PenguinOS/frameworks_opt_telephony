@@ -521,15 +521,7 @@ public class SubscriptionManagerService extends ISub.Stub {
 
         mUiccController = UiccController.getInstance();
         mHandler = new Handler(looper);
-
-        if (mFeatureFlags.threadShred()) {
-            mBackgroundHandler = new Handler(WorkerThread.get().getLooper());
-        } else {
-            HandlerThread backgroundThread = new HandlerThread(LOG_TAG);
-            backgroundThread.start();
-
-            mBackgroundHandler = new Handler(backgroundThread.getLooper());
-        }
+        mBackgroundHandler = new Handler(WorkerThread.get().getLooper());
 
         mDefaultVoiceSubId = new WatchedInt(Settings.Global.getInt(mContext.getContentResolver(),
                 Settings.Global.MULTI_SIM_VOICE_CALL_SUBSCRIPTION,
@@ -586,7 +578,7 @@ public class SubscriptionManagerService extends ISub.Stub {
 
         Looper dbLooper = null;
 
-        if (mFeatureFlags.threadShred() && SubscriptionManagerService.USE_WORKER_THREAD) {
+        if (SubscriptionManagerService.USE_WORKER_THREAD) {
             dbLooper = WorkerThread.get().getLooper();
         } else {
             // Create a separate thread for subscription database manager.

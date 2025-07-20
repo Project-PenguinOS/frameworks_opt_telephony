@@ -568,8 +568,6 @@ public abstract class TelephonyTest {
 
         lenient().doReturn(true).when(mFeatureFlags).dataServiceCheck();
         lenient().doReturn(true).when(mFeatureFlags).phoneTypeCleanup();
-        lenient().doReturn(true).when(mFeatureFlags).cleanupCdma();
-        lenient().doReturn(true).when(mFeatureFlags).threadShred();
         lenient().doReturn(true).when(mFeatureFlags).dynamicModemShutdown();
         lenient().doReturn(true).when(mFeatureFlags).dataServiceNotifyImsDataNetwork();
         lenient().doReturn(true).when(mFeatureFlags).keepWfcOnApm();

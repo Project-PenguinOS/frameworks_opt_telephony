@@ -24,11 +24,9 @@ import android.os.Handler;
 import android.os.Message;
 import android.os.Registrant;
 import android.os.RegistrantList;
-import android.provider.Settings;
 
 import com.android.internal.telephony.CommandsInterface;
 import com.android.internal.telephony.Phone;
-import com.android.internal.telephony.flags.Flags;
 import com.android.telephony.Rlog;
 
 import java.util.concurrent.atomic.AtomicInteger;
@@ -64,14 +62,6 @@ public class CdmaSubscriptionSourceManager extends Handler {
 
     // Constructor
     private CdmaSubscriptionSourceManager(Context context, CommandsInterface ci) {
-        if (Flags.cleanupCdma()) return;
-        mCi = ci;
-        mCi.registerForCdmaSubscriptionChanged(this, EVENT_CDMA_SUBSCRIPTION_SOURCE_CHANGED, null);
-        mCi.registerForOn(this, EVENT_RADIO_ON, null);
-        int subscriptionSource = getDefault(context);
-        log("cdmaSSM constructor: " + subscriptionSource);
-        mCdmaSubscriptionSource.set(subscriptionSource);
-        mCi.registerForSubscriptionStatusChanged(this, EVENT_SUBSCRIPTION_STATUS_CHANGED, null);
     }
 
     /**
@@ -114,42 +104,6 @@ public class CdmaSubscriptionSourceManager extends Handler {
      */
     @Override
     public void handleMessage(Message msg) {
-        if (Flags.cleanupCdma()) return;
-        AsyncResult ar;
-        switch (msg.what) {
-            case EVENT_CDMA_SUBSCRIPTION_SOURCE_CHANGED:
-            case EVENT_GET_CDMA_SUBSCRIPTION_SOURCE:
-            {
-                log("CDMA_SUBSCRIPTION_SOURCE event = " + msg.what);
-                ar = (AsyncResult) msg.obj;
-                handleGetCdmaSubscriptionSource(ar);
-            }
-            break;
-            case EVENT_RADIO_ON: {
-                mCi.getCdmaSubscriptionSource(obtainMessage(EVENT_GET_CDMA_SUBSCRIPTION_SOURCE));
-            }
-            break;
-            case EVENT_SUBSCRIPTION_STATUS_CHANGED: {
-                log("EVENT_SUBSCRIPTION_STATUS_CHANGED");
-                ar = (AsyncResult)msg.obj;
-                if (ar.exception == null) {
-                    int actStatus = ((int[])ar.result)[0];
-                    log("actStatus = " + actStatus);
-                    if (actStatus == SUBSCRIPTION_ACTIVATED) { // Subscription Activated
-                        // In case of multi-SIM, framework should wait for the subscription ready
-                        // to send any request to RIL.  Otherwise it will return failure.
-                        Rlog.v(LOG_TAG,"get Cdma Subscription Source");
-                        mCi.getCdmaSubscriptionSource(
-                                obtainMessage(EVENT_GET_CDMA_SUBSCRIPTION_SOURCE));
-                    }
-                } else {
-                    logw("EVENT_SUBSCRIPTION_STATUS_CHANGED, Exception:" + ar.exception);
-                }
-            }
-            break;
-            default:
-                super.handleMessage(msg);
-        }
     }
 
     /**
@@ -168,13 +122,7 @@ public class CdmaSubscriptionSourceManager extends Handler {
      * @return Default CDMA subscription source from Settings DB if present.
      */
     public static int getDefault(Context context) {
-        if (Flags.cleanupCdma()) return Phone.CDMA_SUBSCRIPTION_UNKNOWN;
-
-        // Get the default value from the Settings
-        int subscriptionSource = Settings.Global.getInt(context.getContentResolver(),
-                Settings.Global.CDMA_SUBSCRIPTION_MODE, Phone.PREFERRED_CDMA_SUBSCRIPTION);
-        Rlog.d(LOG_TAG, "subscriptionSource from settings: " + subscriptionSource);
-        return subscriptionSource;
+        return Phone.CDMA_SUBSCRIPTION_UNKNOWN;
     }
 
     /**

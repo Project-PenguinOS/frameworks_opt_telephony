@@ -703,7 +703,6 @@ public class RadioIndication extends IRadioIndication.Stub {
             if (mRil.isLogOrTrace()) {
                 mRil.unsljLogRet(RIL_UNSOL_CDMA_INFO_REC, cdmaInformationRecords);
             }
-            mRil.notifyRegistrantsCdmaInfoRec(cdmaInformationRecords);
         }
     }
 
@@ -764,7 +763,6 @@ public class RadioIndication extends IRadioIndication.Stub {
 
         // Initial conditions
         mRil.setRadioPower(false, null);
-        mRil.setCdmaSubscriptionSource(mRil.mCdmaSubscription, null);
         // todo: this should not require a version number now. Setting it to latest RIL version for
         // now.
         mRil.notifyRegistrantsRilConnectionChanged(15);

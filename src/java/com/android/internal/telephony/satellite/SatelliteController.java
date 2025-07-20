@@ -110,7 +110,6 @@ import android.os.Bundle;
 import android.os.CancellationSignal;
 import android.os.Handler;
 import android.os.HandlerExecutor;
-import android.os.HandlerThread;
 import android.os.IBinder;
 import android.os.ICancellationSignal;
 import android.os.Looper;
@@ -857,15 +856,8 @@ public class SatelliteController extends Handler {
      */
     public static void make(@NonNull Context context, @NonNull FeatureFlags featureFlags) {
         if (sInstance == null) {
-            if (featureFlags.threadShred()) {
-                sInstance = new SatelliteController(
-                        context, WorkerThread.get().getLooper(), featureFlags);
-            } else {
-                HandlerThread satelliteThread = new HandlerThread(TAG);
-                satelliteThread.start();
-                sInstance = new SatelliteController(
-                        context, satelliteThread.getLooper(), featureFlags);
-            }
+            sInstance = new SatelliteController(
+                    context, WorkerThread.get().getLooper(), featureFlags);
         }
     }
 

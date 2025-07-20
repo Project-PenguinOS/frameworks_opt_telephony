@@ -228,7 +228,6 @@ public class VoiceIndication extends IRadioVoiceIndication.Stub {
             if (mRil.isLogOrTrace()) {
                 mRil.unsljLogRet(RIL_UNSOL_CDMA_INFO_REC, cdmaInformationRecords);
             }
-            mRil.notifyRegistrantsCdmaInfoRec(cdmaInformationRecords);
         }
     }
 

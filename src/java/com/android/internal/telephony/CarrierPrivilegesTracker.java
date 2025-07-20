@@ -46,7 +46,6 @@ import android.content.pm.UserInfo;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
-import android.os.HandlerThread;
 import android.os.Looper;
 import android.os.Message;
 import android.os.PersistableBundle;
@@ -368,77 +367,27 @@ public class CarrierPrivilegesTracker extends Handler {
                 (TelephonyRegistryManager)
                         mContext.getSystemService(Context.TELEPHONY_REGISTRY_SERVICE);
 
-        if (mFeatureFlags.asyncInitCarrierPrivilegesTracker()) {
-            final Object localLock = new Object();
-            if (mFeatureFlags.threadShred()) {
-                mCurrentHandler = new Handler(WorkerThread.get().getLooper()) {
-                    @Override
-                    public void handleMessage(Message msg) {
-                        switch(msg.what) {
-                            case ACTION_INITIALIZE_TRACKER:
-                                handleInitializeTracker();
-                                if (!hasMessagesOrCallbacks()) {
-                                    mCurrentHandler = CarrierPrivilegesTracker.this;
-                                }
-                                break;
-                            default:
-                                Message m = CarrierPrivilegesTracker.this.obtainMessage();
-                                m.copyFrom(msg);
-                                m.sendToTarget();
-                                if (!hasMessagesOrCallbacks()) {
-                                    mCurrentHandler = CarrierPrivilegesTracker.this;
-                                }
-                                break;
+        mCurrentHandler = new Handler(WorkerThread.get().getLooper()) {
+            @Override
+            public void handleMessage(Message msg) {
+                switch(msg.what) {
+                    case ACTION_INITIALIZE_TRACKER:
+                        handleInitializeTracker();
+                        if (!hasMessagesOrCallbacks()) {
+                            mCurrentHandler = CarrierPrivilegesTracker.this;
                         }
-                    }
-                };
-            } else {
-                HandlerThread initializerThread =
-                        new HandlerThread("CarrierPrivilegesTracker Initializer") {
-                            @Override
-                            protected void onLooperPrepared() {
-                                synchronized (localLock) {
-                                    localLock.notifyAll();
-                                }
-                            }
-                        };
-                synchronized (localLock) {
-                    initializerThread.start();
-                    while (true) {
-                        try {
-                            localLock.wait();
-                            break;
-                        } catch (InterruptedException ie) {
+                        break;
+                    default:
+                        Message m = CarrierPrivilegesTracker.this.obtainMessage();
+                        m.copyFrom(msg);
+                        m.sendToTarget();
+                        if (!hasMessagesOrCallbacks()) {
+                            mCurrentHandler = CarrierPrivilegesTracker.this;
                         }
-                    }
+                        break;
                 }
-                mCurrentHandler = new Handler(initializerThread.getLooper()) {
-                    @Override
-                    public void handleMessage(Message msg) {
-                        switch(msg.what) {
-                            case ACTION_INITIALIZE_TRACKER:
-                                handleInitializeTracker();
-                                if (!hasMessagesOrCallbacks()) {
-                                    mCurrentHandler = CarrierPrivilegesTracker.this;
-                                    initializerThread.quitSafely();
-                                }
-                                break;
-                            default:
-                                Message m = CarrierPrivilegesTracker.this.obtainMessage();
-                                m.copyFrom(msg);
-                                m.sendToTarget();
-                                if (!hasMessagesOrCallbacks()) {
-                                    mCurrentHandler = CarrierPrivilegesTracker.this;
-                                    initializerThread.quitSafely();
-                                }
-                                break;
-                        }
-                    }
-                };
             }
-        } else {
-            mCurrentHandler = this;
-        }
+        };
 
         mCurrentHandler.sendMessage(obtainMessage(ACTION_INITIALIZE_TRACKER));
 

@@ -236,10 +236,6 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
 
         monitorTestableLooper(new TestableLooper(getBackgroundHandler().getLooper()));
 
-        if (!mFeatureFlags.threadShred()) {
-            monitorTestableLooper(new TestableLooper(getSubscriptionDatabaseManager().getLooper()));
-        }
-
         doAnswer(invocation -> {
             ((Runnable) invocation.getArguments()[0]).run();
             return null;
