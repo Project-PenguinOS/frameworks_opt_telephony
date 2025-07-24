@@ -3817,7 +3817,7 @@ public class SatelliteController extends Handler {
                         + ex);
             }
         } else {
-            throw new RemoteException(new IllegalStateException("registration fails: " + error));
+            throw new IllegalStateException("registration fails: " + error);
         }
     }
 

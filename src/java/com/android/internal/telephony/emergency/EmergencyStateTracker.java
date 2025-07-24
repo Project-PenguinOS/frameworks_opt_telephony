@@ -676,10 +676,8 @@ public class EmergencyStateTracker {
                     releaseWakeLock();
                     ((GsmCdmaPhone) mPhone).notifyEcbmTimerReset(Boolean.TRUE);
 
-                    if (mFeatureFlags.emergencyCallbackModeNotification()) {
-                        mPhone.stopEmergencyCallbackMode(EMERGENCY_CALLBACK_MODE_CALL,
-                                STOP_REASON_OUTGOING_EMERGENCY_CALL_INITIATED);
-                    }
+                    mPhone.stopEmergencyCallbackMode(EMERGENCY_CALLBACK_MODE_CALL,
+                            STOP_REASON_OUTGOING_EMERGENCY_CALL_INITIATED);
 
                     mOngoingCallProperties = 0;
                     mCallEmergencyModeFuture = new CompletableFuture<>();
@@ -1306,9 +1304,8 @@ public class EmergencyStateTracker {
 
         long delayInMillis = TelephonyProperties.ecm_exit_timer()
                 .orElse(mEcmExitTimeoutMs);
-        if (mFeatureFlags.emergencyCallbackModeNotification()) {
-            mPhone.startEmergencyCallbackMode(EMERGENCY_CALLBACK_MODE_CALL, delayInMillis);
-        }
+
+        mPhone.startEmergencyCallbackMode(EMERGENCY_CALLBACK_MODE_CALL, delayInMillis);
 
         // Post this runnable so we will automatically exit if no one invokes
         // exitEmergencyCallbackMode() directly.
@@ -1357,10 +1354,7 @@ public class EmergencyStateTracker {
             // Send intents that ECM has changed.
             sendEmergencyCallbackModeChange();
             gsmCdmaPhone.notifyEmergencyCallRegistrants(false);
-
-            if (mFeatureFlags.emergencyCallbackModeNotification()) {
-                gsmCdmaPhone.stopEmergencyCallbackMode(EMERGENCY_CALLBACK_MODE_CALL, reason);
-            }
+            gsmCdmaPhone.stopEmergencyCallbackMode(EMERGENCY_CALLBACK_MODE_CALL, reason);
 
             // Exit emergency mode on modem.
             exitEmergencyMode(gsmCdmaPhone, EMERGENCY_TYPE_CALL);
@@ -1686,12 +1680,10 @@ public class EmergencyStateTracker {
         // exitEmergencySmsCallbackModeAndEmergencyMode() directly.
         mHandler.sendEmptyMessageDelayed(MSG_EXIT_SCBM, delayInMillis);
 
-        if (mFeatureFlags.emergencyCallbackModeNotification()) {
-            if (shouldRestartEcm) {
-                mSmsPhone.restartEmergencyCallbackMode(EMERGENCY_CALLBACK_MODE_SMS, delayInMillis);
-            } else {
-                mSmsPhone.startEmergencyCallbackMode(EMERGENCY_CALLBACK_MODE_SMS, delayInMillis);
-            }
+        if (shouldRestartEcm) {
+            mSmsPhone.restartEmergencyCallbackMode(EMERGENCY_CALLBACK_MODE_SMS, delayInMillis);
+        } else {
+            mSmsPhone.startEmergencyCallbackMode(EMERGENCY_CALLBACK_MODE_SMS, delayInMillis);
         }
     }
 
@@ -1729,11 +1721,7 @@ public class EmergencyStateTracker {
 
         if (isInScbm()) {
             Rlog.i(TAG, "exit SCBM");
-
-            if (mFeatureFlags.emergencyCallbackModeNotification()) {
-                mSmsPhone.stopEmergencyCallbackMode(EMERGENCY_CALLBACK_MODE_SMS, reason);
-            }
-
+            mSmsPhone.stopEmergencyCallbackMode(EMERGENCY_CALLBACK_MODE_SMS, reason);
             setIsInScbm(false);
         }
 

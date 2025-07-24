@@ -2457,16 +2457,6 @@ public class ImsPhone extends ImsPhoneBase {
         return mCT.isUtEnabled();
     }
 
-    @Override
-    public void sendEmergencyCallStateChange(boolean callActive) {
-        mDefaultPhone.sendEmergencyCallStateChange(callActive);
-    }
-
-    @Override
-    public void setBroadcastEmergencyCallStateChanges(boolean broadcast) {
-        mDefaultPhone.setBroadcastEmergencyCallStateChanges(broadcast);
-    }
-
 // QTI_BEGIN: 2018-04-09: Telephony: IMS: Add UT interface to query CF setting for service class.
     @Override
     public void notifyCallForwardingIndicator() {
@@ -2837,18 +2827,25 @@ public class ImsPhone extends ImsPhoneBase {
         if (mFeatureFlags.enablePhoneNumberParsingApi()) {
             PhoneNumberManager phoneNumberManager = getPhoneNumberManager();
             if (phoneNumberManager != null) {
-                ParsedPhoneNumber result = phoneNumberManager.parsePhoneNumber(
-                        Arrays.asList(uris),
-                        subCountryIso);
-                if (result.isValidPhoneNumber()) {
-                    mSubscriptionManagerService.setNumberFromIms(subId,
-                            result.getParsedPhoneNumber());
-                    logd("setPhoneNumberForSourceIms: update IMS phone number");
-                    return;
-                } else {
-                    loge("setPhoneNumberForSourceIms: PhoneNumberManager return error "
-                            + result.getErrorCode());
-                    // try to run existing implementation.
+                try {
+                    ParsedPhoneNumber result = phoneNumberManager.parsePhoneNumber(
+                            Arrays.asList(uris),
+                            subCountryIso);
+                    if (result == null) {
+                        loge("setPhoneNumberForSourceIms: PhoneNumberManager returned a null");
+                    } else if (result.isValidPhoneNumber()) {
+                        mSubscriptionManagerService.setNumberFromIms(subId,
+                                result.getParsedPhoneNumber());
+                        logd("setPhoneNumberForSourceIms: update IMS phone number");
+                        return;
+                    } else {
+                        loge("setPhoneNumberForSourceIms: PhoneNumberManager return error "
+                                + result.getErrorCode());
+                        // try to run existing implementation.
+                    }
+                } catch (IllegalArgumentException e) {
+                    loge("setPhoneNumberForSourceIms: failed to parse phone number, " + e);
+                    // Fall through to the existing implementation
                 }
             } else {
                 logi("setPhoneNumberForSourceIms: can't access PhoneNumberManager");

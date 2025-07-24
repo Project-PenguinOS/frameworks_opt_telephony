@@ -5832,10 +5832,8 @@ public class SatelliteControllerTest extends TelephonyTest {
                 throw new AssertionError();
             }
         } else {
-            RemoteException ex = assertThrows(RemoteException.class,
+            assertThrows(IllegalStateException.class,
                     () -> mSatelliteControllerUT.registerForNtnSignalStrengthChanged(callback));
-            assertTrue("The cause is not IllegalStateException",
-                    ex.getCause() instanceof IllegalStateException);
         }
     }
 

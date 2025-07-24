@@ -65,17 +65,6 @@ flag {
     }
 }
 
-# OWNER=jackyu TARGET=25Q2
-flag {
-    name: "phone_type_cleanup"
-    namespace: "telephony"
-    description: "As CDMA deprecated, there is no need to switch phone type between CDMA and GSM"
-    bug: "379356026"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
 # OWNER=tjstuart TARGET=25Q2
 flag {
     name: "dynamic_do_not_ask_again_text"

@@ -43,19 +43,6 @@ public class ServiceStateTest extends TestCase {
     @SmallTest
     public void testRoaming() {
         ServiceState ss = new ServiceState();
-
-        ss.setCdmaDefaultRoamingIndicator(1);
-        assertEquals(1, ss.getCdmaDefaultRoamingIndicator());
-
-        ss.setCdmaEriIconIndex(2);
-        assertEquals(2, ss.getCdmaEriIconIndex());
-
-        ss.setCdmaEriIconMode(3);
-        assertEquals(3, ss.getCdmaEriIconMode());
-
-        ss.setCdmaRoamingIndicator(4);
-        assertEquals(4, ss.getCdmaRoamingIndicator());
-
         ss.setDataRoamingType(ServiceState.ROAMING_TYPE_DOMESTIC);
         assertTrue(ss.getDataRoaming());
         assertEquals(ServiceState.ROAMING_TYPE_DOMESTIC, ss.getDataRoamingType());
@@ -227,9 +214,8 @@ public class ServiceStateTest extends TestCase {
         ss.setIsManualSelection(true);
         assertTrue(ss.getIsManualSelection());
 
-        ss.setCdmaSystemAndNetworkId(123, 456);
-        assertEquals(123, ss.getCdmaSystemId());
-        assertEquals(456, ss.getCdmaNetworkId());
+        assertEquals(-1, ss.getCdmaSystemId());
+        assertEquals(-1, ss.getCdmaNetworkId());
 
         ss.setEmergencyOnly(true);
         assertTrue(ss.isEmergencyOnly());
@@ -247,11 +233,6 @@ public class ServiceStateTest extends TestCase {
         ss.setOperatorName("long", "short", "numeric");
         ss.setIsManualSelection(true);
         ss.setCssIndicator(1);
-        ss.setCdmaSystemAndNetworkId(2, 3);
-        ss.setCdmaRoamingIndicator(4);
-        ss.setCdmaDefaultRoamingIndicator(5);
-        ss.setCdmaEriIconIndex(6);
-        ss.setCdmaEriIconMode(7);
         ss.setEmergencyOnly(true);
         ss.setChannelNumber(2100);
         ss.setCellBandwidths(new int[]{1400, 5000, 10000});
@@ -292,11 +273,6 @@ public class ServiceStateTest extends TestCase {
         ss.setIsManualSelection(true);
 
         ss.setCssIndicator(1);
-        ss.setCdmaSystemAndNetworkId(2, 3);
-        ss.setCdmaRoamingIndicator(4);
-        ss.setCdmaDefaultRoamingIndicator(5);
-        ss.setCdmaEriIconIndex(6);
-        ss.setCdmaEriIconMode(7);
         ss.setEmergencyOnly(true);
         ss.setChannelNumber(2100);
         ss.setCellBandwidths(new int[]{3, 4, 10});
@@ -422,7 +398,6 @@ public class ServiceStateTest extends TestCase {
                 .setCellIdentity(new CellIdentityLte())
                 .build();
         ss.addNetworkRegistrationInfo(nri);
-        ss.setCdmaSystemAndNetworkId(12345, 6789);
         ss.setOperatorName(
                 /*longName=*/ "AwesomeTelecomm", /*shortName=*/ "AT", /*numeric=*/ "123456");
 
@@ -434,8 +409,8 @@ public class ServiceStateTest extends TestCase {
         assertEquals("AwesomeTelecomm", fineLocationSanitizedSs.getOperatorAlphaLong());
         assertEquals("AT", fineLocationSanitizedSs.getOperatorAlphaShort());
         assertEquals("123456", fineLocationSanitizedSs.getOperatorNumeric());
-        assertEquals(12345, fineLocationSanitizedSs.getCdmaSystemId());
-        assertEquals(6789, fineLocationSanitizedSs.getCdmaNetworkId());
+        assertEquals(-1, fineLocationSanitizedSs.getCdmaSystemId());
+        assertEquals(-1, fineLocationSanitizedSs.getCdmaNetworkId());
 
         ServiceState coarseLocationSanitizedSs =
                 ss.createLocationInfoSanitizedCopy(/*removeCoarseLocation=*/ true);

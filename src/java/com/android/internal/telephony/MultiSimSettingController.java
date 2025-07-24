@@ -1028,35 +1028,6 @@ public class MultiSimSettingController extends Handler {
         // If it's no primary SIM change or it's not user visible change
         // (initialized or swapped in a group), no SIM combination warning is needed.
         if (!isUserVisibleChange(change)) return params;
-
-        List<String> simNames = new ArrayList<>();
-        int cdmaPhoneCount = 0;
-        for (int subId : mPrimarySubList) {
-            Phone phone = PhoneFactory.getPhone(SubscriptionManager.getPhoneId(subId));
-            // If a dual CDMA SIM combination warning is needed.
-            if (phone != null && phone.isCdmaSubscriptionAppPresent()) {
-                cdmaPhoneCount++;
-                String simName = null;
-// QTI_BEGIN: 2023-11-10: Telephony: Remove legacy subscription code
-                SubscriptionInfoInternal subInfo = mSubscriptionManagerService
-                        .getSubscriptionInfoInternal(subId);
-                if (subInfo != null) {
-                    simName = subInfo.getDisplayName();
-// QTI_END: 2023-11-10: Telephony: Remove legacy subscription code
-                }
-                if (TextUtils.isEmpty(simName)) {
-                    // Fall back to carrier name.
-                    simName = phone.getCarrierName();
-                }
-                simNames.add(simName);
-            }
-        }
-
-        if (cdmaPhoneCount > 1) {
-            params.mWarningType = EXTRA_SIM_COMBINATION_WARNING_TYPE_DUAL_CDMA;
-            params.mSimNames = String.join(" & ", simNames);
-        }
-
         return params;
     }
 

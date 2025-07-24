@@ -26,7 +26,6 @@ import android.os.SystemProperties;
 import android.text.TextUtils;
 import android.timezone.MobileCountries;
 import android.timezone.TelephonyLookup;
-import android.timezone.TelephonyNetwork;
 import android.timezone.TelephonyNetworkFinder;
 
 import com.android.internal.annotations.GuardedBy;
@@ -260,12 +259,12 @@ public final class MccTable {
             // This should not happen under normal circumstances, only when the data is missing.
             return null;
         }
-        TelephonyNetwork network =
-                sTelephonyNetworkFinder.findNetworkByMccMnc(mccMnc.mcc, mccMnc.mnc);
-        if (network == null) {
+        MobileCountries mobileCountries = sTelephonyNetworkFinder.findCountriesByMccMnc(
+                mccMnc.mcc, mccMnc.mnc);
+        if (mobileCountries == null) {
             return null;
         }
-        return network.getCountryIsoCode();
+        return mobileCountries.getDefaultCountryIsoCode();
     }
 
     /**
