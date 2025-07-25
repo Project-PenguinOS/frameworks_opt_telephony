@@ -134,7 +134,6 @@ public class EmergencyStateTrackerTest extends TelephonyTest {
 
         doReturn(TelephonyManager.SIM_STATE_READY)
                 .when(mTelephonyManagerProxy).getSimState(anyInt());
-        doReturn(true).when(mFeatureFlags).emergencyCallbackModeNotification();
         doReturn(true).when(mFeatureFlags).disableEcbmBasedOnRat();
         doReturn(true).when(mFeatureFlags).performCrossStackRedialCheckForEmergencyCall();
     }
@@ -3072,68 +3071,6 @@ public class EmergencyStateTrackerTest extends TelephonyTest {
             verify(call, never()).hangup();
         } catch (CallStateException e) {
         }
-    }
-
-    /**
-     * Test that emergency call state changes are sent.
-     */
-    @Test
-    @SmallTest
-    public void testSendEmergencyCallStateChanges() {
-        mContextFixture.getCarrierConfigBundle().putBoolean(
-                CarrierConfigManager.KEY_CARRIER_CONFIG_APPLIED_BOOL, true);
-        // Setup EmergencyStateTracker
-        EmergencyStateTracker emergencyStateTracker = setupEmergencyStateTracker(
-                /* isSuplDdsSwitchRequiredForEmergencyCall= */ true);
-        // Create test Phone
-        Phone testPhone = setupTestPhoneForEmergencyCall(/* isRoaming= */ true,
-                /* isRadioOn= */ true);
-        when(testPhone.getSubId()).thenReturn(1);
-        ArgumentCaptor<CarrierConfigManager.CarrierConfigChangeListener> listenerArgumentCaptor =
-                ArgumentCaptor.forClass(CarrierConfigManager.CarrierConfigChangeListener.class);
-        CarrierConfigManager cfgManager = (CarrierConfigManager) mContext
-                .getSystemService(Context.CARRIER_CONFIG_SERVICE);
-
-        verify(cfgManager).registerCarrierConfigChangeListener(any(),
-                listenerArgumentCaptor.capture());
-
-        CarrierConfigManager.CarrierConfigChangeListener carrierConfigChangeListener =
-                listenerArgumentCaptor.getAllValues().get(0);
-
-        assertNotNull(carrierConfigChangeListener);
-
-        PersistableBundle bundle = mCarrierConfigManager.getConfigForSubId(testPhone.getSubId());
-        bundle.putBoolean(CarrierConfigManager.KEY_BROADCAST_EMERGENCY_CALL_STATE_CHANGES_BOOL,
-                true);
-        doReturn(bundle).when(mCarrierConfigManager).getConfigForSubId(anyInt(), any());
-        // onCarrierConfigChanged with valid subscription
-        carrierConfigChangeListener.onCarrierConfigChanged(
-                testPhone.getPhoneId(), testPhone.getSubId(),
-                TelephonyManager.UNKNOWN_CARRIER_ID, TelephonyManager.UNKNOWN_CARRIER_ID);
-
-        // Start emergency call
-        CompletableFuture<Integer> unused = emergencyStateTracker.startEmergencyCall(testPhone,
-                mTestConnection1, false);
-
-        // Verify intent is sent that emergency call state is changed
-        ArgumentCaptor<Intent> intentCaptor = ArgumentCaptor.forClass(Intent.class);
-        verify(mContext, times(1)).sendStickyBroadcastAsUser(
-                intentCaptor.capture(), eq(UserHandle.ALL));
-        Intent intent = intentCaptor.getValue();
-        assertNotNull(intent);
-        assertEquals(TelephonyIntents.ACTION_EMERGENCY_CALL_STATE_CHANGED, intent.getAction());
-        assertTrue(intent.getBooleanExtra(TelephonyManager.EXTRA_PHONE_IN_EMERGENCY_CALL, true));
-
-        // End emergency call
-        emergencyStateTracker.endCall(mTestConnection1);
-
-        // Verify intent is sent that emergency call state is changed
-        verify(mContext, times(2)).sendStickyBroadcastAsUser(
-                intentCaptor.capture(), eq(UserHandle.ALL));
-        intent = intentCaptor.getValue();
-        assertNotNull(intent);
-        assertEquals(TelephonyIntents.ACTION_EMERGENCY_CALL_STATE_CHANGED, intent.getAction());
-        assertFalse(intent.getBooleanExtra(TelephonyManager.EXTRA_PHONE_IN_EMERGENCY_CALL, false));
     }
 
     /**

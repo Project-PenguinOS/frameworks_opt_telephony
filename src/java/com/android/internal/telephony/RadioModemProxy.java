@@ -189,15 +189,6 @@ public class RadioModemProxy extends RadioServiceProxy {
     }
 
     /**
-     * Call IRadioModem#nvReadItem
-     * @param serial Serial number of request
-     * @param itemId ID of the item to read
-     * @throws RemoteException
-     */
-    public void nvReadItem(int serial, int itemId) throws RemoteException {
-    }
-
-    /**
      * Call IRadioModem#nvResetConfig
      * @param serial Serial number of request
      * @param resetType Reset type; 1: reload NV reset, 2: erase NV reset, 3: factory NV reset
@@ -211,25 +202,6 @@ public class RadioModemProxy extends RadioServiceProxy {
         } else {
             mRadioProxy.nvResetConfig(serial, RILUtils.convertToHalResetNvType(resetType));
         }
-    }
-
-    /**
-     * Call IRadioModem#nvWriteCdmaPrl
-     * @param serial Serial number of request
-     * @param prl Preferred roaming list as a byte array
-     * @throws RemoteException
-     */
-    public void nvWriteCdmaPrl(int serial, byte[] prl) throws RemoteException {
-    }
-
-    /**
-     * Call IRadioModem#nvWriteItem
-     * @param serial Serial number of request
-     * @param itemId ID of the item to write
-     * @param itemValue Value to write as a String
-     * @throws RemoteException
-     */
-    public void nvWriteItem(int serial, int itemId, String itemValue) throws RemoteException {
     }
 
     /**

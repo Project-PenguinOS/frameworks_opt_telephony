@@ -27,12 +27,10 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
-import android.os.PersistableBundle;
 import android.os.Registrant;
 import android.os.RegistrantList;
 import android.sysprop.TelephonyProperties;
 import android.telecom.TelecomManager;
-import android.telephony.CarrierConfigManager;
 import android.telephony.CellLocation;
 import android.telephony.DisconnectCause;
 import android.telephony.PhoneNumberUtils;
@@ -72,9 +70,6 @@ public class GsmCdmaCallTracker extends CallTracker {
 
     public static final int MAX_CONNECTIONS_GSM = 19;   //7 allowed in GSM + 12 from IMS for SRVCC
     private static final int MAX_CONNECTIONS_PER_CALL_GSM = 5; //only 5 connections allowed per call
-
-    private static final int MAX_CONNECTIONS_CDMA = 8;
-    private static final int MAX_CONNECTIONS_PER_CALL_CDMA = 1; //only 1 connection allowed per call
 
     //***** Instance Variables
     @VisibleForTesting
@@ -196,23 +191,8 @@ public class GsmCdmaCallTracker extends CallTracker {
             reset();
             pollCallsWhenSafe();
         }
-        if (mPhone.isPhoneTypeGsm()) {
-            mConnections = new GsmCdmaConnection[MAX_CONNECTIONS_GSM];
-            mCi.unregisterForCallWaitingInfo(this);
-            // Prior to phone switch to GSM, if CDMA has any emergency call
-            // data will be in disabled state, after switching to GSM enable data.
-        } else {
-            mConnections = new GsmCdmaConnection[MAX_CONNECTIONS_CDMA];
-            mPendingCallInEcm = false;
-            mIsInEmergencyCall = false;
-            mPendingCallClirMode = CommandsInterface.CLIR_DEFAULT;
-// QTI_BEGIN: 2019-04-16: Telephony: Handle ECBM mode for both the SUBs to place calls in ECBM mode
-            mPendingCallUusInfo = null;
-// QTI_END: 2019-04-16: Telephony: Handle ECBM mode for both the SUBs to place calls in ECBM mode
-            mPhone.setEcmCanceledForEmergency(false /*isCanceled*/);
-            m3WayCallFlashDelay = 0;
-            mCi.registerForCallWaitingInfo(this, EVENT_CALL_WAITING_INFO_CDMA, null);
-        }
+        mConnections = new GsmCdmaConnection[MAX_CONNECTIONS_GSM];
+        mCi.unregisterForCallWaitingInfo(this);
     }
 
     private void reset() {
@@ -508,7 +488,6 @@ public class GsmCdmaCallTracker extends CallTracker {
     public void setIsInEmergencyCall() {
         mIsInEmergencyCall = true;
         mPhone.notifyEmergencyCallRegistrants(true);
-        mPhone.sendEmergencyCallStateChange(true);
     }
 
     //CDMA
@@ -654,54 +633,15 @@ public class GsmCdmaCallTracker extends CallTracker {
                 mPendingMO.setHasKnownUserIntentEmergency(intentExtras.getBoolean(
                         TelecomManager.EXTRA_IS_USER_INTENT_EMERGENCY_CALL));
             }
-            // Some networks need an empty flash before sending the normal one
-            CarrierConfigManager configManager = (CarrierConfigManager)
-                    mPhone.getContext().getSystemService(Context.CARRIER_CONFIG_SERVICE);
-            PersistableBundle bundle = configManager.getConfigForSubId(mPhone.getSubId());
-            if (bundle != null) {
-                m3WayCallFlashDelay =
-                        bundle.getInt(CarrierConfigManager.KEY_CDMA_3WAYCALL_FLASH_DELAY_INT);
-            } else {
-                // The default 3-way call flash delay is 0s
-                m3WayCallFlashDelay = 0;
-            }
-            if (m3WayCallFlashDelay > 0) {
-                mCi.sendCDMAFeatureCode("", obtainMessage(EVENT_THREE_WAY_DIAL_BLANK_FLASH));
-            } else {
-                mCi.sendCDMAFeatureCode(mPendingMO.getAddress(),
-                        obtainMessage(EVENT_THREE_WAY_DIAL_L2_RESULT_CDMA));
-            }
             return mPendingMO;
         }
         return null;
     }
 
     public Connection dial(String dialString, DialArgs dialArgs) throws CallStateException {
-        if (isPhoneTypeGsm()) {
-            return dialGsm(dialString, dialArgs);
-        } else {
-            return dialCdma(dialString, dialArgs);
-        }
+        return dialGsm(dialString, dialArgs);
     }
 
-    //GSM
-    public Connection dialGsm(String dialString, UUSInfo uusInfo, Bundle intentExtras)
-            throws CallStateException {
-        return dialGsm(dialString, new DialArgs.Builder<>()
-                        .setUusInfo(uusInfo)
-                        .setClirMode(CommandsInterface.CLIR_DEFAULT)
-                        .setIntentExtras(intentExtras)
-                        .build());
-    }
-
-    //GSM
-    private Connection dialGsm(String dialString, int clirMode, Bundle intentExtras)
-            throws CallStateException {
-        return dialGsm(dialString, new DialArgs.Builder<>()
-                        .setClirMode(clirMode)
-                        .setIntentExtras(intentExtras)
-                        .build());
-    }
 
     //GSM
     public Connection dialGsm(String dialString, int clirMode, UUSInfo uusInfo, Bundle intentExtras)
@@ -725,19 +665,7 @@ public class GsmCdmaCallTracker extends CallTracker {
             mPhone.getVoiceCallSessionStats().onRilAcceptCall(mRingingCall.getConnections());
             mCi.acceptCall(obtainCompleteMessage());
         } else if (mRingingCall.getState() == GsmCdmaCall.State.WAITING) {
-            if (isPhoneTypeGsm()) {
-                setMute(false);
-            } else {
-                GsmCdmaConnection cwConn = (GsmCdmaConnection)(mRingingCall.getLatestConnection());
-
-                // Since there is no network response for supplimentary
-                // service for CDMA, we assume call waiting is answered.
-                // ringing Call state change to idle is in GsmCdmaCall.detach
-                // triggered by updateParent.
-                cwConn.updateParent(mRingingCall, mForegroundCall);
-                cwConn.onConnectedInOrOut();
-                updatePhoneState();
-            }
+            setMute(false);
             switchWaitingOrHoldingAndActive();
         } else {
             throw new CallStateException("phone not ringing");
@@ -754,43 +682,18 @@ public class GsmCdmaCallTracker extends CallTracker {
         }
     }
 
-    //CDMA
-    private void flashAndSetGenericTrue() {
-        mCi.sendCDMAFeatureCode("", obtainMessage(EVENT_SWITCH_RESULT));
-
-        mPhone.notifyPreciseCallStateChanged();
-    }
-
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     public void switchWaitingOrHoldingAndActive() throws CallStateException {
         // Should we bother with this check?
         if (mRingingCall.getState() == GsmCdmaCall.State.INCOMING) {
             throw new CallStateException("cannot be in the incoming state");
         } else {
-            if (isPhoneTypeGsm()) {
-                mCi.switchWaitingOrHoldingAndActive(
-                        obtainCompleteMessage(EVENT_SWITCH_RESULT));
-            } else {
-                if (mForegroundCall.getConnectionsCount() > 1) {
-                    flashAndSetGenericTrue();
-                } else {
-                    // Send a flash command to CDMA network for putting the other party on hold.
-                    // For CDMA networks which do not support this the user would just hear a beep
-                    // from the network. For CDMA networks which do support it will put the other
-                    // party on hold.
-                    mCi.sendCDMAFeatureCode("", obtainMessage(EVENT_SWITCH_RESULT));
-                }
-            }
+            mCi.switchWaitingOrHoldingAndActive(obtainCompleteMessage(EVENT_SWITCH_RESULT));
         }
     }
 
     public void conference() {
-        if (isPhoneTypeGsm()) {
-            mCi.conference(obtainCompleteMessage(EVENT_CONFERENCE_RESULT));
-        } else {
-            // Should we be checking state?
-            flashAndSetGenericTrue();
-        }
+        mCi.conference(obtainCompleteMessage(EVENT_CONFERENCE_RESULT));
     }
 
     public void explicitCallTransfer() {
@@ -836,18 +739,7 @@ public class GsmCdmaCallTracker extends CallTracker {
             throw new CallStateException(CallStateException.ERROR_CALL_RINGING,
                     "Can't call while a call is ringing.");
         }
-        if (isPhoneTypeGsm()
-                && mForegroundCall.getState().isAlive() && mBackgroundCall.getState().isAlive()) {
-            throw new CallStateException(CallStateException.ERROR_TOO_MANY_CALLS,
-                    "There is already a foreground and background call.");
-        }
-        if (!isPhoneTypeGsm()
-                // Essentially foreground call state is one of:
-                // HOLDING, DIALING, ALERTING, INCOMING, WAITING
-                && mForegroundCall.getState().isAlive()
-                && mForegroundCall.getState() != GsmCdmaCall.State.ACTIVE
-
-                && mBackgroundCall.getState().isAlive()) {
+        if (mForegroundCall.getState().isAlive() && mBackgroundCall.getState().isAlive()) {
             throw new CallStateException(CallStateException.ERROR_TOO_MANY_CALLS,
                     "There is already a foreground and background call.");
         }
@@ -858,15 +750,10 @@ public class GsmCdmaCallTracker extends CallTracker {
     }
 
     public boolean canTransfer() {
-        if (isPhoneTypeGsm()) {
-            return (mForegroundCall.getState() == GsmCdmaCall.State.ACTIVE
-                    || mForegroundCall.getState() == GsmCdmaCall.State.ALERTING
-                    || mForegroundCall.getState() == GsmCdmaCall.State.DIALING)
-                    && mBackgroundCall.getState() == GsmCdmaCall.State.HOLDING;
-        } else {
-            Rlog.e(LOG_TAG, "canTransfer: not possible in CDMA");
-            return false;
-        }
+        return (mForegroundCall.getState() == GsmCdmaCall.State.ACTIVE
+                || mForegroundCall.getState() == GsmCdmaCall.State.ALERTING
+                || mForegroundCall.getState() == GsmCdmaCall.State.DIALING)
+                && mBackgroundCall.getState() == GsmCdmaCall.State.HOLDING;
     }
 
     //***** Private Instance Methods
@@ -972,16 +859,12 @@ public class GsmCdmaCallTracker extends CallTracker {
 
         Connection newRinging = null; //or waiting
         ArrayList<Connection> newUnknownConnectionsGsm = new ArrayList<Connection>();
-        Connection newUnknownConnectionCdma = null;
         boolean hasNonHangupStateChanged = false;   // Any change besides
                                                     // a dropped connection
         boolean hasAnyCallDisconnected = false;
         boolean needsPollDelay = false;
         boolean unknownConnectionAppeared = false;
         int handoverConnectionsSize = mHandoverConnections.size();
-
-        //CDMA
-        boolean noConnectionExists = true;
 
         for (int i = 0, curDC = 0, dcSize = polledCalls.size()
                 ; i < mConnections.length; i++) {
@@ -997,11 +880,6 @@ public class GsmCdmaCallTracker extends CallTracker {
                 } else {
                     dc = null;
                 }
-            }
-
-            //CDMA
-            if (conn != null || dc != null) {
-                noConnectionExists = false;
             }
 
             if (DBG_POLL) log("poll: conn[i=" + i + "]=" +
@@ -1022,12 +900,6 @@ public class GsmCdmaCallTracker extends CallTracker {
                     // Someone has already asked to hangup this call
                     if (mHangupPendingMO) {
                         mHangupPendingMO = false;
-
-                        // Re-start Ecm timer when an uncompleted emergency call ends
-                        if (!isPhoneTypeGsm() && mPhone.isEcmCanceledForEmergency()) {
-                            EcbmHandler.getInstance().handleTimerInEmergencyCallbackMode(
-                                    EcbmHandler.RESTART_ECM_TIMER);
-                        }
 
                         try {
                             if (Phone.DEBUG_PHONE) log(
@@ -1067,16 +939,14 @@ public class GsmCdmaCallTracker extends CallTracker {
 
                         mHandoverConnections.remove(hoConnection);
 
-                        if (isPhoneTypeGsm()) {
-                            for (Iterator<Connection> it = mHandoverConnections.iterator();
-                                 it.hasNext(); ) {
-                                Connection c = it.next();
-                                Rlog.i(LOG_TAG, "HO Conn state is " + c.mPreHandoverState);
-                                if (c.mPreHandoverState == mConnections[i].getState()) {
-                                    Rlog.i(LOG_TAG, "Removing HO conn "
-                                            + hoConnection + c.mPreHandoverState);
-                                    it.remove();
-                                }
+                        for (Iterator<Connection> it = mHandoverConnections.iterator();
+                                it.hasNext();) {
+                            Connection c = it.next();
+                            Rlog.i(LOG_TAG, "HO Conn state is " + c.mPreHandoverState);
+                            if (c.mPreHandoverState == mConnections[i].getState()) {
+                                Rlog.i(LOG_TAG, "Removing HO conn "
+                                        + hoConnection + c.mPreHandoverState);
+                                it.remove();
                             }
                         }
 
@@ -1087,11 +957,7 @@ public class GsmCdmaCallTracker extends CallTracker {
                         newRinging = checkMtFindNewRinging(dc,i);
                         if (newRinging == null) {
                             unknownConnectionAppeared = true;
-                            if (isPhoneTypeGsm()) {
-                                newUnknownConnectionsGsm.add(mConnections[i]);
-                            } else {
-                                newUnknownConnectionCdma = mConnections[i];
-                            }
+                            newUnknownConnectionsGsm.add(mConnections[i]);
                         } else if (hangupWaitingCallSilently(i)) {
                             return;
                         }
@@ -1099,44 +965,13 @@ public class GsmCdmaCallTracker extends CallTracker {
                 }
                 hasNonHangupStateChanged = true;
             } else if (conn != null && dc == null) {
-                if (isPhoneTypeGsm()) {
-                    // Connection missing in CLCC response that we were
-                    // tracking.
-                    mDroppedDuringPoll.add(conn);
-                } else {
-                    // This case means the RIL has no more active call anymore and
-                    // we need to clean up the foregroundCall and ringingCall.
-                    // Loop through foreground call connections as
-                    // it contains the known logical connections.
-                    ArrayList<Connection> connections = mForegroundCall.getConnections();
-                    for (Connection cn : connections) {
-                        if (Phone.DEBUG_PHONE) {
-                            log("adding fgCall cn " + cn + "to droppedDuringPoll");
-                        }
-                        mDroppedDuringPoll.add((GsmCdmaConnection) cn);
-                    }
-
-                    connections = mRingingCall.getConnections();
-                    // Loop through ringing call connections as
-                    // it may contain the known logical connections.
-                    for (Connection cn : connections) {
-                        if (Phone.DEBUG_PHONE) {
-                            log("adding rgCall cn " + cn + "to droppedDuringPoll");
-                        }
-                        mDroppedDuringPoll.add((GsmCdmaConnection) cn);
-                    }
-
-                    // Re-start Ecm timer when the connected emergency call ends
-                    if (mPhone.isEcmCanceledForEmergency()) {
-                        EcbmHandler.getInstance().handleTimerInEmergencyCallbackMode(EcbmHandler.RESTART_ECM_TIMER);
-                    }
-                    // If emergency call is not going through while dialing
-                    checkAndEnableDataCallAfterEmergencyCallDropped();
-                }
+                // Connection missing in CLCC response that we were
+                // tracking.
+                mDroppedDuringPoll.add(conn);
                 // Dropped connections are removed from the CallTracker
                 // list but kept in the Call list
                 mConnections[i] = null;
-            } else if (conn != null && dc != null && !conn.compareTo(dc) && isPhoneTypeGsm()) {
+            } else if (conn != null && dc != null && !conn.compareTo(dc)) {
                 // Connection in CLCC response does not match what
                 // we were tracking. Assume dropped call and new call
 
@@ -1152,29 +987,9 @@ public class GsmCdmaCallTracker extends CallTracker {
                 hasNonHangupStateChanged = true;
             } else if (conn != null && dc != null) { /* implicit conn.compareTo(dc) */
                 // Call collision case
-                if (!isPhoneTypeGsm() && conn.isIncoming() != dc.isMT) {
-                    if (dc.isMT == true) {
-                        // Mt call takes precedence than Mo,drops Mo
-                        mDroppedDuringPoll.add(conn);
-                        // find if the MT call is a new ring or unknown connection
-                        newRinging = checkMtFindNewRinging(dc,i);
-                        if (newRinging == null) {
-                            unknownConnectionAppeared = true;
-                            newUnknownConnectionCdma = conn;
-                        }
-                        checkAndEnableDataCallAfterEmergencyCallDropped();
-                    } else {
-                        // Call info stored in conn is not consistent with the call info from dc.
-                        // We should follow the rule of MT calls taking precedence over MO calls
-                        // when there is conflict, so here we drop the call info from dc and
-                        // continue to use the call info from conn, and only take a log.
-                        Rlog.e(LOG_TAG,"Error in RIL, Phantom call appeared " + dc);
-                    }
-                } else {
-                    boolean changed;
-                    changed = conn.update(dc);
-                    hasNonHangupStateChanged = hasNonHangupStateChanged || changed;
-                }
+                boolean changed;
+                changed = conn.update(dc);
+                hasNonHangupStateChanged = hasNonHangupStateChanged || changed;
             }
 
             if (REPEAT_POLLING) {
@@ -1196,12 +1011,6 @@ public class GsmCdmaCallTracker extends CallTracker {
             }
         }
 
-        // Safety check so that obj is not stuck with mIsInEmergencyCall set to true (and data
-        // disabled). This should never happen though.
-        if (!isPhoneTypeGsm() && noConnectionExists) {
-            checkAndEnableDataCallAfterEmergencyCallDropped();
-        }
-
         // This is the first poll after an ATD.
         // We expect the pending call to appear in the list
         // If it does not, we land here
@@ -1212,13 +1021,6 @@ public class GsmCdmaCallTracker extends CallTracker {
             mDroppedDuringPoll.add(mPendingMO);
             mPendingMO = null;
             mHangupPendingMO = false;
-
-            if (!isPhoneTypeGsm()) {
-                if( mPendingCallInEcm) {
-                    mPendingCallInEcm = false;
-                }
-                checkAndEnableDataCallAfterEmergencyCallDropped();
-            }
         }
 
         if (newRinging != null) {
@@ -1260,12 +1062,6 @@ public class GsmCdmaCallTracker extends CallTracker {
                 hasAnyCallDisconnected |= conn.onDisconnect(conn.mCause);
                 wasDisconnected = true;
                 locallyDisconnectedConnections.add(conn);
-            }
-
-            if (!isPhoneTypeGsm() && wasDisconnected && unknownConnectionAppeared
-                    && conn == newUnknownConnectionCdma) {
-                unknownConnectionAppeared = false;
-                newUnknownConnectionCdma = null;
             }
         }
 
@@ -1313,13 +1109,9 @@ public class GsmCdmaCallTracker extends CallTracker {
         updatePhoneState();
 
         if (unknownConnectionAppeared) {
-            if (isPhoneTypeGsm()) {
-                for (Connection c : newUnknownConnectionsGsm) {
-                    log("Notify unknown for " + c);
-                    mPhone.notifyUnknownConnection(c);
-                }
-            } else {
-                mPhone.notifyUnknownConnection(newUnknownConnectionCdma);
+            for (Connection c : newUnknownConnectionsGsm) {
+                log("Notify unknown for " + c);
+                mPhone.notifyUnknownConnection(c);
             }
         }
 
@@ -1405,25 +1197,6 @@ public class GsmCdmaCallTracker extends CallTracker {
             log("hangup conn with callId '-1' as there is no DIAL response yet ");
             mCi.hangupConnection(-1, obtainCompleteMessage());
 // QTI_END: 2018-03-14: Telephony: Process HANGUP before DIAL response
-        } else if (!isPhoneTypeGsm()
-                && conn.getCall() == mRingingCall
-                && mRingingCall.getState() == GsmCdmaCall.State.WAITING) {
-            // Handle call waiting hang up case.
-            //
-            // The ringingCall state will change to IDLE in GsmCdmaCall.detach
-            // if the ringing call connection size is 0. We don't specifically
-            // set the ringing call state to IDLE here to avoid a race condition
-            // where a new call waiting could get a hang up from an old call
-            // waiting ringingCall.
-            //
-            // PhoneApp does the call log itself since only PhoneApp knows
-            // the hangup reason is user ignoring or timing out. So conn.onDisconnect()
-            // is not called here. Instead, conn.onLocalDisconnect() is called.
-            conn.onLocalDisconnect();
-
-            updatePhoneState();
-            mPhone.notifyPreciseCallStateChanged();
-            return;
         } else {
             try {
                 mMetrics.writeRilHangup(mPhone.getPhoneId(), conn, conn.getGsmCdmaIndex(),
@@ -1485,8 +1258,7 @@ public class GsmCdmaCallTracker extends CallTracker {
                     log("(foregnd) hangup dialing or alerting...");
                 }
                 hangup((GsmCdmaConnection)(call.getConnections().get(0)));
-            } else if (isPhoneTypeGsm()
-                    && mRingingCall.isRinging()) {
+            } else if (mRingingCall.isRinging()) {
                 // Do not auto-answer ringing on CHUP, instead just end active calls
                 log("hangup all conns in active/background call, without affecting ringing call");
                 hangupAllConnections(call);
@@ -1588,18 +1360,11 @@ public class GsmCdmaCallTracker extends CallTracker {
 // QTI_END: 2022-02-03: Telephony: Exit both ECBM and SCBM before placing MO call
 // QTI_BEGIN: 2021-12-29: Telephony: Add exit SCBM support
             // no matter the result, we still do the same here
-            if (isPhoneTypeGsm()) {
-                mCi.dial(mPendingMO.getAddress(), mPendingMO.isEmergencyCall(),
-                        mPendingMO.getEmergencyNumberInfo(),
-                        mPendingMO.hasKnownUserIntentEmergency(), mPendingCallClirMode,
-                        mPendingCallUusInfo, obtainCompleteMessage());
+            mCi.dial(mPendingMO.getAddress(), mPendingMO.isEmergencyCall(),
+                    mPendingMO.getEmergencyNumberInfo(),
+                    mPendingMO.hasKnownUserIntentEmergency(), mPendingCallClirMode,
+                    mPendingCallUusInfo, obtainCompleteMessage());
 
-            } else {
-                mCi.dial(mPendingMO.getAddress(), mPendingMO.isEmergencyCall(),
-                        mPendingMO.getEmergencyNumberInfo(),
-                        mPendingMO.hasKnownUserIntentEmergency(),
-                        mPendingCallClirMode, obtainCompleteMessage());
-            }
             mPendingCallInEcm = false;
         }
     }
@@ -1660,51 +1425,39 @@ public class GsmCdmaCallTracker extends CallTracker {
             break;
 
             case EVENT_CONFERENCE_RESULT:
-                if (isPhoneTypeGsm()) {
-                    ar = (AsyncResult) msg.obj;
-                    if (ar.exception != null) {
-                        // The conference merge failed, so notify listeners.  Ultimately this
-                        // bubbles up to Telecom, which will inform the InCall UI of the failure.
-                        Connection connection = mForegroundCall.getLatestConnection();
-                        if (connection != null) {
-                            connection.onConferenceMergeFailed();
-                        }
+                ar = (AsyncResult) msg.obj;
+                if (ar.exception != null) {
+                    // The conference merge failed, so notify listeners.  Ultimately this
+                    // bubbles up to Telecom, which will inform the InCall UI of the failure.
+                    Connection connection = mForegroundCall.getLatestConnection();
+                    if (connection != null) {
+                        connection.onConferenceMergeFailed();
                     }
                 }
                 // fall through
             case EVENT_SEPARATE_RESULT:
             case EVENT_ECT_RESULT:
             case EVENT_SWITCH_RESULT:
-                if (isPhoneTypeGsm()) {
-                    ar = (AsyncResult) msg.obj;
-                    if (ar.exception != null) {
-                        if (msg.what == EVENT_SWITCH_RESULT) {
-                            Connection connection = mForegroundCall.getLatestConnection();
-                            if (connection != null) {
-                                if (mBackgroundCall.getState() != GsmCdmaCall.State.HOLDING) {
-                                    connection.onConnectionEvent(
-                                            android.telecom.Connection.EVENT_CALL_HOLD_FAILED,
-                                            null);
-                                } else {
-                                    connection.onConnectionEvent(
-                                            android.telecom.Connection.EVENT_CALL_SWITCH_FAILED,
-                                            null);
-                                }
+                ar = (AsyncResult) msg.obj;
+                if (ar.exception != null) {
+                    if (msg.what == EVENT_SWITCH_RESULT) {
+                        Connection connection = mForegroundCall.getLatestConnection();
+                        if (connection != null) {
+                            if (mBackgroundCall.getState() != GsmCdmaCall.State.HOLDING) {
+                                connection.onConnectionEvent(
+                                        android.telecom.Connection.EVENT_CALL_HOLD_FAILED,
+                                        null);
+                            } else {
+                                connection.onConnectionEvent(
+                                        android.telecom.Connection.EVENT_CALL_SWITCH_FAILED,
+                                        null);
                             }
                         }
-                        mPhone.notifySuppServiceFailed(getFailedService(msg.what));
                     }
-                    operationComplete();
-                } else {
-                    if (msg.what != EVENT_SWITCH_RESULT) {
-                        // EVENT_SWITCH_RESULT in GSM call triggers operationComplete() which gets
-                        // the current call list. But in CDMA there is no list so there is nothing
-                        // to do. Other messages however are not expected in CDMA.
-                        throw new RuntimeException("unexpected event " + msg.what + " not handled by " +
-                                "phone type " + mPhone.getPhoneType());
-                    }
+                    mPhone.notifySuppServiceFailed(getFailedService(msg.what));
                 }
-            break;
+                operationComplete();
+                break;
 
             case EVENT_GET_LAST_CALL_FAIL_CAUSE:
                 int causeCode;
@@ -1838,57 +1591,6 @@ public class GsmCdmaCallTracker extends CallTracker {
                 mPhone.unsetOnScbmExitResponse(this);
 // QTI_END: 2021-12-29: Telephony: Add exit SCBM support
                 break;
-
-            case EVENT_CALL_WAITING_INFO_CDMA:
-                if (!isPhoneTypeGsm()) {
-                    ar = (AsyncResult)msg.obj;
-                    if (ar.exception == null) {
-                        handleCallWaitingInfo((CdmaCallWaitingNotification)ar.result);
-                        Rlog.d(LOG_TAG, "Event EVENT_CALL_WAITING_INFO_CDMA Received");
-                    }
-                } else {
-                    throw new RuntimeException("unexpected event " + msg.what + " not handled by " +
-                            "phone type " + mPhone.getPhoneType());
-                }
-                break;
-
-            case EVENT_THREE_WAY_DIAL_L2_RESULT_CDMA:
-                if (!isPhoneTypeGsm()) {
-                    ar = (AsyncResult)msg.obj;
-                    if (ar.exception == null) {
-                        // Assume 3 way call is connected
-                        mPendingMO.onConnectedInOrOut();
-                        mPendingMO = null;
-                    }
-                } else {
-                    throw new RuntimeException("unexpected event " + msg.what + " not handled by " +
-                            "phone type " + mPhone.getPhoneType());
-                }
-                break;
-
-            case EVENT_THREE_WAY_DIAL_BLANK_FLASH:
-                if (!isPhoneTypeGsm()) {
-                    ar = (AsyncResult) msg.obj;
-                    if (ar.exception == null) {
-                        postDelayed(
-                                new Runnable() {
-                                    public void run() {
-                                        if (mPendingMO != null) {
-                                            mCi.sendCDMAFeatureCode(mPendingMO.getAddress(),
-                                                    obtainMessage(EVENT_THREE_WAY_DIAL_L2_RESULT_CDMA));
-                                        }
-                                    }
-                                }, m3WayCallFlashDelay);
-                    } else {
-                        mPendingMO = null;
-                        Rlog.w(LOG_TAG, "exception happened on Blank Flash for 3-way call");
-                    }
-                } else {
-                    throw new RuntimeException("unexpected event " + msg.what + " not handled by " +
-                            "phone type " + mPhone.getPhoneType());
-                }
-                break;
-
             default:{
                 throw new RuntimeException("unexpected event " + msg.what + " not handled by " +
                         "phone type " + mPhone.getPhoneType());
@@ -1932,7 +1634,6 @@ public class GsmCdmaCallTracker extends CallTracker {
                 // Re-initiate data connection
                 mPhone.notifyEmergencyCallRegistrants(false);
             }
-            mPhone.sendEmergencyCallStateChange(false);
         }
     }
 
@@ -1992,11 +1693,6 @@ public class GsmCdmaCallTracker extends CallTracker {
     }
 
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
-    private boolean isPhoneTypeGsm() {
-        return mPhone.getPhoneType() == PhoneConstants.PHONE_TYPE_GSM;
-    }
-
-    @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     @Override
     public GsmCdmaPhone getPhone() {
         return mPhone;
@@ -2030,9 +1726,6 @@ public class GsmCdmaCallTracker extends CallTracker {
         }
         pw.println(" mVoiceCallEndedRegistrants=" + mVoiceCallEndedRegistrants);
         pw.println(" mVoiceCallStartedRegistrants=" + mVoiceCallStartedRegistrants);
-        if (!isPhoneTypeGsm()) {
-            pw.println(" mCallWaitingRegistrants=" + mCallWaitingRegistrants);
-        }
         pw.println(" mDroppedDuringPoll: size=" + mDroppedDuringPoll.size());
         for(int i = 0; i < mDroppedDuringPoll.size(); i++) {
             pw.printf( "  mDroppedDuringPoll[%d]=%s\n", i, mDroppedDuringPoll.get(i));
@@ -2045,12 +1738,6 @@ public class GsmCdmaCallTracker extends CallTracker {
         pw.println(" mPhone=" + mPhone);
         pw.println(" mDesiredMute=" + mDesiredMute);
         pw.println(" mState=" + mState);
-        if (!isPhoneTypeGsm()) {
-            pw.println(" mPendingCallInEcm=" + mPendingCallInEcm);
-            pw.println(" mIsInEmergencyCall=" + mIsInEmergencyCall);
-            pw.println(" mPendingCallClirMode=" + mPendingCallClirMode);
-        }
-
     }
 
     @Override
@@ -2059,9 +1746,7 @@ public class GsmCdmaCallTracker extends CallTracker {
     }
 
     public int getMaxConnectionsPerCall() {
-        return mPhone.isPhoneTypeGsm() ?
-                MAX_CONNECTIONS_PER_CALL_GSM :
-                MAX_CONNECTIONS_PER_CALL_CDMA;
+        return MAX_CONNECTIONS_PER_CALL_GSM;
     }
 
     private String getNetworkCountryIso() {

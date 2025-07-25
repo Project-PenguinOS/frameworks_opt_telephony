@@ -435,11 +435,6 @@ public class SimulatedCommandsVerifier implements CommandsInterface {
     }
 
     @Override
-    public void setSuppServiceNotifications(boolean enable, Message result) {
-
-    }
-
-    @Override
     public void setOnCatCcAlphaNotify(Handler h, int what, Object obj) {
 
     }
@@ -490,67 +485,7 @@ public class SimulatedCommandsVerifier implements CommandsInterface {
     }
 
     @Override
-    public void registerForNumberInfo(Handler h, int what, Object obj) {
-
-    }
-
-    @Override
-    public void unregisterForNumberInfo(Handler h) {
-
-    }
-
-    @Override
-    public void registerForRedirectedNumberInfo(Handler h, int what, Object obj) {
-
-    }
-
-    @Override
-    public void unregisterForRedirectedNumberInfo(Handler h) {
-
-    }
-
-    @Override
-    public void registerForLineControlInfo(Handler h, int what, Object obj) {
-
-    }
-
-    @Override
-    public void unregisterForLineControlInfo(Handler h) {
-
-    }
-
-    @Override
-    public void registerFoT53ClirlInfo(Handler h, int what, Object obj) {
-
-    }
-
-    @Override
-    public void unregisterForT53ClirInfo(Handler h) {
-
-    }
-
-    @Override
-    public void registerForT53AudioControlInfo(Handler h, int what, Object obj) {
-
-    }
-
-    @Override
-    public void unregisterForT53AudioControlInfo(Handler h) {
-
-    }
-
-    @Override
     public void setEmergencyCallbackMode(Handler h, int what, Object obj) {
-
-    }
-
-    @Override
-    public void registerForCdmaOtaProvision(Handler h, int what, Object obj) {
-
-    }
-
-    @Override
-    public void unregisterForCdmaOtaProvision(Handler h) {
 
     }
 
@@ -571,26 +506,6 @@ public class SimulatedCommandsVerifier implements CommandsInterface {
 
     @Override
     public void unregisterForResendIncallMute(Handler h) {
-
-    }
-
-    @Override
-    public void registerForCdmaSubscriptionChanged(Handler h, int what, Object obj) {
-
-    }
-
-    @Override
-    public void unregisterForCdmaSubscriptionChanged(Handler h) {
-
-    }
-
-    @Override
-    public void registerForCdmaPrlChanged(Handler h, int what, Object obj) {
-
-    }
-
-    @Override
-    public void unregisterForCdmaPrlChanged(Handler h) {
 
     }
 
@@ -869,11 +784,6 @@ public class SimulatedCommandsVerifier implements CommandsInterface {
     }
 
     @Override
-    public void deleteSmsOnRuim(int index, Message response) {
-
-    }
-
-    @Override
     public void writeSmsToSim(int status, String smsc, String pdu, Message response) {
 
     }
@@ -1023,16 +933,6 @@ public class SimulatedCommandsVerifier implements CommandsInterface {
     }
 
     @Override
-    public void setBandMode(int bandMode, Message response) {
-
-    }
-
-    @Override
-    public void queryAvailableBandMode(Message response) {
-
-    }
-
-    @Override
     public void setPreferredNetworkType(int networkType, Message response) {
 
     }
@@ -1124,37 +1024,7 @@ public class SimulatedCommandsVerifier implements CommandsInterface {
     }
 
     @Override
-    public void getCDMASubscription(Message response) {
-
-    }
-
-    @Override
-    public void sendCDMAFeatureCode(String featureCode, Message response) {
-
-    }
-
-    @Override
     public void setPhoneType(int phoneType) {
-
-    }
-
-    @Override
-    public void queryCdmaRoamingPreference(Message response) {
-
-    }
-
-    @Override
-    public void setCdmaRoamingPreference(int cdmaRoamingType, Message response) {
-
-    }
-
-    @Override
-    public void setCdmaSubscriptionSource(int cdmaSubscriptionType, Message response) {
-
-    }
-
-    @Override
-    public void getCdmaSubscriptionSource(Message response) {
 
     }
 
@@ -1276,11 +1146,6 @@ public class SimulatedCommandsVerifier implements CommandsInterface {
     @Override
     public void iccTransmitApduBasicChannel(int cla, int instruction, int p1, int p2, int p3,
                                             String data, Message response) {
-
-    }
-
-    @Override
-    public void nvWriteCdmaPrl(byte[] preferredRoamingList, Message response) {
 
     }
 

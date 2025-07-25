@@ -1032,16 +1032,6 @@ public interface PhoneInternalInterface {
     /* CDMA support methods */
 
     /**
-     * Retrieves the ESN for CDMA phones.
-     */
-    String getEsn();
-
-    /**
-     * Retrieves MEID for CDMA phones.
-     */
-    String getMeid();
-
-    /**
      * Retrieves IMEI for phones. Returns null if IMEI is not set.
      */
     String getImei();
