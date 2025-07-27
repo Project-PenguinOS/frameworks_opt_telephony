@@ -1825,7 +1825,6 @@ public class TelephonyRegistryTest extends TelephonyTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_EMERGENCY_CALLBACK_MODE_NOTIFICATION)
     public void testNotifyCallbackModeStarted() {
         final long durationMillis = 1000;
         int[] events = {TelephonyCallback.EVENT_EMERGENCY_CALLBACK_MODE_CHANGED};
@@ -1842,7 +1841,6 @@ public class TelephonyRegistryTest extends TelephonyTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_EMERGENCY_CALLBACK_MODE_NOTIFICATION)
     public void testNotifyCallbackModeReStarted() {
         final long durationMillis = 1000;
         int[] events = {TelephonyCallback.EVENT_EMERGENCY_CALLBACK_MODE_CHANGED};
@@ -1859,7 +1857,6 @@ public class TelephonyRegistryTest extends TelephonyTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_EMERGENCY_CALLBACK_MODE_NOTIFICATION)
     public void testNotifyCallbackModeStopped() {
         final int reason = TelephonyManager.STOP_REASON_OUTGOING_EMERGENCY_CALL_INITIATED;
         int[] events = {TelephonyCallback.EVENT_EMERGENCY_CALLBACK_MODE_CHANGED};

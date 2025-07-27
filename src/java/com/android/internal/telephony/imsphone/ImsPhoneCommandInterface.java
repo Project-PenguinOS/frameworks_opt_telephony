@@ -254,10 +254,6 @@ class ImsPhoneCommandInterface extends BaseCommands implements CommandsInterface
     }
 
     @Override
-    public void deleteSmsOnRuim(int index, Message response) {
-    }
-
-    @Override
     public void writeSmsToSim(int status, String smsc, String pdu, Message response) {
     }
 
@@ -277,10 +273,6 @@ class ImsPhoneCommandInterface extends BaseCommands implements CommandsInterface
 
     @Override
     public void setRadioPower(boolean on, Message result) {
-    }
-
-    @Override
-    public void setSuppServiceNotifications(boolean enable, Message result) {
     }
 
     @Override
@@ -397,14 +389,6 @@ class ImsPhoneCommandInterface extends BaseCommands implements CommandsInterface
     }
 
     @Override
-    public void setBandMode (int bandMode, Message response) {
-    }
-
-    @Override
-    public void queryAvailableBandMode (Message response) {
-    }
-
-    @Override
     public void sendTerminalResponse(String contents, Message response) {
     }
 
@@ -459,10 +443,6 @@ class ImsPhoneCommandInterface extends BaseCommands implements CommandsInterface
     }
 
     @Override
-    public void getCdmaSubscriptionSource(Message response) {
-    }
-
-    @Override
     public void getGsmBroadcastConfig(Message response) {
     }
 
@@ -484,23 +464,7 @@ class ImsPhoneCommandInterface extends BaseCommands implements CommandsInterface
     }
 
     @Override
-    public void getCDMASubscription(Message response) {
-    }
-
-    @Override
     public void setPhoneType(int phoneType) { //Set by CDMAPhone and GSMPhone constructor
-    }
-
-    @Override
-    public void queryCdmaRoamingPreference(Message response) {
-    }
-
-    @Override
-    public void setCdmaRoamingPreference(int cdmaRoamingType, Message response) {
-    }
-
-    @Override
-    public void setCdmaSubscriptionSource(int cdmaSubscription , Message response) {
     }
 
     @Override
@@ -509,10 +473,6 @@ class ImsPhoneCommandInterface extends BaseCommands implements CommandsInterface
 
     @Override
     public void setTTYMode(int ttyMode, Message response) {
-    }
-
-    @Override
-    public void sendCDMAFeatureCode(String FeatureCode, Message response) {
     }
 
     @Override
@@ -586,9 +546,6 @@ class ImsPhoneCommandInterface extends BaseCommands implements CommandsInterface
     @Override
     public void iccTransmitApduBasicChannel(int cla, int instruction, int p1, int p2,
                                             int p3, String data, Message response) {}
-
-    @Override
-    public void nvWriteCdmaPrl(byte[] preferredRoamingList, Message response) {}
 
     @Override
     public void nvResetConfig(int resetType, Message response) {}

@@ -38,7 +38,6 @@ import android.app.BroadcastOptions;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.content.pm.PackageManager;
 import android.os.AsyncResult;
 import android.os.Build;
 import android.os.Handler;
@@ -76,7 +75,6 @@ import com.android.internal.telephony.PhoneFactory;
 import com.android.internal.telephony.RadioConfig;
 import com.android.internal.telephony.TelephonyIntents;
 import com.android.internal.telephony.flags.FeatureFlags;
-import com.android.internal.telephony.flags.Flags;
 import com.android.internal.telephony.metrics.TelephonyMetrics;
 import com.android.internal.telephony.subscription.SubscriptionManagerService;
 import com.android.internal.telephony.uicc.euicc.EuiccCard;
@@ -1735,19 +1733,6 @@ public class UiccController extends Handler {
         return false;
     }
 
-    /**
-     * static method to return whether CDMA is supported on the device
-     * @param context object representative of the application that is calling this method
-     * @return true if CDMA is supported by the device
-     */
-    public static boolean isCdmaSupported(Context context) {
-        if (Flags.phoneTypeCleanup()) return false;
-        PackageManager packageManager = context.getPackageManager();
-        boolean isCdmaSupported =
-                packageManager.hasSystemFeature(PackageManager.FEATURE_TELEPHONY_CDMA);
-        return isCdmaSupported;
-    }
-
     private boolean isValidPhoneIndex(int index) {
         return (index >= 0 && index < mTelephonyManager.getActiveModemCount());
     }
@@ -1917,7 +1902,6 @@ public class UiccController extends Handler {
 
     public void dump(FileDescriptor fd, PrintWriter printWriter, String[] args) {
         IndentingPrintWriter pw = new IndentingPrintWriter(printWriter, "  ");
-        pw.println("mIsCdmaSupported=" + isCdmaSupported(mContext));
         pw.println("mHasBuiltInEuicc=" + mHasBuiltInEuicc);
         pw.println("mHasActiveBuiltInEuicc=" + mHasActiveBuiltInEuicc);
         pw.println("mCardStrings=" + getPrintableCardStrings());

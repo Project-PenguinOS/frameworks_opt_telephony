@@ -23,12 +23,11 @@ import static android.telephony.TelephonyManager.APPTYPE_USIM;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.nullable;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
@@ -228,106 +227,6 @@ public class PhoneSubInfoControllerTest extends TelephonyTest {
         } catch (Exception ex) {
             assertTrue(ex instanceof SecurityException);
             assertTrue(ex.getMessage().contains("getDeviceId"));
-        }
-    }
-
-    @Test
-    @SmallTest
-    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
-    public void testGetNai() throws Exception {
-        // Replace field to set SDK version of vendor partition to Android V
-        int vendorApiLevel = Build.VERSION_CODES.VANILLA_ICE_CREAM;
-        replaceInstance(PhoneSubInfoController.class, "mVendorApiLevel",
-                mPhoneSubInfoControllerUT, vendorApiLevel);
-
-        // FeatureFlags enabled, System has required feature
-        doReturn(true).when(mPm).hasSystemFeature(
-                eq(PackageManager.FEATURE_TELEPHONY_SUBSCRIPTION));
-        doReturn("bbb@example.com").when(mSecondPhone).getNai();
-
-        // Enabled FeatureFlags and ENABLE_FEATURE_MAPPING, telephony features are defined
-        try {
-            assertEquals("bbb@example.com",
-                    mPhoneSubInfoControllerUT.getNaiForSubscriber(1, TAG, FEATURE_ID));
-        } catch (UnsupportedOperationException e) {
-            fail("Not expect exception " + e.getMessage());
-        }
-
-        // Telephony features is not defined, expect UnsupportedOperationException.
-        doReturn(false).when(mPm).hasSystemFeature(
-                eq(PackageManager.FEATURE_TELEPHONY_SUBSCRIPTION));
-        assertThrows(UnsupportedOperationException.class,
-                () -> mPhoneSubInfoControllerUT.getNaiForSubscriber(1, TAG, FEATURE_ID));
-    }
-
-    @Test
-    @SmallTest
-    public void testGetNaiWithOutPermission() {
-        // The READ_PRIVILEGED_PHONE_STATE permission, carrier privileges, or passing a device /
-        // profile owner access check is required to access subscriber identifiers. Since none of
-        // those are true for this test each case will result in a SecurityException being thrown.
-        setIdentifierAccess(false);
-        doReturn("aaa@example.com").when(mPhone).getNai();
-        doReturn("bbb@example.com").when(mSecondPhone).getNai();
-
-        //case 1: no READ_PRIVILEGED_PHONE_STATE, READ_PHONE_STATE & appOsMgr READ_PHONE_PERMISSION
-        mContextFixture.removeCallingOrSelfPermission(ContextFixture.PERMISSION_ENABLE_ALL);
-        try {
-            mPhoneSubInfoControllerUT.getNaiForSubscriber(0, TAG, FEATURE_ID);
-            Assert.fail("expected Security Exception Thrown");
-        } catch (Exception ex) {
-            assertTrue(ex instanceof SecurityException);
-            assertTrue(ex.getMessage().contains("getNai"));
-        }
-
-        try {
-            mPhoneSubInfoControllerUT.getNaiForSubscriber(1, TAG, FEATURE_ID);
-            Assert.fail("expected Security Exception Thrown");
-        } catch (Exception ex) {
-            assertTrue(ex instanceof SecurityException);
-            assertTrue(ex.getMessage().contains("getNai"));
-        }
-
-        //case 2: no READ_PRIVILEGED_PHONE_STATE & appOsMgr READ_PHONE_PERMISSION
-        mContextFixture.addCallingOrSelfPermission(READ_PHONE_STATE);
-        doReturn(AppOpsManager.MODE_ERRORED).when(mAppOsMgr).noteOpNoThrow(
-                eq(AppOpsManager.OPSTR_READ_PHONE_STATE), anyInt(), eq(TAG), eq(FEATURE_ID),
-                nullable(String.class));
-        try {
-            mPhoneSubInfoControllerUT.getNaiForSubscriber(0, TAG, FEATURE_ID);
-            Assert.fail("expected Security Exception Thrown");
-        } catch (Exception ex) {
-            assertTrue(ex instanceof SecurityException);
-            assertTrue(ex.getMessage().contains("getNai"));
-        }
-
-        try {
-            mPhoneSubInfoControllerUT.getNaiForSubscriber(1, TAG, FEATURE_ID);
-            Assert.fail("expected Security Exception Thrown");
-        } catch (Exception ex) {
-            assertTrue(ex instanceof SecurityException);
-            assertTrue(ex.getMessage().contains("getNai"));
-        }
-
-        //case 3: no READ_PRIVILEGED_PHONE_STATE
-        mContextFixture.addCallingOrSelfPermission(READ_PHONE_STATE);
-        doReturn(AppOpsManager.MODE_ALLOWED).when(mAppOsMgr).noteOpNoThrow(
-                eq(AppOpsManager.OPSTR_READ_PHONE_STATE), anyInt(), eq(TAG), eq(FEATURE_ID),
-                nullable(String.class));
-        try {
-            mPhoneSubInfoControllerUT.getNaiForSubscriber(0, TAG, FEATURE_ID);
-            Assert.fail("expected Security Exception Thrown");
-        } catch (Exception ex) {
-            assertTrue(ex instanceof SecurityException);
-            assertTrue(ex.getMessage().contains("getNai"));
-        }
-
-        try {
-            mPhoneSubInfoControllerUT.getNaiForSubscriber(1, TAG, FEATURE_ID);
-            Assert.fail("expected Security Exception Thrown");
-        } catch (Exception ex) {
-            assertTrue(ex instanceof SecurityException);
-            assertTrue(ex.getMessage().contains("getNai"));
         }
     }
 

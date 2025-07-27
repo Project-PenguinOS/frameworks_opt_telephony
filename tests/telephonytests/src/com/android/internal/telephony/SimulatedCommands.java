@@ -435,18 +435,6 @@ public class SimulatedCommands extends BaseCommands
     }
 
     @Override
-    public void
-    setSuppServiceNotifications(boolean enable, Message result) {
-        resultSuccess(result, null);
-
-        if (enable && mSsnNotifyOn) {
-            Rlog.w(LOG_TAG, "Supp Service Notifications already enabled!");
-        }
-
-        mSsnNotifyOn = enable;
-    }
-
-    @Override
     public void queryFacilityLock(String facility, String pin,
                                    int serviceClass, Message result) {
         queryFacilityLockForApp(facility, pin, serviceClass, null, result);
@@ -868,37 +856,6 @@ public class SimulatedCommands extends BaseCommands
         resultSuccess(result, mSignalStrength);
     }
 
-     /**
-     * Assign a specified band for RF configuration.
-     *
-     * @param bandMode one of BM_*_BAND
-     * @param result is callback message
-     */
-    @Override
-    public void setBandMode (int bandMode, Message result) {
-        resultSuccess(result, null);
-    }
-
-    /**
-     * Query the list of band mode supported by RF.
-     *
-     * @param result is callback message
-     *        ((AsyncResult)response.obj).result  is an int[] where int[0] is
-     *        the size of the array and the rest of each element representing
-     *        one available BM_*_BAND
-     */
-    @Override
-    public void queryAvailableBandMode (Message result) {
-        int ret[] = new int [4];
-
-        ret[0] = 4;
-        ret[1] = Phone.BM_US_BAND;
-        ret[2] = Phone.BM_JPN_BAND;
-        ret[3] = Phone.BM_AUS_BAND;
-
-        resultSuccess(result, ret);
-    }
-
     /**
      * {@inheritDoc}
      */
@@ -1106,12 +1063,6 @@ public class SimulatedCommands extends BaseCommands
     }
 
     @Override
-    public void deleteSmsOnRuim(int index, Message response) {
-        Rlog.d(LOG_TAG, "Delete RUIM message at index " + index);
-        unimplemented(response);
-    }
-
-    @Override
     public void writeSmsToSim(int status, String smsc, String pdu, Message response) {
         Rlog.d(LOG_TAG, "Write SMS to SIM with status " + status);
         unimplemented(response);
@@ -1262,11 +1213,6 @@ public class SimulatedCommands extends BaseCommands
     @Override
     public void reportStkServiceIsRunning(Message result) {
         resultSuccess(result, null);
-    }
-
-    @Override
-    public void getCdmaSubscriptionSource(Message result) {
-        unimplemented(result);
     }
 
     private boolean isSimLocked() {
@@ -1746,34 +1692,6 @@ public class SimulatedCommands extends BaseCommands
 
     @Override
     public void
-    getCDMASubscription(Message result) {
-        String ret[] = new String[5];
-        ret[0] = "123";
-        ret[1] = "456";
-        ret[2] = "789";
-        ret[3] = "234";
-        ret[4] = "345";
-        resultSuccess(result, ret);
-    }
-
-    @Override
-    public void
-    setCdmaSubscriptionSource(int cdmaSubscriptionType, Message response) {
-        unimplemented(response);
-    }
-
-    @Override
-    public void queryCdmaRoamingPreference(Message response) {
-        unimplemented(response);
-    }
-
-    @Override
-    public void setCdmaRoamingPreference(int cdmaRoamingType, Message response) {
-        unimplemented(response);
-    }
-
-    @Override
-    public void
     setPhoneType(int phoneType) {
     }
 
@@ -1815,14 +1733,6 @@ public class SimulatedCommands extends BaseCommands
      */
     @Override
     public void queryTTYMode(Message response) {
-        unimplemented(response);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public void sendCDMAFeatureCode(String FeatureCode, Message response) {
         unimplemented(response);
     }
 
@@ -2133,21 +2043,6 @@ public class SimulatedCommands extends BaseCommands
     @Override
     public void iccTransmitApduBasicChannel(int cla, int instruction, int p1, int p2,
             int p3, String data, Message response) {
-        unimplemented(response);
-    }
-
-    @Override
-    public void nvReadItem(int itemID, Message response, WorkSource workSource) {
-        unimplemented(response);
-    }
-
-    @Override
-    public void nvWriteItem(int itemID, String itemValue, Message response, WorkSource workSource) {
-        unimplemented(response);
-    }
-
-    @Override
-    public void nvWriteCdmaPrl(byte[] preferredRoamingList, Message response) {
         unimplemented(response);
     }
 

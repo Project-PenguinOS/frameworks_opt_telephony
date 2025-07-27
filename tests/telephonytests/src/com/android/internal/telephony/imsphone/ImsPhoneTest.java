@@ -1359,6 +1359,15 @@ public class ImsPhoneTest extends TelephonyTest {
         verify(mPhoneNumberManager).parsePhoneNumber(any(), eq("gb"));
         verify(mSubscriptionManagerService).setNumberFromIms(subId, "+447539447777");
 
+        // set throw exception for mock
+        doThrow(new IllegalArgumentException("test"))
+            .when(mPhoneNumberManager).parsePhoneNumber(any(), any());
+        try {
+            mImsPhoneUT.setPhoneNumberForSourceIms(associatedUris);
+        } catch (Exception IllegalArgumentException) {
+            throw new AssertionError("not expected exception", IllegalArgumentException);
+        }
+
         // Clean up
         mContextFixture.addCallingOrSelfPermission("");
     }

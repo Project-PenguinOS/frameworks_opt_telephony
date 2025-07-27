@@ -307,15 +307,11 @@ public class IccSmsInterfaceManager {
             Message response = mHandler.obtainMessage(EVENT_UPDATE_DONE, updateRequest);
 
             if ((status & 0x01) == STATUS_ON_ICC_FREE) {
-                // RIL_REQUEST_DELETE_SMS_ON_SIM vs RIL_REQUEST_CDMA_DELETE_SMS_ON_RUIM
-                // Special case FREE: call deleteSmsOnSim/Ruim instead of
+                // RIL_REQUEST_DELETE_SMS_ON_SIM
+                // Special case FREE: call deleteSmsOnSim instead of
                 // manipulating the record
                 // Will eventually fail if icc card is not present.
-                if (PhoneConstants.PHONE_TYPE_GSM == mPhone.getPhoneType()) {
-                    mPhone.mCi.deleteSmsOnSim(index, response);
-                } else {
-                    mPhone.mCi.deleteSmsOnRuim(index, response);
-                }
+                mPhone.mCi.deleteSmsOnSim(index, response);
             } else {
                 //IccFilehandler can be null if ICC card is not present.
                 IccFileHandler fh = mPhone.getIccFileHandler();

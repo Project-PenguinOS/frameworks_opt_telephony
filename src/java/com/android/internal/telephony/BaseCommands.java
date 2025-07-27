@@ -77,17 +77,9 @@ public abstract class BaseCommands implements CommandsInterface {
     protected RegistrantList mSignalInfoRegistrants = new RegistrantList();
     protected RegistrantList mNumberInfoRegistrants = new RegistrantList();
     protected RegistrantList mRedirNumInfoRegistrants = new RegistrantList();
-    protected RegistrantList mLineControlInfoRegistrants = new RegistrantList();
-    protected RegistrantList mT53ClirInfoRegistrants = new RegistrantList();
-    protected RegistrantList mT53AudCntrlInfoRegistrants = new RegistrantList();
-    @UnsupportedAppUsage
     protected RegistrantList mRingbackToneRegistrants = new RegistrantList();
     @UnsupportedAppUsage
     protected RegistrantList mResendIncallMuteRegistrants = new RegistrantList();
-    @UnsupportedAppUsage
-    protected RegistrantList mCdmaSubscriptionChangedRegistrants = new RegistrantList();
-    @UnsupportedAppUsage
-    protected RegistrantList mCdmaPrlChangedRegistrants = new RegistrantList();
     @UnsupportedAppUsage
     protected RegistrantList mExitEmergencyCallbackModeRegistrants = new RegistrantList();
     protected RegistrantList mRilConnectedRegistrants = new RegistrantList();
@@ -179,8 +171,6 @@ public abstract class BaseCommands implements CommandsInterface {
     // vendor ril so it starts up in the correct mode.
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     protected int mAllowedNetworkTypesBitmask;
-    // CDMA subscription received from PhoneFactory
-    protected int mCdmaSubscription;
     // Type of Phone, GSM or CDMA. Set by GsmCdmaPhone.
     @UnsupportedAppUsage
     protected int mPhoneType;
@@ -685,66 +675,6 @@ public abstract class BaseCommands implements CommandsInterface {
     }
 
     @Override
-    public void registerForCdmaOtaProvision(Handler h,int what, Object obj){
-        mOtaProvisionRegistrants.addUnique(h, what, obj);
-    }
-
-    @Override
-    public void unregisterForCdmaOtaProvision(Handler h){
-        mOtaProvisionRegistrants.remove(h);
-    }
-
-    @Override
-    public void registerForNumberInfo(Handler h,int what, Object obj) {
-        mNumberInfoRegistrants.addUnique(h, what, obj);
-    }
-
-    @Override
-    public void unregisterForNumberInfo(Handler h){
-        mNumberInfoRegistrants.remove(h);
-    }
-
-     @Override
-    public void registerForRedirectedNumberInfo(Handler h,int what, Object obj) {
-        mRedirNumInfoRegistrants.addUnique(h, what, obj);
-    }
-
-    @Override
-    public void unregisterForRedirectedNumberInfo(Handler h) {
-        mRedirNumInfoRegistrants.remove(h);
-    }
-
-    @Override
-    public void registerForLineControlInfo(Handler h, int what, Object obj) {
-        mLineControlInfoRegistrants.addUnique(h, what, obj);
-    }
-
-    @Override
-    public void unregisterForLineControlInfo(Handler h) {
-        mLineControlInfoRegistrants.remove(h);
-    }
-
-    @Override
-    public void registerFoT53ClirlInfo(Handler h,int what, Object obj) {
-        mT53ClirInfoRegistrants.addUnique(h, what, obj);
-    }
-
-    @Override
-    public void unregisterForT53ClirInfo(Handler h) {
-        mT53ClirInfoRegistrants.remove(h);
-    }
-
-    @Override
-    public void registerForT53AudioControlInfo(Handler h,int what, Object obj) {
-        mT53AudCntrlInfoRegistrants.addUnique(h, what, obj);
-    }
-
-    @Override
-    public void unregisterForT53AudioControlInfo(Handler h) {
-        mT53AudCntrlInfoRegistrants.remove(h);
-    }
-
-    @Override
     public void registerForRingbackTone(Handler h, int what, Object obj) {
         mRingbackToneRegistrants.addUnique(h, what, obj);
     }
@@ -762,26 +692,6 @@ public abstract class BaseCommands implements CommandsInterface {
     @Override
     public void unregisterForResendIncallMute(Handler h) {
         mResendIncallMuteRegistrants.remove(h);
-    }
-
-    @Override
-    public void registerForCdmaSubscriptionChanged(Handler h, int what, Object obj) {
-        mCdmaSubscriptionChangedRegistrants.addUnique(h, what, obj);
-    }
-
-    @Override
-    public void unregisterForCdmaSubscriptionChanged(Handler h) {
-        mCdmaSubscriptionChangedRegistrants.remove(h);
-    }
-
-    @Override
-    public void registerForCdmaPrlChanged(Handler h, int what, Object obj) {
-        mCdmaPrlChangedRegistrants.addUnique(h, what, obj);
-    }
-
-    @Override
-    public void unregisterForCdmaPrlChanged(Handler h) {
-        mCdmaPrlChangedRegistrants.remove(h);
     }
 
     @Override
