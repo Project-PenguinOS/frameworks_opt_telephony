@@ -135,7 +135,9 @@ public class UiccSlot extends Handler {
 
             int radioState = ci.getRadioState();
             if (DBG) {
-                log("update: radioState=" + radioState + " mLastRadioState=" + mLastRadioState);
+                log(phoneId,
+                        "update: radioState=" + radioState + " mLastRadioState=" + mLastRadioState
+                                + " on slotIndex=" + slotIndex);
             }
 
             if (absentStateUpdateNeeded(oldState, ics.mSlotPortMapping.mPortIndex)) {
@@ -153,14 +155,17 @@ public class UiccSlot extends Handler {
                         && mLastRadioState.getOrDefault(ics.mSlotPortMapping.mPortIndex,
                         TelephonyManager.RADIO_POWER_UNAVAILABLE)
                         != TelephonyManager.RADIO_POWER_UNAVAILABLE) {
-                    if (DBG) log("update: notify card added");
+                    if (DBG) log(phoneId, "update: notify card added on slotIndex=" + slotIndex);
                     sendMessage(obtainMessage(EVENT_CARD_ADDED, null));
                 }
 
                 // card is present in the slot now; create new mUiccCard
                 if (mUiccCard != null && (!mIsEuicc
                         || ArrayUtils.isEmpty(mUiccCard.getUiccPortList()))) {
-                    loge("update: mUiccCard != null when card was present; disposing it now");
+                    loge(phoneId,
+                            "update: mUiccCard != null when card was present; disposing it now on"
+                                    + " slotIndex="
+                                    + slotIndex);
                     mUiccCard.dispose();
                     mUiccCard = null;
                 }
@@ -173,7 +178,7 @@ public class UiccSlot extends Handler {
                     // The EID should be reported with the card status, but in case it's not we want
                     // to catch that here
                     if (TextUtils.isEmpty(ics.eid)) {
-                        loge("update: eid is missing. ics.eid="
+                        loge(phoneId, "update: eid is missing. ics.eid="
                                 + Rlog.pii(TelephonyUtils.IS_DEBUGGABLE, ics.eid));
                     }
                     if (mUiccCard == null) {
@@ -209,6 +214,11 @@ public class UiccSlot extends Handler {
                 CardState oldState = mCardState.get(i);
                 mCardState.put(i, iss.cardState);
                 mIccIds.put(i, simPortInfos[i].mIccId);
+                if (DBG) {
+                    log(phoneId, "update: oldCardState=" + oldState + " CardState=" + iss.cardState
+                            + " on slotIndex=" + slotIndex + " isPortActive="
+                            + iss.mSimPortInfos[i].mPortActive);
+                }
                 if (!iss.mSimPortInfos[i].mPortActive) {
                     // TODO: (b/79432584) evaluate whether should broadcast card state change
                     // even if it's inactive.
@@ -359,7 +369,7 @@ public class UiccSlot extends Handler {
                 && mLastRadioState.getOrDefault(
                         portIndex, TelephonyManager.RADIO_POWER_UNAVAILABLE)
                 != TelephonyManager.RADIO_POWER_UNAVAILABLE) {
-            if (DBG) log("update: notify card removed");
+            if (DBG) log(phoneId, "update: notify card removed on portIndex=" + portIndex);
             sendMessage(obtainMessage(EVENT_CARD_REMOVED, null));
         }
 
@@ -530,7 +540,7 @@ public class UiccSlot extends Handler {
         // As this check is for shutdown status check, use any phoneId
         Phone phone = PhoneFactory.getPhone(getAnyValidPhoneId());
         if (phone != null && phone.isShuttingDown()) {
-            log("onIccSwap: already doing shutdown, no need to prompt");
+            log(phone.getPhoneId(), "onIccSwap: already doing shutdown, no need to prompt");
             return;
         }
 
@@ -668,7 +678,7 @@ public class UiccSlot extends Handler {
         }
         mActiveSimType = getMappedSimType(simTypeInfo.mCurrentSimType);
         mSupportedSimTypes = convertSupportedSimTypesBitMaskToArray(simTypeInfo);
-        log("updateSimTypeInfo for slot-" + simTypeInfo.mPhysicalSlotIndex
+        log("updateSimTypeInfo for slotIndex=" + simTypeInfo.mPhysicalSlotIndex
                 + " mActiveSimType: " + mActiveSimType
                 + " mSupportedSimTypes: " + Arrays.toString(mSupportedSimTypes));
     }
@@ -727,8 +737,16 @@ public class UiccSlot extends Handler {
         Rlog.d(TAG, msg);
     }
 
+    private void log(int phoneId, String msg) {
+        Rlog.d(TAG + " [" + phoneId + "]", msg);
+    }
+
     private void loge(String msg) {
         Rlog.e(TAG, msg);
+    }
+
+    private void loge(int phoneId, String msg) {
+        Rlog.e(TAG + " [" + phoneId + "]", msg);
     }
 
     private Map<Integer, String> getPrintableIccIds() {

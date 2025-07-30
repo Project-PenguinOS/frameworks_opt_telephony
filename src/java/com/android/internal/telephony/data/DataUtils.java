@@ -60,7 +60,6 @@ import java.util.stream.Collectors;
  * This class contains all the utility methods used by telephony data stack.
  */
 public class DataUtils {
-    public static final int NET_CAPABILITY_NOT_BANDWIDTH_CONSTRAINED = 37;
     /** The time format for converting time to readable string. */
     private static final SimpleDateFormat TIME_FORMAT =
             new SimpleDateFormat("HH:mm:ss.SSS", Locale.US);
@@ -167,7 +166,8 @@ public class DataUtils {
             case NetworkCapabilities.NET_CAPABILITY_MMTEL -> "MMTEL";
             case NetworkCapabilities.NET_CAPABILITY_PRIORITIZE_LATENCY -> "PRIORITIZE_LATENCY";
             case NetworkCapabilities.NET_CAPABILITY_PRIORITIZE_BANDWIDTH -> "PRIORITIZE_BANDWIDTH";
-            case NET_CAPABILITY_NOT_BANDWIDTH_CONSTRAINED -> "NOT_BANDWIDTH_CONSTRAINED";
+            case NetworkCapabilities.NET_CAPABILITY_NOT_BANDWIDTH_CONSTRAINED
+                    -> "NOT_BANDWIDTH_CONSTRAINED";
             default -> {
                 loge("Unknown network capability(" + netCap + ")");
                 yield "Unknown(" + netCap + ")";

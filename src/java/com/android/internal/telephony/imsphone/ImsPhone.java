@@ -2826,7 +2826,9 @@ public class ImsPhone extends ImsPhoneBase {
         String subCountryIso = subInfo.getCountryIso();
         if (mFeatureFlags.enablePhoneNumberParsingApi()) {
             PhoneNumberManager phoneNumberManager = getPhoneNumberManager();
-            if (phoneNumberManager != null) {
+            if (uris == null) {
+                loge("setPhoneNumberForSourceIms: input is null");
+            } else if (phoneNumberManager != null) {
                 try {
                     ParsedPhoneNumber result = phoneNumberManager.parsePhoneNumber(
                             Arrays.asList(uris),

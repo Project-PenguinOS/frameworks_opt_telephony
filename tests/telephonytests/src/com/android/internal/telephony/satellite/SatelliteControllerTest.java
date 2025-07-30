@@ -1044,7 +1044,6 @@ public class SatelliteControllerTest extends TelephonyTest {
 
     @Test
     public void testRequestSatelliteEnabled() {
-        when(mFeatureFlags.satelliteStateChangeListener()).thenReturn(true);
         mIsSatelliteEnabledSemaphore.drainPermits();
         mSatelliteControllerUT.handleSatelliteAccessAllowedStateChanged(true);
 

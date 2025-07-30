@@ -804,7 +804,7 @@ public class GsmSmsDispatcherTest extends TelephonyTest {
                 anyBoolean(),
                 eq(false),
                 anyBoolean(),
-                eq(SmsManager.RESULT_SMS_SEND_FAIL_AFTER_MAX_RETRY),    // resultCode
+                eq(SmsManager.RESULT_SMS_SEND_FAILED_AFTER_MAX_RETRY),    // resultCode
                 eq(SmsResponse.NO_ERROR_CODE),
                 eq(messageId),
                 eq(true),
