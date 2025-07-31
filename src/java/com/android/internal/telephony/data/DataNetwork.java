@@ -483,7 +483,10 @@ public class DataNetwork extends StateMachine {
             NetworkCapabilities.NET_CAPABILITY_MMTEL,
             // Dynamically add and remove MMS capability depending on QNS's preference if there is
             // a transport specific APN alternative.
-            NetworkCapabilities.NET_CAPABILITY_MMS
+            NetworkCapabilities.NET_CAPABILITY_MMS,
+            // Dynamically add and remove XCAP capability depending on QNS's preference if there is
+            // a transport specific APN alternative.
+            NetworkCapabilities.NET_CAPABILITY_XCAP
     );
 
     /** The parent state. Any messages not handled by the child state fallback to this. */
@@ -1338,14 +1341,17 @@ public class DataNetwork extends StateMachine {
                         getHandler(), EVENT_VOICE_CALL_ENDED, null);
             }
 
-            if (mDataProfile.canSatisfy(NetworkCapabilities.NET_CAPABILITY_MMS)) {
+            if (mDataProfile.canSatisfy(NetworkCapabilities.NET_CAPABILITY_MMS)
+                    || mDataProfile.canSatisfy(NetworkCapabilities.NET_CAPABILITY_XCAP)) {
                 mAccessNetworksManagerCallback = new AccessNetworksManagerCallback(
                         getHandler()::post) {
                     @Override
                     public void onPreferredTransportChanged(
                             @NetCapability int networkCapability, boolean forceReconnect) {
-                        if (networkCapability == NetworkCapabilities.NET_CAPABILITY_MMS) {
-                            log("MMS preference changed.");
+                        if (networkCapability == NetworkCapabilities.NET_CAPABILITY_MMS
+                                || networkCapability == NetworkCapabilities.NET_CAPABILITY_XCAP) {
+                            log(DataUtils.networkCapabilityToString(networkCapability)
+                                    + " preference changed.");
                             updateNetworkCapabilities();
                         }
                     }
@@ -2593,31 +2599,36 @@ public class DataNetwork extends StateMachine {
             builder.removeCapability(NetworkCapabilities.NET_CAPABILITY_NOT_RESTRICTED);
         }
 
-        // Check if the feature force MMS on IWLAN is enabled. When the feature is enabled, MMS
-        // will be attempted on IWLAN if possible, even if existing cellular networks already
-        // supports IWLAN.
-        if (builder.build().hasCapability(NetworkCapabilities.NET_CAPABILITY_MMS)) {
-            // If QNS sets MMS preferred on IWLAN, and it is possible to setup an MMS network on
-            // IWLAN, then we need to remove the MMS capability on the cellular network. This will
-            // allow the new MMS network to be brought up on IWLAN when MMS network request arrives.
-            if (mAccessNetworksManager.getPreferredTransportByNetworkCapability(
-                    NetworkCapabilities.NET_CAPABILITY_MMS)
-                    == AccessNetworkConstants.TRANSPORT_TYPE_WLAN && mTransport
-                    == AccessNetworkConstants.TRANSPORT_TYPE_WWAN) {
+        // MMS or XCAP will be attempted on IWLAN if possible, even if existing cellular networks
+        // already supports IWLAN.
+        int[] iwlanPreferredCaps = new int[]{NetworkCapabilities.NET_CAPABILITY_MMS,
+                NetworkCapabilities.NET_CAPABILITY_XCAP};
+        for (int netCapability : iwlanPreferredCaps) {
+            if (builder.build().hasCapability(netCapability)) {
+                // If QNS sets MMS/XCAP as preferred on IWLAN, and it is possible to setup an
+                // MMS/XCAP network on IWLAN, then we need to remove the MMS capability on the
+                // cellular network. This will allow the new MMS/XCAP network to be brought up on
+                // IWLAN when MMS/XCAP network request arrives.
+                if (mAccessNetworksManager.getPreferredTransportByNetworkCapability(netCapability)
+                        == AccessNetworkConstants.TRANSPORT_TYPE_WLAN && mTransport
+                        == AccessNetworkConstants.TRANSPORT_TYPE_WWAN) {
 
-                DataProfile dataProfile = mDataNetworkController.getDataProfileManager()
-                        .getDataProfileForNetworkRequest(new TelephonyNetworkRequest(
-                                new NetworkRequest.Builder().addCapability(
-                                NetworkCapabilities.NET_CAPABILITY_MMS).build(), mPhone, mFlags),
-                        TelephonyManager.NETWORK_TYPE_IWLAN, false, false, false);
-                // If we find another data data profile that can support MMS on IWLAN, then remove
-                // the MMS capability from this cellular network. This will allow IWLAN to be
-                // brought up for MMS later.
-                if (dataProfile != null && !dataProfile.getApn().equals(mDataProfile.getApn())) {
-                    log("Found a different apn name " + dataProfile.getApn()
-                            + " that can serve MMS on IWLAN. Current data profile "
-                            + mDataProfile.getApn());
-                    builder.removeCapability(NetworkCapabilities.NET_CAPABILITY_MMS);
+                    DataProfile dataProfile = mDataNetworkController.getDataProfileManager()
+                            .getDataProfileForNetworkRequest(new TelephonyNetworkRequest(
+                                            new NetworkRequest.Builder().addCapability(
+                                                    netCapability).build(), mPhone, mFlags),
+                                    TelephonyManager.NETWORK_TYPE_IWLAN, false, false, false);
+                    // If we find another data data profile that can support MMS/XCAP on IWLAN, then
+                    // remove the MMS/XCAP capability from this cellular network. This will allow
+                    // IWLAN to be brought up for MMS/XCAP later.
+                    if (dataProfile != null && !dataProfile.getApn()
+                            .equals(mDataProfile.getApn())) {
+                        log("Found a different apn name " + dataProfile.getApn()
+                                + " that can serve "
+                                + DataUtils.networkCapabilityToString(netCapability)
+                                + " on IWLAN. Current data profile " + mDataProfile.getApn());
+                        builder.removeCapability(netCapability);
+                    }
                 }
             }
         }
@@ -2652,7 +2663,7 @@ public class DataNetwork extends StateMachine {
                                 NetworkCapabilities.NET_CAPABILITY_NOT_RESTRICTED);
                 case CarrierConfigManager.SATELLITE_DATA_SUPPORT_BANDWIDTH_CONSTRAINED -> {
                     try {
-                        builder.removeCapability(DataUtils
+                        builder.removeCapability(NetworkCapabilities
                                 .NET_CAPABILITY_NOT_BANDWIDTH_CONSTRAINED);
                     } catch (Exception ignored) { }
                 }

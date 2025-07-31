@@ -113,7 +113,6 @@ public class UiccCardApplication {
     public UiccCardApplication(@NonNull UiccProfile uiccProfile,
             @NonNull IccCardApplicationStatus as, @NonNull Context c, @NonNull CommandsInterface ci,
             @NonNull FeatureFlags flags) {
-        if (DBG) log("Creating UiccApp: " + as);
         mFeatureFlags = flags;
         mUiccProfile = uiccProfile;
         mAppState = as.app_state;
@@ -130,6 +129,7 @@ public class UiccCardApplication {
         mContext = c;
         mCi = ci;
 
+        if (DBG) log("Creating UiccApp: " + as);
         mIccFh = createIccFileHandler(as.app_type);
         mIccRecords = createIccRecords(as.app_type, mContext, mCi);
         if (mAppState == AppState.APPSTATE_READY) {
@@ -985,12 +985,12 @@ public class UiccCardApplication {
 
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     private void log(String msg) {
-        Rlog.d(LOG_TAG, msg);
+        Rlog.d(LOG_TAG + " [" + getPhoneId() + "]", msg);
     }
 
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     private void loge(String msg) {
-        Rlog.e(LOG_TAG, msg);
+        Rlog.e(LOG_TAG + " [" + getPhoneId() + "]", msg);
     }
 
     public void dump(FileDescriptor fd, PrintWriter printWriter, String[] args) {

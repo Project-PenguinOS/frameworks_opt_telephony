@@ -287,7 +287,8 @@ public class NetworkTypeController extends StateMachine {
         try {
             return capabilities.hasTransport(
                     NetworkCapabilities.TRANSPORT_SATELLITE) &&
-                    !capabilities.hasCapability(DataUtils.NET_CAPABILITY_NOT_BANDWIDTH_CONSTRAINED);
+                    !capabilities.hasCapability(
+                            NetworkCapabilities.NET_CAPABILITY_NOT_BANDWIDTH_CONSTRAINED);
         } catch (Exception ignored) {
             log("NET_CAPABILITY_NOT_BANDWIDTH_CONSTRAINED not supported ");
             return false;
@@ -362,7 +363,8 @@ public class NetworkTypeController extends StateMachine {
             //  NET_CAPABILITY_NOT_BANDWIDTH_CONSTRAINED & replace datautils with
             //  NetworkCapabilities on api availability at mainline module)
             try {
-                builder.removeCapability(DataUtils.NET_CAPABILITY_NOT_BANDWIDTH_CONSTRAINED);
+                builder.removeCapability(
+                        NetworkCapabilities.NET_CAPABILITY_NOT_BANDWIDTH_CONSTRAINED);
             } catch (Exception ignored) {
                 log("NET_CAPABILITY_NOT_BANDWIDTH_CONSTRAINED not supported ");
             }

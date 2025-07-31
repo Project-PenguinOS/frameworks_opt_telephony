@@ -2370,8 +2370,23 @@ public abstract class InboundSmsHandler extends StateMachine {
                 PackageManager pm = context.getPackageManager();
                 pm = context.createContextAsUser(UserHandle.CURRENT, 0).getPackageManager();
                 if (userManager.isUserUnlocked()) {
-                    context.startActivityAsUser(pm.getLaunchIntentForPackage(
-                            Telephony.Sms.getDefaultSmsPackage(context)), UserHandle.CURRENT);
+                    String defaultSmsPackage = Telephony.Sms.getDefaultSmsPackage(context);
+                    if (defaultSmsPackage == null) {
+                        Rlog.e("InboundSmsHandler",
+                                "NewMessageNotificationActionReceiver: failed to launch default "
+                                        + "sms app, default sms package is null");
+                        return;
+                    }
+                    Intent launchIntent = pm.getLaunchIntentForPackage(defaultSmsPackage);
+                    if (launchIntent == null) {
+                        Rlog.e("InboundSmsHandler",
+                                "NewMessageNotificationActionReceiver: failed to get launch "
+                                        + "intent for "
+                                        + defaultSmsPackage);
+                        return;
+                    }
+                    context.startActivityAsUser(launchIntent, UserHandle.CURRENT);
+
                 }
             }
         }
@@ -2460,5 +2475,16 @@ public abstract class InboundSmsHandler extends StateMachine {
         boolean filterSms(byte[][] pdus, int destPort, InboundSmsTracker tracker,
                 SmsBroadcastReceiver resultReceiver, boolean userUnlocked, boolean block,
                 List<SmsFilter> remainingFilters);
+    }
+
+    /**
+     * Creates a new instance of the private {@code NewMessageNotificationActionReceiver} for
+     * testing.
+     *
+     * @return A new instance of {@code NewMessageNotificationActionReceiver}.
+     */
+    @VisibleForTesting
+    public BroadcastReceiver makeNewMessageNotificationActionReceiver() {
+        return new NewMessageNotificationActionReceiver();
     }
 }

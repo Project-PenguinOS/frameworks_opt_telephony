@@ -130,3 +130,14 @@ flag {
   }
 }
 
+# OWNER=karthickmj TARGET=26Q1
+flag {
+  name: "ast_skylo_fallback"
+  namespace: "telephony"
+  description: "Support AST Skylo fallback"
+  bug: "432475222"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}
+

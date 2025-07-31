@@ -1368,6 +1368,9 @@ public class ImsPhoneTest extends TelephonyTest {
             throw new AssertionError("not expected exception", IllegalArgumentException);
         }
 
+        // put input with null
+        mImsPhoneUT.setPhoneNumberForSourceIms(null);
+
         // Clean up
         mContextFixture.addCallingOrSelfPermission("");
     }

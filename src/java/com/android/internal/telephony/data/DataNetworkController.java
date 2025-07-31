@@ -2465,7 +2465,7 @@ public class DataNetworkController extends Handler {
                 }
                 case CarrierConfigManager.SATELLITE_DATA_SUPPORT_BANDWIDTH_CONSTRAINED -> {
                     try {
-                        if (networkRequest.hasCapability(DataUtils
+                        if (networkRequest.hasCapability(NetworkCapabilities
                                 .NET_CAPABILITY_NOT_BANDWIDTH_CONSTRAINED)) {
                             return false;
                         }
