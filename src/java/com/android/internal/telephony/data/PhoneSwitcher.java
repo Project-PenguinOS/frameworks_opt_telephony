@@ -1910,17 +1910,18 @@ public class PhoneSwitcher extends Handler {
         }
         Call bgCall = phone.getBackgroundCall();
         Call fgCall = phone.getForegroundCall();
-        if (bgCall == null || fgCall == null) {
+        Call ringingCall = phone.getRingingCall();
+        if (bgCall == null || fgCall == null || ringingCall == null) {
             return false;
         }
         // A phone in voice call might trigger data being switched to it.
         // Exclude dialing to give modem time to process an EMC first before dealing with DDS switch
         // Include alerting because modem RLF leads to delay in switch, so carrier required to
         // switch in alerting phase.
-        // TODO: check ringing call for vDADA
         return (!bgCall.isIdle() && bgCall.getState() != Call.State.DIALING)
                 || (!fgCall.isIdle() && fgCall.getState() != Call.State.DIALING)
-                || phone.getRingingCall().isRinging();
+                || phone.getRingingCall().isRinging()
+                || (!ringingCall.isIdle() && ringingCall.getState() != Call.State.DIALING);
     }
 
     private void updateHalCommandToUse() {

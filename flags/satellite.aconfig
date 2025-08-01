@@ -141,3 +141,24 @@ flag {
   }
 }
 
+# OWNER=tnd TARGET=25Q4
+flag {
+  name: "support_carrier_ids_in_geofence"
+  namespace: "telephony"
+  description: "Support carrier ids in geofence"
+  bug: "434754838"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}
+
+# OWNER=tnd TARGET=26Q2
+flag {
+  name: "satellite_26q2_apis"
+  namespace: "telephony"
+  description: "This flag controls the changes for the new satellite APIs in 26Q2"
+  bug: "434764963"
+  metadata {
+    purpose: PURPOSE_FEATURE
+  }
+}

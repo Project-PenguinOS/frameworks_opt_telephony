@@ -28,6 +28,10 @@ import static android.provider.Telephony.Sms.Intents.SMS_RECEIVED_ACTION;
 import static android.service.carrier.CarrierMessagingService.RECEIVE_OPTIONS_SKIP_NOTIFY_WHEN_CREDENTIAL_PROTECTED_STORAGE_UNAVAILABLE;
 import static android.telephony.TelephonyManager.PHONE_TYPE_CDMA;
 
+import static com.android.internal.telephony.TelephonyStatsLog.SMS_OTP_EVALUATION__RESULT__EVALUATION_RESULT_HAS_OTP;
+import static com.android.internal.telephony.TelephonyStatsLog.SMS_OTP_EVALUATION__RESULT__EVALUATION_RESULT_NOT_CHECKED;
+import static com.android.internal.telephony.TelephonyStatsLog.SMS_OTP_EVALUATION__RESULT__EVALUATION_RESULT_NO_OTP;
+
 import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -49,6 +53,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
+import android.content.pm.ResolveInfo;
 import android.database.Cursor;
 import android.database.SQLException;
 import android.net.Uri;
@@ -60,6 +65,7 @@ import android.os.Looper;
 import android.os.Message;
 import android.os.PowerManager;
 import android.os.PowerWhitelistManager;
+import android.os.SystemClock;
 import android.os.UserHandle;
 import android.os.UserManager;
 import android.os.storage.StorageManager;
@@ -83,7 +89,9 @@ import com.android.internal.telephony.SmsConstants.MessageClass;
 import com.android.internal.telephony.analytics.TelephonyAnalytics;
 import com.android.internal.telephony.analytics.TelephonyAnalytics.SmsMmsAnalytics;
 import com.android.internal.telephony.flags.FeatureFlags;
+import com.android.internal.telephony.metrics.PersistAtomsStorage;
 import com.android.internal.telephony.metrics.TelephonyMetrics;
+import com.android.internal.telephony.nano.PersistAtomsProto;
 import com.android.internal.telephony.satellite.SatelliteController;
 import com.android.internal.telephony.satellite.metrics.CarrierRoamingSatelliteSessionStats;
 import com.android.internal.telephony.util.NotificationChannelController;
@@ -238,6 +246,8 @@ public abstract class InboundSmsHandler extends StateMachine {
 
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     protected final Context mContext;
+
+    protected final PackageManager mPackageManager;
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     private final ContentResolver mResolver;
 
@@ -306,7 +316,10 @@ public abstract class InboundSmsHandler extends StateMachine {
 
     private final Handler mMainThreadHandler = new Handler(Looper.getMainLooper());
 
+    private final PersistAtomsStorage mAtomsStorage;
+
     private TextClassifier mTextClassifier;
+
 
     private static String ACTION_OPEN_SMS_APP =
         "com.android.internal.telephony.OPEN_DEFAULT_SMS_APP";
@@ -330,10 +343,12 @@ public abstract class InboundSmsHandler extends StateMachine {
 
         mFeatureFlags = featureFlags;
         mContext = context;
+        mPackageManager = context.getPackageManager();
         mStorageMonitor = storageMonitor;
         mPhone = phone;
         mResolver = context.getContentResolver();
         mWapPush = new WapPushOverSms(context, mFeatureFlags);
+        mAtomsStorage = PhoneFactory.getMetricsCollector().getAtomsStorage();
 
         TelephonyManager telephonyManager = TelephonyManager.from(mContext);
         boolean smsCapable = telephonyManager.isDeviceSmsCapable();
@@ -1526,6 +1541,11 @@ public abstract class InboundSmsHandler extends StateMachine {
                                 null /* initialExtras */, opts);
             } catch (PackageManager.NameNotFoundException ignored) {
             }
+            PersistAtomsProto.OtpEvaluationEvent evaluationEvent =
+                    new PersistAtomsProto.OtpEvaluationEvent();
+            evaluationEvent.result = SMS_OTP_EVALUATION__RESULT__EVALUATION_RESULT_NOT_CHECKED;
+            evaluationEvent.redactionTimeMs = -1;
+            mAtomsStorage.addOtpEvaluationEvent(evaluationEvent);
         } else {
             checkOtpAndSendBroadcast(intent, permission, appOp, opts, resultReceiver, user);
         }
@@ -1533,6 +1553,7 @@ public abstract class InboundSmsHandler extends StateMachine {
 
     private void checkOtpAndSendBroadcast(Intent intent, String permission, String appOp,
             Bundle opts, SmsBroadcastReceiver resultReceiver, UserHandle user) {
+        final long start = SystemClock.elapsedRealtime();
         mBackgroundExecutor.execute(() -> {
             AtomicBoolean containsOtpCallPending = new AtomicBoolean(true);
             AtomicBoolean sentBroadcastAfterWaitingMaxTime = new AtomicBoolean(false);
@@ -1547,18 +1568,27 @@ public abstract class InboundSmsHandler extends StateMachine {
             }, MAXIMUM_BROADCAST_DELAY_TIME_MS);
             boolean containsOtp = containsOtp(intent);
             containsOtpCallPending.set(false);
+            int classificationTime = (int)
+                    (Math.min(SystemClock.elapsedRealtime() - start, Integer.MAX_VALUE));
             if (sentBroadcastAfterWaitingMaxTime.get()) {
                 // Broadcast was already sent, don't re-send
                 return;
             }
+            int result;
             if (containsOtp) {
-                sendBroadcastWithRedactedPermissionChecks(intent, permission, appOp, opts,
+                sendBroadcastToTrustedPackages(intent, permission, appOp, opts,
                         resultReceiver, user);
+                result = SMS_OTP_EVALUATION__RESULT__EVALUATION_RESULT_HAS_OTP;
             } else {
                 sendBroadcastWithStandardPermissions(intent, permission, appOp, opts,
                         resultReceiver, user);
+                result = SMS_OTP_EVALUATION__RESULT__EVALUATION_RESULT_NO_OTP;
             }
-
+            PersistAtomsProto.OtpEvaluationEvent evaluationEvent =
+                    new PersistAtomsProto.OtpEvaluationEvent();
+            evaluationEvent.result = result;
+            evaluationEvent.redactionTimeMs = classificationTime;
+            mAtomsStorage.addOtpEvaluationEvent(evaluationEvent);
         });
     }
 
@@ -1607,12 +1637,12 @@ public abstract class InboundSmsHandler extends StateMachine {
     }
 
     @SuppressLint("MissingPermission")
-    private void sendBroadcastWithRedactedPermissionChecks(Intent intent, String permission,
+    private void sendBroadcastToTrustedPackages(Intent intent, String permission,
             String appOp, Bundle opts, SmsBroadcastReceiver resultReceiver, UserHandle user) {
-        Set<String> trustedPackagess = SmsManager.getSmsOtpTrustedPackages(mContext);
-        String[] trustedPackagesArray = new String[trustedPackagess.size()];
+        Set<String> trustedPackages = SmsManager.getSmsOtpTrustedPackages(mContext, user);
+        final String[] trustedPackagesArray = new String[trustedPackages.size()];
         int i = 0;
-        for (String trusted: trustedPackagess) {
+        for (String trusted: trustedPackages) {
             trustedPackagesArray[i] = trusted;
             i++;
         }
@@ -1624,8 +1654,45 @@ public abstract class InboundSmsHandler extends StateMachine {
                     .sendOrderedBroadcast(intent, Activity.RESULT_OK, permission, appOp,
                             resultReceiver, getHandler(), null /* initialData */,
                             null /* initialExtras */, options.toBundle());
+            logRedactedPackages(intent, permission, user, trustedPackages);
         } catch (PackageManager.NameNotFoundException ignored) {
         }
+    }
+
+    private void logRedactedPackages(Intent intent, String permission, UserHandle user,
+            Set<String> trustedPackages) {
+        mBackgroundExecutor.execute(() -> {
+            // Aggregate all apps listening for the SMS_RECEIVED broadcast, with the RECEIVE_SMS
+            // permission, filter out trusted ones, and log metrics for the remaining
+            PackageManager userPm = mContext.createContextAsUser(user, 0).getPackageManager();
+            List<ResolveInfo> receivers = userPm.queryBroadcastReceivers(intent,
+                    PackageManager.MATCH_ALL);
+            List<String> redactedPackages = new ArrayList<>();
+            for (ResolveInfo info: receivers) {
+                if (mPackageManager.checkPermission(permission, info.resolvePackageName)
+                        != PackageManager.PERMISSION_GRANTED) {
+                    continue;
+                }
+                if (trustedPackages.contains(info.resolvePackageName)) {
+                    continue;
+                }
+                redactedPackages.add(info.resolvePackageName);
+            }
+            for (String redactedPackage: redactedPackages) {
+                int uid;
+                try {
+                    uid = mContext.getPackageManager().getPackageUid(redactedPackage,
+                            PackageManager.MATCH_ALL);
+                } catch (PackageManager.NameNotFoundException e) {
+                    continue;
+                }
+                PersistAtomsProto.OtpRedactionEvent event =
+                        new PersistAtomsProto.OtpRedactionEvent();
+                event.uid = uid;
+                event.count = 1;
+                mAtomsStorage.addOtpRedactionEvent(event);
+            }
+        });
     }
 
     private boolean hasUserRestriction(String restrictionKey, UserHandle userHandle) {

@@ -122,3 +122,14 @@ flag {
     description: "Allow OEMs to collect logs from specified logs sources for e911 calls"
     bug:"412747188"
 }
+
+# OWNER=boullanger TARGET=26Q2
+flag {
+    name: "allow_multi_country_mcc"
+    namespace: "telephony"
+    description: "Allows MCC to map to multiple countries."
+    bug: "393349646"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}

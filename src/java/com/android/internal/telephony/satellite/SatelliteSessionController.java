@@ -364,6 +364,7 @@ public class SatelliteSessionController extends StateMachine {
      */
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
     public void onSatelliteEnabledStateChanged(boolean enabled) {
+        plogd("onSatelliteEnabledStateChanged: enabled= " + enabled);
         sendMessage(EVENT_SATELLITE_ENABLED_STATE_CHANGED, enabled);
     }
 
