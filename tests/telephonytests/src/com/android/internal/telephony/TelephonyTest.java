@@ -564,6 +564,7 @@ public abstract class TelephonyTest {
         lenient().doReturn(true).when(mFeatureFlags).dynamicModemShutdown();
         lenient().doReturn(true).when(mFeatureFlags).dataServiceNotifyImsDataNetwork();
         lenient().doReturn(true).when(mFeatureFlags).keepWfcOnApm();
+        lenient().doReturn(true).when(mFeatureFlags).allowMultiCountryMcc();
 
         WorkerThread.reset();
         TelephonyManager.disableServiceHandleCaching();

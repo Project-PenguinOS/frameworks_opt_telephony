@@ -45,6 +45,8 @@ import com.android.internal.telephony.nano.PersistAtomsProto.ImsRegistrationStat
 import com.android.internal.telephony.nano.PersistAtomsProto.ImsRegistrationTermination;
 import com.android.internal.telephony.nano.PersistAtomsProto.IncomingSms;
 import com.android.internal.telephony.nano.PersistAtomsProto.NetworkRequestsV2;
+import com.android.internal.telephony.nano.PersistAtomsProto.OtpEvaluationEvent;
+import com.android.internal.telephony.nano.PersistAtomsProto.OtpRedactionEvent;
 import com.android.internal.telephony.nano.PersistAtomsProto.OutgoingShortCodeSms;
 import com.android.internal.telephony.nano.PersistAtomsProto.OutgoingSms;
 import com.android.internal.telephony.nano.PersistAtomsProto.PersistAtoms;
@@ -182,6 +184,8 @@ public class PersistAtomsStorage {
     /** Maximum number of data network validation to store during pulls. */
     private final int mMaxNumDataNetworkValidation;
 
+    private final int mMaxNumOtpStats;
+
     /** Stores persist atoms and persist states of the puller. */
     @VisibleForTesting protected PersistAtoms mAtoms;
 
@@ -232,6 +236,7 @@ public class PersistAtomsStorage {
             mMaxOutgoingShortCodeSms = 5;
             mMaxNumSatelliteStats = 5;
             mMaxNumDataNetworkValidation = 5;
+            mMaxNumOtpStats = 10;
         } else {
             mMaxNumVoiceCallSessions = 50;
             mMaxNumSms = 25;
@@ -257,6 +262,7 @@ public class PersistAtomsStorage {
             mMaxOutgoingShortCodeSms = 10;
             mMaxNumSatelliteStats = 15;
             mMaxNumDataNetworkValidation = 15;
+            mMaxNumOtpStats = 100;
         }
 
         mAtoms = loadAtomsFromFile();
@@ -930,6 +936,27 @@ public class PersistAtomsStorage {
         mAtoms.satelliteAccessController =
                 insertAtRandomPlace(mAtoms.satelliteAccessController, stats,
                         mMaxNumSatelliteStats);
+        saveAtomsToFile(SAVE_TO_FILE_DELAY_FOR_UPDATE_MILLIS);
+    }
+
+    /** Adds a new {@link OtpEvaluationEvent} to the storage. */
+    public synchronized void addOtpEvaluationEvent(OtpEvaluationEvent stats) {
+        mAtoms.otpEvaluationEvent = insertAtRandomPlace(mAtoms.otpEvaluationEvent, stats,
+                mMaxNumOtpStats);
+        saveAtomsToFile(SAVE_TO_FILE_DELAY_FOR_UPDATE_MILLIS);
+    }
+
+    /** Adds a new {@link OtpRedactionEvent} to the storage. */
+    public synchronized void addOtpRedactionEvent(OtpRedactionEvent stats) {
+        for (OtpRedactionEvent existingStats : mAtoms.otpRedactionEvent) {
+            if (stats.uid == existingStats.uid) {
+                existingStats.count += 1;
+                saveAtomsToFile(SAVE_TO_FILE_DELAY_FOR_UPDATE_MILLIS);
+                return;
+            }
+        }
+        mAtoms.otpRedactionEvent = insertAtRandomPlace(mAtoms.otpRedactionEvent, stats,
+                mMaxNumOtpStats);
         saveAtomsToFile(SAVE_TO_FILE_DELAY_FOR_UPDATE_MILLIS);
     }
 
@@ -1700,6 +1727,43 @@ public class PersistAtomsStorage {
             mAtoms.satelliteAccessControllerPullTimestampMillis = getWallTimeMillis();
             SatelliteAccessController[] statsArray = mAtoms.satelliteAccessController;
             mAtoms.satelliteAccessController = new SatelliteAccessController[0];
+            saveAtomsToFile(SAVE_TO_FILE_DELAY_FOR_GET_MILLIS);
+            return statsArray;
+        } else {
+            return null;
+        }
+    }
+
+    /**
+     * Returns and clears the {@link OtpEvaluationEvent} stats if last pulled longer
+     * than {@code minIntervalMillis} ago, otherwise returns {@code null}.
+     */
+    @Nullable
+    public synchronized OtpEvaluationEvent[] getOtpEvaluationEventStats(
+            long minIntervalMillis) {
+        if ((getWallTimeMillis() - mAtoms.otpEvaluationEventPullTimestampMillis)
+                > minIntervalMillis) {
+            mAtoms.otpEvaluationEventPullTimestampMillis = getWallTimeMillis();
+            OtpEvaluationEvent[] statsArray = mAtoms.otpEvaluationEvent;
+            mAtoms.otpEvaluationEvent = new OtpEvaluationEvent[0];
+            saveAtomsToFile(SAVE_TO_FILE_DELAY_FOR_GET_MILLIS);
+            return statsArray;
+        } else {
+            return null;
+        }
+    }
+
+    /**
+     * Returns and clears the {@link OtpRedactionEvent} stats if last pulled longer
+     * than {@code minIntervalMillis} ago, otherwise returns {@code null}.
+     */
+    @Nullable
+    public synchronized OtpRedactionEvent[] getOtpRedactionEventStats(
+            long minIntervalMillis) {
+        if (getWallTimeMillis() - mAtoms.otpRedactionEventPullTimestampMillis > minIntervalMillis) {
+            mAtoms.otpRedactionEventPullTimestampMillis = getWallTimeMillis();
+            OtpRedactionEvent[] statsArray = mAtoms.otpRedactionEvent;
+            mAtoms.otpRedactionEvent = new OtpRedactionEvent[0];
             saveAtomsToFile(SAVE_TO_FILE_DELAY_FOR_GET_MILLIS);
             return statsArray;
         } else {
@@ -2493,6 +2557,7 @@ public class PersistAtomsStorage {
         return null;
     }
 
+
     /**
      * Inserts a new element in a random position in an array with a maximum size.
      *
@@ -2648,6 +2713,33 @@ public class PersistAtomsStorage {
             }
             // If all calls in the storage are emergency calls, proceed with default case
             // even if the new call is not an emergency call.
+        }
+
+        if (array instanceof OtpEvaluationEvent[]) {
+            // for otp evaluation events, don't evict the maximum redaction time for each result
+            OtpEvaluationEvent[] arr = (OtpEvaluationEvent[]) array;
+            SparseIntArray idxOfMaxValueForResult = new SparseIntArray();
+            for (int i = 0; i < arr.length; i++) {
+                OtpEvaluationEvent storedEvent = arr[i];
+                int maxIdx = idxOfMaxValueForResult.get(storedEvent.result, -1);
+                if (maxIdx < 0 || storedEvent.redactionTimeMs > arr[maxIdx].redactionTimeMs) {
+                    idxOfMaxValueForResult.put(storedEvent.result, i);
+                }
+            }
+
+            int rand = sRandom.nextInt(array.length);
+            // If we have as many result types as there are spots in the array, then they are all
+            // maximums. Evict at random.
+            if (array.length == idxOfMaxValueForResult.size()) {
+                return rand;
+            }
+
+            // Else, If we randomly picked an index of one of our maximum values, then cycle through
+            // the array until we find an index that isn't a maximum.
+            while (idxOfMaxValueForResult.indexOfValue(rand) != -1) {
+                rand = (rand + 1) % array.length;
+            }
+            return rand;
         }
 
         return sRandom.nextInt(array.length);

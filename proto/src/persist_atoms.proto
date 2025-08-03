@@ -267,6 +267,14 @@ message PersistAtoms {
 
     /* Timestamp of last satellite access controller pull. */
     optional int64 satellite_access_controller_pull_timestamp_millis = 81;
+
+    repeated OtpEvaluationEvent otp_evaluation_event = 82;
+
+    optional int64 otp_evaluation_event_pull_timestamp_millis = 83;
+
+    repeated OtpRedactionEvent otp_redaction_event = 84;
+
+    optional int64 otp_redaction_event_pull_timestamp_millis = 85;
 }
 
 // The canonical versions of the following enums live in:
@@ -906,4 +914,14 @@ message SatelliteAccessController {
     optional int32 carrier_id = 10;
     optional int32 triggering_event = 11;
     optional bool is_ntn_only_carrier = 12;
+}
+
+message OtpEvaluationEvent {
+    optional int32 redaction_time_ms = 1;
+    optional int32 result = 2;
+}
+
+message OtpRedactionEvent {
+    optional int32 uid = 1;
+    optional int32 count = 4;
 }
