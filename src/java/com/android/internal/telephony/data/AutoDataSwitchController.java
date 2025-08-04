@@ -73,7 +73,6 @@ import com.android.internal.telephony.subscription.SubscriptionManagerService;
 import com.android.internal.telephony.util.NotificationChannelController;
 import com.android.telephony.Rlog;
 
-
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
 import java.lang.annotation.Retention;
@@ -81,9 +80,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 
 /**
  * Recommend a data phone to use based on its availability.
@@ -437,32 +434,8 @@ public class AutoDataSwitchController extends Handler {
      * sub to reduce unnecessary tracking.
      */
     private void onSubscriptionsChanged() {
-        if (sFeatureFlags.autoDataPruneListener()) {
-            boolean changed = updateListenerRegistrations();
-            if (changed) logl("onSubscriptionChanged: " + Arrays.toString(mPhonesSignalStatus));
-        } else {
-            Set<Integer> activePhoneIds = Arrays.stream(mSubscriptionManagerService
-                            .getActiveSubIdList(shouldExcludeOpportunisticForSwitch()
-                                    /*visibleOnly*/))
-                    .map(mSubscriptionManagerService::getPhoneId)
-                    .boxed()
-                    .collect(Collectors.toSet());
-            // Track events only if there are at least two active subscriptions.
-            if (activePhoneIds.size() < 2) activePhoneIds.clear();
-            boolean changed = false;
-            for (int phoneId = 0; phoneId < mPhonesSignalStatus.length; phoneId++) {
-                if (activePhoneIds.contains(phoneId)
-                        && !mPhonesSignalStatus[phoneId].mListeningForEvents) {
-                    registerAllEventsForPhone(phoneId);
-                    changed = true;
-                } else if (!activePhoneIds.contains(phoneId)
-                        && mPhonesSignalStatus[phoneId].mListeningForEvents) {
-                    unregisterAllEventsForPhone(phoneId);
-                    changed = true;
-                }
-            }
-            if (changed) logl("onSubscriptionChanged: " + Arrays.toString(mPhonesSignalStatus));
-        }
+        boolean changed = updateListenerRegistrations();
+        if (changed) logl("onSubscriptionChanged: " + Arrays.toString(mPhonesSignalStatus));
     }
 
     /**
@@ -481,9 +454,6 @@ public class AutoDataSwitchController extends Handler {
      * @return `true` if any registration changed; `false` otherwise.
      */
     private boolean updateListenerRegistrations() {
-        if (!sFeatureFlags.autoDataPruneListener()) {
-            return false;
-        }
         boolean shouldUnregister = false;
         String reason = "";
 

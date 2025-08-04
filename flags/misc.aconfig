@@ -133,3 +133,14 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+# OWNER=jackyu TARGET=26Q2
+flag {
+    name: "delete_cdma"
+    namespace: "telephony"
+    description: "Remove CDMA code from the telephony code base"
+    bug: "435270591"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}

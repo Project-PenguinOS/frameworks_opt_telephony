@@ -204,8 +204,6 @@ public class AutoDataSwitchControllerTest extends TelephonyTest {
 
         clearInvocations(mDisplayInfoController, mSignalStrengthController, mSST);
 
-        doReturn(true).when(mFeatureFlags).autoDataPruneListener();
-
         // Default setup for mDataConfigManager.getCarrierOverriddenAutoDataSwitchPolicyForOppt()
         // This ensures existing tests behave as if opportunistic switching is disabled by policy,
         // unless overridden by a specific test or setupOpportunisticSwitchMode.
