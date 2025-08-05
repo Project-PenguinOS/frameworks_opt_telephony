@@ -482,6 +482,10 @@ public class SatelliteController extends Handler {
     @GuardedBy("mSatelliteAccessConfigLock")
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PRIVATE)
     protected List<Integer> mCurrentLocationTagIds = new ArrayList();
+    @GuardedBy("mSatelliteAccessConfigLock")
+    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PRIVATE)
+    @NonNull
+    protected List<Integer> mCurrentLocationCarrierIds = new ArrayList();
     private final Object mSatelliteEnabledRequestLock = new Object();
     /* This variable is used to store the first enable request that framework has received in the
      * current session.
@@ -8290,6 +8294,18 @@ public class SatelliteController extends Handler {
             return true;
         }
 
+        if (mFeatureFlags.supportCarrierIdsInGeofence()) {
+            synchronized(mSatelliteAccessConfigLock) {
+                if (!mCurrentLocationCarrierIds.isEmpty()) {
+                    plogd("isSatelliteAvailableAtCurrentLocation: mCurrentLocationCarrierIds="
+                            + mCurrentLocationCarrierIds.stream().map(String::valueOf)
+                                .collect(Collectors.joining(", "))
+                            + " info.getCarrierId()=" + info.getCarrierId());
+                    return mCurrentLocationCarrierIds.contains(info.getCarrierId());
+                }
+            }
+        }
+
         int[] carrierTagIdsArray = mContext.getResources().getIntArray(
             R.array.config_verizon_satellite_enabled_tagids);
         List<Integer> carrierTagIds = null;
@@ -8341,7 +8357,7 @@ public class SatelliteController extends Handler {
      * @return {@code true} if the carrier satellite is available at current location,
      *      {@code false} otherwise.
      */
-    public boolean isCarrierSatelliteAvailableAtCurrentLocation(
+    private boolean isCarrierSatelliteAvailableAtCurrentLocation(
         List<Integer> carrierTagIds) {
         return !Collections.disjoint(carrierTagIds, getCurrentLocationTagIds());
     }
@@ -8802,18 +8818,36 @@ public class SatelliteController extends Handler {
 
     private void handleSatelliteAccessConfigUpdateResult(
         SatelliteAccessConfiguration satelliteAccessConfig) {
-        if(satelliteAccessConfig != null) {
-            plogd("handleSatelliteAccessConfigUpdateResult:" + " satelliteAccessConfig="
+        plogd("handleSatelliteAccessConfigUpdateResult:" + " satelliteAccessConfig="
                     + satelliteAccessConfig);
-            List<Integer> tagIds = satelliteAccessConfig.getTagIds();
-            if (!getCurrentLocationTagIds().equals(tagIds)) {
+
+        List<Integer> tagIds;
+        List<Integer> carrierIds;
+        if(satelliteAccessConfig != null) {
+            tagIds = satelliteAccessConfig.getTagIds();
+            carrierIds = satelliteAccessConfig.getCarrierIds();
+        } else {
+            tagIds = new ArrayList<>();
+            carrierIds = new ArrayList<>();
+        }
+
+        if (mFeatureFlags.supportCarrierIdsInGeofence()) {
+            if (!getCurrentLocationCarrierIds().equals(carrierIds)
+                    || !getCurrentLocationTagIds().equals(tagIds)) {
+                setCurrentLocationCarrierIds(carrierIds);
                 setCurrentLocationTagIds(tagIds);
+                selectBindingSatelliteSubscription(false);
                 sendMessageDelayed(obtainMessage(CMD_EVALUATE_ESOS_PROFILES_PRIORITIZATION),
                         mEvaluateEsosProfilesPrioritizationDurationMillis.get());
-            }
-        } else {
+            } else {
                 plogd("handleSatelliteAccessConfigUpdateResult: "
-                    + "satelliteAccessConfiguration is null");
+                        + "carrierIds and tagIds do not change");
+            }
+        } else if (!getCurrentLocationTagIds().equals(tagIds)) {
+            setCurrentLocationTagIds(tagIds);
+            selectBindingSatelliteSubscription(false);
+            sendMessageDelayed(obtainMessage(CMD_EVALUATE_ESOS_PROFILES_PRIORITIZATION),
+                    mEvaluateEsosProfilesPrioritizationDurationMillis.get());
         }
     }
 
@@ -8823,10 +8857,23 @@ public class SatelliteController extends Handler {
         }
     }
 
+    private void setCurrentLocationCarrierIds(@NonNull List<Integer> currentLocationCarrierIds) {
+        synchronized (mSatelliteAccessConfigLock) {
+            mCurrentLocationCarrierIds = currentLocationCarrierIds;
+        }
+    }
+
     @NonNull
     private List<Integer> getCurrentLocationTagIds() {
         synchronized (mSatelliteAccessConfigLock) {
             return mCurrentLocationTagIds;
+        }
+    }
+
+    @NonNull
+    private List<Integer> getCurrentLocationCarrierIds() {
+        synchronized (mSatelliteAccessConfigLock) {
+            return mCurrentLocationCarrierIds;
         }
     }
 

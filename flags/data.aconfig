@@ -12,17 +12,6 @@ flag {
   }
 }
 
-# OWNER=linggm TARGET=25Q3
-flag {
-  name: "auto_data_prune_listener"
-  namespace: "telephony"
-  description: "Unregister listeners when user disable settings or connect to wifi."
-  bug:"389591869"
-  metadata {
-    purpose: PURPOSE_BUGFIX
-  }
-}
-
 # OWNER=sarahchin TARGET=24Q3
 flag {
   name: "slicing_additional_error_codes"
@@ -39,15 +28,6 @@ flag {
   namespace: "telephony"
   description: "Request network validation for data networks and response status."
   bug:"286171724"
-}
-
-# OWNER=jackyu TARGET=25Q2
-flag {
-  name: "oem_paid_private"
-  namespace: "telephony"
-  description: "Support OEM_PAID and OEM_PRIVATE networks"
-  bug: "366194627"
-  is_exported: true
 }
 
 # OWNER=gwenlin TARGET=25Q2

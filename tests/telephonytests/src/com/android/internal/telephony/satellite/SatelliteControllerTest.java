@@ -760,6 +760,7 @@ public class SatelliteControllerTest extends TelephonyTest {
         doReturn("").when(mSubscriptionInfo).getIccId();
 
         doReturn(true).when(mFeatureFlags).satelliteImproveMultiThreadDesign();
+        doReturn(true).when(mFeatureFlags).supportCarrierIdsInGeofence();
         doReturn(TEST_ALL_SATELLITE_PLMN_SET).when(mMockSatelliteController).getAllPlmnSet();
         mSatelliteControllerUT.setAlarmManager(mMockAlarmManager);
         doNothing().when(mMockAlarmManager).cancel(any(AlarmManager.OnAlarmListener.class));
@@ -7410,12 +7411,17 @@ public class SatelliteControllerTest extends TelephonyTest {
         SubscriptionInfo ntnOnlySubscriptionInfo = new SubscriptionInfo.Builder()
                 .setOnlyNonTerrestrialNetwork(true)
                 .build();
+        final int carrierId = 1001;
         SubscriptionInfo esosSubscriptionInfo = new SubscriptionInfo.Builder()
                 .setSatelliteESOSSupported(true)
+                .setCarrierId(carrierId)
                 .build();
         Field currentLocationTagIdsField = SatelliteController.class.getDeclaredField(
                 "mCurrentLocationTagIds");
         currentLocationTagIdsField.setAccessible(true);
+        Field currentLocationCarrierIdsField = SatelliteController.class.getDeclaredField(
+                "mCurrentLocationCarrierIds");
+        currentLocationCarrierIdsField.setAccessible(true);
 
         // Null subscription info
         assertFalse(mSatelliteControllerUT.isSatelliteAvailableAtCurrentLocation(null));
@@ -7431,6 +7437,14 @@ public class SatelliteControllerTest extends TelephonyTest {
         mSatelliteControllerUT.setIsSatelliteAllowedState(true);
         assertTrue(mSatelliteControllerUT.isSatelliteAvailableAtCurrentLocation(
                 ntnOnlySubscriptionInfo));
+
+        // Carrier id is allowed at current location
+        currentLocationCarrierIdsField.set(mSatelliteControllerUT, Arrays.asList(carrierId));
+        assertTrue(mSatelliteControllerUT.isSatelliteAvailableAtCurrentLocation(
+                esosSubscriptionInfo));
+
+        // Make current location carrier IDs an empty list
+        currentLocationCarrierIdsField.set(mSatelliteControllerUT, new ArrayList<>());
 
         // Both config_verizon_satellite_enabled_tagids and satellite_access_config_file
         // are not configured
