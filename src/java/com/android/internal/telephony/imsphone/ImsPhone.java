@@ -2580,7 +2580,8 @@ public class ImsPhone extends ImsPhoneBase {
                 updateImsRegistrationInfo(REGISTRATION_STATE_NOT_REGISTERED,
                         imsRadioTech, suggestedModemAction, TRANSPORT_TYPE_INVALID);
 
-                if (mFeatureFlags.clearCachedImsPhoneNumberWhenDeviceLostImsRegistration()) {
+                if (mFeatureFlags.clearCachedImsPhoneNumberWhenDeviceLostImsRegistration()
+                        && !mFeatureFlags.lastKnownPhoneNumber()) {
                     // Clear the phone number from P-Associated-Uri
                     setCurrentSubscriberUris(null);
                     clearPhoneNumberForSourceIms();
@@ -2629,6 +2630,10 @@ public class ImsPhone extends ImsPhoneBase {
         getDefaultPhone().setImsRegistrationState(false);
         mImsStats.onImsUnregistered(imsReasonInfo);
         mImsNrSaModeHandler.onImsUnregistered(imsRadioTech);
+        if (mFeatureFlags.lastKnownPhoneNumber()) {
+            // Reset the previous P-Associated-URI parsing status for the new IMS registration.
+            mSubscriptionManagerService.clearImsNumberUpdateStatus(getSubId());
+        }
         mImsRegistrationTech = REGISTRATION_TECH_NONE;
         int suggestedModemAction = SUGGESTED_ACTION_NONE;
         if (imsReasonInfo.getCode() == ImsReasonInfo.CODE_REGISTRATION_ERROR) {
@@ -2646,7 +2651,8 @@ public class ImsPhone extends ImsPhoneBase {
         updateImsRegistrationInfo(REGISTRATION_STATE_NOT_REGISTERED,
                 imsRadioTech, suggestedModemAction, TRANSPORT_TYPE_INVALID, throttlingTimeSec);
 
-        if (mFeatureFlags.clearCachedImsPhoneNumberWhenDeviceLostImsRegistration()) {
+        if (mFeatureFlags.clearCachedImsPhoneNumberWhenDeviceLostImsRegistration()
+                && !mFeatureFlags.lastKnownPhoneNumber()) {
             // Clear the phone number from P-Associated-Uri
             setCurrentSubscriberUris(null);
             clearPhoneNumberForSourceIms();
@@ -2682,6 +2688,10 @@ public class ImsPhone extends ImsPhoneBase {
             // IMS callbacks are sent back to telephony after SIM state changed.
             return;
         }
+        if (mFeatureFlags.lastKnownPhoneNumber()) {
+            // Reset the previous P-Associated-URI parsing status for the new IMS registration.
+            mSubscriptionManagerService.clearImsNumberUpdateStatus(getSubId());
+        }
         SubscriptionInfoInternal subInfo = mSubscriptionManagerService
                 .getSubscriptionInfoInternal(subId);
         if (subInfo == null) {
@@ -2703,6 +2713,9 @@ public class ImsPhone extends ImsPhoneBase {
                     } else if (result.isValidPhoneNumber()) {
                         mSubscriptionManagerService.setNumberFromIms(subId,
                                 result.getParsedPhoneNumber());
+                        if (mFeatureFlags.lastKnownPhoneNumber()) {
+                            mSubscriptionManagerService.setImsNumberUpdateStatus(subId, true);
+                        }
                         logd("setPhoneNumberForSourceIms: update IMS phone number");
                         return;
                     } else {
@@ -2729,6 +2742,9 @@ public class ImsPhone extends ImsPhoneBase {
                 return;
             }
             mSubscriptionManagerService.setNumberFromIms(subId, phoneNumber);
+            if (mFeatureFlags.lastKnownPhoneNumber()) {
+                mSubscriptionManagerService.setImsNumberUpdateStatus(subId, true);
+            }
         } else if (isAllowNonGlobalNumberFormat()) {
             // If carrier config has true for KEY_IGNORE_GLOBAL_PHONE_NUMBER_FORMAT_BOOL and
             // P-Associated-Uri does not have global number,
@@ -2739,6 +2755,9 @@ public class ImsPhone extends ImsPhoneBase {
                 return;
             }
             mSubscriptionManagerService.setNumberFromIms(subId, phoneNumber);
+            if (mFeatureFlags.lastKnownPhoneNumber()) {
+                mSubscriptionManagerService.setImsNumberUpdateStatus(subId, true);
+            }
         } else {
             logd("extract phone number failed");
         }

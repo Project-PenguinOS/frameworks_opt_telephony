@@ -5134,6 +5134,7 @@ public class SatelliteControllerTest extends TelephonyTest {
     }
 
     private void setSatelliteSubscriberTesting(boolean sameCarrier) throws Exception {
+        when(mFeatureFlags.lastKnownPhoneNumber()).thenReturn(true);
         doReturn("123").when(mContext).getAttributionTag();
         final int carrierId_subID = 0;
         final int carrierId_subID1 = sameCarrier ? 0 : 1;
@@ -5165,8 +5166,8 @@ public class SatelliteControllerTest extends TelephonyTest {
         Field field = SatelliteController.class.getDeclaredField("mInjectSubscriptionManager");
         field.setAccessible(true);
         field.set(mSatelliteControllerUT, mSubscriptionManager);
-        doReturn(mMsisdn).when(mSubscriptionManager).getPhoneNumber(eq(SUB_ID));
-        doReturn(mMsisdn2).when(mSubscriptionManager).getPhoneNumber(eq(SUB_ID1));
+        doReturn(mMsisdn).when(mSubscriptionManager).getLastKnownPhoneNumber(eq(SUB_ID));
+        doReturn(mMsisdn2).when(mSubscriptionManager).getLastKnownPhoneNumber(eq(SUB_ID1));
         Field provisionedSubscriberIdField = SatelliteController.class.getDeclaredField(
                 "mProvisionedSubscriberId");
         provisionedSubscriberIdField.setAccessible(true);
@@ -5205,6 +5206,7 @@ public class SatelliteControllerTest extends TelephonyTest {
 
     @Test
     public void testCheckForSubscriberIdChange_noChanged() {
+        when(mFeatureFlags.lastKnownPhoneNumber()).thenReturn(true);
         String imsi = "012345";
         String oldMsisdn = "1234567890";
         String newMsisdn = "1234567890";
@@ -5231,7 +5233,7 @@ public class SatelliteControllerTest extends TelephonyTest {
         } catch (Exception e) {
             loge("Exception InjectSubscriptionManager e: " + e);
         }
-        when(mSubscriptionManager.getPhoneNumber(SUB_ID)).thenReturn(newMsisdn);
+        when(mSubscriptionManager.getLastKnownPhoneNumber(SUB_ID)).thenReturn(newMsisdn);
         when(mSubscriptionInfo.isOnlyNonTerrestrialNetwork()).thenReturn(false);
         mSatelliteControllerUT.subscriberIdPerSub().put(imsi + oldMsisdn, SUB_ID);
 
@@ -5251,6 +5253,7 @@ public class SatelliteControllerTest extends TelephonyTest {
 
     @Test
     public void testCheckForSubscriberIdChange_changed() {
+        when(mFeatureFlags.lastKnownPhoneNumber()).thenReturn(true);
         mCarrierConfigBundle.putBoolean(KEY_CARRIER_CONFIG_APPLIED_BOOL, true);
         List<SubscriptionInfo> allSubInfos = new ArrayList<>();
 
@@ -5281,7 +5284,7 @@ public class SatelliteControllerTest extends TelephonyTest {
         } catch (Exception e) {
             loge("Exception InjectSubscriptionManager e: " + e);
         }
-        when(mSubscriptionManager.getPhoneNumber(SUB_ID)).thenReturn(newMsisdn);
+        when(mSubscriptionManager.getLastKnownPhoneNumber(SUB_ID)).thenReturn(newMsisdn);
         when(mSubscriptionInfo.isOnlyNonTerrestrialNetwork()).thenReturn(false);
         mSatelliteControllerUT.subscriberIdPerSub().put(imsi + oldMsisdn, SUB_ID);
 
@@ -7765,6 +7768,7 @@ public class SatelliteControllerTest extends TelephonyTest {
 
     @Test
     public void testGetPhoneNumberBasedCarrier() throws Exception {
+        when(mFeatureFlags.lastKnownPhoneNumber()).thenReturn(true);
         assertEquals("", mSatelliteControllerUT.getPhoneNumberBasedCarrier(-1));
 
         int carrierId_subID = 0;
@@ -7782,11 +7786,11 @@ public class SatelliteControllerTest extends TelephonyTest {
 
         // phoneNumber is empty
         field.set(mSatelliteControllerUT, mSubscriptionManager);
-        doReturn("").when(mSubscriptionManager).getPhoneNumber(eq(SUB_ID));
+        doReturn("").when(mSubscriptionManager).getLastKnownPhoneNumber(eq(SUB_ID));
         assertEquals("", mSatelliteControllerUT.getPhoneNumberBasedCarrier(SUB_ID));
 
         // IMSI is empty
-        doReturn(mMsisdn).when(mSubscriptionManager).getPhoneNumber(eq(SUB_ID));
+        doReturn(mMsisdn).when(mSubscriptionManager).getLastKnownPhoneNumber(eq(SUB_ID));
         assertEquals("", mSatelliteControllerUT.getPhoneNumberBasedCarrier(SUB_ID));
 
         // IMSI length is less than 6

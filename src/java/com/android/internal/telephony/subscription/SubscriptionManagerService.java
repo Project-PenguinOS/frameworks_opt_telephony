@@ -353,6 +353,11 @@ public class SubscriptionManagerService extends ISub.Stub {
     private Map<Integer, List<Integer>> mUserIdToAvailableSubs = new ConcurrentHashMap<>();
 
     /**
+     * Tracks whether the phone number for the current IMS session was successfully parsed.
+     */
+    private final Map<Integer, Boolean> mImsNumberUpdateStatus = new ConcurrentHashMap<>();
+
+    /**
      * Slot index/subscription map that automatically invalidate cache in
      * {@link SubscriptionManager}.
      *
@@ -1509,7 +1514,8 @@ public class SubscriptionManagerService extends ISub.Stub {
                 markSubscriptionsInactive(phoneId);
             }
 
-            if (Flags.clearCachedImsPhoneNumberWhenDeviceLostImsRegistration()) {
+            if (Flags.clearCachedImsPhoneNumberWhenDeviceLostImsRegistration()
+                    && !mFeatureFlags.lastKnownPhoneNumber()) {
                 // Clear the cached Ims phone number
                 setNumberFromIms(getSubId(phoneId), new String(""));
             }
@@ -1526,7 +1532,8 @@ public class SubscriptionManagerService extends ISub.Stub {
                 logl("updateSubscription: UICC app disabled on slot " + phoneId);
                 markSubscriptionsInactive(phoneId);
 
-                if (Flags.clearCachedImsPhoneNumberWhenDeviceLostImsRegistration()) {
+                if (Flags.clearCachedImsPhoneNumberWhenDeviceLostImsRegistration()
+                        && !mFeatureFlags.lastKnownPhoneNumber()) {
                     // Clear the cached Ims phone number
                     setNumberFromIms(getSubId(phoneId), new String(""));
                 }
@@ -3898,7 +3905,7 @@ public class SubscriptionManagerService extends ISub.Stub {
 
         final long identity = Binder.clearCallingIdentity();
         try {
-            return getPhoneNumberFromSourceInternal(subId, source);
+            return getPhoneNumberFromSourceInternal(subId, source, true);
         } finally {
             Binder.restoreCallingIdentity(identity);
         }
@@ -3938,7 +3945,7 @@ public class SubscriptionManagerService extends ISub.Stub {
 
     private @NonNull String getPhoneNumberFromSourceInternal(
             int subId,
-            @PhoneNumberSource int source) {
+            @PhoneNumberSource int source, boolean checkForImsRegistration) {
 
         final SubscriptionInfoInternal subInfo = mSubscriptionDatabaseManager
                 .getSubscriptionInfoInternal(subId);
@@ -3959,6 +3966,17 @@ public class SubscriptionManagerService extends ISub.Stub {
             case SubscriptionManager.PHONE_NUMBER_SOURCE_CARRIER:
                 return subInfo.getNumberFromCarrier();
             case SubscriptionManager.PHONE_NUMBER_SOURCE_IMS:
+                if (checkForImsRegistration && mFeatureFlags.lastKnownPhoneNumber()) {
+                    TelephonyManager tm = mTelephonyManager.createForSubscriptionId(subId);
+                    if (tm == null || !tm.isImsRegistered()) {
+                        return "";
+                    }
+                    // Check if the number for the current IMS session was successfully parsed.
+                    // If the state is not true, return empty string to reflect parsing failure.
+                    if (!mImsNumberUpdateStatus.getOrDefault(subId, false)) {
+                        return "";
+                    }
+                }
                 return subInfo.getNumberFromIms();
             default:
                 loge("No SubscriptionInfo found for subId=" + subId);
@@ -4006,21 +4024,100 @@ public class SubscriptionManagerService extends ISub.Stub {
             String number;
             number = getPhoneNumberFromSourceInternal(
                     subId,
-                    SubscriptionManager.PHONE_NUMBER_SOURCE_CARRIER);
+                    SubscriptionManager.PHONE_NUMBER_SOURCE_CARRIER, false);
             if (!TextUtils.isEmpty(number)) return number;
 
             number = getPhoneNumberFromSourceInternal(
                     subId,
-                    SubscriptionManager.PHONE_NUMBER_SOURCE_UICC);
+                    SubscriptionManager.PHONE_NUMBER_SOURCE_UICC, false);
             if (!TextUtils.isEmpty(number)) return number;
 
             number = getPhoneNumberFromSourceInternal(
                     subId,
-                    SubscriptionManager.PHONE_NUMBER_SOURCE_IMS);
+                    SubscriptionManager.PHONE_NUMBER_SOURCE_IMS, true);
             return TextUtils.emptyIfNull(number);
         } finally {
             Binder.restoreCallingIdentity(identity);
         }
+    }
+
+    /**
+     * Gets the last known phone number from the first available source, bypassing
+     * certain liveness checks like IMS registration status.
+     * <p>
+     * This API is similar to {@link #getPhoneNumberFromFirstAvailableSource(int, String, String)}
+     * but returns a cached value even if IMS is not currently registered.
+     * It is intended for internal system use-cases like satellite services that require
+     * a phone number even if it has low confidence.
+     * <p>
+     * The sources are checked in the following order:
+     * <ol>
+     *   <li>{@link SubscriptionManager#PHONE_NUMBER_SOURCE_CARRIER}
+     *   <li>{@link SubscriptionManager#PHONE_NUMBER_SOURCE_UICC}
+     *   <li>{@link SubscriptionManager#PHONE_NUMBER_SOURCE_IMS}
+     * </ol>
+     *
+     * @param subId The subscription ID.
+     * @param callingPackage The package making the call.
+     * @param callingFeatureId The feature in the package.
+     * @return The last known phone number from the first available source, or an empty string
+     *         if not available.
+     * @hide
+     */
+    @Override
+    @NonNull
+    @RequiresPermission(anyOf = {
+            Manifest.permission.READ_PHONE_NUMBERS,
+            Manifest.permission.READ_PRIVILEGED_PHONE_STATE,
+            "carrier privileges",
+    })
+    public String getLastKnownPhoneNumberFromFirstAvailableSource(int subId,
+            @NonNull String callingPackage, @Nullable String callingFeatureId) {
+        TelephonyPermissions.enforceAnyPermissionGrantedOrCarrierPrivileges(
+                mContext, subId, Binder.getCallingUid(),
+                "getLastKnownPhoneNumberFromFirstAvailableSource",
+                Manifest.permission.READ_PHONE_NUMBERS,
+                Manifest.permission.READ_PRIVILEGED_PHONE_STATE);
+
+        enforceTelephonyFeatureWithException(callingPackage,
+                "getLastKnownPhoneNumberFromFirstAvailableSource");
+
+        subId = checkAndGetSubId(subId);
+        if (subId == SubscriptionManager.INVALID_SUBSCRIPTION_ID) return "";
+        final long identity = Binder.clearCallingIdentity();
+        try {
+            String number;
+            number = getPhoneNumberFromSourceInternal(subId,
+                    SubscriptionManager.PHONE_NUMBER_SOURCE_CARRIER, false);
+            if (!TextUtils.isEmpty(number)) return number;
+
+            number = getPhoneNumberFromSourceInternal(subId,
+                    SubscriptionManager.PHONE_NUMBER_SOURCE_UICC, false);
+            if (!TextUtils.isEmpty(number)) return number;
+
+            number = getPhoneNumberFromSourceInternal(subId,
+                    SubscriptionManager.PHONE_NUMBER_SOURCE_IMS, false);
+            return TextUtils.emptyIfNull(number);
+        } finally {
+            Binder.restoreCallingIdentity(identity);
+        }
+    }
+
+    /**
+     * For internal use by ImsPhone to report the status of the phone number update
+     * for the current IMS session.
+     */
+    public void setImsNumberUpdateStatus(int subId, boolean success) {
+        mImsNumberUpdateStatus.put(subId, success);
+    }
+
+    /**
+     * Clears the IMS number update state for a given subscription ID.
+     * This is called at the start of a new IMS registration attempt to clear  parsing status
+     * from a previous session.
+     */
+    public void clearImsNumberUpdateStatus(int subId) {
+        mImsNumberUpdateStatus.remove(subId);
     }
 
     /**
