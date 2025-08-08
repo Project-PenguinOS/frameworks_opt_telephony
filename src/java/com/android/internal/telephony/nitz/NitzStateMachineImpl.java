@@ -98,6 +98,13 @@ public final class NitzStateMachineImpl implements NitzStateMachine {
     @NonNull
     private final TimeServiceHelper mTimeServiceHelper;
 
+    /**
+     * Set of listeners called when the {@link NitzStateMachine} detects a country based on its time
+     * zone.
+     */
+    @NonNull
+    private final Set<CountryDetectionListener> mCountryDetectionListeners = new HashSet<>();
+
     // Shared detection state.
 
     /**
@@ -138,12 +145,6 @@ public final class NitzStateMachineImpl implements NitzStateMachine {
     private MobileCountries mMobileCountries;
 
     /**
-     * Set of listeners called when the {@link NitzStateMachine} detects a country based on its time
-     * zone.
-     */
-    private Set<CountryDetectionListener> mCountryDetectionListeners;
-
-    /**
      * Creates an instance for the supplied {@link Phone}.
      */
     public static NitzStateMachineImpl createInstance(@NonNull Phone phone) {
@@ -176,7 +177,6 @@ public final class NitzStateMachineImpl implements NitzStateMachine {
         mTimeZoneSuggester = Objects.requireNonNull(timeZoneSuggester);
         mTimeServiceHelper = Objects.requireNonNull(newTimeServiceHelper);
         mNitzSignalInputFilter = Objects.requireNonNull(nitzSignalInputFilter);
-        mCountryDetectionListeners = new HashSet<>();
     }
 
     @Override
@@ -259,6 +259,7 @@ public final class NitzStateMachineImpl implements NitzStateMachine {
                     + " mLatestNitzSignal=" + mLatestNitzSignal);
         }
         mCountryIsoCode = null;
+        mMobileCountries = null;
 
         // Generate a new time zone suggestion and update the service as needed.
         doTimeZoneDetection((String) null /* countryIsoCode */, mLatestNitzSignal,
@@ -306,7 +307,13 @@ public final class NitzStateMachineImpl implements NitzStateMachine {
 
         // Clear country detection state.
         boolean countryStateChanged = mCountryIsoCode != null;
+
+        if (Flags.allowMultiCountryMcc()) {
+            countryStateChanged = countryStateChanged || mMobileCountries != null;
+        }
+
         mCountryIsoCode = null;
+        mMobileCountries = null;
 
         boolean networkStateChanged = clearNetworkState(true /* fullyClearNitz */);
 
@@ -366,8 +373,7 @@ public final class NitzStateMachineImpl implements NitzStateMachine {
 
         if (!Flags.allowMultiCountryMcc()) {
             // countryIsoCode can be assigned null here, in which case the doTimeZoneDetection()
-            // call
-            // below will do nothing.
+            // call below will do nothing.
             String countryIsoCode = mCountryIsoCode;
 
             if (DBG) {
@@ -377,8 +383,7 @@ public final class NitzStateMachineImpl implements NitzStateMachine {
             }
 
             // Generate a new time zone suggestion (which could be an empty suggestion) and
-            // update the
-            // service as needed.
+            // update the service as needed.
             doTimeZoneDetection(countryIsoCode, nitzSignal, reason);
         } else {
             // mobileCountries can be assigned null here, in which case the doTimeZoneDetection()
@@ -497,6 +502,9 @@ public final class NitzStateMachineImpl implements NitzStateMachine {
     public void dumpState(PrintWriter pw) {
         pw.println(" NitzStateMachineImpl.mLatestNitzSignal=" + mLatestNitzSignal);
         pw.println(" NitzStateMachineImpl.mCountryIsoCode=" + mCountryIsoCode);
+        if (Flags.allowMultiCountryMcc()) {
+            pw.println(" NitzStateMachineImpl.mMobileCountries=" + mMobileCountries);
+        }
         mTimeServiceHelper.dumpState(pw);
         pw.flush();
     }

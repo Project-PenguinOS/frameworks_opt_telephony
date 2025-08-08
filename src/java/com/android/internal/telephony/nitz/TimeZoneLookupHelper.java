@@ -18,6 +18,7 @@ package com.android.internal.telephony.nitz;
 
 import static com.android.internal.telephony.nitz.TimeZoneLookupHelper.CountryResult.QUALITY_MULTIPLE_ZONES_DIFFERENT_OFFSETS;
 import static com.android.internal.telephony.nitz.TimeZoneLookupHelper.CountryResult.QUALITY_MULTIPLE_ZONES_SAME_OFFSET;
+import static java.util.stream.Collectors.toList;
 
 import android.annotation.IntDef;
 import android.annotation.NonNull;
@@ -37,8 +38,6 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.util.List;
 import java.util.Objects;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 /**
  * An interface to various time zone lookup behaviors.
@@ -52,11 +51,14 @@ public final class TimeZoneLookupHelper {
     @VisibleForTesting
     public static final class CountryResult {
 
-        @IntDef({QUALITY_SINGLE_ZONE, QUALITY_DEFAULT_BOOSTED, QUALITY_MULTIPLE_ZONES_SAME_OFFSET,
-                QUALITY_MULTIPLE_ZONES_DIFFERENT_OFFSETS})
+        @IntDef({
+            QUALITY_SINGLE_ZONE,
+            QUALITY_DEFAULT_BOOSTED,
+            QUALITY_MULTIPLE_ZONES_SAME_OFFSET,
+            QUALITY_MULTIPLE_ZONES_DIFFERENT_OFFSETS
+        })
         @Retention(RetentionPolicy.SOURCE)
-        public @interface Quality {
-        }
+        public @interface Quality {}
 
         public static final int QUALITY_SINGLE_ZONE = 1;
         public static final int QUALITY_DEFAULT_BOOSTED = 2;
@@ -113,10 +115,15 @@ public final class TimeZoneLookupHelper {
         @Override
         public String toString() {
             return "CountryResult{"
-                    + "zoneId='" + zoneId + '\''
-                    + "countryIsoCode=" + countryIsoCode
-                    + ", quality=" + quality
-                    + ", mDebugInfo=" + mDebugInfo
+                    + "zoneId='"
+                    + zoneId
+                    + '\''
+                    + ", countryIsoCode="
+                    + countryIsoCode
+                    + ", quality="
+                    + quality
+                    + ", mDebugInfo="
+                    + mDebugInfo
                     + '}';
         }
     }
@@ -210,19 +217,25 @@ public final class TimeZoneLookupHelper {
     @Nullable
     public OffsetResult lookupByNitzMobileCountries(
             @NonNull NitzData nitzData, @NonNull MobileCountries mobileCountries) {
-        Set<OffsetResult> validResults = mobileCountries.getCountryIsoCodes().stream()
-                .map(x -> lookupByNitzCountry(nitzData, x))
-                .filter(Objects::nonNull)
-                .collect(Collectors.toSet());
+        List<OffsetResult> validResults =
+                mobileCountries.getCountryIsoCodes().stream()
+                        .map(countryIsoCode -> lookupByNitzCountry(nitzData, countryIsoCode))
+                        .filter(Objects::nonNull)
+                        .distinct()
+                        .collect(toList());
 
         if (validResults.size() <= 1) {
-            return validResults.stream().findFirst().orElse(null);
+            return validResults.isEmpty() ? null : validResults.get(0);
         }
 
-        long offsetFoundCount = validResults.stream()
-                .map(x -> x.getTimeZone().getOffset(nitzData.getCurrentTimeInMillis()))
-                .distinct()
-                .count();
+        long offsetFoundCount =
+                validResults.stream()
+                        .map(
+                                result ->
+                                        result.getTimeZone()
+                                                .getOffset(nitzData.getCurrentTimeInMillis()))
+                        .distinct()
+                        .count();
 
         if (offsetFoundCount == 1) {
             // MobileCountries#getCountryIsoCodes contains the default country ISO code. If all
@@ -246,19 +259,25 @@ public final class TimeZoneLookupHelper {
     @Nullable
     public CountryResult lookupByMobileCountries(@NonNull MobileCountries mobileCountries,
             long whenMillis) {
-        Set<CountryResult> validResults = mobileCountries.getCountryIsoCodes().stream()
-                .map(x -> lookupByCountry(x, whenMillis))
-                .filter(Objects::nonNull)
-                .collect(Collectors.toSet());
+        List<CountryResult> validResults =
+                mobileCountries.getCountryIsoCodes().stream()
+                        .map(countryIsoCode -> lookupByCountry(countryIsoCode, whenMillis))
+                        .filter(Objects::nonNull)
+                        .distinct()
+                        .collect(toList());
 
         if (validResults.size() <= 1) {
-            return validResults.stream().findFirst().orElse(null);
+            return validResults.isEmpty() ? null : validResults.get(0);
         }
 
-        long offsetFoundCount = validResults.stream()
-                .map(x -> TimeZone.getFrozenTimeZone(x.zoneId).getOffset(whenMillis))
-                .distinct()
-                .count();
+        long offsetFoundCount =
+                validResults.stream()
+                        .map(
+                                result ->
+                                        TimeZone.getFrozenTimeZone(result.zoneId)
+                                                .getOffset(whenMillis))
+                        .distinct()
+                        .count();
 
         if (offsetFoundCount == 1) {
             // MobileCountries#getCountryIsoCodes contains the default country ISO code. If all

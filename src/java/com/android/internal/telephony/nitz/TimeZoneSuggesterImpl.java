@@ -284,8 +284,8 @@ public class TimeZoneSuggesterImpl implements TimeZoneSuggester {
         if (countryResult == null) {
             // Country not recognized.
             suggestionBuilder.addDebugInfo(
-                    "findTimeZoneFromMobileCountriesAndNitz: lookupByCountry() country not "
-                            + "recognized");
+                    "findTimeZoneFromMobileCountriesAndNitz: lookupByCountry() country not"
+                            + " recognized");
             return suggestionBuilder.build();
         }
 
@@ -294,14 +294,16 @@ public class TimeZoneSuggesterImpl implements TimeZoneSuggester {
         // use it.
         if (countryResult.quality == CountryResult.QUALITY_SINGLE_ZONE
                 || countryResult.quality == CountryResult.QUALITY_DEFAULT_BOOSTED) {
-            return suggestionBuilder.setZoneId(countryResult.zoneId)
+            return suggestionBuilder
+                    .setZoneId(countryResult.zoneId)
                     .setCountryIsoCode(countryResult.countryIsoCode)
                     .setMatchType(TelephonyTimeZoneSuggestion.MATCH_TYPE_NETWORK_COUNTRY_ONLY)
                     .setQuality(TelephonyTimeZoneSuggestion.QUALITY_SINGLE_ZONE)
                     .addDebugInfo(
-                            "findTimeZoneFromMobileCountriesAndNitz: high quality country-only "
-                                    + "suggestion:"
-                                    + " countryResult=" + countryResult).build();
+                            "findTimeZoneFromMobileCountriesAndNitz: high quality country-only"
+                                    + " suggestion: countryResult="
+                                    + countryResult)
+                    .build();
         }
 
         // Quality is not high enough to set the zone using country only.
@@ -488,7 +490,7 @@ public class TimeZoneSuggesterImpl implements TimeZoneSuggester {
     private boolean isNitzSignalOffsetInfoBogus(MobileCountries mobileCountries,
             NitzData nitzData) {
         return mobileCountries.getCountryIsoCodes().stream()
-                .allMatch(x -> isNitzSignalOffsetInfoBogus(x, nitzData));
+                .allMatch(countryIsoCode -> isNitzSignalOffsetInfoBogus(countryIsoCode, nitzData));
     }
 
     /**
