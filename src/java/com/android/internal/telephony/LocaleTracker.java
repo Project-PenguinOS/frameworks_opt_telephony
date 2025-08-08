@@ -617,9 +617,6 @@ public class LocaleTracker extends Handler {
                 // Find the most prevalent MCC from surrounding cell towers.
                 String mcc = getMccFromCellInfo();
                 if (mcc != null) {
-                    mobileCountries = getMobileCountriesFromMcc(mcc);
-                    countryIsoDebugInfo = "CellInfo: getMobileCountriesFromMcc(\"" + mcc + "\")";
-
                     // Some MCC+MNC combinations are known to be used in countries other than those
                     // that the MCC alone would suggest. Do a second pass of nearby cells that match
                     // the most frequently observed MCC to see if this could be one of those cases.
@@ -628,6 +625,10 @@ public class LocaleTracker extends Handler {
                         mobileCountries = getMobileCountriesFromNetworkId(mccMnc);
                         countryIsoDebugInfo =
                                 "CellInfo: getMobileCountriesFromNetworkId(" + mccMnc + ")";
+                    } else {
+                        mobileCountries = getMobileCountriesFromMcc(mcc);
+                        countryIsoDebugInfo =
+                                "CellInfo: getMobileCountriesFromMcc(\"" + mcc + "\")";
                     }
                 }
             }
@@ -692,8 +693,8 @@ public class LocaleTracker extends Handler {
         } else {
             log("updateLocale: mobileCountries = " + mobileCountries
                     + ", countryIsoDebugInfo = " + countryIsoDebugInfo);
-            if (mCurrentCountryIso == null || !Objects.equals(mobileCountries,
-                    mLastKnownMobileCountries)) {
+            if (mCurrentCountryIso == null
+                    || !Objects.equals(mobileCountries, mLastKnownMobileCountries)) {
                 String msg =
                         "updateLocale: Updating the mobile country list to \""
                                 + mobileCountries

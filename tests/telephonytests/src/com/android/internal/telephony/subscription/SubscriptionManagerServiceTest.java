@@ -234,7 +234,10 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
         mSubscriptionManagerServiceUT = new SubscriptionManagerService(mContext, Looper.myLooper(),
                 mFeatureFlags);
 
+        // Monitor both the service's background handler and the database manager's handler
+        // to ensure all asynchronous operations are completed during tests.
         monitorTestableLooper(new TestableLooper(getBackgroundHandler().getLooper()));
+        monitorTestableLooper(new TestableLooper(getSubscriptionDatabaseManager().getLooper()));
 
         doAnswer(invocation -> {
             ((Runnable) invocation.getArguments()[0]).run();
