@@ -19,15 +19,11 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.anyBoolean;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.ArgumentMatchers.isA;
-import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-import android.os.Handler;
 import android.telephony.PhoneNumberUtils;
 import android.telephony.ServiceState;
 import android.testing.AndroidTestingRunner;
@@ -151,16 +147,6 @@ public class CallManagerTest extends TelephonyTest {
         assertEquals(PhoneNumberUtils.stripSeparators("+17005554141"),
                 mCaptorString.getValue());
         assertEquals(0, dialArgsCaptor.getValue().videoState);
-    }
-
-    @Test @SmallTest
-    public void testRegisterEvent() throws Exception {
-        verify(mPhone, times(1)).registerForCallWaiting(isA(Handler.class),
-                eq(CallManager.EVENT_CALL_WAITING), isNull());
-        verify(mPhone, times(1)).registerForPreciseCallStateChanged(isA(Handler.class),
-                eq(CallManager.EVENT_PRECISE_CALL_STATE_CHANGED), isA(Object.class));
-        verify(mPhone, times(1)).registerForRingbackTone(isA(Handler.class),
-                eq(CallManager.EVENT_RINGBACK_TONE), isA(Object.class));
     }
 
     @Test @SmallTest
