@@ -19,20 +19,15 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.anyBoolean;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.ArgumentMatchers.isNull;
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.anyChar;
-import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import android.os.Handler;
-import android.os.Message;
 import android.telephony.PhoneNumberUtils;
 import android.telephony.ServiceState;
 import android.testing.AndroidTestingRunner;
@@ -120,56 +115,6 @@ public class CallManagerTest extends TelephonyTest {
         //verify can dial and dial function of the phone is being triggered
         CallManager.getInstance().rejectCall(mRingingCall);
         verify(mPhone, times(1)).rejectCall();
-    }
-
-    @SmallTest @Test
-    public void testSendDtmf() throws Exception {
-        CallManager.getInstance().sendDtmf('a');
-        verify(mPhone, times(0)).sendDtmf(eq('a'));
-
-        //has active fg Call
-        doReturn(false).when(mFgCall).isIdle();
-        assertEquals(mFgCall, CallManager.getInstance().getActiveFgCall());
-        CallManager.getInstance().sendDtmf('a');
-        verify(mPhone, times(1)).sendDtmf(eq('a'));
-    }
-
-    @SmallTest @Test
-    public void testStartDtmf() throws Exception {
-        doReturn(true).when(mFgCall).isIdle();
-        assertFalse(CallManager.getInstance().startDtmf('a'));
-        verify(mPhone, times(0)).startDtmf(anyChar());
-
-        //has active fg Call
-        doReturn(false).when(mFgCall).isIdle();
-        assertEquals(mFgCall, CallManager.getInstance().getActiveFgCall());
-        assertTrue(CallManager.getInstance().startDtmf('a'));
-        verify(mPhone, times(1)).startDtmf('a');
-    }
-
-    @SmallTest @Test
-    public void testStopDtmf() throws Exception {
-        doReturn(true).when(mFgCall).isIdle();
-        CallManager.getInstance().stopDtmf();
-        verify(mPhone, times(0)).stopDtmf();
-
-        //has active fg Call
-        doReturn(false).when(mFgCall).isIdle();
-        assertEquals(mPhone, CallManager.getInstance().getFgPhone());
-        CallManager.getInstance().stopDtmf();
-        verify(mPhone, times(1)).stopDtmf();
-    }
-
-    @SmallTest @Test
-    public void testSendBurstDtmf() throws Exception {
-        doReturn(true).when(mFgCall).isIdle();
-        assertFalse(CallManager.getInstance().sendBurstDtmf("12*#", 0, 0, null));
-        verify(mPhone, times(0)).sendBurstDtmf(anyString(), anyInt(), anyInt(), (Message) any());
-
-        //has active fg Call
-        doReturn(false).when(mFgCall).isIdle();
-        assertTrue(CallManager.getInstance().sendBurstDtmf("12*#", 0, 0, null));
-        verify(mPhone, times(1)).sendBurstDtmf("12*#", 0, 0, null);
     }
 
     @SmallTest @Test

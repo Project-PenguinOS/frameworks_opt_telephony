@@ -86,9 +86,6 @@ public abstract class CallTracker extends Handler {
     protected static final int EVENT_SEPARATE_RESULT               = 12;
     protected static final int EVENT_ECT_RESULT                    = 13;
     protected static final int EVENT_EXIT_ECM_RESPONSE_CDMA        = 14;
-    protected static final int EVENT_CALL_WAITING_INFO_CDMA        = 15;
-    protected static final int EVENT_THREE_WAY_DIAL_L2_RESULT_CDMA = 16;
-    protected static final int EVENT_THREE_WAY_DIAL_BLANK_FLASH    = 20;
     protected static final int EVENT_EXIT_SCBM_RESPONSE_CDMA       = 19;
 
     @UnsupportedAppUsage
@@ -381,25 +378,6 @@ public abstract class CallTracker extends Handler {
     }
 
 // QTI_END: 2020-04-22: Telephony: CS: VoWiFi Dual Voice Call feature for CS Voice
-    private boolean compareGid1(Phone phone, String serviceGid1) {
-        String gid1 = phone.getGroupIdLevel1();
-        int gid_length = serviceGid1.length();
-        boolean ret = true;
-
-        if (serviceGid1 == null || serviceGid1.equals("")) {
-            log("compareGid1 serviceGid is empty, return " + ret);
-            return ret;
-        }
-        // Check if gid1 match service GID1
-        if (!((gid1 != null) && (gid1.length() >= gid_length) &&
-                gid1.substring(0, gid_length).equalsIgnoreCase(serviceGid1))) {
-            log(" gid1 " + gid1 + " serviceGid1 " + serviceGid1);
-            ret = false;
-        }
-        log("compareGid1 is " + (ret?"Same":"Different"));
-        return ret;
-    }
-
     /**
      * Get the ringing connections which during SRVCC handover.
      */

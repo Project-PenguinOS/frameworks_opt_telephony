@@ -33,8 +33,8 @@ import android.telephony.PhoneNumberUtils;
 import android.telephony.ServiceState;
 import android.text.TextUtils;
 
+import com.android.internal.hidden_from_bootclasspath.com.android.internal.telephony.flags.Flags;
 import com.android.internal.telephony.PhoneInternalInterface.DialArgs;
-import com.android.internal.telephony.cdma.CdmaCallWaitingNotification;
 import com.android.internal.telephony.emergency.EmergencyNumberTracker;
 import com.android.internal.telephony.metrics.TelephonyMetrics;
 import com.android.internal.telephony.uicc.IccCardApplicationStatus.AppState;
@@ -50,7 +50,6 @@ import java.util.Collections;
 public class GsmCdmaConnection extends Connection {
     private static final String LOG_TAG = "GsmCdmaConnection";
     private static final boolean DBG = true;
-    private static final boolean VDBG = false;
 
     public static final String OTASP_NUMBER = "*22899";
 
@@ -207,31 +206,6 @@ public class GsmCdmaConnection extends Connection {
         setCallRadioTech(mOwner.getPhone().getCsCallRadioTech());
     }
 
-    //CDMA
-    /** This is a Call waiting call*/
-    public GsmCdmaConnection(Context context, CdmaCallWaitingNotification cw, GsmCdmaCallTracker ct,
-                             GsmCdmaCall parent) {
-        super(parent.getPhone().getPhoneType());
-        createWakeLock(context);
-        acquireWakeLock();
-
-        mOwner = ct;
-        mHandler = new MyHandler(mOwner.getLooper());
-        mAddress = cw.number;
-        mNumberPresentation = cw.numberPresentation;
-        mCnapName = cw.name;
-        mCnapNamePresentation = cw.namePresentation;
-        mIndex = -1;
-        mIsIncoming = true;
-        mCreateTime = System.currentTimeMillis();
-        mConnectTime = 0;
-        mParent = parent;
-        parent.attachFake(this, GsmCdmaCall.State.WAITING);
-
-        setCallRadioTech(mOwner.getPhone().getCsCallRadioTech());
-    }
-
-
     public void dispose() {
         clearPostDialListeners();
         if (mParent != null) {
@@ -247,63 +221,6 @@ public class GsmCdmaConnection extends Connection {
     static boolean
     equalsBaseDialString (String a, String b) {
         return (a == null) ? (b == null) : (b != null && a.startsWith (b));
-    }
-
-    //CDMA
-    /**
-     * format original dial string
-     * 1) convert international dialing prefix "+" to
-     *    string specified per region
-     *
-     * 2) handle corner cases for PAUSE/WAIT dialing:
-     *
-     *    If PAUSE/WAIT sequence at the end, ignore them.
-     *
-     *    If consecutive PAUSE/WAIT sequence in the middle of the string,
-     *    and if there is any WAIT in PAUSE/WAIT sequence, treat them like WAIT.
-     */
-    @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
-    public static String formatDialString(String phoneNumber) {
-        /**
-         * TODO(cleanup): This function should move to PhoneNumberUtils, and
-         * tests should be added.
-         */
-
-        if (phoneNumber == null) {
-            return null;
-        }
-        int length = phoneNumber.length();
-        StringBuilder ret = new StringBuilder();
-        char c;
-        int currIndex = 0;
-
-        while (currIndex < length) {
-            c = phoneNumber.charAt(currIndex);
-            if (isPause(c) || isWait(c)) {
-                if (currIndex < length - 1) {
-                    // if PW not at the end
-                    int nextIndex = findNextPCharOrNonPOrNonWCharIndex(phoneNumber, currIndex);
-                    // If there is non PW char following PW sequence
-                    if (nextIndex < length) {
-                        char pC = findPOrWCharToAppend(phoneNumber, currIndex, nextIndex);
-                        ret.append(pC);
-                        // If PW char sequence has more than 2 PW characters,
-                        // skip to the last PW character since the sequence already be
-                        // converted to WAIT character
-                        if (nextIndex > (currIndex + 1)) {
-                            currIndex = nextIndex - 1;
-                        }
-                    } else if (nextIndex == length) {
-                        // It means PW characters at the end, ignore
-                        currIndex = length - 1;
-                    }
-                }
-            } else {
-                ret.append(c);
-            }
-            currIndex++;
-        }
-        return PhoneNumberUtils.cdmaCheckAndProcessPlusCode(ret.toString());
     }
 
     /*package*/ boolean
@@ -778,21 +695,6 @@ public class GsmCdmaConnection extends Connection {
         return changed;
     }
 
-    //CDMA
-    /** Called when the call waiting connection has been hung up */
-    /*package*/ void
-    onLocalDisconnect() {
-        if (!mDisconnected) {
-            doDisconnect();
-            if (VDBG) Rlog.d(LOG_TAG, "onLoalDisconnect" );
-
-            if (mParent != null) {
-                mParent.detach(this);
-            }
-        }
-        releaseWakeLock();
-    }
-
     // Returns true if state has changed, false if nothing changed
     public boolean
     update (DriverCall dc) {
@@ -1014,18 +916,6 @@ public class GsmCdmaConnection extends Connection {
         return super.getRemainingPostDialString();
     }
 
-    //CDMA
-    @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
-    public void updateParent(GsmCdmaCall oldParent, GsmCdmaCall newParent){
-        if (newParent != oldParent) {
-            if (oldParent != null) {
-                oldParent.detach(this);
-            }
-            newParent.attachFake(this, GsmCdmaCall.State.ACTIVE);
-            mParent = newParent;
-        }
-    }
-
     @Override
     protected void finalize()
     {
@@ -1222,72 +1112,6 @@ public class GsmCdmaConnection extends Connection {
         return c == PhoneNumberUtils.WILD;
     }
 
-    //CDMA
-    // This function is to find the next PAUSE character index if
-    // multiple pauses in a row. Otherwise it finds the next non PAUSE or
-    // non WAIT character index.
-    @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
-    private static int findNextPCharOrNonPOrNonWCharIndex(String phoneNumber, int currIndex) {
-        boolean wMatched = isWait(phoneNumber.charAt(currIndex));
-        int index = currIndex + 1;
-        int length = phoneNumber.length();
-        while (index < length) {
-            char cNext = phoneNumber.charAt(index);
-            // if there is any W inside P/W sequence,mark it
-            if (isWait(cNext)) {
-                wMatched = true;
-            }
-            // if any characters other than P/W chars after P/W sequence
-            // we break out the loop and append the correct
-            if (!isWait(cNext) && !isPause(cNext)) {
-                break;
-            }
-            index++;
-        }
-
-        // It means the PAUSE character(s) is in the middle of dial string
-        // and it needs to be handled one by one.
-        if ((index < length) && (index > (currIndex + 1))  &&
-                ((wMatched == false) && isPause(phoneNumber.charAt(currIndex)))) {
-            return (currIndex + 1);
-        }
-        return index;
-    }
-
-    // CDMA
-    // This function returns either PAUSE or WAIT character to append.
-    // It is based on the next non PAUSE/WAIT character in the phoneNumber and the
-    // index for the current PAUSE/WAIT character
-    @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
-    private static char findPOrWCharToAppend(String phoneNumber, int currPwIndex,
-                                             int nextNonPwCharIndex) {
-        char c = phoneNumber.charAt(currPwIndex);
-        char ret;
-
-        // Append the PW char
-        ret = (isPause(c)) ? PhoneNumberUtils.PAUSE : PhoneNumberUtils.WAIT;
-
-        // If the nextNonPwCharIndex is greater than currPwIndex + 1,
-        // it means the PW sequence contains not only P characters.
-        // Since for the sequence that only contains P character,
-        // the P character is handled one by one, the nextNonPwCharIndex
-        // equals to currPwIndex + 1.
-        // In this case, skip P, append W.
-        if (nextNonPwCharIndex > (currPwIndex + 1)) {
-            ret = PhoneNumberUtils.WAIT;
-        }
-        return ret;
-    }
-
-    @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
-    private String maskDialString(String dialString) {
-        if (VDBG) {
-            return dialString;
-        }
-
-        return "<MASKED>";
-    }
-
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     private void fetchDtmfToneDelay(GsmCdmaPhone phone) {
         CarrierConfigManager configMgr = (CarrierConfigManager)
@@ -1365,6 +1189,7 @@ public class GsmCdmaConnection extends Connection {
      * @return {@code true} if this call is an OTASP activation call, {@code false} otherwise.
      */
     public boolean isOtaspCall() {
+        if (Flags.deleteCdma()) return false;
         return mAddress != null && OTASP_NUMBER.equals(mAddress);
     }
 }
