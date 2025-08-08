@@ -158,6 +158,14 @@ flag {
   namespace: "telephony"
   description: "This flag controls the changes for the new satellite APIs in 26Q2"
   bug: "434764963"
+}
+
+# OWNER=arunvoddu TARGET=26Q2
+flag {
+  name: "telephony_satellite_apis"
+  namespace: "telephony"
+  description: "Support Telephony Satellite public api support"
+  bug: "371872603"
   metadata {
     purpose: PURPOSE_FEATURE
   }

@@ -71,8 +71,6 @@ import android.provider.DeviceConfig;
 import android.provider.Settings;
 import android.provider.Telephony;
 import android.sysprop.TelephonyProperties;
-import android.telecom.PhoneAccount;
-import android.telecom.PhoneAccountHandle;
 import android.telecom.TelecomManager;
 import android.telecom.VideoProfile;
 import android.telephony.AccessNetworkConstants.TransportType;
@@ -150,13 +148,10 @@ import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.function.Consumer;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * {@hide}
@@ -184,7 +179,6 @@ public class GsmCdmaPhone extends Phone {
     private RegistrantList mSsnRegistrants = new RegistrantList();
 
     //CDMA
-    private static final String VM_NUMBER_CDMA = "vm_number_key_cdma";
     private PowerManager.WakeLock mWakeLock;
     // mEcmExitRespRegistrant is informed after the phone has been exited
     @UnsupportedAppUsage
@@ -778,6 +772,9 @@ public class GsmCdmaPhone extends Phone {
         if (!hasCalling()) {
             return false;
         } else {
+            if (mFeatureFlags.deleteCdma()) {
+                return mContext.getSystemService(TelecomManager.class).isInEmergencyCall();
+            }
             return mCT.isInEmergencyCall();
         }
     }
@@ -3653,177 +3650,6 @@ public class GsmCdmaPhone extends Phone {
         mEmergencyCallToggledRegistrants.notifyResult(started ? 1 : 0);
     }
 
-    //CDMA
-    private static final String IS683A_FEATURE_CODE = "*228";
-    private static final int IS683A_FEATURE_CODE_NUM_DIGITS = 4;
-    private static final int IS683A_SYS_SEL_CODE_NUM_DIGITS = 2;
-    private static final int IS683A_SYS_SEL_CODE_OFFSET = 4;
-
-    private static final int IS683_CONST_800MHZ_A_BAND = 0;
-    private static final int IS683_CONST_800MHZ_B_BAND = 1;
-    private static final int IS683_CONST_1900MHZ_A_BLOCK = 2;
-    private static final int IS683_CONST_1900MHZ_B_BLOCK = 3;
-    private static final int IS683_CONST_1900MHZ_C_BLOCK = 4;
-    private static final int IS683_CONST_1900MHZ_D_BLOCK = 5;
-    private static final int IS683_CONST_1900MHZ_E_BLOCK = 6;
-    private static final int IS683_CONST_1900MHZ_F_BLOCK = 7;
-    private static final int INVALID_SYSTEM_SELECTION_CODE = -1;
-
-    // Define the pattern/format for carrier specified OTASP number schema.
-    // It separates by comma and/or whitespace.
-    private static Pattern pOtaSpNumSchema = Pattern.compile("[,\\s]+");
-
-    //CDMA
-    private static boolean isIs683OtaSpDialStr(String dialStr) {
-        int sysSelCodeInt;
-        boolean isOtaspDialString = false;
-        int dialStrLen = dialStr.length();
-
-        if (dialStrLen == IS683A_FEATURE_CODE_NUM_DIGITS) {
-            if (dialStr.equals(IS683A_FEATURE_CODE)) {
-                isOtaspDialString = true;
-            }
-        } else {
-            sysSelCodeInt = extractSelCodeFromOtaSpNum(dialStr);
-            switch (sysSelCodeInt) {
-                case IS683_CONST_800MHZ_A_BAND:
-                case IS683_CONST_800MHZ_B_BAND:
-                case IS683_CONST_1900MHZ_A_BLOCK:
-                case IS683_CONST_1900MHZ_B_BLOCK:
-                case IS683_CONST_1900MHZ_C_BLOCK:
-                case IS683_CONST_1900MHZ_D_BLOCK:
-                case IS683_CONST_1900MHZ_E_BLOCK:
-                case IS683_CONST_1900MHZ_F_BLOCK:
-                    isOtaspDialString = true;
-                    break;
-                default:
-                    break;
-            }
-        }
-        return isOtaspDialString;
-    }
-
-    //CDMA
-    /**
-     * This function extracts the system selection code from the dial string.
-     */
-    private static int extractSelCodeFromOtaSpNum(String dialStr) {
-        int dialStrLen = dialStr.length();
-        int sysSelCodeInt = INVALID_SYSTEM_SELECTION_CODE;
-
-        if ((dialStr.regionMatches(0, IS683A_FEATURE_CODE,
-                0, IS683A_FEATURE_CODE_NUM_DIGITS)) &&
-                (dialStrLen >= (IS683A_FEATURE_CODE_NUM_DIGITS +
-                        IS683A_SYS_SEL_CODE_NUM_DIGITS))) {
-            // Since we checked the condition above, the system selection code
-            // extracted from dialStr will not cause any exception
-            sysSelCodeInt = Integer.parseInt (
-                    dialStr.substring (IS683A_FEATURE_CODE_NUM_DIGITS,
-                            IS683A_FEATURE_CODE_NUM_DIGITS + IS683A_SYS_SEL_CODE_NUM_DIGITS));
-        }
-        if (DBG) Rlog.d(LOG_TAG, "extractSelCodeFromOtaSpNum " + sysSelCodeInt);
-        return sysSelCodeInt;
-    }
-
-    //CDMA
-    /**
-     * This function checks if the system selection code extracted from
-     * the dial string "sysSelCodeInt' is the system selection code specified
-     * in the carrier ota sp number schema "sch".
-     */
-    private static boolean checkOtaSpNumBasedOnSysSelCode(int sysSelCodeInt, String sch[]) {
-        boolean isOtaSpNum = false;
-        try {
-            // Get how many number of system selection code ranges
-            int selRc = Integer.parseInt(sch[1]);
-            for (int i = 0; i < selRc; i++) {
-                if (!TextUtils.isEmpty(sch[i*2+2]) && !TextUtils.isEmpty(sch[i*2+3])) {
-                    int selMin = Integer.parseInt(sch[i*2+2]);
-                    int selMax = Integer.parseInt(sch[i*2+3]);
-                    // Check if the selection code extracted from the dial string falls
-                    // within any of the range pairs specified in the schema.
-                    if ((sysSelCodeInt >= selMin) && (sysSelCodeInt <= selMax)) {
-                        isOtaSpNum = true;
-                        break;
-                    }
-                }
-            }
-        } catch (NumberFormatException ex) {
-            // If the carrier ota sp number schema is not correct, we still allow dial
-            // and only log the error:
-            Rlog.e(LOG_TAG, "checkOtaSpNumBasedOnSysSelCode, error", ex);
-        }
-        return isOtaSpNum;
-    }
-
-    //CDMA
-    /**
-     * The following function checks if a dial string is a carrier specified
-     * OTASP number or not by checking against the OTASP number schema stored
-     * in PROPERTY_OTASP_NUM_SCHEMA.
-     *
-     * Currently, there are 2 schemas for carriers to specify the OTASP number:
-     * 1) Use system selection code:
-     *    The schema is:
-     *    SELC,the # of code pairs,min1,max1,min2,max2,...
-     *    e.g "SELC,3,10,20,30,40,60,70" indicates that there are 3 pairs of
-     *    selection codes, and they are {10,20}, {30,40} and {60,70} respectively.
-     *
-     * 2) Use feature code:
-     *    The schema is:
-     *    "FC,length of feature code,feature code".
-     *     e.g "FC,2,*2" indicates that the length of the feature code is 2,
-     *     and the code itself is "*2".
-     */
-    private boolean isCarrierOtaSpNum(String dialStr) {
-        boolean isOtaSpNum = false;
-        int sysSelCodeInt = extractSelCodeFromOtaSpNum(dialStr);
-        if (sysSelCodeInt == INVALID_SYSTEM_SELECTION_CODE) {
-            return isOtaSpNum;
-        }
-        // mCarrierOtaSpNumSchema is retrieved from PROPERTY_OTASP_NUM_SCHEMA:
-        if (!TextUtils.isEmpty(mCarrierOtaSpNumSchema)) {
-            Matcher m = pOtaSpNumSchema.matcher(mCarrierOtaSpNumSchema);
-            if (DBG) {
-                Rlog.d(LOG_TAG, "isCarrierOtaSpNum,schema" + mCarrierOtaSpNumSchema);
-            }
-
-            if (m.find()) {
-                String sch[] = pOtaSpNumSchema.split(mCarrierOtaSpNumSchema);
-                // If carrier uses system selection code mechanism
-                if (!TextUtils.isEmpty(sch[0]) && sch[0].equals("SELC")) {
-                    if (sysSelCodeInt!=INVALID_SYSTEM_SELECTION_CODE) {
-                        isOtaSpNum=checkOtaSpNumBasedOnSysSelCode(sysSelCodeInt,sch);
-                    } else {
-                        if (DBG) {
-                            Rlog.d(LOG_TAG, "isCarrierOtaSpNum,sysSelCodeInt is invalid");
-                        }
-                    }
-                } else if (!TextUtils.isEmpty(sch[0]) && sch[0].equals("FC")) {
-                    int fcLen =  Integer.parseInt(sch[1]);
-                    String fc = sch[2];
-                    if (dialStr.regionMatches(0,fc,0,fcLen)) {
-                        isOtaSpNum = true;
-                    } else {
-                        if (DBG) Rlog.d(LOG_TAG, "isCarrierOtaSpNum,not otasp number");
-                    }
-                } else {
-                    if (DBG) {
-                        Rlog.d(LOG_TAG, "isCarrierOtaSpNum,ota schema not supported" + sch[0]);
-                    }
-                }
-            } else {
-                if (DBG) {
-                    Rlog.d(LOG_TAG, "isCarrierOtaSpNum,ota schema pattern not right" +
-                            mCarrierOtaSpNumSchema);
-                }
-            }
-        } else {
-            if (DBG) Rlog.d(LOG_TAG, "isCarrierOtaSpNum,ota schema pattern empty");
-        }
-        return isOtaSpNum;
-    }
-
     @Override
     public void setLinkCapacityReportingCriteria(int[] dlThresholds, int[] ulThresholds, int ran) {
         mCi.setLinkCapacityReportingCriteria(REPORTING_HYSTERESIS_MILLIS, REPORTING_HYSTERESIS_KBPS,
@@ -4143,37 +3969,6 @@ public class GsmCdmaPhone extends Phone {
         } else {
             logd("SIM Records not found, MWI not updated");
         }
-    }
-
-    private CallForwardInfo[] makeEmptyCallForward() {
-        CallForwardInfo infos[] = new CallForwardInfo[1];
-
-        infos[0] = new CallForwardInfo();
-        infos[0].status = CommandsInterface.SS_STATUS_UNKNOWN;
-        infos[0].reason = 0;
-        infos[0].serviceClass = CommandsInterface.SERVICE_CLASS_VOICE;
-        infos[0].toa = PhoneNumberUtils.TOA_Unknown;
-        infos[0].number = "";
-        infos[0].timeSeconds = 0;
-
-        return infos;
-    }
-
-    private PhoneAccountHandle subscriptionIdToPhoneAccountHandle(final int subId) {
-        final TelecomManager telecomManager = mContext.getSystemService(TelecomManager.class);
-        final TelephonyManager telephonyManager = TelephonyManager.from(mContext);
-        final Iterator<PhoneAccountHandle> phoneAccounts =
-            telecomManager.getCallCapablePhoneAccounts(true).listIterator();
-
-        while (phoneAccounts.hasNext()) {
-            final PhoneAccountHandle phoneAccountHandle = phoneAccounts.next();
-            final PhoneAccount phoneAccount = telecomManager.getPhoneAccount(phoneAccountHandle);
-            if (subId == telephonyManager.getSubIdForPhoneAccount(phoneAccount)) {
-                return phoneAccountHandle;
-            }
-        }
-
-        return null;
     }
 
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)

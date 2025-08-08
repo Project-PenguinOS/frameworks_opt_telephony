@@ -83,8 +83,6 @@ public class NitzStateMachineImplTest {
     private TimeZoneSuggesterImpl mRealTimeZoneSuggester;
     private NitzStateMachineImpl mNitzStateMachineImpl;
 
-    @Parameterized.Parameter public boolean mAllowMultiCountryMcc;
-
     @Before
     public void setUp() {
         // In tests we use a fake impls for NewTimeServiceHelper and DeviceState.
@@ -126,12 +124,27 @@ public class NitzStateMachineImplTest {
 
         // Capture expected results from the real suggester and confirm we can tell the difference
         // between them.
-        TelephonyTimeZoneSuggestion expectedTimeZoneSuggestion1 =
-                mRealTimeZoneSuggester.getTimeZoneSuggestion(
-                        SLOT_INDEX, networkCountryIsoCode, null /* nitzSignal */);
-        TelephonyTimeZoneSuggestion expectedTimeZoneSuggestion2 =
-                mRealTimeZoneSuggester.getTimeZoneSuggestion(
-                        SLOT_INDEX, networkCountryIsoCode, nitzSignal);
+        final TelephonyTimeZoneSuggestion expectedTimeZoneSuggestion1;
+        final TelephonyTimeZoneSuggestion expectedTimeZoneSuggestion2;
+        MobileCountries mobileCountries = null;
+        if (Flags.allowMultiCountryMcc()) {
+            mobileCountries =
+                    MobileCountries.createForTest(
+                            "310", null, Set.of(networkCountryIsoCode), networkCountryIsoCode);
+            expectedTimeZoneSuggestion1 =
+                    mRealTimeZoneSuggester.getTimeZoneSuggestion(
+                            SLOT_INDEX, mobileCountries, null /* nitzSignal */);
+            expectedTimeZoneSuggestion2 =
+                    mRealTimeZoneSuggester.getTimeZoneSuggestion(
+                            SLOT_INDEX, mobileCountries, nitzSignal);
+        } else {
+            expectedTimeZoneSuggestion1 =
+                    mRealTimeZoneSuggester.getTimeZoneSuggestion(
+                            SLOT_INDEX, networkCountryIsoCode, null /* nitzSignal */);
+            expectedTimeZoneSuggestion2 =
+                    mRealTimeZoneSuggester.getTimeZoneSuggestion(
+                            SLOT_INDEX, networkCountryIsoCode, nitzSignal);
+        }
         assertNotNull(expectedTimeZoneSuggestion2);
         assertNotEquals(expectedTimeZoneSuggestion1, expectedTimeZoneSuggestion2);
 
@@ -140,7 +153,11 @@ public class NitzStateMachineImplTest {
                 .networkAvailable();
 
         // Simulate country being known.
-        script.countryReceived(networkCountryIsoCode);
+        if (Flags.allowMultiCountryMcc()) {
+            script.mobileCountryReceived(mobileCountries);
+        } else {
+            script.countryReceived(networkCountryIsoCode);
+        }
 
         script.verifyOnlyTimeZoneWasSuggestedAndReset(expectedTimeZoneSuggestion1);
 
@@ -174,9 +191,20 @@ public class NitzStateMachineImplTest {
         TelephonyTimeZoneSuggestion expectedTimeZoneSuggestion1 =
                 mRealTimeZoneSuggester.getTimeZoneSuggestion(
                         SLOT_INDEX, (String) null /* countryIsoCode */, nitzSignal);
-        TelephonyTimeZoneSuggestion expectedTimeZoneSuggestion2 =
-                mRealTimeZoneSuggester.getTimeZoneSuggestion(
-                        SLOT_INDEX, networkCountryIsoCode, nitzSignal);
+        final TelephonyTimeZoneSuggestion expectedTimeZoneSuggestion2;
+        MobileCountries mobileCountries = null;
+        if (Flags.allowMultiCountryMcc()) {
+            mobileCountries =
+                    MobileCountries.createForTest(
+                            "310", null, Set.of(networkCountryIsoCode), networkCountryIsoCode);
+            expectedTimeZoneSuggestion2 =
+                    mRealTimeZoneSuggester.getTimeZoneSuggestion(
+                            SLOT_INDEX, mobileCountries, nitzSignal);
+        } else {
+            expectedTimeZoneSuggestion2 =
+                    mRealTimeZoneSuggester.getTimeZoneSuggestion(
+                            SLOT_INDEX, networkCountryIsoCode, nitzSignal);
+        }
         assertNotEquals(expectedTimeZoneSuggestion1, expectedTimeZoneSuggestion2);
 
         Script script = new Script()
@@ -197,8 +225,13 @@ public class NitzStateMachineImplTest {
         assertNull(mNitzStateMachineImpl.getLastNitzDataCleared());
 
         // Simulate country being known and verify the behavior.
-        script.countryReceived(networkCountryIsoCode)
-                .verifyOnlyTimeZoneWasSuggestedAndReset(expectedTimeZoneSuggestion2);
+        if (Flags.allowMultiCountryMcc()) {
+            script.mobileCountryReceived(mobileCountries);
+        } else {
+            script.countryReceived(networkCountryIsoCode);
+        }
+
+        script.verifyOnlyTimeZoneWasSuggestedAndReset(expectedTimeZoneSuggestion2);
 
         // Check NitzStateMachineImpl internal state exposed for tests.
         assertEquals(nitzSignal.getNitzData(), mNitzStateMachineImpl.getLatestNitzData());
@@ -216,7 +249,11 @@ public class NitzStateMachineImplTest {
                 .networkAvailable();
 
         // Simulate an empty country being set.
-        script.countryReceived("");
+        if (Flags.allowMultiCountryMcc()) {
+            script.mobileCountryReceived(MobileCountries.createTestCell("001"));
+        } else {
+            script.countryReceived("");
+        }
 
         // Nothing should be set. The country is not valid.
         script.verifyOnlyTimeZoneWasSuggestedAndReset(EMPTY_TIME_ZONE_SUGGESTION);
@@ -232,9 +269,16 @@ public class NitzStateMachineImplTest {
                 createTimeSuggestionFromNitzSignal(SLOT_INDEX, nitzSignal);
         // Capture output from the real suggester and confirm it meets the test's needs /
         // expectations.
-        TelephonyTimeZoneSuggestion expectedTimeZoneSuggestion =
-                mRealTimeZoneSuggester.getTimeZoneSuggestion(
-                        SLOT_INDEX, "" /* countryIsoCode */, nitzSignal);
+        final TelephonyTimeZoneSuggestion expectedTimeZoneSuggestion;
+        if (Flags.allowMultiCountryMcc()) {
+            expectedTimeZoneSuggestion =
+                    mRealTimeZoneSuggester.getTimeZoneSuggestion(
+                            SLOT_INDEX, MobileCountries.createTestCell("001"), nitzSignal);
+        } else {
+            expectedTimeZoneSuggestion =
+                    mRealTimeZoneSuggester.getTimeZoneSuggestion(
+                            SLOT_INDEX, "" /* countryIsoCode */, nitzSignal);
+        }
         assertEquals(MATCH_TYPE_TEST_NETWORK_OFFSET_ONLY,
                 expectedTimeZoneSuggestion.getMatchType());
         assertEquals(QUALITY_MULTIPLE_ZONES_WITH_SAME_OFFSET,
@@ -274,7 +318,11 @@ public class NitzStateMachineImplTest {
         assertNull(mNitzStateMachineImpl.getLastNitzDataCleared());
 
         // Simulate an empty country being set.
-        script.countryReceived("");
+        if (Flags.allowMultiCountryMcc()) {
+            script.mobileCountryReceived(MobileCountries.createTestCell("001"));
+        } else {
+            script.countryReceived("");
+        }
 
         // Capture output from the real suggester and confirm it meets the test's needs /
         // expectations.
@@ -312,13 +360,29 @@ public class NitzStateMachineImplTest {
         String preFlightCountryIsoCode = scenario.getNetworkCountryIsoCode();
 
         // Simulate receiving the NITZ signal and country.
-        script.nitzReceived(preFlightNitzSignal)
-                .countryReceived(preFlightCountryIsoCode);
+        script.nitzReceived(preFlightNitzSignal);
+        MobileCountries preFlightMobileCountries = null;
+        if (Flags.allowMultiCountryMcc()) {
+            // MCC 234 is for UK.
+            preFlightMobileCountries =
+                    MobileCountries.createForTest(
+                            "234", null, Set.of(preFlightCountryIsoCode), preFlightCountryIsoCode);
+            script.mobileCountryReceived(preFlightMobileCountries);
+        } else {
+            script.countryReceived(preFlightCountryIsoCode);
+        }
 
         // Verify the state machine did the right thing.
-        TelephonyTimeZoneSuggestion expectedPreFlightTimeZoneSuggestion =
-                mRealTimeZoneSuggester.getTimeZoneSuggestion(
-                        SLOT_INDEX, preFlightCountryIsoCode, preFlightNitzSignal);
+        final TelephonyTimeZoneSuggestion expectedPreFlightTimeZoneSuggestion;
+        if (Flags.allowMultiCountryMcc()) {
+            expectedPreFlightTimeZoneSuggestion =
+                    mRealTimeZoneSuggester.getTimeZoneSuggestion(
+                            SLOT_INDEX, preFlightMobileCountries, preFlightNitzSignal);
+        } else {
+            expectedPreFlightTimeZoneSuggestion =
+                    mRealTimeZoneSuggester.getTimeZoneSuggestion(
+                            SLOT_INDEX, preFlightCountryIsoCode, preFlightNitzSignal);
+        }
         script.verifyTimeAndTimeZoneSuggestedAndReset(
                 expectedPreFlightTimeSuggestion, expectedPreFlightTimeZoneSuggestion);
 
@@ -378,15 +442,31 @@ public class NitzStateMachineImplTest {
         NitzSignal postFlightNitzSignal =
                 scenario.createNitzSignal(mFakeDeviceState.elapsedRealtimeMillis(), ARBITRARY_AGE);
         String postFlightCountryCode = scenario.getNetworkCountryIsoCode();
-        script.countryReceived(postFlightCountryCode)
-                .nitzReceived(postFlightNitzSignal);
+        MobileCountries postFlightMobileCountries = null;
+        if (Flags.allowMultiCountryMcc()) {
+            // MCC 310 is for US.
+            postFlightMobileCountries =
+                    MobileCountries.createForTest(
+                            "310", null, Set.of(postFlightCountryCode), postFlightCountryCode);
+            script.mobileCountryReceived(postFlightMobileCountries);
+        } else {
+            script.countryReceived(postFlightCountryCode);
+        }
+        script.nitzReceived(postFlightNitzSignal);
 
         // Verify the state machine did the right thing.
         TelephonyTimeSuggestion expectedPostFlightTimeSuggestion =
                 createTimeSuggestionFromNitzSignal(SLOT_INDEX, postFlightNitzSignal);
-        TelephonyTimeZoneSuggestion expectedPostFlightTimeZoneSuggestion =
-                mRealTimeZoneSuggester.getTimeZoneSuggestion(
-                        SLOT_INDEX, postFlightCountryCode, postFlightNitzSignal);
+        final TelephonyTimeZoneSuggestion expectedPostFlightTimeZoneSuggestion;
+        if (Flags.allowMultiCountryMcc()) {
+            expectedPostFlightTimeZoneSuggestion =
+                    mRealTimeZoneSuggester.getTimeZoneSuggestion(
+                            SLOT_INDEX, postFlightMobileCountries, postFlightNitzSignal);
+        } else {
+            expectedPostFlightTimeZoneSuggestion =
+                    mRealTimeZoneSuggester.getTimeZoneSuggestion(
+                            SLOT_INDEX, postFlightCountryCode, postFlightNitzSignal);
+        }
         script.verifyTimeAndTimeZoneSuggestedAndReset(
                 expectedPostFlightTimeSuggestion, expectedPostFlightTimeZoneSuggestion);
 
@@ -413,12 +493,26 @@ public class NitzStateMachineImplTest {
         String preFlightCountryIsoCode = scenario.getNetworkCountryIsoCode();
 
         // Simulate receiving the country.
-        script.countryReceived(preFlightCountryIsoCode);
+        MobileCountries mobileCountries = null;
+        if (Flags.allowMultiCountryMcc()) {
+            mobileCountries =
+                    MobileCountries.createForTest(
+                            "234", null, Set.of(preFlightCountryIsoCode), preFlightCountryIsoCode);
+            script.mobileCountryReceived(mobileCountries);
+        } else {
+            script.countryReceived(preFlightCountryIsoCode);
+        }
 
         // Verify the state machine did the right thing.
-        TelephonyTimeZoneSuggestion expectedPreFlightTimeZoneSuggestion =
-                mRealTimeZoneSuggester.getTimeZoneSuggestion(
-                        SLOT_INDEX, preFlightCountryIsoCode, null);
+        final TelephonyTimeZoneSuggestion expectedPreFlightTimeZoneSuggestion;
+        if (Flags.allowMultiCountryMcc()) {
+            expectedPreFlightTimeZoneSuggestion =
+                    mRealTimeZoneSuggester.getTimeZoneSuggestion(SLOT_INDEX, mobileCountries, null);
+        } else {
+            expectedPreFlightTimeZoneSuggestion =
+                    mRealTimeZoneSuggester.getTimeZoneSuggestion(
+                            SLOT_INDEX, preFlightCountryIsoCode, null);
+        }
         script.verifyOnlyTimeZoneWasSuggestedAndReset(expectedPreFlightTimeZoneSuggestion);
 
         // Check NitzStateMachineImpl internal state exposed for tests.
@@ -471,13 +565,28 @@ public class NitzStateMachineImplTest {
                 createTimeSuggestionFromNitzSignal(SLOT_INDEX, initialNitzSignal);
 
         // Simulate receiving the NITZ signal and country.
-        script.nitzReceived(initialNitzSignal)
-                .countryReceived(countryIsoCode);
+        script.nitzReceived(initialNitzSignal);
+        MobileCountries mobileCountries = null;
+        if (Flags.allowMultiCountryMcc()) {
+            mobileCountries =
+                    MobileCountries.createForTest(
+                            "310", null, Set.of(countryIsoCode), countryIsoCode);
+            script.mobileCountryReceived(mobileCountries);
+        } else {
+            script.countryReceived(countryIsoCode);
+        }
 
         // Verify the state machine did the right thing.
-        TelephonyTimeZoneSuggestion expectedInitialTimeZoneSuggestion =
-                mRealTimeZoneSuggester.getTimeZoneSuggestion(
-                        SLOT_INDEX, countryIsoCode, initialNitzSignal);
+        final TelephonyTimeZoneSuggestion expectedInitialTimeZoneSuggestion;
+        if (Flags.allowMultiCountryMcc()) {
+            expectedInitialTimeZoneSuggestion =
+                    mRealTimeZoneSuggester.getTimeZoneSuggestion(
+                            SLOT_INDEX, mobileCountries, initialNitzSignal);
+        } else {
+            expectedInitialTimeZoneSuggestion =
+                    mRealTimeZoneSuggester.getTimeZoneSuggestion(
+                            SLOT_INDEX, countryIsoCode, initialNitzSignal);
+        }
         script.verifyTimeAndTimeZoneSuggestedAndReset(
                 expectedInitialTimeSuggestion, expectedInitialTimeZoneSuggestion);
 
@@ -493,9 +602,16 @@ public class NitzStateMachineImplTest {
         script.networkUnavailable();
 
         // Check the "no NITZ" time and time zone suggestions are made.
-        TelephonyTimeZoneSuggestion expectedMiddleTimeZoneSuggestion =
-                mRealTimeZoneSuggester.getTimeZoneSuggestion(
-                        SLOT_INDEX, countryIsoCode, null /* nitzSignal */);
+        final TelephonyTimeZoneSuggestion expectedMiddleTimeZoneSuggestion;
+        if (Flags.allowMultiCountryMcc()) {
+            expectedMiddleTimeZoneSuggestion =
+                    mRealTimeZoneSuggester.getTimeZoneSuggestion(
+                            SLOT_INDEX, mobileCountries, null /* nitzSignal */);
+        } else {
+            expectedMiddleTimeZoneSuggestion =
+                    mRealTimeZoneSuggester.getTimeZoneSuggestion(
+                            SLOT_INDEX, countryIsoCode, null /* nitzSignal */);
+        }
         script.verifyTimeAndTimeZoneSuggestedAndReset(
                 EMPTY_TIME_SUGGESTION, expectedMiddleTimeZoneSuggestion);
 
@@ -530,9 +646,16 @@ public class NitzStateMachineImplTest {
         // Verify the state machine did the right thing.
         TelephonyTimeSuggestion expectedFinalTimeSuggestion =
                 createTimeSuggestionFromNitzSignal(SLOT_INDEX, finalNitzSignal);
-        TelephonyTimeZoneSuggestion expectedFinalTimeZoneSuggestion =
-                mRealTimeZoneSuggester.getTimeZoneSuggestion(
-                        SLOT_INDEX, countryIsoCode, finalNitzSignal);
+        final TelephonyTimeZoneSuggestion expectedFinalTimeZoneSuggestion;
+        if (Flags.allowMultiCountryMcc()) {
+            expectedFinalTimeZoneSuggestion =
+                    mRealTimeZoneSuggester.getTimeZoneSuggestion(
+                            SLOT_INDEX, mobileCountries, finalNitzSignal);
+        } else {
+            expectedFinalTimeZoneSuggestion =
+                    mRealTimeZoneSuggester.getTimeZoneSuggestion(
+                            SLOT_INDEX, countryIsoCode, finalNitzSignal);
+        }
         script.verifyTimeAndTimeZoneSuggestedAndReset(
                 expectedFinalTimeSuggestion, expectedFinalTimeZoneSuggestion);
 
@@ -566,13 +689,28 @@ public class NitzStateMachineImplTest {
                 createTimeSuggestionFromNitzSignal(SLOT_INDEX, initialNitzSignal);
 
         // Simulate receiving the NITZ signal and country.
-        script.nitzReceived(initialNitzSignal)
-                .countryReceived(countryIsoCode);
+        script.nitzReceived(initialNitzSignal);
+        MobileCountries mobileCountries = null;
+        if (Flags.allowMultiCountryMcc()) {
+            mobileCountries =
+                    MobileCountries.createForTest(
+                            "310", null, Set.of(countryIsoCode), countryIsoCode);
+            script.mobileCountryReceived(mobileCountries);
+        } else {
+            script.countryReceived(countryIsoCode);
+        }
 
         // Verify the state machine did the right thing.
-        TelephonyTimeZoneSuggestion expectedInitialTimeZoneSuggestion =
-                mRealTimeZoneSuggester.getTimeZoneSuggestion(
-                        SLOT_INDEX, countryIsoCode, initialNitzSignal);
+        final TelephonyTimeZoneSuggestion expectedInitialTimeZoneSuggestion;
+        if (Flags.allowMultiCountryMcc()) {
+            expectedInitialTimeZoneSuggestion =
+                    mRealTimeZoneSuggester.getTimeZoneSuggestion(
+                            SLOT_INDEX, mobileCountries, initialNitzSignal);
+        } else {
+            expectedInitialTimeZoneSuggestion =
+                    mRealTimeZoneSuggester.getTimeZoneSuggestion(
+                            SLOT_INDEX, countryIsoCode, initialNitzSignal);
+        }
         script.verifyTimeAndTimeZoneSuggestedAndReset(
                 expectedInitialTimeSuggestion, expectedInitialTimeZoneSuggestion);
 
@@ -588,9 +726,16 @@ public class NitzStateMachineImplTest {
         script.networkUnavailable();
 
         // Check the "no NITZ" time and time zone suggestions are made.
-        TelephonyTimeZoneSuggestion expectedMiddleTimeZoneSuggestion =
-                mRealTimeZoneSuggester.getTimeZoneSuggestion(
-                        SLOT_INDEX, countryIsoCode, null /* nitzSignal */);
+        final TelephonyTimeZoneSuggestion expectedMiddleTimeZoneSuggestion;
+        if (Flags.allowMultiCountryMcc()) {
+            expectedMiddleTimeZoneSuggestion =
+                    mRealTimeZoneSuggester.getTimeZoneSuggestion(
+                            SLOT_INDEX, mobileCountries, null /* nitzSignal */);
+        } else {
+            expectedMiddleTimeZoneSuggestion =
+                    mRealTimeZoneSuggester.getTimeZoneSuggestion(
+                            SLOT_INDEX, countryIsoCode, null /* nitzSignal */);
+        }
         script.verifyTimeAndTimeZoneSuggestedAndReset(
                 EMPTY_TIME_SUGGESTION, expectedMiddleTimeZoneSuggestion);
 
@@ -625,9 +770,16 @@ public class NitzStateMachineImplTest {
         // Verify the state machine did the right thing.
         TelephonyTimeSuggestion expectedFinalTimeSuggestion =
                 createTimeSuggestionFromNitzSignal(SLOT_INDEX, finalNitzSignal);
-        TelephonyTimeZoneSuggestion expectedFinalTimeZoneSuggestion =
-                mRealTimeZoneSuggester.getTimeZoneSuggestion(
-                        SLOT_INDEX, countryIsoCode, finalNitzSignal);
+        final TelephonyTimeZoneSuggestion expectedFinalTimeZoneSuggestion;
+        if (Flags.allowMultiCountryMcc()) {
+            expectedFinalTimeZoneSuggestion =
+                    mRealTimeZoneSuggester.getTimeZoneSuggestion(
+                            SLOT_INDEX, mobileCountries, finalNitzSignal);
+        } else {
+            expectedFinalTimeZoneSuggestion =
+                    mRealTimeZoneSuggester.getTimeZoneSuggestion(
+                            SLOT_INDEX, countryIsoCode, finalNitzSignal);
+        }
         script.verifyTimeAndTimeZoneSuggestedAndReset(
                 expectedFinalTimeSuggestion, expectedFinalTimeZoneSuggestion);
 
@@ -660,13 +812,28 @@ public class NitzStateMachineImplTest {
                 createTimeSuggestionFromNitzSignal(SLOT_INDEX, initialNitzSignal);
 
         // Simulate receiving the NITZ signal and country.
-        script.nitzReceived(initialNitzSignal)
-                .countryReceived(countryIsoCode);
+        script.nitzReceived(initialNitzSignal);
+        MobileCountries mobileCountries = null;
+        if (Flags.allowMultiCountryMcc()) {
+            mobileCountries =
+                    MobileCountries.createForTest(
+                            "310", null, Set.of(countryIsoCode), countryIsoCode);
+            script.mobileCountryReceived(mobileCountries);
+        } else {
+            script.countryReceived(countryIsoCode);
+        }
 
         // Verify the state machine did the right thing.
-        TelephonyTimeZoneSuggestion expectedInitialTimeZoneSuggestion =
-                mRealTimeZoneSuggester.getTimeZoneSuggestion(
-                        SLOT_INDEX, countryIsoCode, initialNitzSignal);
+        final TelephonyTimeZoneSuggestion expectedInitialTimeZoneSuggestion;
+        if (Flags.allowMultiCountryMcc()) {
+            expectedInitialTimeZoneSuggestion =
+                    mRealTimeZoneSuggester.getTimeZoneSuggestion(
+                            SLOT_INDEX, mobileCountries, initialNitzSignal);
+        } else {
+            expectedInitialTimeZoneSuggestion =
+                    mRealTimeZoneSuggester.getTimeZoneSuggestion(
+                            SLOT_INDEX, countryIsoCode, initialNitzSignal);
+        }
         script.verifyTimeAndTimeZoneSuggestedAndReset(
                 expectedInitialTimeSuggestion, expectedInitialTimeZoneSuggestion);
 
@@ -682,9 +849,16 @@ public class NitzStateMachineImplTest {
         script.networkUnavailable();
 
         // Check the "no NITZ" time and time zone suggestions are made.
-        TelephonyTimeZoneSuggestion expectedMiddleTimeZoneSuggestion =
-                mRealTimeZoneSuggester.getTimeZoneSuggestion(
-                        SLOT_INDEX, countryIsoCode, null /* nitzSignal */);
+        final TelephonyTimeZoneSuggestion expectedMiddleTimeZoneSuggestion;
+        if (Flags.allowMultiCountryMcc()) {
+            expectedMiddleTimeZoneSuggestion =
+                    mRealTimeZoneSuggester.getTimeZoneSuggestion(
+                            SLOT_INDEX, mobileCountries, null /* nitzSignal */);
+        } else {
+            expectedMiddleTimeZoneSuggestion =
+                    mRealTimeZoneSuggester.getTimeZoneSuggestion(
+                            SLOT_INDEX, countryIsoCode, null /* nitzSignal */);
+        }
         script.verifyTimeAndTimeZoneSuggestedAndReset(
                 EMPTY_TIME_SUGGESTION, expectedMiddleTimeZoneSuggestion);
 
@@ -705,9 +879,16 @@ public class NitzStateMachineImplTest {
         // Verify the state machine did the right thing.
         TelephonyTimeSuggestion expectedFinalTimeSuggestion =
                 createTimeSuggestionFromNitzSignal(SLOT_INDEX, finalNitzSignal);
-        TelephonyTimeZoneSuggestion expectedFinalTimeZoneSuggestion =
-                mRealTimeZoneSuggester.getTimeZoneSuggestion(
-                        SLOT_INDEX, countryIsoCode, finalNitzSignal);
+        final TelephonyTimeZoneSuggestion expectedFinalTimeZoneSuggestion;
+        if (Flags.allowMultiCountryMcc()) {
+            expectedFinalTimeZoneSuggestion =
+                    mRealTimeZoneSuggester.getTimeZoneSuggestion(
+                            SLOT_INDEX, mobileCountries, finalNitzSignal);
+        } else {
+            expectedFinalTimeZoneSuggestion =
+                    mRealTimeZoneSuggester.getTimeZoneSuggestion(
+                            SLOT_INDEX, countryIsoCode, finalNitzSignal);
+        }
         script.verifyTimeAndTimeZoneSuggestedAndReset(
                 expectedFinalTimeSuggestion, expectedFinalTimeZoneSuggestion);
 
@@ -727,19 +908,45 @@ public class NitzStateMachineImplTest {
                 .networkAvailable();
 
         // Simulate receiving the country and verify the state machine does the right thing.
-        script.countryReceived(scenario.getNetworkCountryIsoCode());
-        TelephonyTimeZoneSuggestion expectedTimeZoneSuggestion1 =
-                mRealTimeZoneSuggester.getTimeZoneSuggestion(
-                        SLOT_INDEX, scenario.getNetworkCountryIsoCode(), null /* nitzSignal */);
+        MobileCountries mobileCountries = null;
+        if (Flags.allowMultiCountryMcc()) {
+            mobileCountries =
+                    MobileCountries.createForTest(
+                            "310",
+                            null,
+                            Set.of(scenario.getNetworkCountryIsoCode()),
+                            scenario.getNetworkCountryIsoCode());
+            script.mobileCountryReceived(mobileCountries);
+        } else {
+            script.countryReceived(scenario.getNetworkCountryIsoCode());
+        }
+
+        final TelephonyTimeZoneSuggestion expectedTimeZoneSuggestion1;
+        if (Flags.allowMultiCountryMcc()) {
+            expectedTimeZoneSuggestion1 =
+                    mRealTimeZoneSuggester.getTimeZoneSuggestion(
+                            SLOT_INDEX, mobileCountries, null /* nitzSignal */);
+        } else {
+            expectedTimeZoneSuggestion1 =
+                    mRealTimeZoneSuggester.getTimeZoneSuggestion(
+                            SLOT_INDEX, scenario.getNetworkCountryIsoCode(), null /* nitzSignal */);
+        }
         script.verifyOnlyTimeZoneWasSuggestedAndReset(expectedTimeZoneSuggestion1);
 
         // Simulate receiving an NITZ signal and verify the state machine does the right thing.
         script.nitzReceived(nitzSignal);
         TelephonyTimeSuggestion expectedTimeSuggestion =
                 createTimeSuggestionFromNitzSignal(SLOT_INDEX, nitzSignal);
-        TelephonyTimeZoneSuggestion expectedTimeZoneSuggestion2 =
-                mRealTimeZoneSuggester.getTimeZoneSuggestion(
-                        SLOT_INDEX, scenario.getNetworkCountryIsoCode(), nitzSignal);
+        final TelephonyTimeZoneSuggestion expectedTimeZoneSuggestion2;
+        if (Flags.allowMultiCountryMcc()) {
+            expectedTimeZoneSuggestion2 =
+                    mRealTimeZoneSuggester.getTimeZoneSuggestion(
+                            SLOT_INDEX, mobileCountries, nitzSignal);
+        } else {
+            expectedTimeZoneSuggestion2 =
+                    mRealTimeZoneSuggester.getTimeZoneSuggestion(
+                            SLOT_INDEX, scenario.getNetworkCountryIsoCode(), nitzSignal);
+        }
         script.verifyTimeAndTimeZoneSuggestedAndReset(
                 expectedTimeSuggestion, expectedTimeZoneSuggestion2);
 
@@ -761,9 +968,8 @@ public class NitzStateMachineImplTest {
     }
 
     @Test
+    @RequiresFlagsEnabled(Flags.FLAG_ALLOW_MULTI_COUNTRY_MCC)
     public void test_handleMobileCountriesDetected_singleCountryMcc() {
-        Assume.assumeTrue("Test only runs with allowMultiCountryMcc=true", mAllowMultiCountryMcc);
-
         String countryIsoCode = UNIQUE_US_ZONE_SCENARIO1.getNetworkCountryIsoCode();
         String mcc = "310";
 

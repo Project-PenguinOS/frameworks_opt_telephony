@@ -357,7 +357,7 @@ public class SatelliteController extends Handler {
     private static final int REQUEST_PROVISION_SATELLITE = 86;
     private static final int REQUEST_DEPROVISION_SATELLITE = 87;
     private static final int EVENT_SATELLITE_ACCESS_ALLOWED_STATE_CHANGED = 88;
-    private static final int EVENT_SATELLITE_ACCESS_CONFIGURATION_CHANGED = 89;
+    protected static final int EVENT_SATELLITE_ACCESS_CONFIGURATION_CHANGED = 89;
     private static final int EVENT_BT_WIFI_NFC_STATE_CHANGED = 90;
     private static final int EVENT_UWB_STATE_CHANGED = 91;
     private static final int EVENT_CARRIER_CONFIG_CHANGED = 92;
@@ -8213,7 +8213,15 @@ public class SatelliteController extends Handler {
     }
 
     private void selectBindingSatelliteSubscription(boolean shouldIgnoreEnabledState) {
-        if ((isSatelliteEnabled() || isSatelliteBeingEnabled()) && !shouldIgnoreEnabledState) {
+        int preSelectedSatelliteSubId = getSelectedSatelliteSubId();
+        plogd("selectBindingSatelliteSubscription: preSelectedSatelliteSubId="
+                + preSelectedSatelliteSubId);
+
+        if (preSelectedSatelliteSubId == SubscriptionManager.INVALID_SUBSCRIPTION_ID) {
+            plogd("selectBindingSatelliteSubscription: binding satellite subscription is"
+                    + " not selected yet");
+        } else if ((isSatelliteEnabled() || isSatelliteBeingEnabled())
+                       && !shouldIgnoreEnabledState) {
             plogd("selectBindingSatelliteSubscription: satellite subscription will be selected "
                     + "once the satellite session ends");
             return;
@@ -8240,7 +8248,6 @@ public class SatelliteController extends Handler {
             selectedSubId = getNtnOnlySubscriptionId();
         }
 
-        int preSelectedSatelliteSubId = getSelectedSatelliteSubId();
         setSelectedSatelliteSubId(selectedSubId);
         if (preSelectedSatelliteSubId != getSelectedSatelliteSubId()) {
             plogd("selectBindingSatelliteSubscription: SelectedSatelliteSubId changed");
