@@ -2326,6 +2326,35 @@ public class DataNetwork extends StateMachine {
     }
 
     /**
+     * Helper class for calling CompareOrUpdateResult to compare only certain fields of the
+     * LinkAddress: namely the IP address, prefix length, and scope.
+     */
+    private static class LinkAddressKey {
+        @NonNull private final InetAddress mAddress;
+        private final int mPrefixLength;
+        private final int mScope;
+
+        LinkAddressKey(@NonNull LinkAddress linkAddress) {
+            mAddress = linkAddress.getAddress();
+            mPrefixLength = linkAddress.getPrefixLength();
+            mScope = linkAddress.getScope();
+        }
+
+        @Override
+        public boolean equals(@Nullable Object o) {
+            return o instanceof LinkAddressKey other
+                && mAddress.equals(other.mAddress)
+                && mPrefixLength == other.mPrefixLength
+                && mScope == other.mScope;
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(mAddress, mPrefixLength, mScope);
+        }
+    }
+
+    /**
      * Check if the new link properties are compatible with the old link properties. For example,
      * if IP changes, that's considered incompatible.
      *
@@ -2340,12 +2369,11 @@ public class DataNetwork extends StateMachine {
 
         if (!LinkPropertiesUtils.isIdenticalAddresses(oldLinkProperties, newLinkProperties)) {
             // If the same address type was removed and added we need to cleanup.
-            LinkPropertiesUtils.CompareOrUpdateResult<Integer, LinkAddress> result =
+            LinkPropertiesUtils.CompareOrUpdateResult<LinkAddressKey, LinkAddress> result =
                     new LinkPropertiesUtils.CompareOrUpdateResult<>(
                             oldLinkProperties.getLinkAddresses(),
                             newLinkProperties.getLinkAddresses(),
-                            linkAddress -> Objects.hash(linkAddress.getAddress(),
-                                    linkAddress.getPrefixLength(), linkAddress.getScope()));
+                            linkAddress -> new LinkAddressKey(linkAddress));
             log("isLinkPropertiesCompatible: old=" + oldLinkProperties
                     + " new=" + newLinkProperties + " result=" + result);
             for (LinkAddress added : result.added) {

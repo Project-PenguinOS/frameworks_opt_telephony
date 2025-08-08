@@ -170,6 +170,7 @@ import android.telephony.satellite.ISatelliteProvisionStateCallback;
 import android.telephony.satellite.ISatelliteTransmissionUpdateCallback;
 import android.telephony.satellite.ISelectedNbIotSatelliteSubscriptionCallback;
 import android.telephony.satellite.NtnSignalStrength;
+import android.telephony.satellite.SatelliteAccessConfiguration;
 import android.telephony.satellite.SatelliteCapabilities;
 import android.telephony.satellite.SatelliteDatagram;
 import android.telephony.satellite.SatelliteInfo;
@@ -4104,7 +4105,7 @@ public class SatelliteControllerTest extends TelephonyTest {
         // 2 minutes later and hysteresis timeout is 1 minute
         mSatelliteControllerUT.elapsedRealtime = 2 * 60 * 1000;
         moveTimeForward(2 * 60 * 1000);
-        mSatelliteControllerUT.selectedSatelliteSubId = SUB_ID1;
+        mSatelliteControllerUT.setSelectedSatelliteSubId(SUB_ID1);
         processAllMessages();
         assertTrue(mSatelliteControllerUT.isCarrierRoamingNtnEligible(mPhone));
         verify(mPhone, times(1)).notifyCarrierRoamingNtnEligibleStateChanged(eq(true));
@@ -4880,7 +4881,7 @@ public class SatelliteControllerTest extends TelephonyTest {
                         getKeyPriority(testSubscriptionInfo2), k -> new ArrayList<>())
                 .add(testSubscriptionInfo2);
 
-        mSatelliteControllerUT.selectedSatelliteSubId = SUB_ID1;
+        mSatelliteControllerUT.setSelectedSatelliteSubId(SUB_ID1);
         mSatelliteControllerUT.evaluateESOSProfilesPrioritizationTest();
         processAllMessages();
         assertEquals(oemSubId, mSatelliteControllerUT.getSelectedSatelliteSubId());
@@ -4897,7 +4898,7 @@ public class SatelliteControllerTest extends TelephonyTest {
                         getKeyPriority(testSubscriptionInfo2), k -> new ArrayList<>())
                 .add(testSubscriptionInfo2);
 
-        mSatelliteControllerUT.selectedSatelliteSubId = SUB_ID;
+        mSatelliteControllerUT.setSelectedSatelliteSubId(SUB_ID);
         mSatelliteControllerUT.evaluateESOSProfilesPrioritizationTest();
         processAllMessages();
         assertEquals(carrierSubId, mSatelliteControllerUT.getSelectedSatelliteSubId());
@@ -6030,7 +6031,6 @@ public class SatelliteControllerTest extends TelephonyTest {
         public String packageName = "com.example.app";
         public boolean isSatelliteBeingDisabled = false;
         public boolean mIsApplicationSupportsP2P = false;
-        public int selectedSatelliteSubId = -1;
         public boolean isSatelliteProvisioned;
 
         private boolean callOnlySuperMethod = false;
@@ -6164,7 +6164,10 @@ public class SatelliteControllerTest extends TelephonyTest {
 
         @Override
         public int getSelectedSatelliteSubId() {
-            return selectedSatelliteSubId;
+            if (mSelectedSatelliteSubId == null) {
+                return SubscriptionManager.INVALID_SUBSCRIPTION_ID;
+            }
+            return mSelectedSatelliteSubId.get();
         }
 
         @Override
@@ -6260,12 +6263,18 @@ public class SatelliteControllerTest extends TelephonyTest {
             callOnlySuperMethod = true;
         }
 
-        public void  setLocationServiceEnabled(boolean locationServiceEnabled) {
+        public void setLocationServiceEnabled(boolean locationServiceEnabled) {
             mLocationServiceEnabled = locationServiceEnabled;
         }
 
         public BroadcastReceiver getLocationReceiver() {
             return mLocationServiceStateChangedReceiver;
+        }
+
+        public void sendSatelliteAccessConfigurationChangedEvent(
+                @NonNull SatelliteAccessConfiguration satelliteAccessConfiguration) {
+            sendMessage(obtainMessage(EVENT_SATELLITE_ACCESS_CONFIGURATION_CHANGED,
+                            satelliteAccessConfiguration));
         }
     }
 
@@ -7354,7 +7363,7 @@ public class SatelliteControllerTest extends TelephonyTest {
         mSatelliteControllerUT.subsInfoListPerPriority().computeIfAbsent(
                         getKeyPriority(testSubscriptionInfo2), k -> new ArrayList<>())
                 .add(testSubscriptionInfo2);
-        mSatelliteControllerUT.selectedSatelliteSubId = SUB_ID1;
+        mSatelliteControllerUT.setSelectedSatelliteSubId(SUB_ID1);
         mSatelliteControllerUT.handleSatelliteAccessAllowedStateChanged(false);
         processAllMessages();
         verify(mMockSatelliteModemInterface).requestSatelliteEnabled(
@@ -7369,7 +7378,7 @@ public class SatelliteControllerTest extends TelephonyTest {
         assertEquals(oemSubId, mSatelliteControllerUT.getSelectedSatelliteSubId());
 
         // As current location is allowed, carrier subscription should be selected
-        mSatelliteControllerUT.selectedSatelliteSubId = SUB_ID;
+        mSatelliteControllerUT.setSelectedSatelliteSubId(SUB_ID);
         mSatelliteControllerUT.handleSatelliteAccessAllowedStateChanged(true);
         processAllMessages();
         assertEquals(carrierSubId, mSatelliteControllerUT.getSelectedSatelliteSubId());
@@ -7555,4 +7564,175 @@ public class SatelliteControllerTest extends TelephonyTest {
         assertFalse(mSatelliteControllerUT.isSatelliteEnabledForCarrierAtModem(mPhone.getSubId()));
     }
 
+    @Test
+    public void testSelectBindingSatelliteSubscription_satelliteIsBeingEnabled_satelliteSubIdNotSelectedYet()
+            throws Exception {
+        mSatelliteControllerUT.setSelectedSatelliteSubId(
+            SubscriptionManager.INVALID_SUBSCRIPTION_ID);
+        setUpResponseForRequestIsSatelliteSupported(true, SATELLITE_RESULT_SUCCESS);
+        verifySatelliteSupported(true, SATELLITE_RESULT_SUCCESS);
+        setProvisionedState(true);
+        processAllMessages();
+        verifySatelliteProvisioned(true, SATELLITE_RESULT_SUCCESS);
+        mSatelliteControllerUT.setSatelliteSessionController(mMockSatelliteSessionController);
+        setUpResponseForRequestSatelliteEnabled(true, false, true, SATELLITE_RESULT_SUCCESS);
+
+        assertEquals(
+            SubscriptionManager.INVALID_SUBSCRIPTION_ID,
+            mSatelliteControllerUT.getSelectedSatelliteSubId());
+
+        final int oemSubId = SUB_ID1;
+        setSatelliteSubscriberTesting(false);
+        mSatelliteControllerUT.subsInfoListPerPriority().computeIfAbsent(
+                        getKeyPriority(testSubscriptionInfo), k -> new ArrayList<>())
+                .add(testSubscriptionInfo);
+        mSatelliteControllerUT.subsInfoListPerPriority().computeIfAbsent(
+                        getKeyPriority(testSubscriptionInfo2), k -> new ArrayList<>())
+                .add(testSubscriptionInfo2);
+
+        mSatelliteControllerUT.requestSatelliteEnabled(true, false, true, mIIntegerConsumer);
+        processAllMessages();
+
+        assertTrue(waitForIIntegerConsumerResult(1));
+        assertEquals(SATELLITE_RESULT_SUCCESS, (long) mIIntegerConsumerResults.get(0));
+
+        // OEM subscription should be selected as satellite is not allowed
+        assertEquals(oemSubId, mSatelliteControllerUT.getSelectedSatelliteSubId());
+    }
+
+    @Test
+    public void testSelectBindingSatelliteSubscription_satelliteSubIdNotSelectedYetWhenEnableSatellite()
+            throws Exception {
+        mSatelliteControllerUT.setSelectedSatelliteSubId(
+            SubscriptionManager.INVALID_SUBSCRIPTION_ID);
+        setUpResponseForRequestIsSatelliteSupported(true, SATELLITE_RESULT_SUCCESS);
+        verifySatelliteSupported(true, SATELLITE_RESULT_SUCCESS);
+        setProvisionedState(true);
+        processAllMessages();
+        verifySatelliteProvisioned(true, SATELLITE_RESULT_SUCCESS);
+        mSatelliteControllerUT.setSatelliteSessionController(mMockSatelliteSessionController);
+        setUpResponseForRequestSatelliteEnabled(true, false, true, SATELLITE_RESULT_SUCCESS);
+
+        assertEquals(
+            SubscriptionManager.INVALID_SUBSCRIPTION_ID,
+            mSatelliteControllerUT.getSelectedSatelliteSubId());
+
+        final int oemSubId = SUB_ID1;
+        setSatelliteSubscriberTesting(false);
+        mSatelliteControllerUT.subsInfoListPerPriority().computeIfAbsent(
+                        getKeyPriority(testSubscriptionInfo), k -> new ArrayList<>())
+                .add(testSubscriptionInfo);
+        mSatelliteControllerUT.subsInfoListPerPriority().computeIfAbsent(
+                        getKeyPriority(testSubscriptionInfo2), k -> new ArrayList<>())
+                .add(testSubscriptionInfo2);
+
+        mSatelliteControllerUT.requestSatelliteEnabled(true, false, true, mIIntegerConsumer);
+        processAllMessages();
+
+        assertTrue(waitForIIntegerConsumerResult(1));
+        assertEquals(SATELLITE_RESULT_SUCCESS, (long) mIIntegerConsumerResults.get(0));
+
+        // Select binding satellite subscription should be triggered since no satellite sub ID is
+        // selected yet. As OEM subscription should be selected as satellite is not allowed.
+        assertEquals(oemSubId, mSatelliteControllerUT.getSelectedSatelliteSubId());
+    }
+
+    @Test
+    public void testSelectBindingSatelliteSubscription_satelliteSubIdAlreadySelectedWhenEnableSatellite()
+            throws Exception {
+        final int carrierSubId = SUB_ID;
+        final int oemSubId = SUB_ID1;
+        setSatelliteSubscriberTesting(false);
+        mSatelliteControllerUT.subsInfoListPerPriority().computeIfAbsent(
+                        getKeyPriority(testSubscriptionInfo), k -> new ArrayList<>())
+                .add(testSubscriptionInfo);
+        mSatelliteControllerUT.subsInfoListPerPriority().computeIfAbsent(
+                        getKeyPriority(testSubscriptionInfo2), k -> new ArrayList<>())
+                .add(testSubscriptionInfo2);
+
+        // Make sure satellite is allowed
+        mSatelliteControllerUT.setIsSatelliteAllowedState(true);
+
+        // Make sure carrier subscription is allowed
+        mContextFixture.putIntArrayResource(
+                R.array.config_verizon_satellite_enabled_tagids,
+                new int[]{1001});
+        Field currentLocationTagIdsField = SatelliteController.class.getDeclaredField(
+                "mCurrentLocationTagIds");
+        currentLocationTagIdsField.setAccessible(true);
+        currentLocationTagIdsField.set(mSatelliteControllerUT, Arrays.asList(1001));
+
+        // Explicitly select OEM sub ID as satellite sub ID
+        mSatelliteControllerUT.setSelectedSatelliteSubId(oemSubId);
+        setUpResponseForRequestIsSatelliteSupported(true, SATELLITE_RESULT_SUCCESS);
+        verifySatelliteSupported(true, SATELLITE_RESULT_SUCCESS);
+        setProvisionedState(true);
+        processAllMessages();
+        verifySatelliteProvisioned(true, SATELLITE_RESULT_SUCCESS);
+        mSatelliteControllerUT.setSatelliteSessionController(mMockSatelliteSessionController);
+        setUpResponseForRequestSatelliteEnabled(true, false, true, SATELLITE_RESULT_SUCCESS);
+
+        assertEquals(oemSubId, mSatelliteControllerUT.getSelectedSatelliteSubId());
+
+        mSatelliteControllerUT.requestSatelliteEnabled(true, false, true, mIIntegerConsumer);
+        processAllMessages();
+
+        assertTrue(waitForIIntegerConsumerResult(1));
+        assertEquals(SATELLITE_RESULT_SUCCESS, (long) mIIntegerConsumerResults.get(0));
+
+        // Since satellite is being enabled, select binding satellite subscription should
+        // be skipped
+        assertEquals(oemSubId, mSatelliteControllerUT.getSelectedSatelliteSubId());
+    }
+
+    @Test
+    public void testSelectBindingSatelliteSubscription_satelliteAccessConfigurationChanged()
+            throws Exception {
+        final int carrierSubId = SUB_ID;
+        final int oemSubId = SUB_ID1;
+        setSatelliteSubscriberTesting(false);
+        mSatelliteControllerUT.subsInfoListPerPriority().computeIfAbsent(
+                        getKeyPriority(testSubscriptionInfo), k -> new ArrayList<>())
+                .add(testSubscriptionInfo);
+        mSatelliteControllerUT.subsInfoListPerPriority().computeIfAbsent(
+                        getKeyPriority(testSubscriptionInfo2), k -> new ArrayList<>())
+                .add(testSubscriptionInfo2);
+
+        // Make sure satellite is allowed
+        mSatelliteControllerUT.setIsSatelliteAllowedState(true);
+
+        // Make sure carrier subscription is allowed
+        mContextFixture.putIntArrayResource(
+                R.array.config_verizon_satellite_enabled_tagids,
+                new int[]{1001});
+        when(mContext.getResources()).thenReturn(mResources);
+        when(mResources.getIntArray(
+                R.array.config_verizon_satellite_enabled_tagids)).thenReturn(new int[]{1001});
+
+        // Make sure carrier and OEM sub IDs are provisioned
+        final String carrierSubscriberId = mSubscriberId;
+        final String oemSubscriberId = mSubscriberId2;
+        Field provisionedSubscriberIdField = SatelliteController.class.getDeclaredField(
+                "mProvisionedSubscriberId");
+        provisionedSubscriberIdField.setAccessible(true);
+        ConcurrentHashMap<String, Boolean> testProvisionedSubscriberId = new ConcurrentHashMap<>();
+        testProvisionedSubscriberId.put(carrierSubscriberId, true);
+        testProvisionedSubscriberId.put(oemSubscriberId, true);
+        provisionedSubscriberIdField.set(mSatelliteControllerUT, testProvisionedSubscriberId);
+
+        // Explicitly select OEM sub ID as satellite sub ID
+        mSatelliteControllerUT.setSelectedSatelliteSubId(oemSubId);
+        assertEquals(oemSubId, mSatelliteControllerUT.getSelectedSatelliteSubId());
+
+        // Trigger satellite access configuration changed event
+        List<Integer> tagIds = Arrays.asList(1001, 10002);
+        SatelliteAccessConfiguration satelliteAccessConfiguration =
+                new SatelliteAccessConfiguration(new ArrayList<>(), tagIds);
+        mSatelliteControllerUT.sendSatelliteAccessConfigurationChangedEvent(
+            satelliteAccessConfiguration);
+        processAllMessages();
+
+        // Carrier subscription should be selected as binding satellite subscription
+        assertEquals(carrierSubId, mSatelliteControllerUT.getSelectedSatelliteSubId());
+    }
 }

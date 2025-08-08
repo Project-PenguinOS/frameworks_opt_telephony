@@ -45,3 +45,15 @@ flag {
     description: "Guard system API for vendor-specific classifications of cellular ID disclosures"
     bug: "385338654"
 }
+
+# OWNER=yongnamcha TARGET=26Q2
+flag {
+    name: "cell_identity_for_barring_info"
+    is_exported: true
+    namespace: "telephony"
+    description: "Allows access to the CellIdentity for BarringInfo."
+    bug: "431881770"
+    metadata {
+        purpose: PURPOSE_FEATURE
+    }
+}
