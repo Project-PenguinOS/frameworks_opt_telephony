@@ -210,7 +210,8 @@ public class UiccCardApplication {
     private IccRecords createIccRecords(AppType type, Context c, CommandsInterface ci) {
         if (type == AppType.APPTYPE_USIM || type == AppType.APPTYPE_SIM) {
             return new SIMRecords(this, c, ci);
-        } else if (type == AppType.APPTYPE_RUIM || type == AppType.APPTYPE_CSIM){
+        } else if (!mFeatureFlags.deleteCdma()
+                && (type == AppType.APPTYPE_RUIM || type == AppType.APPTYPE_CSIM)) {
             return new RuimRecords(this, c, ci);
         } else if (type == AppType.APPTYPE_ISIM) {
             return new IsimUiccRecords(this, c, ci, mFeatureFlags);
@@ -225,11 +226,16 @@ public class UiccCardApplication {
             case APPTYPE_SIM:
                 return new SIMFileHandler(this, mAid, mCi);
             case APPTYPE_RUIM:
-                return new RuimFileHandler(this, mAid, mCi);
+                if (!mFeatureFlags.deleteCdma()) {
+                    return new RuimFileHandler(this, mAid, mCi);
+                }
+                return null;
             case APPTYPE_USIM:
                 return new UsimFileHandler(this, mAid, mCi);
             case APPTYPE_CSIM:
-                return new CsimFileHandler(this, mAid, mCi);
+                if (!mFeatureFlags.deleteCdma()) {
+                    return new CsimFileHandler(this, mAid, mCi);
+                }
             case APPTYPE_ISIM:
                 return new IsimFileHandler(this, mAid, mCi);
             default:

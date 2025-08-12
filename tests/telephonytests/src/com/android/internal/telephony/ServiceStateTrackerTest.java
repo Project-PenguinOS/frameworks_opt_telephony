@@ -103,7 +103,6 @@ import com.android.internal.telephony.emergency.EmergencyStateTracker;
 import com.android.internal.telephony.metrics.ServiceStateStats;
 import com.android.internal.telephony.satellite.SatelliteController;
 import com.android.internal.telephony.subscription.SubscriptionInfoInternal;
-import com.android.internal.telephony.test.SimulatedCommands;
 import com.android.internal.telephony.uicc.IccCardApplicationStatus;
 import com.android.internal.telephony.uicc.IccRecords;
 

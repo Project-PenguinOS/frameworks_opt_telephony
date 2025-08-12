@@ -4873,6 +4873,19 @@ public class RILUtils {
     }
 
     /**
+     * Convert pin to redacted String for logging purpose
+     * @param pin The pin to convert in redacted String
+     * @return The converted redacted String
+     */
+    public static String getRedactedPin(String pin) {
+        if (TextUtils.isEmpty(pin)) {
+            return "[]";
+        }
+
+        return '[' + "*".repeat(pin.length()) + ']';
+    }
+
+    /**
      * Convert setup data reason to string.
      *
      * @param reason The reason for setup data call.

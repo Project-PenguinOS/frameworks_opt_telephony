@@ -72,7 +72,7 @@ public class GsmCdmaCallTracker extends CallTracker {
 
     //***** Instance Variables
     @VisibleForTesting
-    public GsmCdmaConnection[] mConnections;
+    public final GsmCdmaConnection[] mConnections = new GsmCdmaConnection[MAX_CONNECTIONS_GSM];
     private RegistrantList mVoiceCallEndedRegistrants = new RegistrantList();
     private RegistrantList mVoiceCallStartedRegistrants = new RegistrantList();
 
@@ -186,12 +186,11 @@ public class GsmCdmaCallTracker extends CallTracker {
     }
 
     private void updatePhoneType(boolean duringInit) {
+        if (mFeatureFlags.deleteCdma()) return;
         if (!duringInit) {
             reset();
             pollCallsWhenSafe();
         }
-        mConnections = new GsmCdmaConnection[MAX_CONNECTIONS_GSM];
-        mCi.unregisterForCallWaitingInfo(this);
     }
 
     private void reset() {
@@ -212,7 +211,6 @@ public class GsmCdmaCallTracker extends CallTracker {
             mPendingMO.dispose();
         }
 
-        mConnections = null;
         mPendingMO = null;
         clearDisconnected();
     }

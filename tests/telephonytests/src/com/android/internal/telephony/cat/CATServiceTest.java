@@ -47,10 +47,10 @@ import android.testing.AndroidTestingRunner;
 import android.testing.TestableLooper;
 
 import com.android.internal.telephony.ProxyController;
+import com.android.internal.telephony.SimulatedCommands;
 import com.android.internal.telephony.SmsController;
 import com.android.internal.telephony.TelephonyTest;
 import com.android.internal.telephony.ims.ImsResolver;
-import com.android.internal.telephony.test.SimulatedCommands;
 import com.android.internal.telephony.uicc.IccCardApplicationStatus;
 import com.android.internal.telephony.uicc.IccCardStatus;
 import com.android.internal.telephony.uicc.IccFileHandler;

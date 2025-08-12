@@ -27,8 +27,8 @@ import static com.android.internal.telephony.Phone.EVENT_SET_SECURITY_ALGORITHMS
 import static com.android.internal.telephony.Phone.EVENT_SRVCC_STATE_CHANGED;
 import static com.android.internal.telephony.Phone.EVENT_UICC_APPS_ENABLEMENT_STATUS_CHANGED;
 import static com.android.internal.telephony.TelephonyTestUtils.waitForMs;
-import static com.android.internal.telephony.test.SimulatedCommands.FAKE_IMEI;
-import static com.android.internal.telephony.test.SimulatedCommands.FAKE_IMEISV;
+import static com.android.internal.telephony.SimulatedCommands.FAKE_IMEI;
+import static com.android.internal.telephony.SimulatedCommands.FAKE_IMEISV;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;

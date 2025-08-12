@@ -66,17 +66,10 @@ public abstract class BaseCommands implements CommandsInterface {
     protected RegistrantList mImsNetworkStateChangedRegistrants = new RegistrantList();
     @UnsupportedAppUsage
     protected RegistrantList mIccStatusChangedRegistrants = new RegistrantList();
-    protected RegistrantList mIccSlotStatusChangedRegistrants = new RegistrantList();
     protected RegistrantList mVoicePrivacyOnRegistrants = new RegistrantList();
     protected RegistrantList mVoicePrivacyOffRegistrants = new RegistrantList();
-    @UnsupportedAppUsage
-    protected RegistrantList mOtaProvisionRegistrants = new RegistrantList();
-    @UnsupportedAppUsage
-    protected RegistrantList mCallWaitingInfoRegistrants = new RegistrantList();
     protected RegistrantList mDisplayInfoRegistrants = new RegistrantList();
     protected RegistrantList mSignalInfoRegistrants = new RegistrantList();
-    protected RegistrantList mNumberInfoRegistrants = new RegistrantList();
-    protected RegistrantList mRedirNumInfoRegistrants = new RegistrantList();
     protected RegistrantList mRingbackToneRegistrants = new RegistrantList();
     @UnsupportedAppUsage
     protected RegistrantList mResendIncallMuteRegistrants = new RegistrantList();
@@ -289,11 +282,6 @@ public abstract class BaseCommands implements CommandsInterface {
     }
 
     @Override
-    public void unregisterForCallStateChanged(Handler h) {
-        mCallStateRegistrants.remove(h);
-    }
-
-    @Override
     public void registerForNetworkStateChanged(Handler h, int what, Object obj) {
         mNetworkStateRegistrants.addUnique(h, what, obj);
     }
@@ -319,18 +307,8 @@ public abstract class BaseCommands implements CommandsInterface {
     }
 
     @Override
-    public void unregisterForApnUnthrottled(Handler h) {
-        mApnUnthrottledRegistrants.remove(h);
-    }
-
-    @Override
     public void registerForSlicingConfigChanged(Handler h, int what, Object obj) {
         mSlicingConfigChangedRegistrants.addUnique(h, what, obj);
-    }
-
-    @Override
-    public void unregisterForSlicingConfigChanged(Handler h) {
-        mSlicingConfigChangedRegistrants.remove(h);
     }
 
     @Override
@@ -339,28 +317,8 @@ public abstract class BaseCommands implements CommandsInterface {
     }
 
     @Override
-    public void unregisterForVoiceRadioTechChanged(Handler h) {
-        mVoiceRadioTechChangedRegistrants.remove(h);
-    }
-
-    @Override
     public void registerForIccStatusChanged(Handler h, int what, Object obj) {
         mIccStatusChangedRegistrants.addUnique(h, what, obj);
-    }
-
-    @Override
-    public void unregisterForIccStatusChanged(Handler h) {
-        mIccStatusChangedRegistrants.remove(h);
-    }
-
-    @Override
-    public void registerForIccSlotStatusChanged(Handler h, int what, Object obj) {
-        mIccSlotStatusChangedRegistrants.addUnique(h, what, obj);
-    }
-
-    @Override
-    public void unregisterForIccSlotStatusChanged(Handler h) {
-        mIccSlotStatusChangedRegistrants.remove(h);
     }
 
     @Override
@@ -460,24 +418,8 @@ public abstract class BaseCommands implements CommandsInterface {
     }
 
     @Override
-    public void unSetOnUSSD(Handler h) {
-        if (mUSSDRegistrant != null && mUSSDRegistrant.getHandler() == h) {
-            mUSSDRegistrant.clear();
-            mUSSDRegistrant = null;
-        }
-    }
-
-    @Override
     public void setOnSuppServiceNotification(Handler h, int what, Object obj) {
         mSsnRegistrant = new Registrant (h, what, obj);
-    }
-
-    @Override
-    public void unSetOnSuppServiceNotification(Handler h) {
-        if (mSsnRegistrant != null && mSsnRegistrant.getHandler() == h) {
-            mSsnRegistrant.clear();
-            mSsnRegistrant = null;
-        }
     }
 
     @Override
@@ -550,11 +492,6 @@ public abstract class BaseCommands implements CommandsInterface {
         mIccRefreshRegistrants.addUnique(h, what, obj);
     }
     @Override
-    public void setOnIccRefresh(Handler h, int what, Object obj) {
-        registerForIccRefresh(h, what, obj);
-    }
-
-    @Override
     public void setEmergencyCallbackMode(Handler h, int what, Object obj) {
         mEmergencyCallbackModeRegistrant = new Registrant (h, what, obj);
     }
@@ -564,31 +501,13 @@ public abstract class BaseCommands implements CommandsInterface {
         mIccRefreshRegistrants.remove(h);
     }
     @Override
-    public void unsetOnIccRefresh(Handler h) {
-        unregisterForIccRefresh(h);
-    }
-
-    @Override
     public void setOnCallRing(Handler h, int what, Object obj) {
         mRingRegistrant = new Registrant (h, what, obj);
     }
 
     @Override
-    public void unSetOnCallRing(Handler h) {
-        if (mRingRegistrant != null && mRingRegistrant.getHandler() == h) {
-            mRingRegistrant.clear();
-            mRingRegistrant = null;
-        }
-    }
-
-    @Override
     public void setOnSs(Handler h, int what, Object obj) {
         mSsRegistrant = new Registrant (h, what, obj);
-    }
-
-    @Override
-    public void unSetOnSs(Handler h) {
-        mSsRegistrant.clear();
     }
 
     @Override
@@ -604,11 +523,6 @@ public abstract class BaseCommands implements CommandsInterface {
     @Override
     public void setOnRegistrationFailed(Handler h, int what, Object obj) {
         mRegistrationFailedRegistrant = new Registrant(h, what, obj);
-    }
-
-    @Override
-    public void unSetOnRegistrationFailed(Handler h) {
-        mRegistrationFailedRegistrant.clear();
     }
 
     @Override
@@ -637,14 +551,6 @@ public abstract class BaseCommands implements CommandsInterface {
     }
 
     @Override
-    public void unSetOnRestrictedStateChanged(Handler h) {
-        if (mRestrictedStateRegistrant != null && mRestrictedStateRegistrant.getHandler() == h) {
-            mRestrictedStateRegistrant.clear();
-            mRestrictedStateRegistrant = null;
-        }
-    }
-
-    @Override
     public void registerForDisplayInfo(Handler h, int what, Object obj) {
         mDisplayInfoRegistrants.addUnique(h, what, obj);
     }
@@ -652,16 +558,6 @@ public abstract class BaseCommands implements CommandsInterface {
     @Override
     public void unregisterForDisplayInfo(Handler h) {
         mDisplayInfoRegistrants.remove(h);
-    }
-
-    @Override
-    public void registerForCallWaitingInfo(Handler h, int what, Object obj) {
-        mCallWaitingInfoRegistrants.addUnique(h, what, obj);
-    }
-
-    @Override
-    public void unregisterForCallWaitingInfo(Handler h) {
-        mCallWaitingInfoRegistrants.remove(h);
     }
 
     @Override
@@ -700,11 +596,6 @@ public abstract class BaseCommands implements CommandsInterface {
     }
 
     @Override
-    public void unregisterForExitEmergencyCallbackMode(Handler h) {
-        mExitEmergencyCallbackModeRegistrants.remove(h);
-    }
-
-    @Override
     public void registerForHardwareConfigChanged(Handler h, int what, Object obj) {
         mHardwareConfigChangeRegistrants.addUnique(h, what, obj);
     }
@@ -737,19 +628,6 @@ public abstract class BaseCommands implements CommandsInterface {
     }
 
     @Override
-    public void unregisterForRilConnected(Handler h) {
-        mRilConnectedRegistrants.remove(h);
-    }
-
-    public void registerForSubscriptionStatusChanged(Handler h, int what, Object obj) {
-        mSubscriptionStatusRegistrants.addUnique(h, what, obj);
-    }
-
-    public void unregisterForSubscriptionStatusChanged(Handler h) {
-        mSubscriptionStatusRegistrants.remove(h);
-    }
-
-    @Override
     public void registerForEmergencyNumberList(Handler h, int what, Object obj) {
         mEmergencyNumberListRegistrants.addUnique(h, what, obj);
         // Notify the last emergency number list from radio to new registrants because they may
@@ -760,11 +638,6 @@ public abstract class BaseCommands implements CommandsInterface {
             mEmergencyNumberListRegistrants.notifyRegistrants(new AsyncResult(
                     null, lastEmergencyNumberListIndication, null));
         }
-    }
-
-    @Override
-    public void unregisterForEmergencyNumberList(Handler h) {
-        mEmergencyNumberListRegistrants.remove(h);
     }
 
     //***** Protected Methods
@@ -876,11 +749,6 @@ public abstract class BaseCommands implements CommandsInterface {
     }
 
     @Override
-    public void unregisterForSrvccStateChanged(Handler h) {
-        mSrvccStateRegistrants.remove(h);
-    }
-
-    @Override
     public void testingEmergencyCall() {}
 
     @Override
@@ -957,11 +825,6 @@ public abstract class BaseCommands implements CommandsInterface {
     }
 
     @Override
-    public void unregisterForCarrierInfoForImsiEncryption(Handler h) {
-        mCarrierInfoForImsiEncryptionRegistrants.remove(h);
-    }
-
-    @Override
     public void registerForNattKeepaliveStatus(Handler h, int what, Object obj) {
         synchronized (mStateMonitor) {
             mNattKeepaliveStatusRegistrants.addUnique(h, what, obj);
@@ -985,16 +848,6 @@ public abstract class BaseCommands implements CommandsInterface {
     @Override
     public void registerUiccApplicationEnablementChanged(Handler h, int what, Object obj) {
         mUiccApplicationsEnablementRegistrants.addUnique(h, what, obj);
-    }
-
-    /**
-     * Unregisters the handler for RIL_UNSOL_UICC_APPLICATIONS_ENABLEMENT_CHANGED events.
-     *
-     * @param h Handler for notification message.
-     */
-    @Override
-    public void unregisterUiccApplicationEnablementChanged(Handler h) {
-        mUiccApplicationsEnablementRegistrants.remove(h);
     }
 
     /**
@@ -1091,18 +944,8 @@ public abstract class BaseCommands implements CommandsInterface {
     }
 
     @Override
-    public void unregisterForNotifyAnbr(Handler h) {
-        mNotifyAnbrRegistrants.remove(h);
-    }
-
-    @Override
     public void registerForTriggerImsDeregistration(Handler h, int what, Object obj) {
         mTriggerImsDeregistrationRegistrants.add(h, what, obj);
-    }
-
-    @Override
-    public void unregisterForTriggerImsDeregistration(Handler h) {
-        mTriggerImsDeregistrationRegistrants.remove(h);
     }
 
     /**
@@ -1119,17 +962,7 @@ public abstract class BaseCommands implements CommandsInterface {
     }
 
     @Override
-    public void unregisterForCellularIdentifierDisclosures(Handler h) {
-        mCellularIdentifierDisclosedRegistrants.remove(h);
-    }
-
-    @Override
     public void registerForSecurityAlgorithmUpdates(Handler h, int what, Object obj) {
         mSecurityAlgorithmUpdatedRegistrants.add(h, what, obj);
-    }
-
-    @Override
-    public void unregisterForSecurityAlgorithmUpdates(Handler h) {
-        mSecurityAlgorithmUpdatedRegistrants.remove(h);
     }
 }

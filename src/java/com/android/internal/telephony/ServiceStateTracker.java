@@ -2666,7 +2666,9 @@ public class ServiceStateTracker extends Handler {
             if (mIccRecords instanceof SIMRecords) {
                 mCdnr.updateEfFromUsim(null /* usim */);
             } else if (mIccRecords instanceof RuimRecords) {
-                mCdnr.updateEfFromRuim(null /* ruim */);
+                if (!mFeatureFlags.deleteCdma()) {
+                    mCdnr.updateEfFromRuim(null /* ruim */);
+                }
             }
 
             if (mUiccApplication != null) {
@@ -2708,12 +2710,12 @@ public class ServiceStateTracker extends Handler {
 
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     protected final void log(String s) {
-        Rlog.d(LOG_TAG, "-" + mPhone.getPhoneId() + s);
+        Rlog.d(LOG_TAG + "-" + mPhone.getPhoneId(), s);
     }
 
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     protected final void loge(String s) {
-        Rlog.e(LOG_TAG, "[" + mPhone.getPhoneId() + "] " + s);
+        Rlog.e(LOG_TAG + "-" + mPhone.getPhoneId(), s);
     }
 
     /**
@@ -3721,7 +3723,8 @@ public class ServiceStateTracker extends Handler {
         CellIdentity ci = getCellIdentityFromCellInfo(getAllCellInfo());
         if (ci != null) return ci;
 
-        return mPhone.getPhoneType() == PhoneConstants.PHONE_TYPE_CDMA
+        return (!mFeatureFlags.deleteCdma()
+                && mPhone.getPhoneType() == PhoneConstants.PHONE_TYPE_CDMA)
                 ? new CellIdentityCdma() : new CellIdentityGsm();
     }
 

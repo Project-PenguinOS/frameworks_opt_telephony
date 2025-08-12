@@ -1060,7 +1060,8 @@ public class ImsPhone extends ImsPhoneBase {
         // Get the CLIR info if needed
         imsDialArgsBuilder.setClirMode(mCT.getClirMode());
 
-        if (mDefaultPhone.getPhoneType() == PhoneConstants.PHONE_TYPE_CDMA) {
+        if (!mFeatureFlags.deleteCdma()
+                && mDefaultPhone.getPhoneType() == PhoneConstants.PHONE_TYPE_CDMA) {
 // QTI_BEGIN: 2025-01-28: Telephony: Revert "DSDA: Add support for MMI codes, adhoc conference"
             return mCT.dial(dialString, imsDialArgsBuilder.build());
 // QTI_END: 2025-01-28: Telephony: Revert "DSDA: Add support for MMI codes, adhoc conference"

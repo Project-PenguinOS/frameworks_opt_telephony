@@ -50,6 +50,7 @@ import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.telephony.cdma.CdmaSmsBroadcastConfigInfo;
 import com.android.internal.telephony.emergency.EmergencyNumberTracker;
 import com.android.internal.telephony.flags.FeatureFlags;
+import com.android.internal.telephony.flags.Flags;
 import com.android.internal.telephony.gsm.SmsBroadcastConfigInfo;
 import com.android.internal.telephony.uicc.IccConstants;
 import com.android.internal.telephony.uicc.IccFileHandler;
@@ -359,7 +360,7 @@ public class IccSmsInterfaceManager {
             Message response = mHandler.obtainMessage(EVENT_UPDATE_DONE, copyRequest);
 
             //RIL_REQUEST_WRITE_SMS_TO_SIM vs RIL_REQUEST_CDMA_WRITE_SMS_TO_RUIM
-            if (PhoneConstants.PHONE_TYPE_GSM == mPhone.getPhoneType()) {
+            if (Flags.deleteCdma() || PhoneConstants.PHONE_TYPE_GSM == mPhone.getPhoneType()) {
                 mPhone.mCi.writeSmsToSim(status, IccUtils.bytesToHexString(smsc),
                         IccUtils.bytesToHexString(pdu), response);
             } else {
@@ -906,7 +907,7 @@ public class IccSmsInterfaceManager {
      */
     protected byte[] makeSmsRecordData(int status, byte[] pdu) {
         byte[] data;
-        if (PhoneConstants.PHONE_TYPE_GSM == mPhone.getPhoneType()) {
+        if (Flags.deleteCdma() || PhoneConstants.PHONE_TYPE_GSM == mPhone.getPhoneType()) {
             data = new byte[SmsManager.SMS_RECORD_LENGTH];
         } else {
             data = new byte[SmsManager.CDMA_SMS_RECORD_LENGTH];

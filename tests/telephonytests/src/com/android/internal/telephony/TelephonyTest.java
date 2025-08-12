@@ -126,8 +126,6 @@ import com.android.internal.telephony.security.CellularIdentifierDisclosureNotif
 import com.android.internal.telephony.security.CellularNetworkSecuritySafetySource;
 import com.android.internal.telephony.security.NullCipherNotifier;
 import com.android.internal.telephony.subscription.SubscriptionManagerService;
-import com.android.internal.telephony.test.SimulatedCommands;
-import com.android.internal.telephony.test.SimulatedCommandsVerifier;
 import com.android.internal.telephony.uicc.IccCardStatus;
 import com.android.internal.telephony.uicc.IccRecords;
 import com.android.internal.telephony.uicc.IsimUiccRecords;
