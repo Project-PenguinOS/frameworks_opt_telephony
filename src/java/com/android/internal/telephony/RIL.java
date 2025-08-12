@@ -1186,13 +1186,6 @@ public class RIL extends BaseCommands implements CommandsInterface {
                 context.getPackageName());
         mActiveWakelockWorkSource = new WorkSource();
 
-        TelephonyDevController tdc = TelephonyDevController.getInstance();
-        if (proxies == null) {
-            // TelephonyDevController#registerRIL will call getHardwareConfig.
-            // To prevent extra requests when running tests, only registerRIL when proxies is null
-            tdc.registerRIL(this);
-        }
-
         validateFeatureFlags();
 
         // Set radio callback; needed to set RadioIndication callback (should be done after

@@ -296,10 +296,6 @@ public class RILTest extends TelephonyTest {
         mNetworkProxy = mock(RadioNetworkProxy.class);
         mSimProxy = mock(RadioSimProxy.class);
         mRadioModemProxy = mock(RadioModemProxy.class);
-        try {
-            TelephonyDevController.create();
-        } catch (RuntimeException e) {
-        }
         Context context = new ContextFixture().getTestDouble();
         doReturn(Display.DEFAULT_DISPLAY).when(context).getDisplayId();
         doReturn(true).when(mConnectionManager).isNetworkSupported(ConnectivityManager.TYPE_MOBILE);

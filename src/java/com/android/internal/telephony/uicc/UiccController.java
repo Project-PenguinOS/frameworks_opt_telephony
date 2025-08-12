@@ -971,8 +971,8 @@ public class UiccController extends Handler {
             }
             log("Broadcasting intent ACTION_SIM_APPLICATION_STATE_CHANGED "
                     + TelephonyManager.simStateToString(state)
-                    + " for phone: " + phoneId + " slot: " + slotId + "port: "
-                    + (slot != null ? slot.getPortIndexFromPhoneId(phoneId) : null) + " sub: " + subId);
+                    + " for phone: " + phoneId + " slot: " + slotId + " port: "
+                    + ((slot != null) ? slot.getPortIndexFromPhoneId(phoneId) : -1) + " sub: " + subId);
             mContext.sendBroadcastAsUser(intent, UserHandle.ALL,
                     Manifest.permission.READ_PRIVILEGED_PHONE_STATE);
             TelephonyMetrics.getInstance().updateSimState(phoneId, state);
