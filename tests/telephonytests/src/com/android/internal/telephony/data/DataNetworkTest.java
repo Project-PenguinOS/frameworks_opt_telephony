@@ -23,10 +23,10 @@ import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.ArgumentMatchers.nullable;
-import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doAnswer;
@@ -82,6 +82,7 @@ import android.util.Pair;
 import android.util.SparseArray;
 
 import com.android.internal.telephony.PhoneConstants;
+import com.android.internal.telephony.SimulatedCommands;
 import com.android.internal.telephony.TelephonyTest;
 import com.android.internal.telephony.data.AccessNetworksManager.AccessNetworksManagerCallback;
 import com.android.internal.telephony.data.DataConfigManager.DataConfigManagerCallback;
@@ -92,7 +93,6 @@ import com.android.internal.telephony.data.DataSettingsManager.DataSettingsManag
 import com.android.internal.telephony.data.LinkBandwidthEstimator.LinkBandwidthEstimatorCallback;
 import com.android.internal.telephony.data.PhoneSwitcher.PhoneSwitcherCallback;
 import com.android.internal.telephony.metrics.DataCallSessionStats;
-import com.android.internal.telephony.test.SimulatedCommands;
 
 import org.junit.After;
 import org.junit.Before;

@@ -70,23 +70,7 @@ class ImsPhoneCommandInterface extends BaseCommands implements CommandsInterface
     }
 
     @Override
-    public void supplyIccPuk(String puk, String newPin, Message result) {
-    }
-
-    @Override
-    public void supplyIccPin2(String pin, Message result) {
-    }
-
-    @Override
-    public void supplyIccPuk2(String puk, String newPin2, Message result) {
-    }
-
-    @Override
     public void changeIccPin(String oldPin, String newPin, Message result) {
-    }
-
-    @Override
-    public void changeIccPin2(String oldPin2, String newPin2, Message result) {
     }
 
     @Override

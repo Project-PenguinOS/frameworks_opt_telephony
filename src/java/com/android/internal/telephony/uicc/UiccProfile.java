@@ -432,7 +432,7 @@ public class UiccProfile extends IccCard {
                 log("Setting radio tech " + ServiceState.rilRadioTechnologyToString(radioTech));
             }
             mRadioTech = radioTech;
-            setCurrentAppType(ServiceState.isGsm(radioTech));
+            setCurrentAppType(mFlags.deleteCdma() || ServiceState.isGsm(radioTech));
             updateIccAvailability(false);
         }
     }
@@ -1195,7 +1195,7 @@ public class UiccProfile extends IccCard {
 
             sanitizeApplicationIndexesLocked();
             if (mRadioTech != ServiceState.RIL_RADIO_TECHNOLOGY_UNKNOWN) {
-                setCurrentAppType(ServiceState.isGsm(mRadioTech));
+                setCurrentAppType(mFlags.deleteCdma() || ServiceState.isGsm(mRadioTech));
             }
             updateIccAvailability(true);
         }
@@ -1503,6 +1503,7 @@ public class UiccProfile extends IccCard {
                     index = mGsmUmtsSubscriptionAppIndex;
                     break;
                 case UiccController.APP_FAM_3GPP2:
+                    if (mFlags.deleteCdma()) return null;
                     index = mCdmaSubscriptionAppIndex;
                     break;
                 case UiccController.APP_FAM_IMS:

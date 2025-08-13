@@ -87,3 +87,14 @@ flag {
   description: "Support notifying IMS data network"
   bug:"389103112"
 }
+
+# OWNER=melhuishj TARGET=25Q4
+flag {
+  name: "inactive_data_network_is_not_stalled"
+  namespace: "telephony"
+  description: "A DataNetwork that is not the active DataNetwork should not broadcast a data stall"
+  bug:"430976119"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}

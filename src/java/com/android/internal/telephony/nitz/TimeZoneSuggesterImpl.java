@@ -20,10 +20,12 @@ import static android.app.timezonedetector.TelephonyTimeZoneSuggestion.createEmp
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.app.timezonedetector.TelephonySignal;
 import android.app.timezonedetector.TelephonyTimeZoneSuggestion;
 import android.text.TextUtils;
 import android.timezone.CountryTimeZones.OffsetResult;
 import android.timezone.MobileCountries;
+import android.timezone.flags.Flags;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.telephony.NitzData;
@@ -255,6 +257,24 @@ public class TimeZoneSuggesterImpl implements TimeZoneSuggester {
                 + " mobileCountries=" + mobileCountries
                 + ", nitzSignal=" + nitzSignal);
         NitzData nitzData = Objects.requireNonNull(nitzSignal.getNitzData());
+
+        TelephonySignal telephonySignal = null;
+        if (Flags.enableFusedTimeZoneDetector()) {
+            telephonySignal =
+                    new TelephonySignal(
+                            mobileCountries.getMcc(),
+                            mobileCountries.getMnc(),
+                            mobileCountries.getDefaultCountryIsoCode(),
+                            mobileCountries.getCountryIsoCodes(),
+                            new android.app.timezonedetector.NitzSignal(
+                                    nitzSignal.getReceiptElapsedRealtimeMillis(),
+                                    nitzSignal.getAgeMillis(),
+                                    nitzData.getLocalOffsetMillis(),
+                                    nitzData.getDstAdjustmentMillis(),
+                                    nitzData.getCurrentTimeInMillis(),
+                                    nitzData.getEmulatorHostTimeZone()));
+        }
+
         if (isNitzSignalOffsetInfoBogus(mobileCountries, nitzData)) {
             suggestionBuilder.addDebugInfo(
                     "findTimeZoneFromMobileCountriesAndNitz: NITZ signal looks bogus");
@@ -269,10 +289,12 @@ public class TimeZoneSuggesterImpl implements TimeZoneSuggester {
                     ? TelephonyTimeZoneSuggestion.QUALITY_SINGLE_ZONE
                     : TelephonyTimeZoneSuggestion.QUALITY_MULTIPLE_ZONES_WITH_SAME_OFFSET;
 
-            return suggestionBuilder.setZoneId(lookupResult.getTimeZone().getID())
+            return suggestionBuilder
+                    .setZoneId(lookupResult.getTimeZone().getID())
                     .setCountryIsoCode(lookupResult.getCountryIsoCode())
                     .setMatchType(TelephonyTimeZoneSuggestion.MATCH_TYPE_NETWORK_COUNTRY_AND_OFFSET)
                     .setQuality(quality)
+                    .setTelephonySignal(telephonySignal)
                     .addDebugInfo(
                             "findTimeZoneFromMobileCountriesAndNitz: lookupResult=" + lookupResult)
                     .build();
@@ -299,6 +321,7 @@ public class TimeZoneSuggesterImpl implements TimeZoneSuggester {
                     .setCountryIsoCode(countryResult.countryIsoCode)
                     .setMatchType(TelephonyTimeZoneSuggestion.MATCH_TYPE_NETWORK_COUNTRY_ONLY)
                     .setQuality(TelephonyTimeZoneSuggestion.QUALITY_SINGLE_ZONE)
+                    .setTelephonySignal(telephonySignal)
                     .addDebugInfo(
                             "findTimeZoneFromMobileCountriesAndNitz: high quality country-only"
                                     + " suggestion: countryResult="
@@ -420,12 +443,24 @@ public class TimeZoneSuggesterImpl implements TimeZoneSuggester {
                                 + ", whenMillis=" + whenMillis + ", lookupResult=" + lookupResult);
             }
 
-            suggestionBuilder.setZoneId(lookupResult.zoneId)
+            TelephonySignal telephonySignal = null;
+            if (Flags.enableFusedTimeZoneDetector()) {
+                telephonySignal =
+                        new TelephonySignal(
+                                mobileCountries.getMcc(),
+                                mobileCountries.getMnc(),
+                                mobileCountries.getDefaultCountryIsoCode(),
+                                mobileCountries.getCountryIsoCodes(),
+                                /* nitzSignal= */ null);
+            }
+
+            suggestionBuilder
+                    .setZoneId(lookupResult.zoneId)
                     .setCountryIsoCode(lookupResult.countryIsoCode)
                     .setMatchType(TelephonyTimeZoneSuggestion.MATCH_TYPE_NETWORK_COUNTRY_ONLY)
                     .setQuality(quality)
-                    .addDebugInfo(
-                            "findTimeZoneFromMobileCountries: lookupResult=" + lookupResult);
+                    .setTelephonySignal(telephonySignal)
+                    .addDebugInfo("findTimeZoneFromMobileCountries: lookupResult=" + lookupResult);
         } else {
             suggestionBuilder.addDebugInfo(
                     "findTimeZoneFromMobileCountries: Country not recognized?");

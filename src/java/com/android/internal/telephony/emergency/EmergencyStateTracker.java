@@ -1443,6 +1443,7 @@ public class EmergencyStateTracker {
      * Returns {@code true} if currently in emergency callback mode over CS
      */
     public boolean isInCdmaEcm() {
+        if (mFeatureFlags.deleteCdma()) return false;
         // Phone can be null in the case where we are not actively tracking an emergency call.
         if (mPhone == null) return false;
         // Ensure that this method doesn't return true when we are attached to GSM.

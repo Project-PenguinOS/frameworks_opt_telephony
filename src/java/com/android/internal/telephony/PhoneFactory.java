@@ -136,9 +136,6 @@ public class PhoneFactory {
             if (!sMadeDefaults) {
                 sContext = context;
 
-                // create the telephony device controller.
-                TelephonyDevController.create();
-
                 TelephonyMetrics metrics = TelephonyMetrics.getInstance();
                 metrics.setContext(context);
 

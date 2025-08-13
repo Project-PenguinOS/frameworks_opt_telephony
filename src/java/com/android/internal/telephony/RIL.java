@@ -1186,13 +1186,6 @@ public class RIL extends BaseCommands implements CommandsInterface {
                 context.getPackageName());
         mActiveWakelockWorkSource = new WorkSource();
 
-        TelephonyDevController tdc = TelephonyDevController.getInstance();
-        if (proxies == null) {
-            // TelephonyDevController#registerRIL will call getHardwareConfig.
-            // To prevent extra requests when running tests, only registerRIL when proxies is null
-            tdc.registerRIL(this);
-        }
-
         validateFeatureFlags();
 
         // Set radio callback; needed to set RadioIndication callback (should be done after
@@ -1436,6 +1429,7 @@ public class RIL extends BaseCommands implements CommandsInterface {
 
     @Override
     public void supplyIccPin(String pin, Message result) {
+        riljLoge("supplyIccPin: pin : " + RILUtils.getRedactedPin(pin));
         supplyIccPinForApp(pin, null, result);
     }
 
@@ -1457,11 +1451,6 @@ public class RIL extends BaseCommands implements CommandsInterface {
             simProxy.supplyIccPinForApp(rr.mSerial, RILUtils.convertNullToEmptyString(pin),
                     RILUtils.convertNullToEmptyString(aid));
         });
-    }
-
-    @Override
-    public void supplyIccPuk(String puk, String newPin, Message result) {
-        supplyIccPukForApp(puk, newPin, null, result);
     }
 
     @Override
@@ -1487,11 +1476,6 @@ public class RIL extends BaseCommands implements CommandsInterface {
     }
 
     @Override
-    public void supplyIccPin2(String pin, Message result) {
-        supplyIccPin2ForApp(pin, null, result);
-    }
-
-    @Override
     public void supplyIccPin2ForApp(String pin, String aid, Message result) {
         RadioSimProxy simProxy = getRadioServiceProxy(RadioSimProxy.class);
         if (!canMakeRequest("supplyIccPin2ForApp", simProxy, result, RADIO_HAL_VERSION_1_4)) {
@@ -1509,11 +1493,6 @@ public class RIL extends BaseCommands implements CommandsInterface {
             simProxy.supplyIccPin2ForApp(rr.mSerial, RILUtils.convertNullToEmptyString(pin),
                     RILUtils.convertNullToEmptyString(aid));
         });
-    }
-
-    @Override
-    public void supplyIccPuk2(String puk2, String newPin2, Message result) {
-        supplyIccPuk2ForApp(puk2, newPin2, null, result);
     }
 
     @Override
@@ -1553,7 +1532,8 @@ public class RIL extends BaseCommands implements CommandsInterface {
 
         if (RILJ_LOGD) {
             riljLog(rr.serialString() + "> " + RILUtils.requestToString(rr.mRequest)
-                    + " oldPin = " + oldPin + " newPin = " + newPin + " aid = " + aid);
+                    + " oldPin = " + RILUtils.getRedactedPin(oldPin) + " newPin = "
+                    + RILUtils.getRedactedPin(newPin) + " aid = " + aid);
         }
 
         radioServiceInvokeHelper(HAL_SERVICE_SIM, rr, "changeIccPinForApp", () -> {
@@ -1562,11 +1542,6 @@ public class RIL extends BaseCommands implements CommandsInterface {
                     RILUtils.convertNullToEmptyString(newPin),
                     RILUtils.convertNullToEmptyString(aid));
         });
-    }
-
-    @Override
-    public void changeIccPin2(String oldPin2, String newPin2, Message result) {
-        changeIccPin2ForApp(oldPin2, newPin2, null, result);
     }
 
     @Override
@@ -1580,7 +1555,8 @@ public class RIL extends BaseCommands implements CommandsInterface {
 
         if (RILJ_LOGD) {
             riljLog(rr.serialString() + "> " + RILUtils.requestToString(rr.mRequest)
-                    + " oldPin = " + oldPin2 + " newPin = " + newPin2 + " aid = " + aid);
+                    + " oldPin = " + RILUtils.getRedactedPin(oldPin2) + " newPin = "
+                    + RILUtils.getRedactedPin(newPin2) + " aid = " + aid);
         }
 
         radioServiceInvokeHelper(HAL_SERVICE_SIM, rr, "changeIccPin2ForApp", () -> {

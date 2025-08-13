@@ -23,7 +23,7 @@
  */
 
 // QTI_END: 2022-09-20: Telephony: CAG and SNPN feature
-package com.android.internal.telephony.test;
+package com.android.internal.telephony;
 
 import android.compat.annotation.UnsupportedAppUsage;
 import android.hardware.radio.RadioError;
@@ -67,21 +67,10 @@ import android.telephony.data.TrafficDescriptor;
 import android.telephony.emergency.EmergencyNumber;
 
 import com.android.internal.annotations.VisibleForTesting;
-import com.android.internal.telephony.BaseCommands;
-import com.android.internal.telephony.CallFailCause;
-import com.android.internal.telephony.CommandException;
-import com.android.internal.telephony.CommandsInterface;
-import com.android.internal.telephony.LastCallFailCause;
-import com.android.internal.telephony.Phone;
-import com.android.internal.telephony.PhoneConstants;
-import com.android.internal.telephony.RILUtils;
-import com.android.internal.telephony.RadioCapability;
-import com.android.internal.telephony.SmsResponse;
-import com.android.internal.telephony.SrvccConnection;
-import com.android.internal.telephony.UUSInfo;
 import com.android.internal.telephony.cdma.CdmaSmsBroadcastConfigInfo;
 import com.android.internal.telephony.gsm.SmsBroadcastConfigInfo;
 import com.android.internal.telephony.gsm.SuppServiceNotification;
+import com.android.internal.telephony.test.SimulatedRadioControl;
 import com.android.internal.telephony.uicc.AdnCapacity;
 import com.android.internal.telephony.uicc.IccCardApplicationStatus.PersoSubState;
 import com.android.internal.telephony.uicc.IccCardStatus;
@@ -115,10 +104,8 @@ public class SimulatedCommands extends BaseCommands
 
     private static final SimLockState INITIAL_LOCK_STATE = SimLockState.NONE;
     public static final String DEFAULT_SIM_PIN_CODE = "1234";
-    private static final String SIM_PUK_CODE = "12345678";
     private static final SimFdnState INITIAL_FDN_STATE = SimFdnState.NONE;
     public static final String DEFAULT_SIM_PIN2_CODE = "5678";
-    private static final String SIM_PUK2_CODE = "87654321";
     public static final String FAKE_LONG_NAME = "Fake long name";
     public static final String FAKE_SHORT_NAME = "Fake short name";
     public static final String FAKE_MCC_MNC = "310260";
@@ -127,7 +114,6 @@ public class SimulatedCommands extends BaseCommands
     public static final String FAKE_ESN = "1234";
     public static final String FAKE_MEID = "1234";
     public static final int DEFAULT_PIN1_ATTEMPT = 5;
-    public static final int DEFAULT_PIN2_ATTEMPT = 5;
     public static final int ICC_AUTHENTICATION_MODE_DEFAULT = 0;
     public static final int ICC_AUTHENTICATION_MODE_NULL = 1;
     public static final int ICC_AUTHENTICATION_MODE_TIMEOUT = 2;
@@ -143,17 +129,13 @@ public class SimulatedCommands extends BaseCommands
     SimLockState mSimLockedState;
     boolean mSimLockEnabled;
     int mPinUnlockAttempts;
-    int mPukUnlockAttempts;
     String mPinCode;
     int mPin1attemptsRemaining = DEFAULT_PIN1_ATTEMPT;
     SimFdnState mSimFdnEnabledState;
     boolean mSimFdnEnabled;
-    int mPin2UnlockAttempts;
-    int mPuk2UnlockAttempts;
     int mPreferredNetworkType;
     int mAllowedNetworkType;
     String mPin2Code;
-    boolean mSsnNotifyOn = false;
     private int mVoiceRegState = NetworkRegistrationInfo.REGISTRATION_STATE_HOME;
     private int mVoiceRadioTech = ServiceState.RIL_RADIO_TECHNOLOGY_UMTS;
     private int mDataRegState = NetworkRegistrationInfo.REGISTRATION_STATE_HOME;
@@ -203,7 +185,6 @@ public class SimulatedCommands extends BaseCommands
 
     private int[] mImsRegistrationInfo = new int[5];
 
-    private boolean mN1ModeEnabled = false;
     private boolean mVonrEnabled = false;
 
     //***** Constructor
@@ -288,115 +269,6 @@ public class SimulatedCommands extends BaseCommands
     }
 
     @Override
-    public void supplyIccPuk(String puk, String newPin, Message result)  {
-        if (mSimLockedState != SimLockState.REQUIRE_PUK) {
-            Rlog.i(LOG_TAG, "[SimCmd] supplyIccPuk: wrong state, state=" +
-                    mSimLockedState);
-            CommandException ex = new CommandException(
-                    CommandException.Error.PASSWORD_INCORRECT);
-            resultFail(result, null, ex);
-            return;
-        }
-
-        if (puk != null && puk.equals(SIM_PUK_CODE)) {
-            Rlog.i(LOG_TAG, "[SimCmd] supplyIccPuk: success!");
-            mSimLockedState = SimLockState.NONE;
-            mPukUnlockAttempts = 0;
-            mIccStatusChangedRegistrants.notifyRegistrants();
-
-            resultSuccess(result, null);
-            return;
-        }
-
-        if (result != null) {
-            mPukUnlockAttempts ++;
-
-            Rlog.i(LOG_TAG, "[SimCmd] supplyIccPuk: failed! attempt=" +
-                    mPukUnlockAttempts);
-            if (mPukUnlockAttempts >= 10) {
-                Rlog.i(LOG_TAG, "[SimCmd] supplyIccPuk: set state to SIM_PERM_LOCKED");
-                mSimLockedState = SimLockState.SIM_PERM_LOCKED;
-            }
-
-            CommandException ex = new CommandException(
-                    CommandException.Error.PASSWORD_INCORRECT);
-            resultFail(result, null, ex);
-        }
-    }
-
-    @Override
-    public void supplyIccPin2(String pin2, Message result)  {
-        if (mSimFdnEnabledState != SimFdnState.REQUIRE_PIN2) {
-            Rlog.i(LOG_TAG, "[SimCmd] supplyIccPin2: wrong state, state=" +
-                    mSimFdnEnabledState);
-            CommandException ex = new CommandException(
-                    CommandException.Error.PASSWORD_INCORRECT);
-            resultFail(result, null, ex);
-            return;
-        }
-
-        if (pin2 != null && pin2.equals(mPin2Code)) {
-            Rlog.i(LOG_TAG, "[SimCmd] supplyIccPin2: success!");
-            mPin2UnlockAttempts = 0;
-            mSimFdnEnabledState = SimFdnState.NONE;
-
-            resultSuccess(result, null);
-            return;
-        }
-
-        if (result != null) {
-            mPin2UnlockAttempts ++;
-
-            Rlog.i(LOG_TAG, "[SimCmd] supplyIccPin2: failed! attempt=" +
-                    mPin2UnlockAttempts);
-            if (mPin2UnlockAttempts >= DEFAULT_PIN2_ATTEMPT) {
-                Rlog.i(LOG_TAG, "[SimCmd] supplyIccPin2: set state to REQUIRE_PUK2");
-                mSimFdnEnabledState = SimFdnState.REQUIRE_PUK2;
-            }
-
-            CommandException ex = new CommandException(
-                    CommandException.Error.PASSWORD_INCORRECT);
-            resultFail(result, null, ex);
-        }
-    }
-
-    @Override
-    public void supplyIccPuk2(String puk2, String newPin2, Message result)  {
-        if (mSimFdnEnabledState != SimFdnState.REQUIRE_PUK2) {
-            Rlog.i(LOG_TAG, "[SimCmd] supplyIccPuk2: wrong state, state=" +
-                    mSimLockedState);
-            CommandException ex = new CommandException(
-                    CommandException.Error.PASSWORD_INCORRECT);
-            resultFail(result, null, ex);
-            return;
-        }
-
-        if (puk2 != null && puk2.equals(SIM_PUK2_CODE)) {
-            Rlog.i(LOG_TAG, "[SimCmd] supplyIccPuk2: success!");
-            mSimFdnEnabledState = SimFdnState.NONE;
-            mPuk2UnlockAttempts = 0;
-
-            resultSuccess(result, null);
-            return;
-        }
-
-        if (result != null) {
-            mPuk2UnlockAttempts ++;
-
-            Rlog.i(LOG_TAG, "[SimCmd] supplyIccPuk2: failed! attempt=" +
-                    mPuk2UnlockAttempts);
-            if (mPuk2UnlockAttempts >= 10) {
-                Rlog.i(LOG_TAG, "[SimCmd] supplyIccPuk2: set state to SIM_PERM_LOCKED");
-                mSimFdnEnabledState = SimFdnState.SIM_PERM_LOCKED;
-            }
-
-            CommandException ex = new CommandException(
-                    CommandException.Error.PASSWORD_INCORRECT);
-            resultFail(result, null, ex);
-        }
-    }
-
-    @Override
     public void changeIccPin(String oldPin, String newPin, Message result)  {
         if (oldPin != null && oldPin.equals(mPinCode)) {
             mPinCode = newPin;
@@ -406,22 +278,6 @@ public class SimulatedCommands extends BaseCommands
         }
 
         Rlog.i(LOG_TAG, "[SimCmd] changeIccPin: pin failed!");
-
-        CommandException ex = new CommandException(
-                CommandException.Error.PASSWORD_INCORRECT);
-        resultFail(result, null, ex);
-    }
-
-    @Override
-    public void changeIccPin2(String oldPin2, String newPin2, Message result) {
-        if (oldPin2 != null && oldPin2.equals(mPin2Code)) {
-            mPin2Code = newPin2;
-            resultSuccess(result, null);
-
-            return;
-        }
-
-        Rlog.i(LOG_TAG, "[SimCmd] changeIccPin2: pin2 failed!");
 
         CommandException ex = new CommandException(
                 CommandException.Error.PASSWORD_INCORRECT);
@@ -1074,11 +930,6 @@ public class SimulatedCommands extends BaseCommands
         unimplemented(response);
     }
 
-    public void setDataCallResult(final boolean success, final SetupDataCallResult dcResult) {
-        mSetupDataCallResult = dcResult;
-        mDcSuccess = success;
-    }
-
     public void triggerNITZupdate(String NITZStr) {
         if (NITZStr != null) {
             mNITZTimeRegistrant.notifyRegistrant(new AsyncResult (null, new Object[]{NITZStr,
@@ -1456,20 +1307,6 @@ public class SimulatedCommands extends BaseCommands
     }
 
     /**
-     * Simulates an Stk Call Control Alpha message
-     * @param alphaString Alpha string to send.
-     */
-    public void triggerIncomingStkCcAlpha(String alphaString) {
-        if (mCatCcAlphaRegistrant != null) {
-            mCatCcAlphaRegistrant.notifyResult(alphaString);
-        }
-    }
-
-    public void sendStkCcAplha(String alphaString) {
-        triggerIncomingStkCcAlpha(alphaString);
-    }
-
-    /**
      * Simulates an incoming USSD message
      * @param statusCode  Status code string. See <code>setOnUSSD</code>
      * in CommandsInterface.java
@@ -1774,11 +1611,6 @@ public class SimulatedCommands extends BaseCommands
         resultSuccess(response, null);
     }
 
-    public void forceDataDormancy(Message response) {
-        unimplemented(response);
-    }
-
-
     @Override
     public void setGsmBroadcastActivation(boolean activate, Message response) {
         SimulatedCommandsVerifier.getInstance().setGsmBroadcastActivation(activate, response);
@@ -1916,10 +1748,6 @@ public class SimulatedCommands extends BaseCommands
         p.setDataPosition(0);
 
         return CellInfoGsm.CREATOR.createFromParcel(p);
-    }
-
-    public synchronized void setCellInfoListBehavior(boolean shouldReturn) {
-        mShouldReturnCellInfo = shouldReturn;
     }
 
     @Override
@@ -2098,21 +1926,9 @@ public class SimulatedCommands extends BaseCommands
         }
     }
 
-    public void notifyGsmBroadcastSms(Object result) {
-        if (mGsmBroadcastSmsRegistrant != null) {
-            mGsmBroadcastSmsRegistrant.notifyRegistrant(new AsyncResult(null, result, null));
-        }
-    }
-
     public void notifyIccSmsFull() {
         if (mIccSmsFullRegistrant != null) {
             mIccSmsFullRegistrant.notifyRegistrant();
-        }
-    }
-
-    public void notifyEmergencyCallbackMode() {
-        if (mEmergencyCallbackModeRegistrant != null) {
-            mEmergencyCallbackModeRegistrant.notifyRegistrant();
         }
     }
 
@@ -2122,22 +1938,9 @@ public class SimulatedCommands extends BaseCommands
         super.setEmergencyCallbackMode(h, what, obj);
     }
 
-    public void notifyExitEmergencyCallbackMode() {
-        if (mExitEmergencyCallbackModeRegistrants != null) {
-            mExitEmergencyCallbackModeRegistrants.notifyRegistrants(
-                    new AsyncResult (null, null, null));
-        }
-    }
-
     public void notifyImsNetworkStateChanged() {
         if(mImsNetworkStateChangedRegistrants != null) {
             mImsNetworkStateChangedRegistrants.notifyRegistrants();
-        }
-    }
-
-    public void notifyModemReset() {
-        if (mModemResetRegistrants != null) {
-            mModemResetRegistrants.notifyRegistrants(new AsyncResult(null, "Test", null));
         }
     }
 
@@ -2160,15 +1963,6 @@ public class SimulatedCommands extends BaseCommands
     @VisibleForTesting
     public void notifyNetworkStateChanged() {
         mNetworkStateRegistrants.notifyRegistrants();
-    }
-
-    @VisibleForTesting
-    public void notifyOtaProvisionStatusChanged() {
-        if (mOtaProvisionRegistrants != null) {
-            int ret[] = new int[1];
-            ret[0] = Phone.CDMA_OTA_PROVISION_STATUS_COMMITTED;
-            mOtaProvisionRegistrants.notifyRegistrants(new AsyncResult(null, ret, null));
-        }
     }
 
     public void notifySignalStrength() {
@@ -2200,10 +1994,6 @@ public class SimulatedCommands extends BaseCommands
         mChannelId = channelId;
     }
 
-    public void setPin1RemainingAttempt(int pin1attemptsRemaining) {
-        mPin1attemptsRemaining = pin1attemptsRemaining;
-    }
-
     private AtomicBoolean mAllowed = new AtomicBoolean(false);
 
     @Override
@@ -2211,11 +2001,6 @@ public class SimulatedCommands extends BaseCommands
         log("setDataAllowed = " + allowed);
         mAllowed.set(allowed);
         resultSuccess(result, null);
-    }
-
-    @VisibleForTesting
-    public boolean isDataAllowed() {
-        return mAllowed.get();
     }
 
     @Override
@@ -2437,15 +2222,6 @@ public class SimulatedCommands extends BaseCommands
 
     public int[] getImsRegistrationInfo() {
         return mImsRegistrationInfo;
-    }
-
-    @Override
-    public void setN1ModeEnabled(boolean enable, Message result) {
-        mN1ModeEnabled = enable;
-    }
-
-    public boolean isN1ModeEnabled() {
-        return mN1ModeEnabled;
     }
 
     @Override

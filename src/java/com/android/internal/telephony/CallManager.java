@@ -24,7 +24,6 @@ import android.os.Message;
 import android.os.Registrant;
 import android.os.RegistrantList;
 import android.telephony.PhoneNumberUtils;
-import android.telephony.PhoneStateListener;
 import android.telephony.ServiceState;
 
 import com.android.internal.annotations.VisibleForTesting;
@@ -81,8 +80,6 @@ public class CallManager {
     private static final int EVENT_SERVICE_STATE_CHANGED = 118;
     private static final int EVENT_POST_DIAL_CHARACTER = 119;
     private static final int EVENT_ONHOLD_TONE = 120;
-    // FIXME Taken from klp-sprout-dev but setAudioMode was removed in L.
-    //private static final int EVENT_RADIO_OFF_OR_NOT_AVAILABLE = 121;
     private static final int EVENT_TTY_MODE_RECEIVED = 122;
 
     // Singleton instance
@@ -213,26 +210,6 @@ public class CallManager {
     }
 
     /**
-     * Get current coarse-grained voice call state.
-     * If the Call Manager has an active call and call waiting occurs,
-     * then the phone state is RINGING not OFFHOOK
-     *
-     */
-    @UnsupportedAppUsage
-    public PhoneConstants.State getState() {
-        PhoneConstants.State s = PhoneConstants.State.IDLE;
-
-        for (Phone phone : mPhones) {
-            if (phone.getState() == PhoneConstants.State.RINGING) {
-                s = PhoneConstants.State.RINGING;
-            } else if (phone.getState() == PhoneConstants.State.OFFHOOK) {
-                if (s == PhoneConstants.State.IDLE) s = PhoneConstants.State.OFFHOOK;
-            }
-        }
-        return s;
-    }
-
-    /**
      * Get current coarse-grained voice call state on a subId.
      * If the Call Manager has an active call and call waiting occurs,
      * then the phone state is RINGING not OFFHOOK
@@ -252,71 +229,6 @@ public class CallManager {
             }
         }
         return s;
-    }
-
-    /**
-     * @return the service state of CallManager, which represents the
-     * highest priority state of all the service states of phones
-     *
-     * The priority is defined as
-     *
-     * STATE_IN_SERIVCE > STATE_OUT_OF_SERIVCE > STATE_EMERGENCY > STATE_POWER_OFF
-     *
-     */
-
-    public int getServiceState() {
-        int resultState = ServiceState.STATE_OUT_OF_SERVICE;
-
-        for (Phone phone : mPhones) {
-            int serviceState = phone.getServiceState().getState();
-            if (serviceState == ServiceState.STATE_IN_SERVICE) {
-                // IN_SERVICE has the highest priority
-                resultState = serviceState;
-                break;
-            } else if (serviceState == ServiceState.STATE_OUT_OF_SERVICE) {
-                // OUT_OF_SERVICE replaces EMERGENCY_ONLY and POWER_OFF
-                // Note: EMERGENCY_ONLY is not in use at this moment
-                if ( resultState == ServiceState.STATE_EMERGENCY_ONLY ||
-                        resultState == ServiceState.STATE_POWER_OFF) {
-                    resultState = serviceState;
-                }
-            } else if (serviceState == ServiceState.STATE_EMERGENCY_ONLY) {
-                if (resultState == ServiceState.STATE_POWER_OFF) {
-                    resultState = serviceState;
-                }
-            }
-        }
-        return resultState;
-    }
-
-    /**
-     * @return the Phone service state corresponds to subId
-     */
-    public int getServiceState(int subId) {
-        int resultState = ServiceState.STATE_OUT_OF_SERVICE;
-
-        for (Phone phone : mPhones) {
-            if (phone.getSubId() == subId) {
-                int serviceState = phone.getServiceState().getState();
-                if (serviceState == ServiceState.STATE_IN_SERVICE) {
-                    // IN_SERVICE has the highest priority
-                    resultState = serviceState;
-                    break;
-                } else if (serviceState == ServiceState.STATE_OUT_OF_SERVICE) {
-                    // OUT_OF_SERVICE replaces EMERGENCY_ONLY and POWER_OFF
-                    // Note: EMERGENCY_ONLY is not in use at this moment
-                    if ( resultState == ServiceState.STATE_EMERGENCY_ONLY ||
-                            resultState == ServiceState.STATE_POWER_OFF) {
-                        resultState = serviceState;
-                    }
-                } else if (serviceState == ServiceState.STATE_EMERGENCY_ONLY) {
-                    if (resultState == ServiceState.STATE_POWER_OFF) {
-                        resultState = serviceState;
-                    }
-                }
-            }
-        }
-        return resultState;
     }
 
     /**
@@ -395,31 +307,6 @@ public class CallManager {
         return getActiveFgCall().getPhone();
     }
 
-    /**
-     * @return the phone associated with the foreground call
-     * of a particular subId
-     */
-    @UnsupportedAppUsage
-    public Phone getFgPhone(int subId) {
-        return getActiveFgCall(subId).getPhone();
-    }
-
-    /**
-     * @return the phone associated with the background call
-     */
-    @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
-    public Phone getBgPhone() {
-        return getFirstActiveBgCall().getPhone();
-    }
-
-    /**
-     * @return the phone associated with the ringing call
-     */
-    @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
-    public Phone getRingingPhone() {
-        return getFirstActiveRingingCall().getPhone();
-    }
-
     public Object getRegistrantIdentifier() {
         return mRegistrantidentifier;
     }
@@ -474,9 +361,6 @@ public class CallManager {
         phone.registerForServiceStateChanged(handler, EVENT_SERVICE_STATE_CHANGED,
                 mRegistrantidentifier);
 
-        // FIXME Taken from klp-sprout-dev but setAudioMode was removed in L.
-        //phone.registerForRadioOffOrNotAvailable(handler, EVENT_RADIO_OFF_OR_NOT_AVAILABLE, null);
-
         // for events supported only by GSM, CDMA and IMS phone
         phone.setOnPostDialCharacter(handler, EVENT_POST_DIAL_CHARACTER, null);
 
@@ -522,8 +406,6 @@ public class CallManager {
         phone.unregisterForSuppServiceFailed(handler);
         phone.unregisterForServiceStateChanged(handler);
         phone.unregisterForTtyModeReceived(handler);
-        // FIXME Taken from klp-sprout-dev but setAudioMode was removed in L.
-        //phone.unregisterForRadioOffOrNotAvailable(handler);
 
         // for events supported only by GSM, CDMA and IMS phone
         phone.setOnPostDialCharacter(null, EVENT_POST_DIAL_CHARACTER, null);
@@ -541,109 +423,6 @@ public class CallManager {
         // for events supported only by IMS phone
         phone.unregisterForOnHoldTone(handler);
         phone.unregisterForSuppServiceFailed(handler);
-    }
-
-    /**
-     * Reject (ignore) a ringing call. In GSM, this means UDUB
-     * (User Determined User Busy). Reject occurs asynchronously,
-     * and final notification occurs via
-     * {@link #registerForPreciseCallStateChanged(android.os.Handler, int,
-     * java.lang.Object) registerForPreciseCallStateChanged()}.
-     *
-     * @exception CallStateException when no call is ringing or waiting
-     */
-    public void rejectCall(Call ringingCall) throws CallStateException {
-        if (VDBG) {
-            Rlog.d(LOG_TAG, toString());
-        }
-
-        Phone ringingPhone = ringingCall.getPhone();
-
-        ringingPhone.rejectCall();
-
-        if (VDBG) {
-            Rlog.d(LOG_TAG, "End rejectCall(" +ringingCall + ")");
-            Rlog.d(LOG_TAG, toString());
-        }
-    }
-
-    /**
-     * Whether or not the phone can conference in the current phone
-     * state--that is, one call holding and one call active.
-     * @return true if the phone can conference; false otherwise.
-     */
-    public boolean canConference(Call heldCall) {
-        Phone activePhone = null;
-        Phone heldPhone = null;
-
-        if (hasActiveFgCall()) {
-            activePhone = getActiveFgCall().getPhone();
-        }
-
-        if (heldCall != null) {
-            heldPhone = heldCall.getPhone();
-        }
-
-        return heldPhone.getClass().equals(activePhone.getClass());
-    }
-
-    /**
-     * Whether or not the phone can conference in the current phone
-     * state--that is, one call holding and one call active.
-     * This method consider the phone object which is specific
-     * to the provided subId.
-     * @return true if the phone can conference; false otherwise.
-     */
-    @UnsupportedAppUsage
-    public boolean canConference(Call heldCall, int subId) {
-        Phone activePhone = null;
-        Phone heldPhone = null;
-
-        if (hasActiveFgCall(subId)) {
-            activePhone = getActiveFgCall(subId).getPhone();
-        }
-
-        if (heldCall != null) {
-            heldPhone = heldCall.getPhone();
-        }
-
-        return heldPhone.getClass().equals(activePhone.getClass());
-    }
-
-    /**
-     * Conferences holding and active. Conference occurs asynchronously
-     * and may fail. Final notification occurs via
-     * {@link #registerForPreciseCallStateChanged(android.os.Handler, int,
-     * java.lang.Object) registerForPreciseCallStateChanged()}.
-     *
-     * @exception CallStateException if canConference() would return false.
-     * In these cases, this operation may not be performed.
-     */
-    @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
-    public void conference(Call heldCall) throws CallStateException {
-        int subId  = heldCall.getPhone().getSubId();
-
-        if (VDBG) {
-            Rlog.d(LOG_TAG, "conference(" +heldCall + ")");
-            Rlog.d(LOG_TAG, toString());
-        }
-
-        Phone fgPhone = getFgPhone(subId);
-        if (fgPhone != null) {
-            if (canConference(heldCall)) {
-                fgPhone.conference();
-            } else {
-                throw(new CallStateException("Can't conference foreground and selected background call"));
-            }
-        } else {
-            Rlog.d(LOG_TAG, "conference: fgPhone=null");
-        }
-
-        if (VDBG) {
-            Rlog.d(LOG_TAG, "End conference(" +heldCall + ")");
-            Rlog.d(LOG_TAG, toString());
-        }
-
     }
 
     /**
@@ -715,61 +494,6 @@ public class CallManager {
     }
 
     /**
-     * Initiate a new voice connection. This happens asynchronously, so you
-     * cannot assume the audio path is connected (or a call index has been
-     * assigned) until PhoneStateChanged notification has occurred.
-     *
-     * @exception CallStateException if a new outgoing call is not currently
-     * possible because no more call slots exist or a call exists that is
-     * dialing, alerting, ringing, or waiting.  Other errors are
-     * handled asynchronously.
-     */
-    public Connection dial(Phone phone, String dialString, int videoState)
-            throws CallStateException {
-        return dial(phone, dialString, new PhoneInternalInterface.DialArgs.Builder<>()
-                .setVideoState(videoState).build());
-    }
-
-    /**
-     * Initiate a new voice connection. This happens asynchronously, so you
-     * cannot assume the audio path is connected (or a call index has been
-     * assigned) until PhoneStateChanged notification has occurred.
-     *
-     * @exception CallStateException if a new outgoing call is not currently
-     * possible because no more call slots exist or a call exists that is
-     * dialing, alerting, ringing, or waiting.  Other errors are
-     * handled asynchronously.
-     */
-    public Connection dial(Phone phone, String dialString, UUSInfo uusInfo, int videoState)
-            throws CallStateException {
-        return phone.dial(dialString,
-                new PhoneInternalInterface.DialArgs.Builder<>()
-                        .setUusInfo(uusInfo)
-                        .setVideoState(videoState).build());
-    }
-
-    /**
-     * clear disconnect connection for each phone
-     */
-    public void clearDisconnected() {
-        for(Phone phone : mPhones) {
-            phone.clearDisconnected();
-        }
-    }
-
-    /**
-     * clear disconnect connection for a phone specific
-     * to the provided subId
-     */
-    public void clearDisconnected(int subId) {
-        for(Phone phone : mPhones) {
-            if (phone.getSubId() == subId) {
-                phone.clearDisconnected();
-            }
-        }
-    }
-
-    /**
      * Phone can make a call only if ALL of the following are true:
      *        - Phone is not powered off
      *        - There's no incoming or waiting call
@@ -806,71 +530,6 @@ public class CallManager {
     }
 
     /**
-     * Whether or not the phone can do explicit call transfer in the current
-     * phone state--that is, one call holding and one call active.
-     * @return true if the phone can do explicit call transfer; false otherwise.
-     */
-    public boolean canTransfer(Call heldCall) {
-        Phone activePhone = null;
-        Phone heldPhone = null;
-
-        if (hasActiveFgCall()) {
-            activePhone = getActiveFgCall().getPhone();
-        }
-
-        if (heldCall != null) {
-            heldPhone = heldCall.getPhone();
-        }
-
-        return (heldPhone == activePhone && activePhone.canTransfer());
-    }
-
-    /**
-     * Whether or not the phone specific to subId can do explicit call transfer
-     * in the current phone state--that is, one call holding and one call active.
-     * @return true if the phone can do explicit call transfer; false otherwise.
-     */
-    public boolean canTransfer(Call heldCall, int subId) {
-        Phone activePhone = null;
-        Phone heldPhone = null;
-
-        if (hasActiveFgCall(subId)) {
-            activePhone = getActiveFgCall(subId).getPhone();
-        }
-
-        if (heldCall != null) {
-            heldPhone = heldCall.getPhone();
-        }
-
-        return (heldPhone == activePhone && activePhone.canTransfer());
-    }
-
-    /**
-     * Mutes or unmutes the microphone for the active call. The microphone
-     * is automatically unmuted if a call is answered, dialed, or resumed
-     * from a holding state.
-     *
-     * @param muted true to mute the microphone,
-     * false to activate the microphone.
-     */
-
-    public void setMute(boolean muted) {
-        if (VDBG) {
-            Rlog.d(LOG_TAG, " setMute(" + muted + ")");
-            Rlog.d(LOG_TAG, toString());
-        }
-
-        if (hasActiveFgCall()) {
-            getActiveFgCall().getPhone().setMute(muted);
-        }
-
-        if (VDBG) {
-            Rlog.d(LOG_TAG, "End setMute(" + muted + ")");
-            Rlog.d(LOG_TAG, toString());
-        }
-    }
-
-    /**
      * Notifies when a voice connection has disconnected, either due to local
      * or remote hangup or error.
      *
@@ -883,41 +542,6 @@ public class CallManager {
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     public void registerForDisconnect(Handler h, int what, Object obj) {
         mDisconnectRegistrants.addUnique(h, what, obj);
-    }
-
-    /**
-     * Register for getting notifications for change in the Call State {@link Call.State}
-     * This is called PreciseCallState because the call state is more precise than what
-     * can be obtained using the {@link PhoneStateListener}
-     *
-     * Resulting events will have an AsyncResult in <code>Message.obj</code>.
-     * AsyncResult.userData will be set to the obj argument here.
-     * The <em>h</em> parameter is held only by a weak reference.
-     */
-    @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
-    public void registerForPreciseCallStateChanged(Handler h, int what, Object obj){
-        mPreciseCallStateRegistrants.addUnique(h, what, obj);
-    }
-
-    /**
-     * Notifies when out-band ringback tone is needed.<p>
-     *
-     *  Messages received from this:
-     *  Message.obj will be an AsyncResult
-     *  AsyncResult.userObj = obj
-     *  AsyncResult.result = boolean, true to start play ringback tone
-     *                       and false to stop. <p>
-     */
-    public void registerForRingbackTone(Handler h, int what, Object obj){
-        mRingbackToneRegistrants.addUnique(h, what, obj);
-    }
-
-    /**
-     * Unregisters for ringback tone notification.
-     */
-
-    public void unregisterForRingbackTone(Handler h){
-        mRingbackToneRegistrants.remove(h);
     }
 
     /**
@@ -939,23 +563,6 @@ public class CallManager {
      */
     public void unregisterForMmiComplete(Handler h){
         mMmiCompleteRegistrants.remove(h);
-    }
-
-    /**
-     * Register for ServiceState changed.
-     * Message.obj will contain an AsyncResult.
-     * AsyncResult.result will be a ServiceState instance
-     */
-    public void registerForServiceStateChanged(Handler h, int what, Object obj){
-        mServiceStateChangedRegistrants.addUnique(h, what, obj);
-    }
-
-    /**
-     * Unregisters for ServiceStateChange notification.
-     * Extraneous calls are tolerated silently
-     */
-    public void unregisterForServiceStateChanged(Handler h){
-        mServiceStateChangedRegistrants.remove(h);
     }
 
     /**
@@ -982,15 +589,6 @@ public class CallManager {
     }
 
     /**
-     * Unregister for notifications when a sInCall VoicePrivacy is enabled
-     *
-     * @param h Handler to be removed from the registrant list.
-     */
-    public void unregisterForInCallVoicePrivacyOn(Handler h){
-        mInCallVoicePrivacyOnRegistrants.remove(h);
-    }
-
-    /**
      * Register for notifications when a sInCall VoicePrivacy is disabled
      *
      * @param h Handler that receives the notification message.
@@ -999,15 +597,6 @@ public class CallManager {
      */
     public void registerForInCallVoicePrivacyOff(Handler h, int what, Object obj){
         mInCallVoicePrivacyOffRegistrants.addUnique(h, what, obj);
-    }
-
-    /**
-     * Unregister for notifications when a sInCall VoicePrivacy is disabled
-     *
-     * @param h Handler to be removed from the registrant list.
-     */
-    public void unregisterForInCallVoicePrivacyOff(Handler h){
-        mInCallVoicePrivacyOffRegistrants.remove(h);
     }
 
     /**
@@ -1180,30 +769,6 @@ public class CallManager {
     }
 
     /**
-     * return one active background call from background calls
-     *
-     * Active call means the call is NOT idle defined by Call.isIdle()
-     *
-     * 1. If there is only one active background call, return it
-     * 2. If there is more than one active background call, return the first one
-     * 3. If there is no active background call, return the background call
-     *    associated with default phone, which state is IDLE.
-     * 4. If there is no background call at all, return null.
-     *
-     * Complete background calls list can be get by getBackgroundCalls()
-     */
-    @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
-    public Call getFirstActiveBgCall() {
-        Call call = getFirstNonIdleCall(mBackgroundCalls);
-        if (call == null) {
-            call = (mDefaultPhone == null)
-                    ? null
-                    : mDefaultPhone.getBackgroundCall();
-        }
-        return call;
-    }
-
-    /**
      * return one active ringing call from ringing calls
      *
      * Active call means the call is NOT idle defined by Call.isIdle()
@@ -1239,13 +804,6 @@ public class CallManager {
     }
 
     /**
-     * @return true if there is at least one Foreground call in disconnected state
-     */
-    public boolean hasDisconnectedFgCall() {
-        return (getFirstCallOfState(mForegroundCalls, Call.State.DISCONNECTED) != null);
-    }
-
-    /**
      * @return the first active call from a call list
      */
     private  Call getFirstActiveCall(ArrayList<Call> calls) {
@@ -1263,18 +821,6 @@ public class CallManager {
     private  Call getFirstActiveCall(ArrayList<Call> calls, int subId) {
         for (Call call : calls) {
             if ((!call.isIdle()) && (call.getPhone().getSubId() == subId)) {
-                return call;
-            }
-        }
-        return null;
-    }
-
-    /**
-     * @return the first call in a the Call.state from a call list
-     */
-    private Call getFirstCallOfState(ArrayList<Call> calls, Call.State state) {
-        for (Call call : calls) {
-            if (call.getState() == state) {
                 return call;
             }
         }
@@ -1394,8 +940,6 @@ public class CallManager {
                 case EVENT_SERVICE_STATE_CHANGED:
                     if (VDBG) Rlog.d(LOG_TAG, " handleMessage (EVENT_SERVICE_STATE_CHANGED)");
                     mServiceStateChangedRegistrants.notifyRegistrants((AsyncResult) msg.obj);
-                    // FIXME Taken from klp-sprout-dev but setAudioMode was removed in L.
-                    //setAudioMode();
                     break;
                 case EVENT_POST_DIAL_CHARACTER:
                     // we need send the character that is being processed in msg.arg1
@@ -1418,12 +962,6 @@ public class CallManager {
                     if (VDBG) Rlog.d(LOG_TAG, " handleMessage (EVENT_TTY_MODE_RECEIVED)");
                     mTtyModeReceivedRegistrants.notifyRegistrants((AsyncResult) msg.obj);
                     break;
-                /* FIXME Taken from klp-sprout-dev but setAudioMode was removed in L.
-                case EVENT_RADIO_OFF_OR_NOT_AVAILABLE:
-                    if (VDBG) Rlog.d(LOG_TAG, " handleMessage (EVENT_RADIO_OFF_OR_NOT_AVAILABLE)");
-                    setAudioMode();
-                    break;
-                */
             }
         }
     };

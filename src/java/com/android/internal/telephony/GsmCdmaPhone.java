@@ -185,8 +185,6 @@ public class GsmCdmaPhone extends Phone {
     private Registrant mEcmExitRespRegistrant;
     private String mEsn;
     private String mMeid;
-    // string to define how the carrier specifies its own ota sp number
-    private String mCarrierOtaSpNumSchema;
 // QTI_BEGIN: 2020-11-17: Telephony: Fix SIM status issue for FOTA upgrade
     protected Boolean mUiccApplicationsEnabled = null;
 // QTI_END: 2020-11-17: Telephony: Fix SIM status issue for FOTA upgrade
@@ -197,7 +195,6 @@ public class GsmCdmaPhone extends Phone {
     public static int ENABLE_UICC_APPS_MAX_RETRIES = 3;
     private static final int REAPPLY_UICC_APPS_SETTING_RETRY_TIME_GAP_IN_MS = 5000;
 
-    //CDMALTE
     /** PHONE_TYPE_CDMA_LTE in addition to RuimRecords needs access to SIMRecords and
      * IsimUiccRecords
      */
@@ -501,9 +498,6 @@ public class GsmCdmaPhone extends Phone {
         mCi.setOnSs(this, EVENT_SS, null);
 
         mCi.registerForModemReset(this, EVENT_MODEM_RESET, null);
-        // get the string that specifies the carrier OTA Sp number
-        mCarrierOtaSpNumSchema = TelephonyManager.from(mContext).getOtaSpNumberSchemaForPhone(
-                getPhoneId(), "");
 
         mCi.registerForVoiceRadioTechChanged(this, EVENT_VOICE_RADIO_TECH_CHANGED, null);
         mCi.registerForLceInfo(this, EVENT_LINK_CAPACITY_CHANGED, null);
@@ -3715,7 +3709,6 @@ public class GsmCdmaPhone extends Phone {
         pw.println(" isInEcm()=" + isInEcm());
         pw.println(" mEsn=" + pii(mEsn));
         pw.println(" mMeid=" + pii(mMeid));
-        pw.println(" mCarrierOtaSpNumSchema=" + mCarrierOtaSpNumSchema);
         pw.println(" isCspPlmnEnabled()=" + isCspPlmnEnabled());
         pw.println(" mManualNetworkSelectionPlmn=" + mManualNetworkSelectionPlmn);
         pw.println(
