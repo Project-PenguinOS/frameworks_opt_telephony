@@ -109,6 +109,8 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
@@ -1566,7 +1568,8 @@ public abstract class InboundSmsHandler extends StateMachine {
                             resultReceiver, user);
                 }
             }, MAXIMUM_BROADCAST_DELAY_TIME_MS);
-            boolean containsOtp = containsOtp(intent);
+            Collection<TextLinks.TextLink> textLinks = generateOtpTextLinks(intent);
+            boolean containsOtp = containsOtp(textLinks);
             containsOtpCallPending.set(false);
             int classificationTime = (int)
                     (Math.min(SystemClock.elapsedRealtime() - start, Integer.MAX_VALUE));
@@ -1576,8 +1579,10 @@ public abstract class InboundSmsHandler extends StateMachine {
             }
             int result;
             if (containsOtp) {
+                String smsRetrieverHashMatchedPackageName = getSmsRetrieverTargetPackageName(
+                        textLinks);
                 sendBroadcastToTrustedPackages(intent, permission, appOp, opts,
-                        resultReceiver, user);
+                        resultReceiver, user, smsRetrieverHashMatchedPackageName);
                 result = SMS_OTP_EVALUATION__RESULT__EVALUATION_RESULT_HAS_OTP;
             } else {
                 sendBroadcastWithStandardPermissions(intent, permission, appOp, opts,
@@ -1593,10 +1598,10 @@ public abstract class InboundSmsHandler extends StateMachine {
     }
 
     @WorkerThread
-    private boolean containsOtp(Intent intent) {
+    private Collection<TextLinks.TextLink> generateOtpTextLinks(Intent intent) {
         SmsMessage[] messages = Telephony.Sms.Intents.getMessagesFromIntent(intent);
         if (messages == null) {
-            return false;
+            return Collections.emptyList();
         }
 
         StringBuilder textBuilder = new StringBuilder();
@@ -1606,16 +1611,18 @@ public abstract class InboundSmsHandler extends StateMachine {
             }
         }
         if (textBuilder.isEmpty()) {
-            return false;
+            return Collections.emptyList();
         }
         String text = textBuilder.toString();
 
         TextLinks.Request request =
                 new TextLinks.Request.Builder(text).setEntityConfig(TC_REQUEST_CONFIG).build();
 
-        TextLinks links = getTextClassifier().generateLinks(request);
+        return getTextClassifier().generateLinks(request).getLinks();
+    }
 
-        for (TextLinks.TextLink link : links.getLinks()) {
+    private boolean containsOtp(Collection<TextLinks.TextLink> links) {
+        for (TextLinks.TextLink link : links) {
             for (int i = 0; i < link.getEntityCount(); i++) {
                 if (link.getEntity(i).equals(TextClassifier.TYPE_SMS_RETRIEVER_OTP)) {
                     return true;
@@ -1623,6 +1630,22 @@ public abstract class InboundSmsHandler extends StateMachine {
             }
         }
         return false;
+    }
+
+    // When the TextClassifier detects an SMS_RETRIEVER_OTP type, it means a hash within the message
+    // was matched to a specific app. This method extracts and returns the package name for that
+    // intended app from the TextClassifier response.
+    @Nullable
+    private String getSmsRetrieverTargetPackageName(Collection<TextLinks.TextLink> links) {
+        for (TextLinks.TextLink link : links) {
+            for (int i = 0; i < link.getEntityCount(); i++) {
+                if (link.getEntity(i).equals(TextClassifier.TYPE_SMS_RETRIEVER_OTP)) {
+                    return link.getExtras().getString(
+                            TextClassifier.EXTRA_SMS_RETRIEVER_HASH_MATCHED_PACKAGE);
+                }
+            }
+        }
+        return null;
     }
 
     private void sendBroadcastWithStandardPermissions(Intent intent, String permission,
@@ -1638,8 +1661,12 @@ public abstract class InboundSmsHandler extends StateMachine {
 
     @SuppressLint("MissingPermission")
     private void sendBroadcastToTrustedPackages(Intent intent, String permission,
-            String appOp, Bundle opts, SmsBroadcastReceiver resultReceiver, UserHandle user) {
+            String appOp, Bundle opts, SmsBroadcastReceiver resultReceiver, UserHandle user,
+            @Nullable String additionalTrustedPackage) {
         Set<String> trustedPackages = SmsManager.getSmsOtpTrustedPackages(mContext, user);
+        if (additionalTrustedPackage != null) {
+            trustedPackages.add(additionalTrustedPackage);
+        }
         final String[] trustedPackagesArray = new String[trustedPackages.size()];
         int i = 0;
         for (String trusted: trustedPackages) {

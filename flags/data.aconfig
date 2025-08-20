@@ -69,6 +69,17 @@ flag {
     bug:"401006757"
 }
 
+# OWNER=rambowang TARGET=25Q4
+flag {
+  name: "monitor_carrier_config_change_for_auto_data_switch"
+  namespace: "telephony"
+  description: "This flag lets AutoDataSwitchController monitor carrier config changes and update the policy accordingly."
+  bug:"436856439"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}
+
 # OWNER=sewookseo TARGET=25Q4
 flag {
   name: "qos_update_network_agent"

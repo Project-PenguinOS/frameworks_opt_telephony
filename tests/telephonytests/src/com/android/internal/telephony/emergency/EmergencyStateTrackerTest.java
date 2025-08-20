@@ -2273,6 +2273,37 @@ public class EmergencyStateTrackerTest extends TelephonyTest {
         verify(phone0).exitEmergencyMode(any(Message.class));
     }
 
+    /**
+     * Test that it exits SMS emergency mode and clears SMS information if there is an ongoing
+     * emergency SMS when the user turns airplane mode on.
+     */
+    @Test
+    @SmallTest
+    public void testExitEmergencyModeSmsWhenTurningOnAirplaneModeWhileSendingSms() {
+        EmergencyStateTracker emergencyStateTracker = setupEmergencyStateTracker(
+                /* isSuplDdsSwitchRequiredForEmergencyCall= */ true);
+        Phone phone0 = setupTestPhoneForEmergencyCall(/* isRoaming= */ false,
+                /* isRadioOn= */ true);
+        setUpAsyncResultForSetEmergencyMode(phone0, E_REG_RESULT);
+        CompletableFuture<Integer> future = emergencyStateTracker.startEmergencySms(phone0,
+                TEST_SMS_ID, false);
+        processAllMessages();
+
+        assertTrue(emergencyStateTracker.isInEmergencyMode());
+        verify(phone0).setEmergencyMode(eq(MODE_EMERGENCY_WWAN), any(Message.class));
+
+        assertTrue(emergencyStateTracker.getEmergencyRegistrationResult().equals(E_REG_RESULT));
+        // Expect: DisconnectCause#NOT_DISCONNECTED.
+        assertEquals(future.getNow(DisconnectCause.ERROR_UNSPECIFIED),
+                Integer.valueOf(DisconnectCause.NOT_DISCONNECTED));
+
+        emergencyStateTracker.onCellularRadioPowerOffRequested();
+
+        verify(phone0).exitEmergencyMode(any(Message.class));
+        assertFalse(emergencyStateTracker.isInEmergencyMode());
+        assertFalse(emergencyStateTracker.isInScbm());
+    }
+
     @Test
     @SmallTest
     public void testExitEmergencyModeCallAndSmsOnSamePhoneWhenEcmSupported() {

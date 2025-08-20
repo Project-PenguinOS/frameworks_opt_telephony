@@ -127,3 +127,11 @@ flag {
         purpose: PURPOSE_FEATURE
     }
 }
+
+# OWNER=shashannk TARGET=26Q2
+flag {
+    name: "support_ims_sms_smma"
+    namespace: "telephony"
+    description: "This flag exposes sms memory availability notification related APIs"
+    bug:"428178177"
+}

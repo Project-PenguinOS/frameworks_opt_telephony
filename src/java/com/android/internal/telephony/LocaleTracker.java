@@ -38,7 +38,6 @@ import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyManager;
 import android.text.TextUtils;
 import android.timezone.MobileCountries;
-import android.timezone.TelephonyLookup;
 import android.timezone.TelephonyNetworkFinder;
 import android.util.LocalLog;
 
@@ -862,8 +861,7 @@ public class LocaleTracker extends Handler {
         synchronized (LocaleTracker.class) {
             if ((telephonyNetworkFinder = sTelephonyNetworkFinder) == null) {
                 sTelephonyNetworkFinder =
-                        telephonyNetworkFinder =
-                                TelephonyLookup.getInstance().getTelephonyNetworkFinder();
+                        telephonyNetworkFinder = TelephonyNetworkFinder.getInstance();
             }
         }
 
@@ -885,8 +883,7 @@ public class LocaleTracker extends Handler {
         synchronized (LocaleTracker.class) {
             if ((telephonyNetworkFinder = sTelephonyNetworkFinder) == null) {
                 sTelephonyNetworkFinder =
-                        telephonyNetworkFinder =
-                                TelephonyLookup.getInstance().getTelephonyNetworkFinder();
+                        telephonyNetworkFinder = TelephonyNetworkFinder.getInstance();
             }
         }
 

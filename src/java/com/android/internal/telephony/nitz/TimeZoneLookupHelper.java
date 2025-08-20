@@ -37,6 +37,7 @@ import com.android.internal.telephony.NitzData;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 
 /**
@@ -161,7 +162,6 @@ public final class TimeZoneLookupHelper {
         if (dstAdjustmentMillis == null) {
             return countryTimeZones.lookupByOffsetWithBias(nitzData.getCurrentTimeInMillis(), bias,
                     nitzData.getLocalOffsetMillis());
-
         } else {
             // We don't try to match the exact DST offset given, we just use it to work out if
             // the country is in DST.
@@ -436,7 +436,9 @@ public final class TimeZoneLookupHelper {
         // be strong consistency across calls.
         synchronized (this) {
             if (mLastCountryTimeZones != null) {
-                if (mLastCountryTimeZones.matchesCountryCode(isoCountryCode)) {
+                if (mLastCountryTimeZones
+                        .getCountryIso()
+                        .equals(isoCountryCode.toLowerCase(Locale.US))) {
                     return mLastCountryTimeZones;
                 }
             }
