@@ -25,7 +25,6 @@ import android.os.Build;
 import android.os.SystemProperties;
 import android.text.TextUtils;
 import android.timezone.MobileCountries;
-import android.timezone.TelephonyLookup;
 import android.timezone.TelephonyNetworkFinder;
 
 import com.android.internal.annotations.GuardedBy;
@@ -204,8 +203,8 @@ public final class MccTable {
 
         synchronized (MccTable.class) {
             if ((telephonyNetworkFinder = sTelephonyNetworkFinder) == null) {
-                sTelephonyNetworkFinder = telephonyNetworkFinder =
-                        TelephonyLookup.getInstance().getTelephonyNetworkFinder();
+                sTelephonyNetworkFinder =
+                        telephonyNetworkFinder = TelephonyNetworkFinder.getInstance();
             }
         }
 
@@ -252,7 +251,7 @@ public final class MccTable {
     private static String countryCodeForMccMncNoFallback(MccMnc mccMnc) {
         synchronized (MccTable.class) {
             if (sTelephonyNetworkFinder == null) {
-                sTelephonyNetworkFinder = TelephonyLookup.getInstance().getTelephonyNetworkFinder();
+                sTelephonyNetworkFinder = TelephonyNetworkFinder.getInstance();
             }
         }
         if (sTelephonyNetworkFinder == null) {

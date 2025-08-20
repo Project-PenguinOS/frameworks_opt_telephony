@@ -45,6 +45,8 @@ import static android.telephony.satellite.NtnSignalStrength.NTN_SIGNAL_STRENGTH_
 import static android.telephony.satellite.NtnSignalStrength.NTN_SIGNAL_STRENGTH_GREAT;
 import static android.telephony.satellite.NtnSignalStrength.NTN_SIGNAL_STRENGTH_NONE;
 import static android.telephony.satellite.NtnSignalStrength.NTN_SIGNAL_STRENGTH_POOR;
+import static android.telephony.satellite.SatelliteManager.EMERGENCY_CALL_TO_SATELLITE_HANDOVER_TYPE_SOS;
+import static android.telephony.satellite.SatelliteManager.EMERGENCY_CALL_TO_SATELLITE_HANDOVER_TYPE_T911;
 import static android.telephony.satellite.SatelliteManager.KEY_DEMO_MODE_ENABLED;
 import static android.telephony.satellite.SatelliteManager.KEY_DEPROVISION_SATELLITE_TOKENS;
 import static android.telephony.satellite.SatelliteManager.KEY_EMERGENCY_MODE_ENABLED;
@@ -90,6 +92,7 @@ import static com.android.internal.telephony.satellite.SatelliteController.SATEL
 import static com.android.internal.telephony.satellite.SatelliteController.SATELLITE_DATA_PLAN_UNMETERED;
 import static com.android.internal.telephony.satellite.SatelliteController.SATELLITE_MODE_ENABLED_FALSE;
 import static com.android.internal.telephony.satellite.SatelliteController.SATELLITE_MODE_ENABLED_TRUE;
+import static com.android.internal.telephony.satellite.SatelliteController.SatellitePerPlmnConfiguration;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -198,6 +201,7 @@ import com.android.internal.telephony.configupdate.ConfigProviderAdaptor;
 import com.android.internal.telephony.configupdate.TelephonyConfigUpdateInstallReceiver;
 import com.android.internal.telephony.flags.FeatureFlags;
 import com.android.internal.telephony.satellite.metrics.CarrierRoamingSatelliteControllerStats;
+import com.android.internal.telephony.satellite.metrics.CarrierRoamingSatelliteSessionStats;
 import com.android.internal.telephony.satellite.metrics.ControllerMetricsStats;
 import com.android.internal.telephony.satellite.metrics.ProvisionMetricsStats;
 import com.android.internal.telephony.satellite.metrics.SessionMetricsStats;
@@ -628,6 +632,8 @@ public class SatelliteControllerTest extends TelephonyTest {
         replaceInstance(TelephonyConfigUpdateInstallReceiver.class, "sReceiverAdaptorInstance",
                 null, mMockTelephonyConfigUpdateInstallReceiver);
         replaceInstance(DemoSimulator.class, "sInstance", null, mMockDemoSimulator);
+
+        CarrierRoamingSatelliteSessionStats.clearInstancesForTest();
 
         doNothing().when(mMockSatelliteController).moveSatelliteToOffStateAndCleanUpResources(
                 SATELLITE_RESULT_REQUEST_ABORTED);
@@ -2909,6 +2915,166 @@ public class SatelliteControllerTest extends TelephonyTest {
         assertFalse(mSatelliteControllerUT.isInSatelliteModeForCarrierRoaming(mPhone2));
         verify(mPhone, times(0)).notifyCarrierRoamingNtnModeChanged(eq(false));
         verify(mPhone2, times(1)).notifyCarrierRoamingNtnModeChanged(eq(false));
+    }
+
+    @Test
+    public void testSatellitePerPlmnConfigurationUpdate_ForCarrierWithBothAutoAndManualSatellite() {
+        when(mFeatureFlags.vzwAstSkyloFallback()).thenReturn(true);
+
+        PersistableBundle satelliteConfigsPerPlmnBundle = new PersistableBundle();
+        PersistableBundle autoSatelliteConfigBundle = new PersistableBundle();
+        autoSatelliteConfigBundle.putInt(
+                CarrierConfigManager
+                        .KEY_CARRIER_ROAMING_NTN_EMERGENCY_CALL_TO_SATELLITE_HANDOVER_TYPE_INT,
+                EMERGENCY_CALL_TO_SATELLITE_HANDOVER_TYPE_T911);
+        autoSatelliteConfigBundle.putInt(
+                CarrierConfigManager.KEY_CARRIER_ROAMING_NTN_CONNECT_TYPE_INT,
+                CarrierConfigManager.CARRIER_ROAMING_NTN_CONNECT_AUTOMATIC);
+        SatellitePerPlmnConfiguration autoSatelliteConfig = new SatellitePerPlmnConfiguration();
+        autoSatelliteConfig.plmn = "00101";
+        autoSatelliteConfig.handoverType = EMERGENCY_CALL_TO_SATELLITE_HANDOVER_TYPE_T911;
+        autoSatelliteConfig.connectType = CarrierConfigManager
+                .CARRIER_ROAMING_NTN_CONNECT_AUTOMATIC;
+        PersistableBundle manualSatelliteConfigBundle = new PersistableBundle();
+        manualSatelliteConfigBundle.putInt(
+                CarrierConfigManager
+                        .KEY_CARRIER_ROAMING_NTN_EMERGENCY_CALL_TO_SATELLITE_HANDOVER_TYPE_INT,
+                EMERGENCY_CALL_TO_SATELLITE_HANDOVER_TYPE_SOS);
+        manualSatelliteConfigBundle.putInt(
+                CarrierConfigManager.KEY_CARRIER_ROAMING_NTN_CONNECT_TYPE_INT,
+                CarrierConfigManager.CARRIER_ROAMING_NTN_CONNECT_MANUAL);
+        SatellitePerPlmnConfiguration manualSatelliteConfig = new SatellitePerPlmnConfiguration();
+        manualSatelliteConfig.handoverType = EMERGENCY_CALL_TO_SATELLITE_HANDOVER_TYPE_SOS;
+        manualSatelliteConfig.connectType = CarrierConfigManager
+                .CARRIER_ROAMING_NTN_CONNECT_MANUAL;
+        satelliteConfigsPerPlmnBundle.putPersistableBundle("00101", autoSatelliteConfigBundle);
+        satelliteConfigsPerPlmnBundle.putPersistableBundle("00102", manualSatelliteConfigBundle);
+        mCarrierConfigBundle.putPersistableBundle(
+                CarrierConfigManager.KEY_SATELLITE_CONFIGS_PER_PLMN_BUNDLE,
+                satelliteConfigsPerPlmnBundle);
+        mCarrierConfigBundle.putInt(KEY_SATELLITE_CONNECTION_HYSTERESIS_SEC_INT, 2 * 60);
+        mCarrierConfigBundle.putBoolean(KEY_SATELLITE_ATTACH_SUPPORTED_BOOL, true);
+        mCarrierConfigBundle.putInt(CarrierConfigManager
+                .KEY_CARRIER_ROAMING_NTN_EMERGENCY_CALL_TO_SATELLITE_HANDOVER_TYPE_INT,
+                EMERGENCY_CALL_TO_SATELLITE_HANDOVER_TYPE_SOS);
+        mCarrierConfigBundle.putInt(
+                CarrierConfigManager.KEY_CARRIER_ROAMING_NTN_CONNECT_TYPE_INT,
+                CarrierConfigManager.CARRIER_ROAMING_NTN_CONNECT_MANUAL);
+        invokeCarrierConfigChanged();
+
+        doReturn(mSignalStrength).when(mPhone).getSignalStrength();
+        doReturn(mSignalStrength).when(mPhone2).getSignalStrength();
+        List<CellSignalStrength> cellSignalStrengthList = new ArrayList<>();
+        cellSignalStrengthList.add(mCellSignalStrength);
+        doReturn(cellSignalStrengthList).when(mSignalStrength).getCellSignalStrengths();
+        mSatelliteControllerUT.elapsedRealtime = 0;
+
+        NetworkRegistrationInfo nri =
+                new NetworkRegistrationInfo.Builder()
+                        .setRegistrationState(NetworkRegistrationInfo.REGISTRATION_STATE_HOME)
+                        .build();
+
+        // Device is in terrestrial network
+        logd(
+                "testSatellitePerPlmnConfigurationUpdate_ForCarrierWithBothAutoAndManualSatellite: "
+                        + "Set device in terrestrial network");
+        when(mServiceState.getState()).thenReturn(ServiceState.STATE_IN_SERVICE);
+        when(mServiceState.isUsingNonTerrestrialNetwork()).thenReturn(false);
+        when(mServiceState.getOperatorNumeric()).thenReturn("1234567890");
+        when(mServiceState.getNetworkRegistrationInfoListForTransportType(
+                        eq(AccessNetworkConstants.TRANSPORT_TYPE_WWAN)))
+                .thenReturn(List.of(nri));
+        sendServiceStateChangedEvent();
+        processAllMessages();
+        assertEquals(null, mSatelliteControllerUT.getSatellitePerPlmnConfiguration(SUB_ID));
+        assertEquals(
+                EMERGENCY_CALL_TO_SATELLITE_HANDOVER_TYPE_SOS,
+                mSatelliteControllerUT
+                        .getCarrierRoamingNtnEmergencyCallToSatelliteHandoverType(SUB_ID));
+        clearInvocations(mPhone);
+        clearInvocations(mPhone2);
+
+        // Device connects to auto satellite
+        logd(
+                "testSatellitePerPlmnConfigurationUpdate_ForCarrierWithBothAutoAndManualSatellite: "
+                        + "Set device in auto satellite");
+        when(mServiceState.getState()).thenReturn(ServiceState.STATE_IN_SERVICE);
+        when(mServiceState.isUsingNonTerrestrialNetwork()).thenReturn(true);
+        when(mServiceState.getOperatorNumeric()).thenReturn("00101");
+        when(mServiceState.getNetworkRegistrationInfoListForTransportType(
+                        eq(AccessNetworkConstants.TRANSPORT_TYPE_WWAN)))
+                .thenReturn(new ArrayList<>());
+        sendServiceStateChangedEvent();
+        processAllMessages();
+        assertEquals(
+                autoSatelliteConfig,
+                mSatelliteControllerUT.getSatellitePerPlmnConfiguration(SUB_ID));
+        assertEquals(
+                EMERGENCY_CALL_TO_SATELLITE_HANDOVER_TYPE_T911,
+                mSatelliteControllerUT
+                    .getCarrierRoamingNtnEmergencyCallToSatelliteHandoverType(SUB_ID));
+        clearInvocations(mPhone);
+        clearInvocations(mPhone2);
+
+        // Simulate auto satellite gap time i.e. device goes OOS, but connects again to auto
+        // satellite
+        // within hysteresis timeout
+        logd(
+                "testSatellitePerPlmnConfigurationUpdate_ForCarrierWithBothAutoAndManualSatellite: "
+                        + "Simulate auto satellite gap time");
+        mSatelliteControllerUT.elapsedRealtime = 1 * 60 * 1000;
+        when(mServiceState.getState()).thenReturn(ServiceState.STATE_OUT_OF_SERVICE);
+        when(mServiceState.isUsingNonTerrestrialNetwork()).thenReturn(false);
+        when(mServiceState.getNetworkRegistrationInfoListForTransportType(
+                        eq(AccessNetworkConstants.TRANSPORT_TYPE_WWAN)))
+                .thenReturn(new ArrayList<>());
+        sendServiceStateChangedEvent();
+        processAllMessages();
+        assertEquals(
+                autoSatelliteConfig,
+                mSatelliteControllerUT.getSatellitePerPlmnConfiguration(SUB_ID));
+        assertEquals(
+                EMERGENCY_CALL_TO_SATELLITE_HANDOVER_TYPE_T911,
+                mSatelliteControllerUT
+                        .getCarrierRoamingNtnEmergencyCallToSatelliteHandoverType(SUB_ID));
+        clearInvocations(mPhone);
+        clearInvocations(mPhone2);
+
+        // Devices goes truly OOS, eligible for manual satellite support
+        logd(
+                "testSatellitePerPlmnConfigurationUpdate_ForCarrierWithBothAutoAndManualSatellite: "
+                        + "Device goes truly OOS, eligible for manual satellite support");
+        mSatelliteControllerUT.elapsedRealtime = 5 * 60 * 1000;
+        moveTimeForward(4 * 60 * 1000);
+        processAllMessages();
+        assertEquals(
+                null,
+                mSatelliteControllerUT.getSatellitePerPlmnConfiguration(SUB_ID));
+        assertEquals(
+                EMERGENCY_CALL_TO_SATELLITE_HANDOVER_TYPE_SOS,
+                mSatelliteControllerUT
+                        .getCarrierRoamingNtnEmergencyCallToSatelliteHandoverType(SUB_ID));
+        clearInvocations(mPhone);
+        clearInvocations(mPhone2);
+
+        // Device gets back on terrestrial network
+        logd(
+                "testSatellitePerPlmnConfigurationUpdate_ForCarrierWithBothAutoAndManualSatellite: "
+                        + "Device gets back on terrestrial network");
+        when(mServiceState.getState()).thenReturn(ServiceState.STATE_IN_SERVICE);
+        when(mServiceState.isUsingNonTerrestrialNetwork()).thenReturn(false);
+        when(mServiceState.getNetworkRegistrationInfoListForTransportType(
+                        eq(AccessNetworkConstants.TRANSPORT_TYPE_WWAN)))
+                .thenReturn(List.of(nri));
+        sendServiceStateChangedEvent();
+        processAllMessages();
+        assertEquals(null, mSatelliteControllerUT.getSatellitePerPlmnConfiguration(SUB_ID));
+        assertEquals(
+                EMERGENCY_CALL_TO_SATELLITE_HANDOVER_TYPE_SOS,
+                mSatelliteControllerUT
+                        .getCarrierRoamingNtnEmergencyCallToSatelliteHandoverType(SUB_ID));
+        clearInvocations(mPhone);
+        clearInvocations(mPhone2);
     }
 
     @Test
@@ -6160,6 +6326,16 @@ public class SatelliteControllerTest extends TelephonyTest {
                 return super.getSupportedServicesOnCarrierRoamingNtn(subId);
             }
             return new int[]{3, 5};
+        }
+
+        @Override
+        public SatellitePerPlmnConfiguration getSatellitePerPlmnConfiguration(int subId) {
+            return super.getSatellitePerPlmnConfiguration(subId);
+        }
+
+        @Override
+        public int getCarrierRoamingNtnEmergencyCallToSatelliteHandoverType(int subId) {
+            return super.getCarrierRoamingNtnEmergencyCallToSatelliteHandoverType(subId);
         }
 
         @Override
