@@ -22,7 +22,6 @@ import android.content.pm.PackageManager;
 import android.os.Build;
 import android.util.Base64;
 
-import com.android.internal.telephony.metrics.TelephonyMetrics;
 import com.android.telephony.Rlog;
 
 import java.io.FileDescriptor;
@@ -51,12 +50,6 @@ public class DebugService {
     public void dump(FileDescriptor fd, PrintWriter pw, String[] args) {
         if (args != null && args.length > 0) {
             switch (args[0]) {
-                case "--metrics":
-                case "--metricsproto":
-                case "--metricsprototext":
-                    log("Collecting telephony metrics..");
-                    TelephonyMetrics.getInstance().dump(fd, pw, args);
-                    return;
                 case "--saveatoms":
                     if (Build.IS_DEBUGGABLE) {
                         log("Saving atoms..");

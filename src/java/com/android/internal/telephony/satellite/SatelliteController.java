@@ -3912,6 +3912,17 @@ public class SatelliteController extends Handler {
         if (error != SATELLITE_RESULT_SUCCESS) return error;
 
         mSatelliteCapabilitiesChangedListeners.put(callback.asBinder(), callback);
+        SatelliteCapabilities capabilities = getSatelliteCapabilities();
+        logd("registerForCapabilitiesChanged: capabilities=" + capabilities);
+        try {
+            if (capabilities != null) {
+                callback.onSatelliteCapabilitiesChanged(capabilities);
+            } else {
+                logd("registerForCapabilitiesChanged: capabilities is null");
+            }
+        } catch (RemoteException ex) {
+            ploge("registerForCapabilitiesChanged: RemoteException ex=" + ex);
+        }
         return SATELLITE_RESULT_SUCCESS;
     }
 

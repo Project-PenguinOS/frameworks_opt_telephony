@@ -54,7 +54,6 @@ import com.android.internal.telephony.data.DataNetworkController.DataNetworkCont
 import com.android.internal.telephony.data.DataSettingsManager.DataSettingsManagerCallback;
 import com.android.internal.telephony.flags.FeatureFlags;
 import com.android.internal.telephony.metrics.DataStallRecoveryStats;
-import com.android.internal.telephony.metrics.TelephonyMetrics;
 import com.android.telephony.Rlog;
 
 import java.io.FileDescriptor;
@@ -1056,11 +1055,6 @@ public class DataStallRecoveryManager extends Handler {
     /** Perform a series of data stall recovery actions. */
     private void doRecovery() {
         @RecoveryAction final int recoveryAction = getRecoveryAction();
-        final int signalStrength = mPhone.getSignalStrength().getLevel();
-
-        TelephonyMetrics.getInstance()
-                .writeSignalStrengthEvent(mPhone.getPhoneId(), signalStrength);
-        TelephonyMetrics.getInstance().writeDataStallEvent(mPhone.getPhoneId(), recoveryAction);
         mLastAction = recoveryAction;
         mLastActionReported = false;
         mNetworkCheckTimerStarted = false;

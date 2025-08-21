@@ -36,7 +36,6 @@ import android.text.TextUtils;
 import com.android.internal.hidden_from_bootclasspath.com.android.internal.telephony.flags.Flags;
 import com.android.internal.telephony.PhoneInternalInterface.DialArgs;
 import com.android.internal.telephony.emergency.EmergencyNumberTracker;
-import com.android.internal.telephony.metrics.TelephonyMetrics;
 import com.android.internal.telephony.uicc.IccCardApplicationStatus.AppState;
 import com.android.internal.telephony.uicc.UiccCardApplication;
 import com.android.telephony.Rlog;
@@ -83,8 +82,6 @@ public class GsmCdmaConnection extends Connection {
 
     // The cached delay to be used between DTMF tones fetched from carrier config.
     private int mDtmfToneDelay = 0;
-
-    private TelephonyMetrics mMetrics = TelephonyMetrics.getInstance();
 
     //***** Event Constants
     static final int EVENT_DTMF_DONE = 1;
@@ -733,7 +730,6 @@ public class GsmCdmaConnection extends Connection {
         // Metrics for audio codec
         if (dc.audioQuality != mAudioCodec) {
             mAudioCodec = dc.audioQuality;
-            mMetrics.writeAudioCodecGsmCdma(mOwner.getPhone().getPhoneId(), dc.audioQuality);
             mOwner.getPhone().getVoiceCallSessionStats().onAudioCodecChanged(this, dc.audioQuality);
         }
 

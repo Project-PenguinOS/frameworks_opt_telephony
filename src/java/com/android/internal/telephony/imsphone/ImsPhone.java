@@ -27,8 +27,8 @@ import static android.telephony.ims.RegistrationManager.SUGGESTED_ACTION_TRIGGER
 import static android.telephony.ims.RegistrationManager.SUGGESTED_ACTION_TRIGGER_PLMN_BLOCK;
 import static android.telephony.ims.RegistrationManager.SUGGESTED_ACTION_TRIGGER_PLMN_BLOCK_WITH_TIMEOUT;
 import static android.telephony.ims.RegistrationManager.SUGGESTED_ACTION_TRIGGER_RAT_BLOCK;
-import static android.telephony.ims.stub.ImsRegistrationImplBase.REGISTRATION_TECH_NONE;
 import static android.telephony.ims.stub.ImsRegistrationImplBase.DEFAULT_THROTTLE_SEC;
+import static android.telephony.ims.stub.ImsRegistrationImplBase.REGISTRATION_TECH_NONE;
 
 import static com.android.internal.telephony.CommandsInterface.CB_FACILITY_BAIC;
 import static com.android.internal.telephony.CommandsInterface.CB_FACILITY_BAICr;
@@ -155,9 +155,7 @@ import com.android.internal.telephony.emergency.EmergencyStateTracker;
 import com.android.internal.telephony.flags.FeatureFlags;
 import com.android.internal.telephony.gsm.SuppServiceNotification;
 import com.android.internal.telephony.metrics.ImsStats;
-import com.android.internal.telephony.metrics.TelephonyMetrics;
 import com.android.internal.telephony.metrics.VoiceCallSessionStats;
-import com.android.internal.telephony.nano.TelephonyProto.ImsConnectionState;
 import com.android.internal.telephony.subscription.SubscriptionInfoInternal;
 import com.android.internal.telephony.uicc.IccRecords;
 import com.android.internal.telephony.util.NotificationChannelController;
@@ -325,7 +323,6 @@ public class ImsPhone extends ImsPhoneBase {
     private final RegistrantList mImsRegistrationUpdateRegistrants = new RegistrantList();
 
     private final LocalLog mRegLocalLog = new LocalLog(64);
-    private TelephonyMetrics mMetrics;
 
     // The helper class to receive and store the MmTel registration status updated.
     private ImsRegistrationCallbackHelper mImsMmTelRegistrationHelper;
@@ -537,8 +534,6 @@ public class ImsPhone extends ImsPhoneBase {
 // QTI_END: 2023-06-13: Telephony: Revert "Removed IWLAN legacy mode support"
 
         mPhoneId = mDefaultPhone.getPhoneId();
-
-        mMetrics = TelephonyMetrics.getInstance();
 
         mImsMmTelRegistrationHelper = new ImsRegistrationCallbackHelper(mMmTelRegistrationUpdate,
                 context.getMainExecutor());
@@ -2594,7 +2589,6 @@ public class ImsPhone extends ImsPhoneBase {
                     + AccessNetworkConstants.transportTypeToString(imsTransportType));
             setServiceState(ServiceState.STATE_IN_SERVICE);
             getDefaultPhone().setImsRegistrationState(true);
-            mMetrics.writeOnImsConnectionState(mPhoneId, ImsConnectionState.State.CONNECTED, null);
             mImsStats.onImsRegistered(attributes);
             mImsNrSaModeHandler.onImsRegistered(
                     attributes.getRegistrationTechnology(), attributes.getFeatureTags());
@@ -2619,8 +2613,6 @@ public class ImsPhone extends ImsPhoneBase {
                     + AccessNetworkConstants.transportTypeToString(imsRadioTech));
             setServiceState(ServiceState.STATE_OUT_OF_SERVICE);
             getDefaultPhone().setImsRegistrationState(false);
-            mMetrics.writeOnImsConnectionState(mPhoneId, ImsConnectionState.State.PROGRESSING,
-                    null);
             mImsStats.onImsRegistering(imsRadioTech);
 
             AsyncResult ar;
@@ -2675,8 +2667,6 @@ public class ImsPhone extends ImsPhoneBase {
                 setServiceState(ServiceState.STATE_OUT_OF_SERVICE);
                 processDisconnectReason(imsReasonInfo);
                 getDefaultPhone().setImsRegistrationState(false);
-                mMetrics.writeOnImsConnectionState(mPhoneId, ImsConnectionState.State.DISCONNECTED,
-                        imsReasonInfo);
                 mImsStats.onImsUnregistered(imsReasonInfo);
                 mImsNrSaModeHandler.onImsUnregistered(imsRadioTech);
                 mImsRegistrationTech = REGISTRATION_TECH_NONE;
@@ -2756,8 +2746,6 @@ public class ImsPhone extends ImsPhoneBase {
         setServiceState(ServiceState.STATE_OUT_OF_SERVICE);
         processDisconnectReason(imsReasonInfo);
         getDefaultPhone().setImsRegistrationState(false);
-        mMetrics.writeOnImsConnectionState(mPhoneId, ImsConnectionState.State.DISCONNECTED,
-                imsReasonInfo);
         mImsStats.onImsUnregistered(imsReasonInfo);
         mImsNrSaModeHandler.onImsUnregistered(imsRadioTech);
         mImsRegistrationTech = REGISTRATION_TECH_NONE;
