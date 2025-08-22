@@ -53,7 +53,6 @@ import com.android.internal.telephony.ServiceStateTracker;
 import com.android.internal.telephony.TelephonyCapabilities;
 import com.android.internal.telephony.flags.FeatureFlags;
 import com.android.internal.telephony.metrics.EmergencyNumberStats;
-import com.android.internal.telephony.metrics.TelephonyMetrics;
 import com.android.internal.telephony.nano.PersistAtomsProto;
 import com.android.internal.telephony.subscription.SubscriptionManagerService;
 import com.android.internal.util.IndentingPrintWriter;
@@ -679,7 +678,6 @@ public class EmergencyNumberTracker extends Handler {
         if (!emergencyNumberListRadio.equals(mEmergencyNumberListFromRadio)) {
             try {
                 EmergencyNumber.mergeSameNumbersInEmergencyNumberList(emergencyNumberListRadio);
-                writeUpdatedEmergencyNumberListMetrics(emergencyNumberListRadio);
                 mEmergencyNumberListFromRadio = emergencyNumberListRadio;
                 if (!DBG) {
                     mEmergencyNumberListRadioLocalLog.log("updateRadioEmergencyNumberList:"
@@ -709,7 +707,6 @@ public class EmergencyNumberTracker extends Handler {
                     + countryIso);
         }
         cacheEmergencyDatabaseByCountry(countryIso);
-        writeUpdatedEmergencyNumberListMetrics(mEmergencyNumberListFromDatabase);
         if (!DBG) {
             mEmergencyNumberListDatabaseLocalLog.log(
                     "updateEmergencyNumberListDatabaseAndNotify:"
@@ -734,7 +731,6 @@ public class EmergencyNumberTracker extends Handler {
                 + " receiving Emegency Number database OTA update");
         mCurrentOtaDatabaseVersion = cacheOtaEmergencyNumberDatabase();
         if (mCurrentOtaDatabaseVersion != INVALID_DATABASE_VERSION) {
-            writeUpdatedEmergencyNumberListMetrics(mEmergencyNumberListFromDatabase);
             if (!DBG) {
                 mEmergencyNumberListDatabaseLocalLog.log(
                         "updateOtaEmergencyNumberListDatabaseAndNotify:"
@@ -1280,27 +1276,6 @@ public class EmergencyNumberTracker extends Handler {
 
     private void loge(String str) {
         Rlog.e(TAG, "[" + mPhoneId + "]" +  str);
-    }
-
-    private void writeUpdatedEmergencyNumberListMetrics(
-            List<EmergencyNumber> updatedEmergencyNumberList) {
-        if (updatedEmergencyNumberList == null) {
-            return;
-        }
-        for (EmergencyNumber num : updatedEmergencyNumberList) {
-            TelephonyMetrics.getInstance().writeEmergencyNumberUpdateEvent(
-                    mPhone.getPhoneId(), num, getEmergencyNumberDbVersion());
-        }
-    }
-
-    /**
-     * @return {@code true} if emergency numbers sourced from modem/config should be ignored.
-     * {@code false} if emergency numbers sourced from modem/config should not be ignored.
-     */
-    @VisibleForTesting
-    public boolean shouldModemConfigEmergencyNumbersBeIgnored() {
-        return mResources.getBoolean(com.android.internal.R.bool
-                .ignore_modem_config_emergency_numbers);
     }
 
     /**

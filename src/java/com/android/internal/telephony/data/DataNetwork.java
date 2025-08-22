@@ -116,7 +116,6 @@ import com.android.internal.telephony.data.TelephonyNetworkAgent.TelephonyNetwor
 import com.android.internal.telephony.flags.FeatureFlags;
 import com.android.internal.telephony.metrics.DataCallSessionStats;
 import com.android.internal.telephony.metrics.DataNetworkValidationStats;
-import com.android.internal.telephony.metrics.TelephonyMetrics;
 import com.android.internal.telephony.satellite.SatelliteController;
 import com.android.internal.util.ArrayUtils;
 import com.android.internal.util.FunctionalUtils;
@@ -1678,10 +1677,6 @@ public class DataNetwork extends StateMachine {
                     + ", isModemRoaming=" + isModemRoaming + ", allowRoaming=" + allowRoaming
                     + ", PDU session id=" + mPduSessionId + ", matchAllRuleAllowed="
                     + matchAllRuleAllowed);
-            TelephonyMetrics.getInstance().writeSetupDataCall(mPhone.getPhoneId(),
-                    ServiceState.networkTypeToRilRadioTechnology(dataNetworkType),
-                    mDataProfile.getProfileId(), mDataProfile.getApn(),
-                    mDataProfile.getProtocolType());
         }
 
         /**

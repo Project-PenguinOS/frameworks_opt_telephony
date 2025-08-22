@@ -3078,7 +3078,8 @@ public class SatelliteControllerTest extends TelephonyTest {
     }
 
     @Test
-    public void testRegisterForSatelliteCapabilitiesChangedWithFeatureFlagEnabled() {
+    public void testRegisterForSatelliteCapabilitiesChangedWithFeatureFlagEnabled()
+            throws Exception {
         Semaphore semaphore = new Semaphore(0);
         final SatelliteCapabilities[] satelliteCapabilities = new SatelliteCapabilities[1];
         ISatelliteCapabilitiesCallback callback =
@@ -3098,17 +3099,25 @@ public class SatelliteControllerTest extends TelephonyTest {
 
         int errorCode = mSatelliteControllerUT.registerForCapabilitiesChanged(callback);
         assertEquals(SATELLITE_RESULT_INVALID_TELEPHONY_STATE, errorCode);
+        assertFalse(waitForForEvents(
+                semaphore, 1, "testRegisterForSatelliteCapabilitiesChanged"));
 
         setUpResponseForRequestIsSatelliteSupported(false,
                 SATELLITE_RESULT_SUCCESS);
         verifySatelliteSupported(false, SATELLITE_RESULT_SUCCESS);
         errorCode = mSatelliteControllerUT.registerForCapabilitiesChanged(callback);
         assertEquals(SATELLITE_RESULT_NOT_SUPPORTED, errorCode);
+        assertFalse(waitForForEvents(
+                semaphore, 1, "testRegisterForSatelliteCapabilitiesChanged"));
 
         resetSatelliteControllerUT();
         provisionSatelliteService();
         errorCode = mSatelliteControllerUT.registerForCapabilitiesChanged(callback);
         assertEquals(SATELLITE_RESULT_SUCCESS, errorCode);
+        assertTrue(waitForForEvents(
+                semaphore, 1, "testRegisterForSatelliteCapabilitiesChanged"));
+        assertNotNull(satelliteCapabilities[0]);
+
         SatelliteCapabilities expectedCapabilities = mSatelliteCapabilities;
         sendSatelliteCapabilitiesChangedEvent(expectedCapabilities, null);
         processAllMessages();
@@ -3129,6 +3138,13 @@ public class SatelliteControllerTest extends TelephonyTest {
         processAllMessages();
         assertTrue(waitForForEvents(
                 semaphore, 0, "testRegisterForSatelliteCapabilitiesChanged"));
+
+        replaceInstance(SatelliteController.class, "mSatelliteCapabilities",
+                mSatelliteControllerUT, null);
+        errorCode = mSatelliteControllerUT.registerForCapabilitiesChanged(callback);
+        assertEquals(SATELLITE_RESULT_SUCCESS, errorCode);
+        assertFalse(waitForForEvents(
+                semaphore, 1, "testRegisterForSatelliteCapabilitiesChanged"));
     }
 
     @Test

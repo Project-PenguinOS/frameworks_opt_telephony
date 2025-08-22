@@ -115,7 +115,6 @@ import com.android.internal.telephony.gsm.SsData;
 import com.android.internal.telephony.imsphone.ImsPhone;
 import com.android.internal.telephony.imsphone.ImsPhoneCallTracker;
 import com.android.internal.telephony.imsphone.ImsPhoneMmiCode;
-import com.android.internal.telephony.metrics.TelephonyMetrics;
 import com.android.internal.telephony.metrics.VoiceCallSessionStats;
 import com.android.internal.telephony.security.CellularIdentifierDisclosureNotifier;
 import com.android.internal.telephony.security.CellularNetworkSecuritySafetySource;
@@ -2801,7 +2800,6 @@ public class GsmCdmaPhone extends Phone {
         @RadioPowerState int newState = mCi.getRadioState();
         Rlog.d(LOG_TAG, "handleRadioPowerStateChange, state= " + newState);
         mNotifier.notifyRadioPowerStateChanged(this, newState);
-        TelephonyMetrics.getInstance().writeRadioState(mPhoneId, newState);
     }
 
     @Override

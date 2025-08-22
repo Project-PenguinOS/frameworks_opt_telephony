@@ -57,7 +57,6 @@ import com.android.internal.telephony.GsmAlphabet.TextEncodingDetails;
 import com.android.internal.telephony.analytics.TelephonyAnalytics;
 import com.android.internal.telephony.analytics.TelephonyAnalytics.SmsMmsAnalytics;
 import com.android.internal.telephony.flags.FeatureFlags;
-import com.android.internal.telephony.metrics.TelephonyMetrics;
 // QTI_BEGIN: 2020-04-15: Telephony: Fix failing to send SMS with SMSC over IMS
 import com.android.internal.telephony.uicc.IccUtils;
 // QTI_END: 2020-04-15: Telephony: Fix failing to send SMS with SMSC over IMS
@@ -107,7 +106,6 @@ public class ImsSmsDispatcher extends SMSDispatcher {
     private volatile boolean mIsRegistered;
     private final FeatureConnector<ImsManager> mImsManagerConnector;
     /** Telephony metrics instance for logging metrics event */
-    private TelephonyMetrics mMetrics = TelephonyMetrics.getInstance();
     private ImsManager mImsManager;
     private FeatureConnectorFactory mConnectorFactory;
 
@@ -205,8 +203,6 @@ public class ImsSmsDispatcher extends SMSDispatcher {
                         + networkReasonCode);
                 // TODO integrate networkReasonCode into IMS SMS metrics.
                 SmsTracker tracker = mTrackers.get(token);
-                mMetrics.writeOnImsServiceSmsSolicitedResponse(mPhone.getPhoneId(), status, reason,
-                        (tracker != null ? tracker.mMessageId : 0L));
                 if (tracker == null) {
                     throw new IllegalArgumentException("Invalid token.");
                 }
@@ -702,14 +698,10 @@ public class ImsSmsDispatcher extends SMSDispatcher {
 // QTI_END: 2020-04-15: Telephony: Fix failing to send SMS with SMSC over IMS
                     isRetry,
                     pdu);
-            mMetrics.writeImsServiceSendSms(mPhone.getPhoneId(), format,
-                    ImsSmsImplBase.SEND_STATUS_OK, tracker.mMessageId);
         } catch (ImsException e) {
             loge("sendSms failed. Falling back to PSTN. Error: " + e.getMessage());
             mTrackers.remove(token);
             fallbackToPstn(tracker);
-            mMetrics.writeImsServiceSendSms(mPhone.getPhoneId(), format,
-                    ImsSmsImplBase.SEND_STATUS_ERROR_FALLBACK, tracker.mMessageId);
             mPhone.getSmsStats().onOutgoingSms(
                     true /* isOverIms */,
                     SmsConstants.FORMAT_3GPP2.equals(format),

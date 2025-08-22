@@ -56,7 +56,6 @@ import com.android.internal.telephony.Phone;
 import com.android.internal.telephony.PhoneConstants;
 import com.android.internal.telephony.UUSInfo;
 import com.android.internal.telephony.emergency.EmergencyNumberTracker;
-import com.android.internal.telephony.metrics.TelephonyMetrics;
 import com.android.telephony.Rlog;
 
 import java.util.ArrayList;
@@ -83,7 +82,6 @@ public class ImsPhoneConnection extends Connection implements
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     private ImsCall mImsCall;
     private final Bundle mExtras = new Bundle();
-    private TelephonyMetrics mMetrics = TelephonyMetrics.getInstance();
 
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     private boolean mDisconnected;
@@ -338,17 +336,7 @@ public class ImsPhoneConnection extends Connection implements
         }
     }
 
-    @VisibleForTesting
-    public void setTelephonyMetrics(TelephonyMetrics tm) {
-        mMetrics = tm;
-    }
-
     public void dispose() {
-    }
-
-    static boolean
-    equalsHandlesNulls (Object a, Object b) {
-        return (a == null) ? (b == null) : a.equals (b);
     }
 
     static boolean
@@ -1189,7 +1177,6 @@ public class ImsPhoneConnection extends Connection implements
             if (localCallProfile != null
                     && localCallProfile.mMediaProfile.mAudioQuality != mAudioCodec) {
                 mAudioCodec = localCallProfile.mMediaProfile.mAudioQuality;
-                mMetrics.writeAudioCodecIms(mOwner.mPhone.getPhoneId(), imsCall.getCallSession());
                 mOwner.getPhone().getVoiceCallSessionStats().onAudioCodecChanged(this, mAudioCodec);
                 changed = true;
                 mediaAttributesChanged = true;

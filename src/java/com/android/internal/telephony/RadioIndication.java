@@ -484,7 +484,6 @@ public class RadioIndication extends IRadioIndication.Stub {
             response[1] = (char) record.signalType;
             response[2] = (char) record.alertPitch;
             response[3] = (char) record.signal;
-            mRil.writeMetricsCallRing(response);
         }
 
         if (mRil.isLogOrTrace()) mRil.unsljLogRet(RIL_UNSOL_CALL_RING, response);

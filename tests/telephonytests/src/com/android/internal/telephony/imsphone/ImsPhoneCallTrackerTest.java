@@ -1662,19 +1662,6 @@ public class ImsPhoneCallTrackerTest extends TelephonyTest {
                         Call.State.ACTIVE));
 // QTI_END: 2018-11-05: Telephony: IMS: Update disconnect reason for IMS calls.
     }
-
-// QTI_BEGIN: 2018-03-02: Telephony: IMS-VT: Active call ends on accepting incoming VT call.
-    @Test
-    @SmallTest
-    public void testCallResumeStateNotResetByHoldFailure() throws ImsException {
-        mCTUT.setSwitchingFgAndBgCallsValue(true);
-        if (mImsCallListener != null) {
-            mImsCallListener.onCallHoldFailed(mImsCall, new ImsReasonInfo(0, -1));
-        }
-        assertTrue(mCTUT.getSwitchingFgAndBgCallsValue());
-    }
-// QTI_END: 2018-03-02: Telephony: IMS-VT: Active call ends on accepting incoming VT call.
-
     @Test
     @SmallTest
     public void testSipNotFoundRemap() {
