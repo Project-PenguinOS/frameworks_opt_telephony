@@ -40,6 +40,7 @@ import android.content.res.Configuration;
 import android.hardware.radio.modem.ImeiInfo;
 import android.net.Uri;
 import android.os.AsyncResult;
+import android.os.Binder;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
@@ -2661,7 +2662,10 @@ public abstract class Phone extends Handler implements PhoneInternalInterface {
         SubscriptionManager.setSubscriptionProperty(subId,
                 SubscriptionManager.ALLOWED_NETWORK_TYPES,
                 mapAsString);
-        logd("setAllowedNetworkTypes: SubId" + subId + ",setAllowedNetworkTypes " + mapAsString);
+        logl("setAllowedNetworkTypes: subId=" + subId + ", reason="
+                + convertAllowedNetworkTypeMapIndexToDbName(reason) + ", allowed network types="
+                + TelephonyManager.convertNetworkTypeBitmaskToString(networkTypes)
+                + ", uid=" + Binder.getCallingUid());
 
         updateAllowedNetworkTypes(response);
         notifyAllowedNetworkTypesChanged(reason);
@@ -5601,6 +5605,11 @@ public abstract class Phone extends Handler implements PhoneInternalInterface {
 
     private void logd(String s) {
         Rlog.d(mLogTag, "[" + mPhoneId + "] " + s);
+    }
+
+    private void logl(String s) {
+        mLocalLog.log(s);
+        Log.d(mLogTag, s);
     }
 
     private void logi(String s) {
