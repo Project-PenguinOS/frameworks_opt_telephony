@@ -129,7 +129,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * RIL implementation of the CommandsInterface.
- * {@hide}
+ * @hide
  */
 public class RIL extends BaseCommands implements CommandsInterface {
     static final String RILJ_LOG_TAG = "RILJ";

@@ -37,7 +37,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 
 /**
- * {@hide}
+ * @hide
  */
 public class UiccCard {
     protected static final String LOG_TAG = "UiccCard";

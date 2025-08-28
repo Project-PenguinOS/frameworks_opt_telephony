@@ -153,7 +153,7 @@ import java.util.Set;
 import java.util.function.Consumer;
 
 /**
- * {@hide}
+ * @hide
  */
 public class GsmCdmaPhone extends Phone {
     // NOTE that LOG_TAG here is "GsmCdma", which means that log messages

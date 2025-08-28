@@ -32,7 +32,7 @@ import java.io.PrintWriter;
 /**
  * An interface for the Android component that handles NITZ and related signals for time and time
  * zone detection.
- * {@hide}
+ * @hide
  */
 public interface NitzStateMachine {
 
@@ -147,7 +147,7 @@ public interface NitzStateMachine {
     /**
      * The real implementation of {@link DeviceState}.
      *
-     * {@hide}
+     * @hide
      */
     class DeviceStateImpl implements DeviceState {
 

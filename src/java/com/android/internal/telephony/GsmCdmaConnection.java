@@ -44,7 +44,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 
 /**
- * {@hide}
+ * @hide
  */
 public class GsmCdmaConnection extends Connection {
     private static final String LOG_TAG = "GsmCdmaConnection";

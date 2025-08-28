@@ -54,7 +54,7 @@ import java.util.Map;
 /**
  * This contains Carrier specific logic based on the states/events
  * managed in ServiceStateTracker.
- * {@hide}
+ * @hide
  */
 public class CarrierServiceStateTracker extends Handler {
     private static final String LOG_TAG = "CSST";

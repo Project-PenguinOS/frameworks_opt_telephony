@@ -41,7 +41,7 @@ import java.io.FileDescriptor;
 import java.io.PrintWriter;
 
 /**
- * {@hide}
+ * @hide
  */
 public class UiccCardApplication {
     private static final String LOG_TAG = "UiccCardApplication";

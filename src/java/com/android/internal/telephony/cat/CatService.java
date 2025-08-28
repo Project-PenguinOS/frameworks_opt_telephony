@@ -97,7 +97,7 @@ class RilMessage {
  * Class that implements SIM Toolkit Telephony Service. Interacts with the RIL
  * and application.
  *
- * {@hide}
+ * @hide
  */
 public class CatService extends Handler implements AppInterface {
     private static final boolean DBG = false;

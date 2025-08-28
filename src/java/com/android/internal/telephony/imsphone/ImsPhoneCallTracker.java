@@ -188,7 +188,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
- * {@hide}
+ * @hide
  */
 public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
     static final String LOG_TAG = "ImsPhoneCallTracker";

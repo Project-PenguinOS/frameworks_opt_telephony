@@ -65,7 +65,7 @@ import java.util.Objects;
 import java.util.Set;
 
 /**
- * {@hide}
+ * @hide
  */
 public class ImsPhoneConnection extends Connection implements
         ImsVideoCallProviderWrapper.ImsVideoProviderWrapperCallback {
