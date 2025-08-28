@@ -5947,7 +5947,7 @@ public class SatelliteController extends Handler {
     }
 
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
-    protected Set<String> getAllPlmnSet() {
+    public Set<String> getAllPlmnSet() {
         Set<String> allPlmnSetFromSubInfo = new HashSet<>();
         int[] activeSubIdArray = mSubscriptionManagerService.getActiveSubIdList(true);
         for (int activeSubId : activeSubIdArray) {

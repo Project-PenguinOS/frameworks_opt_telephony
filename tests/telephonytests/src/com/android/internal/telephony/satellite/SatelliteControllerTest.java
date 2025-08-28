@@ -6404,7 +6404,7 @@ public class SatelliteControllerTest extends TelephonyTest {
         }
 
         @Override
-        protected Set<String> getAllPlmnSet() {
+        public Set<String> getAllPlmnSet() {
             return super.getAllPlmnSet();
         }
 
