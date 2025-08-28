@@ -511,7 +511,7 @@ public class AutoDataSwitchController extends Handler {
         }
 
         if (shouldUnregister) {
-            log("updateListenerRegistrations: " + reason);
+            logl("updateListenerRegistrations: " + reason);
         }
 
         // Register or unregister as needed
@@ -543,9 +543,9 @@ public class AutoDataSwitchController extends Handler {
             phone.getServiceStateTracker().registerForServiceStateChanged(this,
                     EVENT_SERVICE_STATE_CHANGED, phoneId);
             mPhonesSignalStatus[phoneId].mListeningForEvents = true;
-            log("registerAllEventsForPhone: registered listeners for phone " + phoneId);
+            logl("registerAllEventsForPhone: registered listeners for phone " + phoneId);
         } else {
-            loge("Unexpected null phone " + phoneId + " when register all events");
+            logle("Unexpected null phone " + phoneId + " when register all events");
         }
     }
 
@@ -560,9 +560,9 @@ public class AutoDataSwitchController extends Handler {
             phone.getSignalStrengthController().unregisterForSignalStrengthChanged(this);
             phone.getServiceStateTracker().unregisterForServiceStateChanged(this);
             mPhonesSignalStatus[phoneId].mListeningForEvents = false;
-            log("unregisterAllEventsForPhone: unregistered listeners for phone " + phoneId);
+            logl("unregisterAllEventsForPhone: unregistered listeners for phone " + phoneId);
         } else {
-            loge("Unexpected out of bound phone " + phoneId + " when unregister all events");
+            logle("Unexpected out of bound phone " + phoneId + " when unregister all events");
         }
     }
 
@@ -621,7 +621,7 @@ public class AutoDataSwitchController extends Handler {
                 if (obj instanceof StabilityEventExtra extra) {
                     int targetPhoneId = extra.targetPhoneId;
                     boolean needValidation = extra.needValidation;
-                    log("require validation on phone " + targetPhoneId
+                    logl("require validation on phone " + targetPhoneId
                             + (needValidation ? "" : " no") + " need to pass");
                     mScheduledEventsToExtras.remove(EVENT_STABILITY_CHECK_PASSED);
                     mPhoneSwitcherCallback.onRequireValidation(targetPhoneId, needValidation);
@@ -648,7 +648,7 @@ public class AutoDataSwitchController extends Handler {
                 mPhonesSignalStatus[phoneId].mDataRegState = newRegState;
                 if (isInService(oldRegState) != isInService(newRegState)
                         || isHomeService(oldRegState) != isHomeService(newRegState)) {
-                    log("onServiceStateChanged: phone " + phoneId + " "
+                    logl("onServiceStateChanged: phone " + phoneId + " "
                             + NetworkRegistrationInfo.registrationStateToString(oldRegState)
                             + " -> "
                             + NetworkRegistrationInfo.registrationStateToString(newRegState));
@@ -656,7 +656,7 @@ public class AutoDataSwitchController extends Handler {
                 }
             }
         } else {
-            loge("Unexpected null phone " + phoneId + " upon its registration state changed");
+            logle("Unexpected null phone " + phoneId + " upon its registration state changed");
         }
     }
 
@@ -683,11 +683,11 @@ public class AutoDataSwitchController extends Handler {
                     .getTelephonyDisplayInfo();
             mPhonesSignalStatus[phoneId].mDisplayInfo = displayInfo;
             if (getBetterCandidatePhoneIdBasedOnScore() != mSelectedTargetPhoneId) {
-                log("onDisplayInfoChanged: phone " + phoneId + " " + displayInfo);
+                logl("onDisplayInfoChanged: phone " + phoneId + " " + displayInfo);
                 evaluateAutoDataSwitch(EVALUATION_REASON_DISPLAY_INFO_CHANGED);
             }
         } else {
-            loge("Unexpected null phone " + phoneId + " upon its display info changed");
+            logle("Unexpected null phone " + phoneId + " upon its display info changed");
         }
     }
 
@@ -703,13 +703,13 @@ public class AutoDataSwitchController extends Handler {
             if (oldSignalStrength.getLevel() != newSignalStrength.getLevel()) {
                 mPhonesSignalStatus[phoneId].mSignalStrength = newSignalStrength;
                 if (getBetterCandidatePhoneIdBasedOnScore() != mSelectedTargetPhoneId) {
-                    log("onSignalStrengthChanged: phone " + phoneId + " "
+                    logl("onSignalStrengthChanged: phone " + phoneId + " "
                             + oldSignalStrength.getLevel() + "->" + newSignalStrength.getLevel());
                     evaluateAutoDataSwitch(EVALUATION_REASON_SIGNAL_STRENGTH_CHANGED);
                 }
             }
         } else {
-            loge("Unexpected null phone " + phoneId + " upon its signal strength changed");
+            logle("Unexpected null phone " + phoneId + " upon its signal strength changed");
         }
     }
 
@@ -796,17 +796,21 @@ public class AutoDataSwitchController extends Handler {
             return;
         }
         // auto data switch feature is disabled.
-        if (!isAvailabilityBasedSwitchEnabled()) return;
+        if (!isAvailabilityBasedSwitchEnabled()) {
+            logle("onEvaluateAutoDataSwitch: auto data switch feature is disabled.");
+            return;
+        }
         int defaultDataSubId = mSubscriptionManagerService.getDefaultDataSubId();
         // check is valid DSDS
         if (mSubscriptionManagerService.getActiveSubIdList(
                 shouldExcludeOpportunisticForSwitch()).length < 2) {
+            logle("onEvaluateAutoDataSwitch: switch requires two active subscriptions.");
             return;
         }
         int defaultDataPhoneId = mSubscriptionManagerService.getPhoneId(defaultDataSubId);
         Phone defaultDataPhone = PhoneFactory.getPhone(defaultDataPhoneId);
         if (defaultDataPhone == null) {
-            loge("onEvaluateAutoDataSwitch: cannot find the phone associated with default data"
+            logle("onEvaluateAutoDataSwitch: cannot find the phone associated with default data"
                     + " subscription " + defaultDataSubId);
             return;
         }
@@ -819,7 +823,7 @@ public class AutoDataSwitchController extends Handler {
         if (preferredPhoneId == defaultDataPhoneId) {
             // on default data sub
             StabilityEventExtra res = evaluateAnyCandidateToUse(defaultDataPhoneId, debugMessage);
-            log(debugMessage.toString());
+            logl(debugMessage.toString());
             if (res.targetPhoneId != INVALID_PHONE_INDEX) {
                 mSelectedTargetPhoneId = res.targetPhoneId;
                 startStabilityCheck(res.targetPhoneId, res.switchType, res.needValidation);
@@ -830,7 +834,7 @@ public class AutoDataSwitchController extends Handler {
             // on backup data sub
             Phone backupDataPhone = PhoneFactory.getPhone(preferredPhoneId);
             if (backupDataPhone == null || !isActiveModemPhone(preferredPhoneId)) {
-                loge(debugMessage.append(" Unexpected null phone ").append(preferredPhoneId)
+                logle(debugMessage.append(" Unexpected null phone ").append(preferredPhoneId)
                         .append(" as the current active data phone").toString());
                 return;
             }
@@ -841,7 +845,7 @@ public class AutoDataSwitchController extends Handler {
                 mPhoneSwitcherCallback.onRequireImmediatelySwitchToPhone(DEFAULT_PHONE_INDEX,
                         EVALUATION_REASON_DATA_SETTINGS_CHANGED);
                 cancelAnyPendingSwitch();
-                log(debugMessage.append(
+                logl(debugMessage.append(
                         ", immediately back to default as user turns off default").toString());
                 return;
             } else if (!(internetEvaluation = getInternetEvaluation(backupDataPhone))
@@ -850,7 +854,7 @@ public class AutoDataSwitchController extends Handler {
                 mPhoneSwitcherCallback.onRequireImmediatelySwitchToPhone(
                         DEFAULT_PHONE_INDEX, EVALUATION_REASON_DATA_SETTINGS_CHANGED);
                 cancelAnyPendingSwitch();
-                log(debugMessage.append(
+                logl(debugMessage.append(
                                 ", immediately back to default because backup ")
                         .append(internetEvaluation).toString());
                 return;
@@ -924,7 +928,7 @@ public class AutoDataSwitchController extends Handler {
                 }
             }
 
-            log(debugMessage.toString());
+            logl(debugMessage.toString());
             if (backToDefault) {
                 mSelectedTargetPhoneId = defaultDataPhoneId;
                 startStabilityCheck(DEFAULT_PHONE_INDEX, switchType, needValidation);
@@ -1095,7 +1099,7 @@ public class AutoDataSwitchController extends Handler {
             delayMs = STABILITY_CHECK_TIMER_MAP.get(switchType);
             scheduleEventWithTimer(EVENT_STABILITY_CHECK_PASSED, eventExtras, delayMs);
         }
-        log("startStabilityCheck: "
+        logl("startStabilityCheck: "
                 + (delayMs != -1 ? "scheduling " : "already scheduled ")
                 + eventExtras);
     }
@@ -1192,11 +1196,11 @@ public class AutoDataSwitchController extends Handler {
             mDefaultNetworkIsOnNonCellular = !networkCapabilities.hasTransport(TRANSPORT_CELLULAR);
             if (mDefaultNetworkIsOnNonCellular
                     && isActiveSubId(mPhoneSwitcher.getAutoSelectedDataSubId())) {
-                log("default network is active on non cellular, switch back to default");
+                logl("default network is active on non cellular, switch back to default");
                 evaluateAutoDataSwitch(EVALUATION_REASON_DEFAULT_NETWORK_CHANGED);
             }
         } else {
-            log("default network is lost, try to find another active sub to switch to");
+            logl("default network is lost, try to find another active sub to switch to");
             mDefaultNetworkIsOnNonCellular = false;
             evaluateAutoDataSwitch(EVALUATION_REASON_DEFAULT_NETWORK_CHANGED);
         }
@@ -1212,7 +1216,7 @@ public class AutoDataSwitchController extends Handler {
             if (mEventsToAlarmListener.containsKey(EVENT_STABILITY_CHECK_PASSED)) {
                 mAlarmManager.cancel(mEventsToAlarmListener.get(EVENT_STABILITY_CHECK_PASSED));
             } else {
-                loge("cancelAnyPendingSwitch: EVENT_STABILITY_CHECK_PASSED listener is null");
+                logle("cancelAnyPendingSwitch: EVENT_STABILITY_CHECK_PASSED listener is null");
             }
             removeMessages(EVENT_STABILITY_CHECK_PASSED);
             mScheduledEventsToExtras.remove(EVENT_STABILITY_CHECK_PASSED);
@@ -1245,7 +1249,7 @@ public class AutoDataSwitchController extends Handler {
         SubscriptionInfo subInfo = mSubscriptionManagerService
                 .getSubscriptionInfo(mSubscriptionManagerService.getSubId(phoneId));
         if (subInfo == null || subInfo.isOpportunistic()) {
-            loge("displayAutoDataSwitchNotification: phoneId="
+            logle("displayAutoDataSwitchNotification: phoneId="
                     + phoneId + " unexpected subInfo " + subInfo);
             return;
         }
@@ -1389,6 +1393,15 @@ public class AutoDataSwitchController extends Handler {
      */
     private void logl(@NonNull String s) {
         log(s);
+        mLocalLog.log(s);
+    }
+
+    /**
+     * Log error messages and also log into the local log.
+     * @param s error messages
+     */
+    private void logle(@NonNull String s) {
+        loge(s);
         mLocalLog.log(s);
     }
 

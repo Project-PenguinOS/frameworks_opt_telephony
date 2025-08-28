@@ -273,6 +273,12 @@ public class SatelliteController extends Handler {
     private static final long DELAY_WAITING_SET_NETWORK_SELECTION_AUTO_MILLIS =
             TimeUnit.SECONDS.toMillis(1);
 
+    /**
+     * Delay used to debounce package change events to avoid redundant evaluations for a single
+     * user action.
+     */
+    private static final long DEBOUNCE_DELAY_MILLIS = 100;
+
     /** Message codes used in handleMessage() */
     //TODO: Move the Commands and events related to position updates to PointingAppController
     private static final int CMD_START_SATELLITE_TRANSMISSION_UPDATES = 1;
@@ -364,6 +370,7 @@ public class SatelliteController extends Handler {
     private static final int EVENT_UWB_STATE_CHANGED = 91;
     private static final int EVENT_CARRIER_CONFIG_CHANGED = 92;
     private static final int EVENT_SATELLITE_ENTILEMENT_STATUS_UPDATED = 93;
+    private static final int EVENT_PACKAGE_CHANGED = 94;
 
     private static final int TRUE = 1;
     private static final int FALSE = 0;
@@ -768,7 +775,8 @@ public class SatelliteController extends Handler {
     private static final String HOW_IT_WORKS_BUTTON = "how_it_works_button";
     private static final String ACTION_NOTIFICATION_CLICK = "action_notification_click";
     private static final String ACTION_NOTIFICATION_DISMISS = "action_notification_dismiss";
-    private String mDefaultSmsPackageName = "";
+    private static final String ACTION_DEFAULT_SMS_PACKAGE_CHANGED_INTERNAL =
+            "android.provider.action.DEFAULT_SMS_PACKAGE_CHANGED_INTERNAL";
     private String mSatelliteGatewayServicePackageName = "";
     private String mOverriddenSatelliteGatewayServicePackageName = "";
 
@@ -796,28 +804,47 @@ public class SatelliteController extends Handler {
     private BroadcastReceiver mPackageStateChangedReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
-            mDefaultSmsPackageName = Telephony.Sms.getDefaultSmsPackage(mContext);
+            String defaultSmsPackageName = Telephony.Sms.getDefaultSmsPackage(mContext);
             mSatelliteGatewayServicePackageName = getConfigSatelliteGatewayServicePackage();
-            String schemeSpecificPart = intent.getData().getSchemeSpecificPart();
-            plogd("packageStateChanged: " + intent.getData().toString()
-                    + " DefaultSmsPackageName:" + mDefaultSmsPackageName);
-
-            if (!schemeSpecificPart.equals(mSatelliteGatewayServicePackageName)
-                    && !schemeSpecificPart.equals(mDefaultSmsPackageName)) {
-                plogv("Neither SMS or SatelliteGateway package");
-                return;
-            }
-            int[] activeSubIds = mSubscriptionManagerService.getActiveSubIdList(true);
-            if (activeSubIds != null) {
-                for (int activeSubId : activeSubIds) {
-                    plogd("mPackageStateChangedReceiver: activeSubId= " + activeSubId);
-                    handleCarrierRoamingNtnAvailableServicesChanged(activeSubId);
-                }
+            final String action = intent.getAction();
+            boolean shouldReevaluate = false;
+            if (ACTION_DEFAULT_SMS_PACKAGE_CHANGED_INTERNAL.equals(action)) {
+                // This is a general signal that the default SMS app has changed.
+                plogd("Default SMS package changed internally, re-evaluating services.");
+                shouldReevaluate = true;
             } else {
-                ploge("mPackageStateChangedReceiver: activeSubIds is null");
+                String schemeSpecificPart = intent.getData().getSchemeSpecificPart();
+                plogd("packageStateChanged: " + intent.getData().toString()
+                        + " defaultSmsPackageName: " + defaultSmsPackageName
+                        + " satelliteGatewayServicePackageName: "
+                        + mSatelliteGatewayServicePackageName);
+
+                if (schemeSpecificPart.equals(mSatelliteGatewayServicePackageName)
+                        || schemeSpecificPart.equals(defaultSmsPackageName)) {
+                    plogd("Changed SMS or SatelliteGateway package");
+                    shouldReevaluate = true;
+                }
+            }
+            if (shouldReevaluate) {
+                if (!hasMessages(EVENT_PACKAGE_CHANGED)) {
+                    sendMessageDelayed(obtainMessage(EVENT_PACKAGE_CHANGED),
+                            DEBOUNCE_DELAY_MILLIS);
+                }
             }
         }
     };
+
+    private void handlePackageChangeEvent() {
+        int[] activeSubIds = mSubscriptionManagerService.getActiveSubIdList(true);
+        if (activeSubIds != null) {
+            for (int activeSubId : activeSubIds) {
+                plogd("mPackageStateChangedReceiver: activeSubId= " + activeSubId);
+                handleCarrierRoamingNtnAvailableServicesChanged(activeSubId);
+            }
+        } else {
+            ploge("mPackageStateChangedReceiver: activeSubIds is null");
+        }
+    }
 
     protected BroadcastReceiver mLocationServiceStateChangedReceiver = new BroadcastReceiver() {
         @Override
@@ -2674,6 +2701,10 @@ public class SatelliteController extends Handler {
                 }
                 break;
             }
+
+            case EVENT_PACKAGE_CHANGED:
+                handlePackageChangeEvent();
+                break;
 
             default:
                 Log.w(TAG, "SatelliteControllerHandler: unexpected message code: " +
@@ -9249,7 +9280,12 @@ public class SatelliteController extends Handler {
         return mFeatureFlags;
     }
 
-    private boolean isSatelliteDisabled() {
+    /**
+     * Get whether satellite modem is disabled.
+     *
+     * @return {@code true} if the satellite modem is disabled and {@code false} otherwise.
+     */
+    public boolean isSatelliteDisabled() {
         return ((mIsSatelliteEnabled != null) && !mIsSatelliteEnabled.get());
     }
 
@@ -9569,7 +9605,6 @@ public class SatelliteController extends Handler {
      */
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PRIVATE)
     public void registerApplicationStateChanged() {
-        mDefaultSmsPackageName = Telephony.Sms.getDefaultSmsPackage(mContext);
         mSatelliteGatewayServicePackageName = getConfigSatelliteGatewayServicePackage();
 
         IntentFilter packageFilter = new IntentFilter();
@@ -9578,7 +9613,12 @@ public class SatelliteController extends Handler {
         packageFilter.addAction(Intent.ACTION_PACKAGE_CHANGED);
         packageFilter.addDataScheme("package");
         mContext.registerReceiver(mPackageStateChangedReceiver, packageFilter,
-                mContext.RECEIVER_EXPORTED);
+                mContext.RECEIVER_NOT_EXPORTED);
+
+        IntentFilter smsFilter = new IntentFilter();
+        smsFilter.addAction(ACTION_DEFAULT_SMS_PACKAGE_CHANGED_INTERNAL);
+        mContext.registerReceiver(mPackageStateChangedReceiver, smsFilter,
+                mContext.RECEIVER_NOT_EXPORTED);
     }
 
     private void registerLocationServiceStateChanged() {

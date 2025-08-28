@@ -660,6 +660,7 @@ public class DataConfigManager extends Handler {
         // the future.
         meteredCapabilities.add(NetworkCapabilities.NET_CAPABILITY_PRIORITIZE_BANDWIDTH);
         meteredCapabilities.add(NetworkCapabilities.NET_CAPABILITY_PRIORITIZE_LATENCY);
+        meteredCapabilities.add(DataUtils.NET_CAPABILITY_PRIORITIZE_UNIFIED_COMMUNICATIONS);
 
         return Collections.unmodifiableSet(meteredCapabilities);
     }

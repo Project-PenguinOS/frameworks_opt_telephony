@@ -1234,6 +1234,46 @@ public class DatagramDispatcherTest extends TelephonyTest {
     }
 
     @Test
+    public void testHandleMessage_cmdSendMtSmsPollingMessage_sendsMtSmsPoll() {
+        logd("testHandleMessage_cmdSendMtSmsPollingMessage_sendsMtSmsPoll");
+        doReturn(false).when(mMockSatelliteController).isSatelliteBeingDisabled();
+        doReturn(false).when(mMockSatelliteController).isSatelliteDisabled();
+        setShouldPollMtSmsTrue();
+        mDatagramDispatcherUT.setDeviceAlignedWithSatellite(true);
+        mContextFixture.putBooleanResource(
+                R.bool.config_satellite_allow_check_message_in_not_connected, true);
+
+        mDatagramDispatcherUT.obtainMessage(11/*CMD_SEND_MT_SMS_POLLING_MESSAGE*/).sendToTarget();
+        processAllMessages();
+        verify(mMockSmsDispatchersController, times(1)).sendMtSmsPollingMessage();
+
+        logd("testHandleMessage_cmdSendMtSmsPollingMessage_sendsMtSmsPoll: beingDisabled");
+        clearInvocations(mMockSmsDispatchersController);
+        doReturn(true).when(mMockSatelliteController).isSatelliteBeingDisabled();
+        doReturn(false).when(mMockSatelliteController).isSatelliteDisabled();
+        mDatagramDispatcherUT.obtainMessage(11/*CMD_SEND_MT_SMS_POLLING_MESSAGE*/).sendToTarget();
+        processAllMessages();
+        verify(mMockSmsDispatchersController, never()).sendMtSmsPollingMessage();
+
+        logd("testHandleMessage_cmdSendMtSmsPollingMessage_sendsMtSmsPoll: disabled");
+        clearInvocations(mMockSmsDispatchersController);
+        doReturn(false).when(mMockSatelliteController).isSatelliteBeingDisabled();
+        doReturn(true).when(mMockSatelliteController).isSatelliteDisabled();
+        mDatagramDispatcherUT.obtainMessage(11/*CMD_SEND_MT_SMS_POLLING_MESSAGE*/).sendToTarget();
+        processAllMessages();
+        verify(mMockSmsDispatchersController, never()).sendMtSmsPollingMessage();
+
+        logd("testHandleMessage_cmdSendMtSmsPollingMessage_sendsMtSmsPoll: "
+                + "disabled and beingDisabled");
+        clearInvocations(mMockSmsDispatchersController);
+        doReturn(true).when(mMockSatelliteController).isSatelliteBeingDisabled();
+        doReturn(true).when(mMockSatelliteController).isSatelliteDisabled();
+        mDatagramDispatcherUT.obtainMessage(11/*CMD_SEND_MT_SMS_POLLING_MESSAGE*/).sendToTarget();
+        processAllMessages();
+        verify(mMockSmsDispatchersController, never()).sendMtSmsPollingMessage();
+    }
+
+    @Test
     public void testOnSatelliteModemStateChanged_connected_sendsMtSmsPoll() {
         setShouldPollMtSmsTrue();
         mDatagramDispatcherUT.setDeviceAlignedWithSatellite(true);

@@ -1348,6 +1348,16 @@ public class DatagramDispatcher extends Handler {
             mShouldPollMtSms.set(false);
         }
 
+        SatelliteController satelliteController = SatelliteController.getInstance();
+        if (satelliteController != null) {
+            if (satelliteController.isSatelliteDisabled()
+                    || satelliteController.isSatelliteBeingDisabled()) {
+                plogd("sendMtSmsPollingMessage: Not sending polling SMS "
+                        + "as satellite is 'being disabled' or 'disabled'");
+                return;
+            }
+        }
+
         synchronized (mLock) {
             for (Entry<Long, PendingRequest> entry : mPendingSmsMap.entrySet()) {
                 PendingRequest pendingRequest = entry.getValue();
