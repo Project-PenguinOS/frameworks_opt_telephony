@@ -4700,10 +4700,12 @@ public class SatelliteController extends Handler {
      * @return {@code Pair<true, subscription ID>} if any subscription on the device is connected to
      * satellite, {@code Pair<false, null>} otherwise.
      */
-    Pair<Boolean, Integer> isUsingNonTerrestrialNetworkViaCarrier() {
+    public Pair<Boolean, Integer> isUsingNonTerrestrialNetworkViaCarrier() {
         for (Phone phone : PhoneFactory.getPhones()) {
             ServiceState serviceState = phone.getServiceState();
             if (serviceState != null && serviceState.isUsingNonTerrestrialNetwork()) {
+                logd("isUsingNonTerrestrialNetworkViaCarrier: " + phone.getSubId() + " using ntn "
+                        + "via carrier");
                 return new Pair<>(true, phone.getSubId());
             }
         }
