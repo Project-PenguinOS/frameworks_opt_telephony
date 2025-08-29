@@ -136,6 +136,7 @@ import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
@@ -235,6 +236,15 @@ public class GsmCdmaPhone extends Phone {
     private boolean mIsNullCipherAndIntegritySupported = false;
     private boolean mIsIdentifierDisclosureTransparencySupported = false;
     private boolean mIsNullCipherNotificationSupported = false;
+    /**
+     * Queue for holding cellular events that arrive before a valid subscription ID is available.
+     * These messages are held until the SIM state is {@link TelephonyManager#SIM_STATE_LOADED},
+     * at which point they are re-processed.
+     */
+    @VisibleForTesting
+    public final List<Message> mCellularEventMessages =
+            Collections.synchronizedList(new ArrayList<>());
+    private static final Object sBlocker = new Object();
 
     // Create Cfu (Call forward unconditional) so that dialing number &
     // mOnComplete (Message object passed by client) can be packed &
@@ -433,6 +443,19 @@ public class GsmCdmaPhone extends Phone {
                         SubscriptionManager.INVALID_SIM_SLOT_INDEX)) {
                     mSimState = intent.getIntExtra(TelephonyManager.EXTRA_SIM_STATE,
                             TelephonyManager.SIM_STATE_UNKNOWN);
+                    if (mSimState == TelephonyManager.SIM_STATE_LOADED
+                            && !mCellularEventMessages.isEmpty()) {
+                        synchronized (sBlocker) {
+                            logd("Executing CellularEventMessages size: "
+                                    + mCellularEventMessages.size());
+                            Iterator<Message> iterator = mCellularEventMessages.iterator();
+                            while (iterator.hasNext()) {
+                                sendMessage(iterator.next());
+                                iterator.remove();
+                            }
+                            sBlocker.notifyAll();
+                        }
+                    }
                     if (mSimState == TelephonyManager.SIM_STATE_LOADED
                             && currentSlotSubIdChanged()) {
                         setNetworkSelectionModeAutomatic(null);
@@ -3201,16 +3224,18 @@ public class GsmCdmaPhone extends Phone {
                 }
 
                 CellularIdentifierDisclosure disclosure = (CellularIdentifierDisclosure) ar.result;
-                if (mIdentifierDisclosureNotifier != null
-                        && disclosure != null) {
-                    int subId = getSubId();
-                    if (SubscriptionManager.isValidSubscriptionId(subId)) {
-                        mIdentifierDisclosureNotifier.addDisclosure(mContext, subId, disclosure);
-                    }
+                if (mIdentifierDisclosureNotifier == null ||  disclosure == null) {
+                    logd("EVENT_CELL_IDENTIFIER_DISCLOSURE mIdentifierDisclosureNotifier or"
+                            + " disclosure is null.");
+                    return;
                 }
-                if (mFeatureFlags.cellularIdentifierDisclosureIndications()
-                        && mIdentifierDisclosureNotifier != null
-                        && disclosure != null) {
+
+                if (queueCellularEventIfSubIdInvalid(msg, "EVENT_CELL_IDENTIFIER_DISCLOSURE")) {
+                    return;
+                }
+
+                mIdentifierDisclosureNotifier.addDisclosure(mContext, getSubId(), disclosure);
+                if (mFeatureFlags.cellularIdentifierDisclosureIndications()) {
                     logd("EVENT_CELL_IDENTIFIER_DISCLOSURE for non-Safety Center listeners "
                             + "phoneId = " + getPhoneId());
                     mNotifier.notifyCellularIdentifierDisclosedChanged(this, disclosure);
@@ -3229,15 +3254,18 @@ public class GsmCdmaPhone extends Phone {
                 ar = (AsyncResult) msg.obj;
                 SecurityAlgorithmUpdate update = (SecurityAlgorithmUpdate) ar.result;
 
-                if (mNullCipherNotifier != null) {
-                    int subId = getSubId();
-                    if (SubscriptionManager.isValidSubscriptionId(subId)) {
-                        mNullCipherNotifier.onSecurityAlgorithmUpdate(mContext, getPhoneId(), subId,
-                                update);
-                    }
+                if (mNullCipherNotifier == null) {
+                    logd("EVENT_SECURITY_ALGORITHM_UPDATE mNullCipherNotifier is null.");
+                    return;
                 }
-                if (mFeatureFlags.securityAlgorithmsUpdateIndications()
-                        && mNullCipherNotifier != null) {
+
+                if (queueCellularEventIfSubIdInvalid(msg, "EVENT_SECURITY_ALGORITHM_UPDATE")) {
+                    return;
+                }
+
+                mNullCipherNotifier.onSecurityAlgorithmUpdate(mContext, getPhoneId(), getSubId(),
+                        update);
+                if (mFeatureFlags.securityAlgorithmsUpdateIndications()) {
                     logd("EVENT_SECURITY_ALGORITHM_UPDATE for non-Safety Center listeners "
                               + "phoneId = " + getPhoneId());
                     mNotifier.notifySecurityAlgorithmsChanged(this, update);
@@ -3253,6 +3281,15 @@ public class GsmCdmaPhone extends Phone {
             default:
                 super.handleMessage(msg);
         }
+    }
+
+    private boolean queueCellularEventIfSubIdInvalid(Message msg, String eventName) {
+        if (!SubscriptionManager.isValidSubscriptionId(getSubId())) {
+            logd("Adding event to message queue with event name: " + eventName);
+            mCellularEventMessages.add(msg.obtain(msg));
+            return true;
+        }
+        return false;
     }
 
     private boolean doesResultIndicateModemSupport(AsyncResult ar) {
