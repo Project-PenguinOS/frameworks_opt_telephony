@@ -176,7 +176,7 @@ import java.util.function.Consumer;
 import java.util.stream.Stream;
 
 /**
- * {@hide}
+ * @hide
  */
 public class ImsPhone extends ImsPhoneBase {
     private static final String LOG_TAG = "ImsPhone";

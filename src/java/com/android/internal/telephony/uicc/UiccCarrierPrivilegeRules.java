@@ -51,7 +51,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  *
  * Document: https://source.android.com/devices/tech/config/uicc.html
  *
- * {@hide}
+ * @hide
  */
 public class UiccCarrierPrivilegeRules extends Handler {
     private static final String LOG_TAG = "UiccCarrierPrivilegeRules";

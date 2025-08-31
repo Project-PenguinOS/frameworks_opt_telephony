@@ -188,7 +188,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
- * {@hide}
+ * @hide
  */
 public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
     static final String LOG_TAG = "ImsPhoneCallTracker";
@@ -3537,8 +3537,7 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
 
         int code = maybeRemapReasonCode(reasonInfo);
 
-        if (mFeatureFlags.remapDisconnectCauseSipRequestCancelled() &&
-                code == ImsReasonInfo.CODE_SIP_REQUEST_CANCELLED) {
+        if (code == ImsReasonInfo.CODE_SIP_REQUEST_CANCELLED) {
             return DisconnectCause.NORMAL;
         }
 

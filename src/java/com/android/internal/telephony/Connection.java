@@ -44,7 +44,7 @@ import java.util.Set;
 import java.util.concurrent.CopyOnWriteArraySet;
 
 /**
- * {@hide}
+ * @hide
  */
 public abstract class Connection {
     private static final String TAG = "Connection";

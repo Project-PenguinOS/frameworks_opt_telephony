@@ -2526,6 +2526,7 @@ public class DataNetwork extends StateMachine {
                     case NetworkCapabilities.NET_CAPABILITY_PRIORITIZE_LATENCY:
                     case NetworkCapabilities.NET_CAPABILITY_PRIORITIZE_BANDWIDTH:
                     case NetworkCapabilities.NET_CAPABILITY_CBS:
+                    case DataUtils.NET_CAPABILITY_PRIORITIZE_UNIFIED_COMMUNICATIONS:
                         builder.addCapability(networkCapability);
                         break;
                     default:

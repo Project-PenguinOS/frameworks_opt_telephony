@@ -71,7 +71,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 // QTI_END: 2025-02-10: Telephony: Decouple Qualcomm value adds
 
 /**
- * {@hide}
+ * @hide
  */
 public abstract class IccRecords extends Handler implements IccConstants {
     private static final String LOG_TAG = "IccRecords";

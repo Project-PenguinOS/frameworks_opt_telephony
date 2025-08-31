@@ -142,7 +142,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
- * {@hide}
+ * @hide
  */
 public class ServiceStateTracker extends Handler {
     static final String LOG_TAG = "SST";
