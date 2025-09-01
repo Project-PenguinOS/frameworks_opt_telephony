@@ -58,6 +58,7 @@ public class SatelliteConfig {
     private Boolean mIsSatelliteRegionAllowed;
     private File mSatS2File;
     private File mSatelliteAccessConfigJsonFile;
+    private List<String> mDeviceSatelliteProviders;
     private SatelliteConfigData.SatelliteConfigProto mConfigData;
 
     public SatelliteConfig() {
@@ -66,6 +67,10 @@ public class SatelliteConfig {
 
     public SatelliteConfig(@NonNull SatelliteConfig satelliteConfig) {
         logd("SatelliteConfig: constructing through deep copy of: " + satelliteConfig);
+        if (satelliteConfig.mConfigData == null) {
+            loge("SatelliteConfig: satelliteConfig.mConfigData is null, return");
+            return;
+        }
         new SatelliteConfig(satelliteConfig.mConfigData);
     }
 
@@ -92,10 +97,21 @@ public class SatelliteConfig {
     private void buildCarrierRoamingConfig() {
         logd("buildCarrierRoamingConfig");
         if (mConfigData.carrierRoamingConfig == null) {
-            logd("mConfigData.carrierRoamingConfig: empty");
+            logd("buildCarrierRoamingConfig: carrierRoamingConfig empty");
         } else {
             mCarrierRoamingMaxAllowedDataMode = mConfigData.carrierRoamingConfig.maxAllowedDataMode;
-            logd("mCarrierRoamingMaxAllowedDataMode: " + mCarrierRoamingMaxAllowedDataMode);
+            logd("buildCarrierRoamingConfig: mCarrierRoamingMaxAllowedDataMode is "
+                    + mCarrierRoamingMaxAllowedDataMode);
+
+            if (mConfigData.carrierRoamingConfig.deviceSatellitePlmn == null) {
+                logd("buildCarrierRoamingConfig: deviceSatellitePlmn is null, set empty list");
+                mDeviceSatelliteProviders = new ArrayList<>();
+            } else {
+                mDeviceSatelliteProviders =
+                        List.of(mConfigData.carrierRoamingConfig.deviceSatellitePlmn);
+                logd("buildCarrierRoamingConfig: mDeviceSatelliteProviders: "
+                        + String.join(", ", mDeviceSatelliteProviders));
+            }
         }
     }
 
@@ -263,6 +279,17 @@ public class SatelliteConfig {
         return mIsSatelliteRegionAllowed;
     }
 
+    /**
+     * @return satellite provider plmn list, if there is no config data then it returns empty.
+     */
+    @NonNull
+    public List<String> getDeviceSatelliteProviderList() {
+        if (mDeviceSatelliteProviders == null) {
+            logd("getDeviceSatelliteProviderList : mDeviceSatelliteProviders is null");
+            return new ArrayList<>();
+        }
+        return mDeviceSatelliteProviders;
+    }
 
     /**
      * @param context the Context

@@ -1030,6 +1030,7 @@ public class SatelliteController extends Handler {
         }
 
         mSatellitePlmnListFromOverlayConfig = readSatellitePlmnsFromOverlayConfig();
+
         registerApplicationStateChanged();
         registerLocationServiceStateChanged();
         updateSupportedSatelliteServicesForActiveSubscriptions();
@@ -5980,6 +5981,24 @@ public class SatelliteController extends Handler {
                 obtainMessage(EVENT_SET_SATELLITE_PLMN_INFO_DONE));
     }
 
+    /**
+     * Retrieves a list of satellite PLMNs from the configuration updater.
+     * Returns an empty list if the configuration is not available.
+     */
+    @NonNull
+    private List<String> getDeviceSatellitePlmnListFromConfigUpdater() {
+        if (mFeatureFlags.updateDeviceSatellitePlmnByConfigupdater()) {
+            SatelliteConfig satelliteConfig = getSatelliteConfig();
+            if (satelliteConfig != null) {
+                plogd("getDeviceSatellitePlmnListFromConfigUpdater: return = "
+                        + String.join(",", satelliteConfig.getDeviceSatelliteProviderList()));
+                return satelliteConfig.getDeviceSatelliteProviderList();
+            }
+        }
+        plogd("getDeviceSatellitePlmnListFromConfigUpdater: return empty list");
+        return new ArrayList<>();
+    }
+
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
     public Set<String> getAllPlmnSet() {
         Set<String> allPlmnSetFromSubInfo = new HashSet<>();
@@ -5989,6 +6008,7 @@ public class SatelliteController extends Handler {
             allPlmnSetFromSubInfo.addAll(getBarredPlmnList(activeSubId));
         }
         allPlmnSetFromSubInfo.addAll(mSatellitePlmnListFromOverlayConfig);
+        allPlmnSetFromSubInfo.addAll(getDeviceSatellitePlmnListFromConfigUpdater());
 
         if (mIgnorePlmnListFromStorage.get()) {
             // Do not use PLMN list from storage

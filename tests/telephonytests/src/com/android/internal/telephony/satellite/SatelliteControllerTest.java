@@ -788,6 +788,8 @@ public class SatelliteControllerTest extends TelephonyTest {
         doReturn(true).when(mFeatureFlags).satelliteImproveMultiThreadDesign();
         doReturn(true).when(mFeatureFlags).supportCarrierIdsInGeofence();
         doReturn(true).when(mFeatureFlags).fixSatelliteProvisionStateOutOfSync();
+        doReturn(true).when(mFeatureFlags).updateDeviceSatellitePlmnByConfigupdater();
+
         doReturn(TEST_ALL_SATELLITE_PLMN_SET).when(mMockSatelliteController).getAllPlmnSet();
         mSatelliteControllerUT.setAlarmManager(mMockAlarmManager);
         doNothing().when(mMockAlarmManager).cancel(any(AlarmManager.OnAlarmListener.class));
@@ -801,6 +803,46 @@ public class SatelliteControllerTest extends TelephonyTest {
         mSatelliteControllerUT = null;
         super.tearDown();
     }
+
+    @Test
+    public void testGetAllPlmnSet() throws Exception {
+        final String plmnA = "111111";
+        final String plmnB = "222222";
+        final String plmnC = "333333";
+        final String plmnD = "444444";
+
+        doReturn(mMockConfig).when(mMockConfigParser).getConfig();
+        replaceInstance(SatelliteController.class, "mSatellitePlmnListFromOverlayConfig",
+                mSatelliteControllerUT, new ArrayList<>(List.of(plmnA)));
+        replaceInstance(SatelliteController.class, "mIgnorePlmnListFromStorage",
+                mSatelliteControllerUT, new AtomicBoolean(true));
+        replaceInstance(SatelliteController.class, "mCarrierRoamingNtnAllSatellitePlmnSet",
+                mSatelliteControllerUT, new HashSet<>(Set.of(plmnB)));
+
+        doReturn(List.of(plmnC)).when(mMockConfig).getDeviceSatelliteProviderList();
+        assertEquals(Set.of(plmnA, plmnC), mSatelliteControllerUT.getAllPlmnSet());
+
+        doReturn(List.of(plmnA)).when(mMockConfig).getDeviceSatelliteProviderList();
+        assertEquals(Set.of(plmnA), mSatelliteControllerUT.getAllPlmnSet());
+
+        doReturn(new ArrayList<>()).when(mMockConfig).getDeviceSatelliteProviderList();
+        assertEquals(Set.of(plmnA), mSatelliteControllerUT.getAllPlmnSet());
+
+        replaceInstance(SatelliteController.class, "mIgnorePlmnListFromStorage",
+                mSatelliteControllerUT, new AtomicBoolean(false));
+
+        doReturn(List.of(plmnC)).when(mMockConfig).getDeviceSatelliteProviderList();
+        assertEquals(Set.of(plmnA, plmnB, plmnC), mSatelliteControllerUT.getAllPlmnSet());
+
+        doReturn(List.of(plmnD)).when(mMockConfig).getDeviceSatelliteProviderList();
+        assertEquals(Set.of(plmnA, plmnB, plmnC, plmnD),
+                mSatelliteControllerUT.getAllPlmnSet());
+
+        doReturn(new ArrayList<>()).when(mMockConfig).getDeviceSatelliteProviderList();
+        assertEquals(Set.of(plmnA, plmnB, plmnC, plmnD),
+                mSatelliteControllerUT.getAllPlmnSet());
+    }
+
 
     @Test
     public void testShouldTurnOffCarrierSatelliteForEmergencyCall() throws Exception {
