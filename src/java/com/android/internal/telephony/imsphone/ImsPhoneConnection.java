@@ -1477,8 +1477,8 @@ public class ImsPhoneConnection extends Connection implements
                 extras.putString(android.telecom.Call.EXTRA_ASSERTED_DISPLAY_NAME, v);
             }
 
-        } catch (RuntimeException e) {
-            Rlog.e(LOG_TAG, "maybeInjectBusinessComposerExtras: exception=" + e);
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 
@@ -1499,8 +1499,8 @@ public class ImsPhoneConnection extends Connection implements
                 Rlog.i(LOG_TAG, String.format("mIBCE: EXTRA_IS_USING_VIDEO_RINGBACK=[%s]", v));
                 extras.putBoolean(android.telecom.Call.EXTRA_IS_USING_VIDEO_RINGBACK, v);
             }
-        } catch (RuntimeException e) {
-            Rlog.e(LOG_TAG, "maybeInjectIsUsingVideoRingbackExtras: exception=" + e);
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 

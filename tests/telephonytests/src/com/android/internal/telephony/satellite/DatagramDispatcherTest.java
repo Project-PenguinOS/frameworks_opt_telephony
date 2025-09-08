@@ -181,6 +181,10 @@ public class DatagramDispatcherTest extends TelephonyTest {
         when(mMockSatelliteController.getSatellitePhone()).thenReturn(mPhone);
         when(mPhone.getSmsDispatchersController()).thenReturn(mMockSmsDispatchersController);
         when(mMockSatelliteController.getSatelliteCarrierId()).thenReturn(UNKNOWN_CARRIER_ID);
+        when(mMockSatelliteController.getSupportedConnectTypeMetrics())
+                .thenReturn(SatelliteConstants.GLOBAL_NTN_CONNECT_TYPE_UNKNOWN);
+        when(mMockSatelliteController.getSessionConnectTypeMetrics()).thenReturn(SatelliteConstants
+                .SESSION_NTN_CONNECT_TYPE_UNKNOWN);
         mPendingSms = createPendingRequest();
 
         mContextFixture.putIntResource(R.integer.config_mt_sms_polling_throttle_millis,

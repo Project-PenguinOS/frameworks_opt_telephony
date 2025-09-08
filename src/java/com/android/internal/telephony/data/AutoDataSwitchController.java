@@ -49,6 +49,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
+import android.os.ParcelUuid;
 import android.os.SystemClock;
 import android.provider.Settings;
 import android.telephony.AccessNetworkConstants;
@@ -60,6 +61,7 @@ import android.telephony.SignalStrength;
 import android.telephony.SubscriptionInfo;
 import android.telephony.TelephonyDisplayInfo;
 import android.util.ArrayMap;
+import android.util.ArraySet;
 import android.util.IndentingPrintWriter;
 import android.util.LocalLog;
 
@@ -81,7 +83,9 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -202,6 +206,7 @@ public class AutoDataSwitchController extends Handler {
     private final AutoDataSwitchControllerCallback mPhoneSwitcherCallback;
     @NonNull
     private final AlarmManager mAlarmManager;
+    // TODO(b/441307439): fix issue that ADSC is created with null CCM on cellular-less devices
     @NonNull
     private final CarrierConfigManager mCarrierConfigManager;
     /** A map of a scheduled event to its associated extra for action when the event fires off. */
@@ -399,7 +404,8 @@ public class AutoDataSwitchController extends Handler {
         mPhoneSwitcherCallback = phoneSwitcherCallback;
         mAlarmManager = context.getSystemService(AlarmManager.class);
         mCarrierConfigManager = context.getSystemService(CarrierConfigManager.class);
-        if (sFeatureFlags.monitorCarrierConfigChangeForAutoDataSwitch()) {
+        if (sFeatureFlags.monitorCarrierConfigChangeForAutoDataSwitch()
+                && mCarrierConfigManager != null) {
             mCarrierConfigManager.registerCarrierConfigChangeListener(this::post,
                     (logicalSlotIndex, subId, carrierId, specificCarrierId) -> {
                         // Carrier config change is only used from primary sub to detect OPPT switch
@@ -1327,16 +1333,36 @@ public class AutoDataSwitchController extends Handler {
     /**
      * Exclude opportunistic profiles for switch when ANY of condition below is fulfilled:
      * - Feature flag is disabled
-     * - Not only one primary (visible) profile is active
+     * - No active primary (visible) and opportunistic profiles in the same group
      * - Primary profile doesn't override carrier config to enable the feature
      */
     private boolean shouldExcludeOpportunisticForSwitch() {
-        final boolean excludeOppt =  !sFeatureFlags.macroBasedOpportunisticNetworks()
-                || mSubscriptionManagerService.getActiveSubIdList(true /*visibleOnly*/).length != 1
-                || getOpptSwitchPolicyForPrimaryPhone()
-                == OPP_AUTO_DATA_SWITCH_POLICY_DISABLED;
-        if (!excludeOppt) log("OPPT switch included!");
-        return excludeOppt;
+        if (!sFeatureFlags.macroBasedOpportunisticNetworks()) {
+            log("OPPT switch excluded: feature flag is disabled!");
+            return true;
+        }
+
+        if (getOpptSwitchPolicyForPrimaryPhone() == OPP_AUTO_DATA_SWITCH_POLICY_DISABLED) {
+            log("OPPT switch excluded: primary phone doesn't enable the feature!");
+            return true;
+        }
+
+        final List<SubscriptionInfo> infos =
+                mSubscriptionManagerService.getActiveSubscriptionInfoList(
+                        mContext.getOpPackageName(),
+                        mContext.getAttributionTag(), true /* mIsForAllUserProfiles */);
+        Set<ParcelUuid> primarySubs = new ArraySet<>();
+        Set<ParcelUuid> oppSubs = new ArraySet<>();
+        for (SubscriptionInfo si : infos) {
+            if (si.getGroupUuid() == null) continue;
+            if (si.isOpportunistic()) {
+                oppSubs.add(si.getGroupUuid());
+            } else {
+                primarySubs.add(si.getGroupUuid());
+            }
+        }
+        primarySubs.retainAll(oppSubs);
+        return primarySubs.isEmpty();
     }
 
     /**
@@ -1349,10 +1375,11 @@ public class AutoDataSwitchController extends Handler {
             return OPP_AUTO_DATA_SWITCH_POLICY_DISABLED;
         }
         if (sFeatureFlags.monitorCarrierConfigChangeForAutoDataSwitch()) {
-            return mCarrierConfigManager.getCarrierConfigSubset(mContext, activeSubs[0],
-                    CarrierConfigManager.KEY_OPP_AUTO_DATA_SWITCH_POLICY_INT).getInt(
-                    CarrierConfigManager.KEY_OPP_AUTO_DATA_SWITCH_POLICY_INT,
-                    OPP_AUTO_DATA_SWITCH_POLICY_DISABLED);
+            return mCarrierConfigManager == null ? OPP_AUTO_DATA_SWITCH_POLICY_DISABLED :
+                    mCarrierConfigManager.getCarrierConfigSubset(mContext, activeSubs[0],
+                            CarrierConfigManager.KEY_OPP_AUTO_DATA_SWITCH_POLICY_INT).getInt(
+                            CarrierConfigManager.KEY_OPP_AUTO_DATA_SWITCH_POLICY_INT,
+                            OPP_AUTO_DATA_SWITCH_POLICY_DISABLED);
         } else {
             return PhoneFactory.getPhone(mSubscriptionManagerService.getPhoneId(activeSubs[0]))
                     .getDataNetworkController()

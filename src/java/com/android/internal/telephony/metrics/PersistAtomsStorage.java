@@ -899,6 +899,12 @@ public class PersistAtomsStorage {
             existingStats.isMultiSim = stats.isMultiSim;
             existingStats.countOfSatelliteSessions += stats.countOfSatelliteSessions;
             existingStats.isNbIotNtn = stats.isNbIotNtn;
+            // Does not update supportedConnectionMode as it is dimension field
+            existingStats.countOfSessionConnectionModeAutomatic +=
+                    stats.countOfSessionConnectionModeAutomatic;
+            existingStats.countOfSessionConnectionModeManual +=
+                    stats.countOfSessionConnectionModeManual;
+            existingStats.serviceDataPolicy = stats.serviceDataPolicy;
         } else {
             mAtoms.carrierRoamingSatelliteControllerStats = insertAtRandomPlace(
                     mAtoms.carrierRoamingSatelliteControllerStats, stats, mMaxNumSatelliteStats);
@@ -2452,7 +2458,9 @@ public class PersistAtomsStorage {
                     && stats.countOfAutoExitDueToScreenOff == key.countOfAutoExitDueToScreenOff
                     && stats.countOfAutoExitDueToTnNetwork == key.countOfAutoExitDueToTnNetwork
                     && stats.isEmergency == key.isEmergency
-                    && stats.maxInactivityDurationSec == key.maxInactivityDurationSec) {
+                    && stats.maxInactivityDurationSec == key.maxInactivityDurationSec
+                    && stats.supportedConnectionMode == key.supportedConnectionMode
+                    && stats.sessionConnectionMode == key.sessionConnectionMode) {
                 return stats;
             }
         }
@@ -2475,7 +2483,9 @@ public class PersistAtomsStorage {
                     && stats.isSatelliteAllowedInCurrentLocation
                     == key.isSatelliteAllowedInCurrentLocation
                     && stats.isWifiConnected == key.isWifiConnected
-                    && stats.carrierId == key.carrierId) {
+                    && stats.carrierId == key.carrierId
+                    && stats.supportedConnectionMode == key.supportedConnectionMode
+                    && stats.sessionConnectionMode == key.sessionConnectionMode) {
                 return stats;
             }
         }
@@ -2505,7 +2515,8 @@ public class PersistAtomsStorage {
      */
     private @Nullable SatelliteController find(SatelliteController key) {
         for (SatelliteController stats : mAtoms.satelliteController) {
-            if (stats.carrierId == key.carrierId) {
+            if (stats.carrierId == key.carrierId
+                    && stats.supportedConnectionMode == key.supportedConnectionMode) {
                 return stats;
             }
         }
@@ -2520,7 +2531,8 @@ public class PersistAtomsStorage {
             CarrierRoamingSatelliteControllerStats key) {
         for (CarrierRoamingSatelliteControllerStats stats :
                 mAtoms.carrierRoamingSatelliteControllerStats) {
-            if (stats.carrierId == key.carrierId) {
+            if (stats.carrierId == key.carrierId
+                    && stats.supportedConnectionMode == key.supportedConnectionMode) {
                 return stats;
             }
         }
@@ -2535,7 +2547,8 @@ public class PersistAtomsStorage {
             if (stats.carrierId == key.carrierId
                     && stats.result == key.result
                     && stats.entitlementStatus == key.entitlementStatus
-                    && stats.isRetry == key.isRetry) {
+                    && stats.isRetry == key.isRetry
+                    && stats.supportedConnectionMode == key.supportedConnectionMode) {
                 return stats;
             }
         }

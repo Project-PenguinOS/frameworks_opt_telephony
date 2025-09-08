@@ -110,6 +110,7 @@ import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.intThat;
 import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.clearInvocations;
@@ -266,6 +267,16 @@ public class SatelliteControllerTest extends TelephonyTest {
     private List<Pair<Executor, CarrierConfigManager.CarrierConfigChangeListener>>
             mCarrierConfigChangedListenerList = new ArrayList<>();
 
+    private static final List<Integer> VALID_GLOBAL_CONNECT_TYPES = Arrays.asList(
+            SatelliteConstants.GLOBAL_NTN_CONNECT_TYPE_AUTOMATIC,
+            SatelliteConstants.GLOBAL_NTN_CONNECT_TYPE_MANUAL,
+            SatelliteConstants.GLOBAL_NTN_CONNECT_TYPE_HYBRID,
+            SatelliteConstants.GLOBAL_NTN_CONNECT_TYPE_UNKNOWN);
+
+    private static final List<Integer> VALID_SESSION_CONNECT_TYPES = Arrays.asList(
+            SatelliteConstants.SESSION_NTN_CONNECT_TYPE_AUTOMATIC,
+            SatelliteConstants.SESSION_NTN_CONNECT_TYPE_MANUAL,
+            SatelliteConstants.SESSION_NTN_CONNECT_TYPE_UNKNOWN);
     private TestSatelliteController mSatelliteControllerUT;
     private TestSharedPreferences mSharedPreferences;
     private PersistableBundle mCarrierConfigBundle;
@@ -730,6 +741,12 @@ public class SatelliteControllerTest extends TelephonyTest {
         doReturn(mMockSessionMetricsStats)
                 .when(mMockSessionMetricsStats).setCarrierId(anyInt());
         doReturn(mMockSessionMetricsStats)
+                .when(mMockSessionMetricsStats).setSupportedConnectionMode(
+                        intThat(lastArg -> VALID_GLOBAL_CONNECT_TYPES.contains(lastArg)));
+        doReturn(mMockSessionMetricsStats)
+                .when(mMockSessionMetricsStats).setSessionConnectionMode(
+                        intThat(lastArg -> VALID_SESSION_CONNECT_TYPES.contains(lastArg)));
+        doReturn(mMockSessionMetricsStats)
                 .when(mMockSessionMetricsStats).setIsNtnOnlyCarrier(anyBoolean());
         doNothing().when(mMockSessionMetricsStats).reportSessionMetrics();
 
@@ -739,6 +756,9 @@ public class SatelliteControllerTest extends TelephonyTest {
                 .setIsProvisionRequest(anyBoolean());
         doReturn(mMockProvisionMetricsStats).when(mMockProvisionMetricsStats)
                 .setCarrierId(anyInt());
+        doReturn(mMockProvisionMetricsStats)
+                .when(mMockProvisionMetricsStats).setSupportedConnectionMode(
+                        intThat(lastArg -> VALID_GLOBAL_CONNECT_TYPES.contains(lastArg)));
         doReturn(mMockProvisionMetricsStats).when(mMockProvisionMetricsStats)
                 .setIsNtnOnlyCarrier(anyBoolean());
         doNothing().when(mMockProvisionMetricsStats).reportProvisionMetrics();
@@ -4652,7 +4672,8 @@ public class SatelliteControllerTest extends TelephonyTest {
                 .count();
         int expectedMetricReportCallCount = numberOfCarriers;
         verify(mMockControllerMetricsStats, times(expectedMetricReportCallCount)).setIsProvisioned(
-                anyInt(), eq(true), anyBoolean());
+                anyInt(), eq(true), anyBoolean(),
+                intThat(lastArg -> VALID_GLOBAL_CONNECT_TYPES.contains(lastArg)));
         verify(mMockAlarmManager, atLeastOnce()).cancel(any(AlarmManager.OnAlarmListener.class));
         verify(mMockAlarmManager, atLeastOnce()).setExact(eq(AlarmManager.ELAPSED_REALTIME_WAKEUP),
                 anyLong(), anyString(), any(Executor.class),
@@ -4666,7 +4687,8 @@ public class SatelliteControllerTest extends TelephonyTest {
         doAnswer(invocation -> {
             countDownLatch.countDown();
             return null;
-        }).when(mMockControllerMetricsStats).setIsProvisioned(anyInt(), anyBoolean(), anyBoolean());
+        }).when(mMockControllerMetricsStats).setIsProvisioned(anyInt(), anyBoolean(), anyBoolean(),
+                intThat(lastArg -> VALID_GLOBAL_CONNECT_TYPES.contains(lastArg)));
         capturedListener.onAlarm();
         processAllMessages();
         try {
@@ -4678,7 +4700,8 @@ public class SatelliteControllerTest extends TelephonyTest {
         }
         expectedMetricReportCallCount +=  numberOfCarriers;
         verify(mMockControllerMetricsStats, times(expectedMetricReportCallCount)).setIsProvisioned(
-                anyInt(), eq(true), anyBoolean());
+                anyInt(), eq(true), anyBoolean(),
+                intThat(lastArg -> VALID_GLOBAL_CONNECT_TYPES.contains(lastArg)));
         verify(mMockAlarmManager, atLeast(2)).cancel(any(AlarmManager.OnAlarmListener.class));
         verify(mMockAlarmManager, atLeast(2)).setExact(eq(AlarmManager.ELAPSED_REALTIME_WAKEUP),
                 anyLong(), anyString(), any(Executor.class),
@@ -7009,13 +7032,16 @@ public class SatelliteControllerTest extends TelephonyTest {
         processAllMessages();
 
         verify(mMockControllerMetricsStats, times(1))
-                .setIsProvisioned(anyInt(), anyBoolean(), anyBoolean());
+                .setIsProvisioned(anyInt(), anyBoolean(), anyBoolean(),
+                        intThat(lastArg -> VALID_GLOBAL_CONNECT_TYPES.contains(lastArg)));
         verify(mMockCarrierRoamingSatelliteControllerStats, times(2))
                 .reportIsDeviceEntitled(anyInt(), anyBoolean());
         verify(mMockControllerMetricsStats, times(2))
-                .reportCurrentVersionOfCarrierRoamingSatelliteConfig(anyInt(), anyInt());
+                .reportCurrentVersionOfCarrierRoamingSatelliteConfig(anyInt(), anyInt(),
+                        intThat(lastArg -> VALID_GLOBAL_CONNECT_TYPES.contains(lastArg)));
         verify(mMockControllerMetricsStats, times(2))
-                .reportCurrentMaxAllowedDataMode(anyInt(), anyInt());
+                .reportCurrentMaxAllowedDataMode(anyInt(), anyInt(),
+                        intThat(lastArg -> VALID_GLOBAL_CONNECT_TYPES.contains(lastArg)));
 
         verify(mMockAlarmManager, atLeast(1))
                 .cancel(any(AlarmManager.OnAlarmListener.class));
