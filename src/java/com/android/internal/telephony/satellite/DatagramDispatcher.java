@@ -785,6 +785,10 @@ public class DatagramDispatcher extends Handler {
                         .setIsDemoMode(isDemoMode)
                         .setCarrierId(SatelliteController.getInstance().getSatelliteCarrierId())
                         .setIsNtnOnlyCarrier(SatelliteController.getInstance().isNtnOnlyCarrier())
+                        .setSupportedConnectionMode(SatelliteController.getInstance()
+                                .getSupportedConnectTypeMetrics())
+                        .setSessionConnectionMode(SatelliteController.getInstance()
+                                .getSessionConnectTypeMetrics())
                         .build());
         if (resultCode == SatelliteManager.SATELLITE_RESULT_SUCCESS) {
             mControllerMetricsStats.reportOutgoingDatagramSuccessCount(argument.datagramType,

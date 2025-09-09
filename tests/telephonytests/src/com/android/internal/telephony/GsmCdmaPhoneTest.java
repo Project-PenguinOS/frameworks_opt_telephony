@@ -2592,6 +2592,40 @@ public class GsmCdmaPhoneTest extends TelephonyTest {
     }
 
     @Test
+    public void testCellularIdentifierDisclosure_withInvalidSubscriptionID() {
+        int phoneId = 0;
+        int subId = -1;
+        when(mSubscriptionManagerService.getSubId(phoneId)).thenReturn(subId);
+
+        Phone phoneUT =
+                new GsmCdmaPhone(
+                        mContext,
+                        mMockCi,
+                        mNotifier,
+                        true,
+                        phoneId,
+                        PhoneConstants.PHONE_TYPE_GSM,
+                        mTelephonyComponentFactory,
+                        (c, p) -> mImsManager,
+                        mFeatureFlags);
+
+        CellularIdentifierDisclosure disclosure =
+                new CellularIdentifierDisclosure(
+                        CellularIdentifierDisclosure.NAS_PROTOCOL_MESSAGE_ATTACH_REQUEST,
+                        CellularIdentifierDisclosure.CELLULAR_IDENTIFIER_IMSI,
+                        "001001",
+                        false);
+        phoneUT.sendMessage(
+                mPhoneUT.obtainMessage(
+                        Phone.EVENT_CELL_IDENTIFIER_DISCLOSURE,
+                        new AsyncResult(null, disclosure, null)));
+        processAllMessages();
+
+        verify(mIdentifierDisclosureNotifier, never())
+                .addDisclosure(eq(mContext), eq(subId), any(CellularIdentifierDisclosure.class));
+    }
+
+    @Test
     public void testCellularIdentifierDisclosure_unsupportedByModemOnRadioAvailable() {
         GsmCdmaPhone phoneUT = makeNewPhoneUT();
         assertFalse(phoneUT.isIdentifierDisclosureTransparencySupported());

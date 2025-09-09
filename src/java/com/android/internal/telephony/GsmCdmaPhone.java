@@ -3270,7 +3270,10 @@ public class GsmCdmaPhone extends Phone {
                 CellularIdentifierDisclosure disclosure = (CellularIdentifierDisclosure) ar.result;
                 if (mIdentifierDisclosureNotifier != null
                         && disclosure != null) {
-                    mIdentifierDisclosureNotifier.addDisclosure(mContext, getSubId(), disclosure);
+                    int subId = getSubId();
+                    if (SubscriptionManager.isValidSubscriptionId(subId)) {
+                        mIdentifierDisclosureNotifier.addDisclosure(mContext, subId, disclosure);
+                    }
                 }
                 if (mFeatureFlags.cellularIdentifierDisclosureIndications()
                         && mIdentifierDisclosureNotifier != null
