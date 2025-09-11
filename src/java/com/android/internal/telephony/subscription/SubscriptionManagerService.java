@@ -17,7 +17,6 @@
 package com.android.internal.telephony.subscription;
 
 import static android.content.pm.PackageManager.FEATURE_TELEPHONY_SUBSCRIPTION;
-import static android.telephony.TelephonyManager.ENABLE_FEATURE_MAPPING;
 
 import android.Manifest;
 import android.annotation.CallbackExecutor;
@@ -4884,23 +4883,8 @@ public class SubscriptionManagerService extends ISub.Stub {
      */
     private void enforceTelephonyFeatureWithException(@Nullable String callingPackage,
             @NonNull String methodName) {
-        if (callingPackage == null || mPackageManager == null) {
-            return;
-        }
-
-        if (!CompatChanges.isChangeEnabled(ENABLE_FEATURE_MAPPING, callingPackage,
-                Binder.getCallingUserHandle())
-                || mVendorApiLevel < Build.VERSION_CODES.VANILLA_ICE_CREAM) {
-            // Skip to check associated telephony feature,
-            // if compatibility change is not enabled for the current process or
-            // the SDK version of vendor partition is less than Android V.
-            return;
-        }
-
-        if (!mPackageManager.hasSystemFeature(FEATURE_TELEPHONY_SUBSCRIPTION)) {
-            throw new UnsupportedOperationException(
-                    methodName + " is unsupported without " + FEATURE_TELEPHONY_SUBSCRIPTION);
-        }
+        TelephonyUtils.enforceTelephonyFeatureWithException(callingPackage, mPackageManager,
+                mVendorApiLevel, FEATURE_TELEPHONY_SUBSCRIPTION, methodName);
     }
 
     /**
