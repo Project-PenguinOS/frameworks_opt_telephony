@@ -2419,7 +2419,8 @@ public class SubscriptionManagerService extends ISub.Stub {
             // Check if the record exists or not.
             if (subInfo == null) {
                 // Record does not exist.
-                if (mSlotIndexToSubId.containsKey(slotIndex)) {
+                if (subscriptionType == SubscriptionManager.SUBSCRIPTION_TYPE_LOCAL_SIM
+                        && mSlotIndexToSubId.containsKey(slotIndex)) {
                     loge("Already a subscription on slot " + slotIndex);
                     return -1;
                 }
@@ -3133,7 +3134,8 @@ public class SubscriptionManagerService extends ISub.Stub {
      *
      * @param slotIndex Logical SIM slot index.
      * @return The subscription id. {@link SubscriptionManager#INVALID_SUBSCRIPTION_ID} if SIM is
-     * absent.
+     * absent. If slotIndex is {@link SubscriptionManager#SLOT_INDEX_FOR_REMOTE_SIM_SUB}, the last
+     * inserted remote SIM subscription id will be returned.
      */
     @Override
     public int getSubId(int slotIndex) {
@@ -3491,7 +3493,7 @@ public class SubscriptionManagerService extends ISub.Stub {
      * @param visibleOnly {@code true} if only includes user visible subscription's sub id.
      * @param user If {@code null}, uses the calling user handle to judge which subscriptions are
      *             accessible to the caller.
-     * @return List of the active subscription id.
+     * @return Array of the active subscription id.
      */
     @NonNull private int[] getActiveSubIdListAsUser(
             boolean visibleOnly, @NonNull final UserHandle user) {

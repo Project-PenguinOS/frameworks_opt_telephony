@@ -17,14 +17,6 @@ flag {
     bug:"288002989"
 }
 
-# OWNER=sangyun TARGET=24Q2
-flag {
-    name: "update_ims_service_by_gathering_provisioning_changes"
-    namespace: "telephony"
-    description: "This flag is created to prevent unnecessary updates when multiple provisioning items to update ims service are changed."
-    bug:"302281114"
-}
-
 # OWNER=shmun TARGET=24Q3
 flag {
     name: "add_rat_related_suggested_action_to_ims_registration"

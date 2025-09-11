@@ -134,7 +134,6 @@ public class EmergencyStateTrackerTest extends TelephonyTest {
 
         doReturn(TelephonyManager.SIM_STATE_READY)
                 .when(mTelephonyManagerProxy).getSimState(anyInt());
-        doReturn(true).when(mFeatureFlags).disableEcbmBasedOnRat();
         doReturn(true).when(mFeatureFlags).performCrossStackRedialCheckForEmergencyCall();
     }
 

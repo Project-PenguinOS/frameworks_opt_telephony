@@ -5146,36 +5146,14 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
             new ProvisioningManager.Callback() {
                 @Override
                 public void onProvisioningIntChanged(int item, int value) {
-                    // if updateImsServiceByGatheringProvisioningChanges feature is enabled,
                     // Provisioning items are processed all at once by queuing and sending message.
-                    if (mFeatureFlags.updateImsServiceByGatheringProvisioningChanges()) {
-                        queueAndSendProvisioningChanged(new ProvisioningItem(item, value));
-                        return;
-                    }
-                    // run belows when updateImsServiceByGatheringProvisioningChanges feature is
-                    // disabled only
-
-                    sendConfigChangedIntent(item, Integer.toString(value));
-                    if ((mImsManager != null)
-                            && (item == ImsConfig.ConfigConstants.VOICE_OVER_WIFI_SETTING_ENABLED
-                            || item == ImsConfig.ConfigConstants.VLT_SETTING_ENABLED
-                            || item == ImsConfig.ConfigConstants.LVC_SETTING_ENABLED)) {
-                        // Update Ims Service state to make sure updated provisioning values take
-                        // effect immediately.
-                        updateImsServiceConfig();
-                    }
+                    queueAndSendProvisioningChanged(new ProvisioningItem(item, value));
                 }
 
                 @Override
                 public void onProvisioningStringChanged(int item, String value) {
-                    if (mFeatureFlags.updateImsServiceByGatheringProvisioningChanges()) {
-                        queueAndSendProvisioningChanged(new ProvisioningItem(item, value));
-                        return;
-                    }
-                    // run belows when updateImsServiceByGatheringProvisioningChanges feature is
-                    // disabled only
-
-                    sendConfigChangedIntent(item, value);
+                    // Provisioning items are processed all at once by queuing and sending message.
+                    queueAndSendProvisioningChanged(new ProvisioningItem(item, value));
                 }
 
                 // send IMS_CONFIG_CHANGED intent for older services that do not implement the new
@@ -5193,11 +5171,8 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
                 }
 
                 private void queueAndSendProvisioningChanged(ProvisioningItem provisioningItem) {
-                    if (!mFeatureFlags.updateImsServiceByGatheringProvisioningChanges()) {
-                        return;
-                    }
-
                     boolean bQueueOffer = mProvisioningItemQueue.offer(provisioningItem);
+
                     // Checks the Handler Message Queue and schedules a new message with small delay
                     // to avoid stacking multiple redundant event only if it doesn't exist.
                     if (bQueueOffer && !hasMessages(EVENT_PROVISIONING_CHANGED)) {

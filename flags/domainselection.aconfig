@@ -3,14 +3,6 @@ container: "system"
 
 # OWNER=forestchoi TARGET=24Q3
 flag {
-    name: "ap_domain_selection_enabled"
-    namespace: "telephony"
-    description: "This flag controls AP domain selection feature."
-    bug:"258112541"
-}
-
-# OWNER=forestchoi TARGET=24Q3
-flag {
     name: "use_aosp_domain_selection_service"
     namespace: "telephony"
     description: "This flag controls AOSP's domain selection service supported."
@@ -40,17 +32,6 @@ flag {
     namespace: "telephony"
     description: "This flag controls the addition of EMERGENCY_REDIAL_ON_IMS and EMERGENCY_REDIAL_ON_VOWIFI redial codes for normal routed emergency calls."
     bug:"357980439"
-}
-
-# OWNER=jaesikkong TARGET=25Q2
-flag {
-    name: "disable_ecbm_based_on_rat"
-    namespace: "telephony"
-    description: "Fix bug entering the emergency callback mode in GSM or UMTS network."
-    bug:"389010789"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
 }
 
 # OWNER=hwangoo TARGET=25Q2
