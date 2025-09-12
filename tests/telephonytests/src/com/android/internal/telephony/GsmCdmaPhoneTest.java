@@ -2689,6 +2689,29 @@ public class GsmCdmaPhoneTest extends TelephonyTest {
     }
 
     @Test
+    public void testSecurityAlgorithm_withInValidSubscriptionId() {
+        Phone phoneUT = makeNewPhoneUT();
+        int subId = -1;
+        int phoneId = 0;
+        when(mSubscriptionManagerService.getSubId(phoneId)).thenReturn(subId);
+        SecurityAlgorithmUpdate update =
+                new SecurityAlgorithmUpdate(
+                        SecurityAlgorithmUpdate.CONNECTION_EVENT_PS_SIGNALLING_3G,
+                        SecurityAlgorithmUpdate.SECURITY_ALGORITHM_UEA1,
+                        SecurityAlgorithmUpdate.SECURITY_ALGORITHM_AUTH_HMAC_SHA2_256_128,
+                        true);
+
+        phoneUT.sendMessage(
+                mPhoneUT.obtainMessage(
+                        Phone.EVENT_SECURITY_ALGORITHM_UPDATE,
+                        new AsyncResult(null, update, null)));
+        processAllMessages();
+
+        verify(mNullCipherNotifier, never())
+                .onSecurityAlgorithmUpdate(eq(mContext), eq(0), eq(subId), eq(update));
+    }
+
+    @Test
     public void testUpdateNullCipherNotifier_activeSubscription() {
         int subId = 10;
         SubscriptionInfoInternal subInfo = new SubscriptionInfoInternal.Builder().setSimSlotIndex(

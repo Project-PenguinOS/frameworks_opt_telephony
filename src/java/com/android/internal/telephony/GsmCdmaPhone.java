@@ -3297,8 +3297,11 @@ public class GsmCdmaPhone extends Phone {
                 SecurityAlgorithmUpdate update = (SecurityAlgorithmUpdate) ar.result;
 
                 if (mNullCipherNotifier != null) {
-                    mNullCipherNotifier.onSecurityAlgorithmUpdate(mContext, getPhoneId(),
-                            getSubId(), update);
+                    int subId = getSubId();
+                    if (SubscriptionManager.isValidSubscriptionId(subId)) {
+                        mNullCipherNotifier.onSecurityAlgorithmUpdate(mContext, getPhoneId(), subId,
+                                update);
+                    }
                 }
                 if (mFeatureFlags.securityAlgorithmsUpdateIndications()
                         && mNullCipherNotifier != null) {

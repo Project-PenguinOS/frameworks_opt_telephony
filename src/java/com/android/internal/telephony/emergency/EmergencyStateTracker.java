@@ -1237,12 +1237,10 @@ public class EmergencyStateTracker {
         // APIs are deprecated. Replace this logic with a check that utilizes the domain parameter
         // to determine ECBM and SCBM support.
         if (forEcbm) {
-            if (mFeatureFlags.disableEcbmBasedOnRat()) {
-                if ((mEmergencyCallPhoneType == PhoneConstants.PHONE_TYPE_GSM)
-                        || (mEmergencyCallPhoneType == PhoneConstants.PHONE_TYPE_NONE)) {
-                    Rlog.d(TAG, "ecbmUnavailableRat");
-                    return false;
-                }
+            if ((mEmergencyCallPhoneType == PhoneConstants.PHONE_TYPE_GSM)
+                    || (mEmergencyCallPhoneType == PhoneConstants.PHONE_TYPE_NONE)) {
+                Rlog.d(TAG, "ecbmUnavailableRat");
+                return false;
             }
         }
 
