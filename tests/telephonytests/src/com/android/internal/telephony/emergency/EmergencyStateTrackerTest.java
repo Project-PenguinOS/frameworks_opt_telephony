@@ -1433,15 +1433,17 @@ public class EmergencyStateTrackerTest extends TelephonyTest {
                 /* isSuplDdsSwitchRequiredForEmergencyCall= */ true);
         Phone phone0 = setupTestPhoneForEmergencyCall(/* isRoaming= */ false,
                 /* isRadioOn= */ true);
+        setUpAsyncResultForSetEmergencyMode(phone0, E_REG_RESULT);
         CompletableFuture<Integer> future = emergencyStateTracker.startEmergencySms(phone0,
                 TEST_SMS_ID, true);
         processAllMessages();
 
         assertTrue(emergencyStateTracker.isInEmergencyMode());
+        assertTrue(emergencyStateTracker.getEmergencyRegistrationResult().equals(E_REG_RESULT));
         // Expect: DisconnectCause#NOT_DISCONNECTED.
         assertEquals(future.getNow(DisconnectCause.ERROR_UNSPECIFIED),
                 Integer.valueOf(DisconnectCause.NOT_DISCONNECTED));
-        verify(phone0, never()).setEmergencyMode(anyInt(), any(Message.class));
+        verify(phone0).setEmergencyMode(eq(MODE_EMERGENCY_WWAN), any(Message.class));
     }
 
     @Test
