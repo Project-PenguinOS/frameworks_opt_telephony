@@ -268,6 +268,9 @@ public class SubscriptionDatabaseManager extends Handler {
                     SimInfo.COLUMN_PHONE_NUMBER_SOURCE_IMS,
                     SubscriptionInfoInternal::getNumberFromIms),
             new AbstractMap.SimpleImmutableEntry<>(
+                    SimInfo.COLUMN_PHONE_NUMBER_SOURCE_TS43,
+                    SubscriptionInfoInternal::getNumberFromTs43),
+            new AbstractMap.SimpleImmutableEntry<>(
                     SimInfo.COLUMN_PORT_INDEX,
                     SubscriptionInfoInternal::getPortIndex),
             new AbstractMap.SimpleImmutableEntry<>(
@@ -529,6 +532,9 @@ public class SubscriptionDatabaseManager extends Handler {
             new AbstractMap.SimpleImmutableEntry<>(
                     SimInfo.COLUMN_PHONE_NUMBER_SOURCE_IMS,
                     SubscriptionDatabaseManager::setNumberFromIms),
+            new AbstractMap.SimpleImmutableEntry<>(
+                    SimInfo.COLUMN_PHONE_NUMBER_SOURCE_TS43,
+                    SubscriptionDatabaseManager::setNumberFromTs43),
             new AbstractMap.SimpleImmutableEntry<>(
                     SimInfo.COLUMN_SATELLITE_ENTITLEMENT_PLMNS,
                     SubscriptionDatabaseManager::setSatelliteEntitlementPlmns),
@@ -2015,6 +2021,20 @@ public class SubscriptionDatabaseManager extends Handler {
     }
 
     /**
+     * Set the phone number retrieved from TS43.
+     *
+     * @param subId Subscription id.
+     * @param numberFromTs43 The phone number retrieved from TS43.
+     *
+     * @throws IllegalArgumentException if the subscription does not exist.
+     */
+    public void setNumberFromTs43(int subId, @NonNull String numberFromTs43) {
+        Objects.requireNonNull(numberFromTs43);
+        writeDatabaseAndCacheHelper(subId, SimInfo.COLUMN_PHONE_NUMBER_SOURCE_TS43,
+                numberFromTs43, SubscriptionInfoInternal.Builder::setNumberFromTs43);
+    }
+
+    /**
      * Set the port index of the Uicc card.
      *
      * @param subId Subscription id.
@@ -2611,6 +2631,11 @@ public class SubscriptionDatabaseManager extends Handler {
         if (mFeatureFlags.supportPsimToEsimConversion()) {
             builder.setTransferStatus(cursor.getInt(cursor.getColumnIndexOrThrow(
                     SimInfo.COLUMN_TRANSFER_STATUS)));
+        }
+        if (mFeatureFlags.getPhoneNumberTs43Api()) {
+            builder.setNumberFromTs43(TextUtils.emptyIfNull(cursor.getString(
+                    cursor.getColumnIndexOrThrow(
+                            SimInfo.COLUMN_PHONE_NUMBER_SOURCE_TS43))));
         }
         builder.setSatelliteESOSSupported(cursor.getInt(
                 cursor.getColumnIndexOrThrow(SimInfo.COLUMN_SATELLITE_ESOS_SUPPORTED)));

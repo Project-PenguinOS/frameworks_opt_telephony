@@ -116,3 +116,13 @@ flag {
     description: "Guards getSubscriberId and getNetworkCountryIso APIs with permission."
     bug: "417788332"
 }
+
+# OWNER=hyeinyu TARGET=26Q2
+flag {
+    name: "get_phone_number_ts43_api"
+    namespace: "telephony"
+    description: "Get phone number from TS43 source"
+    bug:"435429723"
+    is_exported: true
+}
+
