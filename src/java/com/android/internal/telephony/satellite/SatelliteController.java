@@ -5846,10 +5846,10 @@ public class SatelliteController extends Handler {
                 && mWaitingForRadioDisabled.get()) {
             plogd("Sending success to callback that sent enable satellite request");
             setIsSatelliteEnabled(satelliteEnabledRequest.enableSatellite);
-            satelliteEnabledRequest.callback.accept(SATELLITE_RESULT_SUCCESS);
+            setEmergencyMode(satelliteEnabledRequest.isEmergency);
             updateSatelliteEnabledState(satelliteEnabledRequest.enableSatellite,
                     "EVENT_SET_SATELLITE_ENABLED_DONE");
-            setEmergencyMode(satelliteEnabledRequest.isEmergency);
+            satelliteEnabledRequest.callback.accept(SATELLITE_RESULT_SUCCESS);
             if (satelliteEnabledRequest.enableSatellite
                     && !satelliteEnabledRequest.isEmergency) {
                 plogd("Starting pointingUI needFullscreenPointingUI=" + true

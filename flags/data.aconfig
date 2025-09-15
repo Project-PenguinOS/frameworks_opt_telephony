@@ -80,16 +80,7 @@ flag {
   }
 }
 
-# OWNER=sewookseo TARGET=25Q4
-flag {
-  name: "qos_update_network_agent"
-  namespace: "telephony"
-  description: "Update network agent in QosCallbackTracker when DN recreates network agent"
-  bug:"412542821"
-  metadata {
-    purpose: PURPOSE_BUGFIX
-  }
-}
+
 
 # OWNER=gwenlin TARGET=26Q2
 flag {
@@ -105,6 +96,17 @@ flag {
   namespace: "telephony"
   description: "A DataNetwork that is not the active DataNetwork should not broadcast a data stall"
   bug:"430976119"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}
+
+# OWNER=melhuishj TARGET=25Q4
+flag {
+  name: "ignore_initial_data_stall_recovered"
+  namespace: "telephony"
+  description: "Prevent DataStallRecoveryManager from broadcasting a data stall event during initial setup when no data stall has occurred"
+  bug:"432293174"
   metadata {
     purpose: PURPOSE_BUGFIX
   }

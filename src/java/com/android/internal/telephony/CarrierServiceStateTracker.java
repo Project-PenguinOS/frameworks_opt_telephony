@@ -719,10 +719,8 @@ public class CarrierServiceStateTracker extends Handler {
          */
         private Notification.Action createDoNotShowAgainAction(Context c) {
             Intent broadcastIntent = new Intent(ACTION_NEVER_ASK_AGAIN);
-            if (mFeatureFlags.immediatelyProcessDoNotShowAgainBroadcast()) {
-                // Ensure immediate delivery of the broadcast to the receiver!
-                broadcastIntent.addFlags(Intent.FLAG_RECEIVER_FOREGROUND);
-            }
+            // Ensure immediate delivery of the broadcast to the receiver!
+            broadcastIntent.addFlags(Intent.FLAG_RECEIVER_FOREGROUND);
             final PendingIntent pendingIntent = PendingIntent.getBroadcast(
                     c,
                     0,

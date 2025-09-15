@@ -892,17 +892,6 @@ public class EmergencyStateTracker {
         setEmergencyModeInProgress(true);
 
         Message m = mHandler.obtainMessage(msg, Integer.valueOf(emergencyType));
-        if (mIsTestEmergencyNumberForSms && emergencyType == EMERGENCY_TYPE_SMS) {
-            Rlog.d(TAG, "TestEmergencyNumber for " + emergencyTypeToString(emergencyType)
-                    + ": Skipping setting emergency mode on modem.");
-            // Send back a response for the command, but with null information
-            AsyncResult.forMessage(m, null, null);
-            // Ensure that we do not accidentally block indefinitely when trying to validate test
-            // emergency numbers
-            m.sendToTarget();
-            return;
-        }
-
         mWasEmergencyModeSetOnModem = true;
         phone.setEmergencyMode(mode, m);
     }
