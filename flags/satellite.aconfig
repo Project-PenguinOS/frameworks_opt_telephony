@@ -195,3 +195,15 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+# OWNER=youngtaecha TARGET=26Q1
+flag {
+  name: "update_device_satellite_plmn_by_configupdater"
+  is_exported: false
+  namespace: "telephony"
+  description: "Support updating device satellite plmn by configupdater"
+  bug:"442556034"
+  metadata {
+      purpose: PURPOSE_BUGFIX
+  }
+}
