@@ -103,7 +103,7 @@ flag {
 
 # OWNER=aleksandermj TARGET=26Q1
 flag {
-    name: "minimal_telephony_cdm_check_board_api_level"
+    name: "minimal_telephony_cdm_use_board_api_level"
     namespace: "telephony"
     description: "Use ro.board.api_level for call/data/messaging feature checks"
     bug:"395087895"
