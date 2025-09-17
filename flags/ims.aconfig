@@ -127,3 +127,11 @@ flag {
     description: "This flag exposes sms memory availability notification related APIs"
     bug:"428178177"
 }
+
+# OWNER=gwenlin TARGET=26Q2
+flag {
+    name: "pcscf_address"
+    namespace: "telephony"
+    description: "This flag adds P-CSCF address in IMS registration attributes"
+    bug:"433593483"
+}
