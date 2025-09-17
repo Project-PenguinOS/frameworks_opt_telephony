@@ -711,8 +711,7 @@ public class SatelliteControllerTest extends TelephonyTest {
                 .when(mMockSatelliteModemInterface).isSatelliteServiceSupported();
         setUpResponseForRequestSatelliteCapabilities(
                 mSatelliteCapabilities, SATELLITE_RESULT_SUCCESS);
-        setUpResponseForRequestIsSatelliteSupported(false,
-                SATELLITE_RESULT_RADIO_NOT_AVAILABLE);
+        setUpResponseForRequestIsSatelliteSupported(false, SATELLITE_RESULT_ERROR);
         doNothing().when(mMockDatagramController).setDemoMode(anyBoolean());
         doNothing().when(mMockSatelliteSessionController)
                 .onSatelliteEnabledStateChanged(anyBoolean());
@@ -1736,7 +1735,7 @@ public class SatelliteControllerTest extends TelephonyTest {
 
     @Test
     public void testOnSatelliteServiceConnected() {
-        verifySatelliteSupported(false, SATELLITE_RESULT_RADIO_NOT_AVAILABLE);
+        verifySatelliteSupported(false, SATELLITE_RESULT_ERROR);
         verifySatelliteEnabled(false, SATELLITE_RESULT_INVALID_TELEPHONY_STATE);
 
         setUpResponseForRequestIsSatelliteSupported(true, SATELLITE_RESULT_SUCCESS);
@@ -4165,7 +4164,9 @@ public class SatelliteControllerTest extends TelephonyTest {
         setUpResponseForRequestIsSatelliteSupported(true, SATELLITE_RESULT_SUCCESS);
         verifySatelliteSupported(true, SATELLITE_RESULT_SUCCESS);
         int errorCode = mSatelliteControllerUT.registerForSatelliteSupportedStateChanged(callback);
+        processAllMessages();
         assertEquals(SATELLITE_RESULT_SUCCESS, errorCode);
+        assertTrue(waitForForEvents(semaphore, 1, "testRegisterForSatelliteSupportedStateChanged"));
 
         sendSatelliteSupportedStateChangedEvent(true, null);
         processAllMessages();
@@ -4231,6 +4232,47 @@ public class SatelliteControllerTest extends TelephonyTest {
         processAllMessages();
         assertFalse(waitForForEvents(
                 semaphore, 1, "testRegisterForSatelliteSupportedStateChanged"));
+    }
+
+    @Test
+    public void testRequestIsSatelliteSupported() {
+        Semaphore semaphore = new Semaphore(0);
+        final boolean[] isSupported  = new boolean[1];
+        IBooleanConsumer callback =
+                new IBooleanConsumer.Stub() {
+                    @Override
+                    public void accept(boolean supported) {
+                        logd("onSatelliteSupportedStateChanged: supported=" + supported);
+                        isSupported[0] = supported;
+                        try {
+                            semaphore.release();
+                        } catch (Exception ex) {
+                            loge("onSatelliteSupportedStateChanged: Got exception in releasing "
+                                    + "semaphore, ex=" + ex);
+                        }
+                    }
+                };
+        resetSatelliteControllerUT();
+        int errorCode = mSatelliteControllerUT.registerForSatelliteSupportedStateChanged(callback);
+        assertEquals(SATELLITE_RESULT_SUCCESS, errorCode);
+        // No supported state changed event should be notified since supported state is not set yet
+        assertFalse(waitForForEvents(semaphore, 1, "testRequestIsSatelliteSupported"));
+
+        setUpResponseForRequestIsSatelliteSupported(false, SATELLITE_RESULT_SUCCESS);
+        verifySatelliteSupported(false, SATELLITE_RESULT_SUCCESS);
+        // Supported sate changed event should be notified
+        assertTrue(waitForForEvents(semaphore, 1, "testRequestIsSatelliteSupported"));
+        assertFalse(isSupported[0]);
+
+        verifySatelliteSupported(false, SATELLITE_RESULT_SUCCESS);
+        // Supported sate does not change and no event should be notified
+        assertFalse(waitForForEvents(semaphore, 1, "testRequestIsSatelliteSupported"));
+
+        sendSatelliteSupportedStateChangedEvent(true, null);
+        processAllMessages();
+        // Supported sate changed event should be notified
+        assertTrue(waitForForEvents(semaphore, 1, "testRequestIsSatelliteSupported"));
+        assertTrue(isSupported[0]);
     }
 
     @Test

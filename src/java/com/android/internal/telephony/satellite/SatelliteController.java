@@ -3992,6 +3992,19 @@ public class SatelliteController extends Handler {
     @SatelliteManager.SatelliteResult public int registerForSatelliteSupportedStateChanged(
             @NonNull IBooleanConsumer callback) {
         mSatelliteSupportedStateChangedListeners.put(callback.asBinder(), callback);
+        Boolean isSatelliteSupported = getIsSatelliteSupported();
+        if (isSatelliteSupported != null) {
+            final boolean supported = isSatelliteSupported;
+            post(() -> {
+                try {
+                    callback.accept(supported);
+                } catch (RemoteException ex) {
+                    ploge("registerForSatelliteSupportedStateChanged: RemoteException ex=" + ex);
+                }
+            });
+        } else {
+            logd("registerForSatelliteSupportedStateChanged: cached supported state is null");
+        }
         return SATELLITE_RESULT_SUCCESS;
     }
 
@@ -5339,7 +5352,20 @@ public class SatelliteController extends Handler {
         evaluateEnablingSatelliteForCarrier(argument.subId, argument.reason, argument.callback);
     }
 
-    private void updateSatelliteSupportedState(boolean supported) {
+    /**
+     * Updates the satellite supported state. If the satellite supported state is already the same
+     * as the new state, this method will be no-op and return {@code false}. Otherwise, it will
+     * update the satellite supported state and return {@code true}.
+     * @return {@code true} if the satellite supported state is updated, {@code false} otherwise
+     */
+    private boolean updateSatelliteSupportedState(boolean supported) {
+        Boolean isSatelliteSupported = getIsSatelliteSupported();
+        if (isSatelliteSupported != null && isSatelliteSupported == supported) {
+            plogd("updateSatelliteSupportedState: current satellite support state and new "
+                    + "supported state are matched, ignore update.");
+            return false;
+        }
+
         setIsSatelliteSupported(supported);
         mSatelliteSessionController = SatelliteSessionController.make(
                 mContext, getLooper(), mFeatureFlags, supported);
@@ -5387,6 +5413,7 @@ public class SatelliteController extends Handler {
         registerForSatelliteSupportedStateChanged();
         selectBindingSatelliteSubscription(false);
         notifySatelliteSupportedStateChanged(supported);
+        return true;
     }
 
     private void updateSatelliteEnabledState(boolean enabled, String caller) {
@@ -5652,18 +5679,10 @@ public class SatelliteController extends Handler {
 
     private void handleEventSatelliteSupportedStateChanged(boolean supported) {
         plogd("handleSatelliteSupportedStateChangedEvent: supported=" + supported);
-
-        Boolean isSatelliteSupported = getIsSatelliteSupported();
-        if (isSatelliteSupported != null && isSatelliteSupported == supported) {
-            if (DBG) {
-                plogd("current satellite support state and new supported state are matched,"
-                        + " ignore update.");
-            }
+        if (!updateSatelliteSupportedState(supported)) {
+            plogd("handleSatelliteSupportedStateChangedEvent: supported state does not change");
             return;
         }
-
-        updateSatelliteSupportedState(supported);
-
         Boolean isSatelliteEnabled = getIsSatelliteEnabled();
          /* In case satellite has been reported as not support from modem, but satellite is
                enabled, request disable satellite. */
@@ -5681,7 +5700,6 @@ public class SatelliteController extends Handler {
                     });
 
         }
-        setIsSatelliteSupported(supported);
     }
 
     private void handleEventSelectedNbIotSatelliteSubscriptionChanged(int selectedSubId) {
