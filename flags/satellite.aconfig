@@ -169,6 +169,9 @@ flag {
   namespace: "telephony"
   description: "This flag controls the changes for the new satellite APIs in 26Q2"
   bug: "434764963"
+  metadata {
+    purpose: PURPOSE_FEATURE
+  }
 }
 
 # OWNER=arunvoddu TARGET=26Q2
@@ -180,4 +183,15 @@ flag {
   metadata {
     purpose: PURPOSE_FEATURE
   }
+}
+
+# OWNER=tnd TARGET=26Q1
+flag {
+    name: "fix_satellite_provision_state_out_of_sync"
+    namespace: "telephony"
+    description: "Fix satellite provision state out of sync"
+    bug:"445769117"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
 }

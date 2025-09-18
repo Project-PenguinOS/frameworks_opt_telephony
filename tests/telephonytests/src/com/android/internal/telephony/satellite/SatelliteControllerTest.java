@@ -788,6 +788,7 @@ public class SatelliteControllerTest extends TelephonyTest {
 
         doReturn(true).when(mFeatureFlags).satelliteImproveMultiThreadDesign();
         doReturn(true).when(mFeatureFlags).supportCarrierIdsInGeofence();
+        doReturn(true).when(mFeatureFlags).fixSatelliteProvisionStateOutOfSync();
         doReturn(TEST_ALL_SATELLITE_PLMN_SET).when(mMockSatelliteController).getAllPlmnSet();
         mSatelliteControllerUT.setAlarmManager(mMockAlarmManager);
         doNothing().when(mMockAlarmManager).cancel(any(AlarmManager.OnAlarmListener.class));
@@ -5210,6 +5211,8 @@ public class SatelliteControllerTest extends TelephonyTest {
                         getKeyPriority(mSubscriptionInfo), k -> new ArrayList<>())
                 .add(mSubscriptionInfo);
         mSatelliteControllerUT.evaluateESOSProfilesPrioritizationTest();
+        verify(mMockSubscriptionManagerService, times(1)).setIsSatelliteProvisionedForNonIpDatagram(
+                eq(SUB_ID), eq(false));
         // Verify that broadcast has been sent.
         verify(mContext, times(1)).sendBroadcast(any(Intent.class));
     }

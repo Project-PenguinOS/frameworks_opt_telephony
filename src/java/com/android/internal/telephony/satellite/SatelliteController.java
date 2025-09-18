@@ -8297,8 +8297,22 @@ public class SatelliteController extends Handler {
                     && !newSubscriberId.equals(oldSubscriberId.get())) {
                 mSubscriberIdPerSub.remove(oldSubscriberId.get());
                 mProvisionedSubscriberId.remove(oldSubscriberId.get());
-                logd("Old phone number is removed: id = " + subId);
+                plogw("Old phone number is removed: id = " + subId + ", oldSubscriberId = "
+                        + oldSubscriberId.get() + ", newSubscriberId = " + newSubscriberId);
                 isChanged = true;
+                // The provision state of the subId in the DB might be true right now. We need to
+                // set it to false so that it is consistent with the cached value.
+                if (mFeatureFlags.fixSatelliteProvisionStateOutOfSync()) {
+                    try {
+                        mSubscriptionManagerService.setIsSatelliteProvisionedForNonIpDatagram(subId,
+                                false);
+                        plogd("evaluateESOSProfilesPrioritization: clear provision state for "
+                                + "subId " + subId + " from DB");
+                    } catch (IllegalArgumentException | SecurityException ex) {
+                        ploge("setIsSatelliteProvisionedForNonIpDatagram: subId=" + subId
+                                + ", ex=" + ex);
+                    }
+                }
             }
             if (!newSubscriberId.isEmpty()) {
                 mSubscriberIdPerSub.put(newSubscriberId, subId);
