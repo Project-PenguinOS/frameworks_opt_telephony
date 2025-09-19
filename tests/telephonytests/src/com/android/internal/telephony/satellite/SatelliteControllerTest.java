@@ -2418,6 +2418,180 @@ public class SatelliteControllerTest extends TelephonyTest {
     }
 
     @Test
+    public void testConfigureEmergencyAndDisasterPlmnsOnCarrierConfigChanged() {
+        logd("testConfigureEmergencyAndDisasterPlmnsOnCarrierConfigChanged");
+
+        setUpResponseForRequestSetSatelliteEnabledForCarrier(true, SATELLITE_RESULT_SUCCESS);
+
+        // Satellite attach and entitlement are supported.
+        mCarrierConfigBundle.putBoolean(
+            CarrierConfigManager.KEY_SATELLITE_ATTACH_SUPPORTED_BOOL,
+            true);
+        mCarrierConfigBundle.putBoolean(
+            CarrierConfigManager.KEY_SATELLITE_ENTITLEMENT_SUPPORTED_BOOL,
+            true);
+
+        // Emergency and disaster PLMNs are not supported.
+        int[] supportedServices2 = {2};
+        int[] supportedServices3 = {1, 3};
+        PersistableBundle carrierSupportedSatelliteServicesPerProvider = new PersistableBundle();
+        carrierSupportedSatelliteServicesPerProvider.putIntArray(
+                "00102", supportedServices2);
+        carrierSupportedSatelliteServicesPerProvider.putIntArray(
+                "00103", supportedServices3);
+        List<String> expectedCarrierPlmnList = Arrays.asList("00102", "00103");
+        List<String> expectedAllSatellitePlmnList = new ArrayList<>(expectedCarrierPlmnList);
+
+        mCarrierConfigBundle.putPersistableBundle(
+            CarrierConfigManager.KEY_CARRIER_SUPPORTED_SATELLITE_SERVICES_PER_PROVIDER_BUNDLE,
+            carrierSupportedSatelliteServicesPerProvider);
+        logd("Trigger carrier config changed without supported emergency and disaster"
+                + " satellite services");
+        for (Pair<Executor, CarrierConfigManager.CarrierConfigChangeListener> pair
+                : mCarrierConfigChangedListenerList) {
+            pair.first.execute(() -> pair.second.onCarrierConfigChanged(
+                    /*slotIndex*/ 0, /*subId*/ SUB_ID, /*carrierId*/ 0, /*specificCarrierId*/ 0)
+            );
+        }
+        processAllMessages();
+
+        ArgumentCaptor<List<String>> configuredCarrierPlmnListCaptor =
+                ArgumentCaptor.forClass(List.class);
+        ArgumentCaptor<List<String>> configuredAllPlmnListCaptor =
+                ArgumentCaptor.forClass(List.class);
+        verify(mPhone, times(1)).setSatellitePlmn(anyInt(),
+            configuredCarrierPlmnListCaptor.capture(), configuredAllPlmnListCaptor.capture(),
+            any(Message.class));
+        logd("configuredCarrierPlmnListCaptor: "
+                + String.join(",", configuredCarrierPlmnListCaptor.getValue()));
+        logd("configuredAllPlmnListCaptor: "
+                + String.join(",", configuredAllPlmnListCaptor.getValue()));
+        // By default, satellite is not entitled for all carriers. Thus, satellite is disabled for
+        // all carriers.
+        verify(mPhone, times(2)).setSatelliteEnabledForCarrier(anyInt(), eq(false),
+                any(Message.class));
+        // The configured carrier PLMN list should be the same as the normal-service carrier
+        // PLMN list
+        assertTrue(expectedCarrierPlmnList.containsAll(configuredCarrierPlmnListCaptor.getValue()));
+        assertTrue(configuredCarrierPlmnListCaptor.getValue().containsAll(expectedCarrierPlmnList));
+        assertTrue(
+            expectedAllSatellitePlmnList.containsAll(configuredAllPlmnListCaptor.getValue()));
+        assertTrue(
+            configuredAllPlmnListCaptor.getValue().containsAll(expectedAllSatellitePlmnList));
+
+        // Emergency and disaster PLMNs are supported.
+        List<String> expectedEmergencyPlmnList = Arrays.asList("00104", "00105");
+        List<Integer> expectedSupportedEmergencyServicesOfPlmn104 = Arrays.asList(5, 7);
+        List<String> expectedDisasterPlmnList = Arrays.asList("00106", "00107");
+        List<Integer> expectedSupportedDisasterServicesOfPlmn106 = Arrays.asList(3, 6);
+        List<Integer> expectedSupportedEmergencyServicesOfPlmn105 = Arrays.asList(7);
+        List<Integer> expectedSupportedDisasterServicesOfPlmn107 = Arrays.asList(3);
+        carrierSupportedSatelliteServicesPerProvider.putIntArray("00104", new int[] {5, 7});
+        carrierSupportedSatelliteServicesPerProvider.putIntArray("00105", new int[] {7});
+        carrierSupportedSatelliteServicesPerProvider.putIntArray("00106", new int[] {3, 6});
+        carrierSupportedSatelliteServicesPerProvider.putIntArray("00107", new int[] {3});
+        expectedAllSatellitePlmnList.addAll(expectedEmergencyPlmnList);
+        expectedAllSatellitePlmnList.addAll(expectedDisasterPlmnList);
+        mCarrierConfigBundle.putPersistableBundle(
+            CarrierConfigManager.KEY_CARRIER_SUPPORTED_SATELLITE_SERVICES_PER_PROVIDER_BUNDLE,
+            carrierSupportedSatelliteServicesPerProvider);
+        mCarrierConfigBundle.putStringArray(CarrierConfigManager
+                .KEY_SATELLITE_SUPPORTED_EMERGENCY_PLMN_STRING_ARRAY,
+                expectedEmergencyPlmnList.toArray(new String[0]));
+        mCarrierConfigBundle.putStringArray(CarrierConfigManager
+                .KEY_SATELLITE_SUPPORTED_DISASTER_PLMN_STRING_ARRAY,
+                expectedDisasterPlmnList.toArray(new String[0]));
+        logd("Trigger carrier config changed with supported emergency and disaster PLMNs");
+        for (Pair<Executor, CarrierConfigManager.CarrierConfigChangeListener> pair
+                : mCarrierConfigChangedListenerList) {
+            pair.first.execute(() -> pair.second.onCarrierConfigChanged(
+                    /*slotIndex*/ 0, /*subId*/ SUB_ID, /*carrierId*/ 0, /*specificCarrierId*/ 0)
+            );
+        }
+        processAllMessages();
+
+        verify(mPhone, times(3)).setSatellitePlmn(anyInt(),
+                configuredCarrierPlmnListCaptor.capture(), configuredAllPlmnListCaptor.capture(),
+                any(Message.class));
+        logd("configuredCarrierPlmnListCaptor: "
+                + String.join(",", configuredCarrierPlmnListCaptor.getValue()));
+        logd("configuredAllPlmnListCaptor: "
+                + String.join(",", configuredAllPlmnListCaptor.getValue()));
+        assertTrue(configuredCarrierPlmnListCaptor.getValue().containsAll(
+                expectedEmergencyPlmnList));
+        assertTrue(configuredCarrierPlmnListCaptor.getValue().containsAll(
+                expectedDisasterPlmnList));
+        assertFalse(configuredCarrierPlmnListCaptor.getValue()
+                .containsAll(expectedCarrierPlmnList));
+        assertTrue(
+            expectedAllSatellitePlmnList.containsAll(configuredAllPlmnListCaptor.getValue()));
+        assertTrue(
+            configuredAllPlmnListCaptor.getValue().containsAll(expectedAllSatellitePlmnList));
+        // Satellite is enabled for the carriers with supported emergency and disaster PLMNs.
+        verify(mPhone, times(1)).setSatelliteEnabledForCarrier(anyInt(), eq(true),
+                any(Message.class));
+
+        // Verify the supported emergency services for PLMN 00104 are the same as the configured
+        // values.
+        List<Integer> supportedEmergencyServicesOfPlmn104 =
+                mSatelliteControllerUT.getSupportedSatelliteServicesForPlmn(SUB_ID, "00104");
+        assertTrue(supportedEmergencyServicesOfPlmn104.containsAll(
+                expectedSupportedEmergencyServicesOfPlmn104));
+        assertTrue(expectedSupportedEmergencyServicesOfPlmn104.containsAll(
+                supportedEmergencyServicesOfPlmn104));
+        // Verify the supported emergency services for PLMN 00105 are the same as the configured
+        // values.
+        List<Integer> supportedEmergencyServicesOfPlmn105 =
+                mSatelliteControllerUT.getSupportedSatelliteServicesForPlmn(SUB_ID, "00105");
+        assertTrue(supportedEmergencyServicesOfPlmn105.containsAll(
+                expectedSupportedEmergencyServicesOfPlmn105));
+        assertTrue(expectedSupportedEmergencyServicesOfPlmn105.containsAll(
+                supportedEmergencyServicesOfPlmn105));
+        // Verify the supported disaster services for PLMN 00106 are the same as the configured
+        // values.
+        List<Integer> supportedDisasterServicesOfPlmn106 =
+                mSatelliteControllerUT.getSupportedSatelliteServicesForPlmn(SUB_ID, "00106");
+        assertTrue(supportedDisasterServicesOfPlmn106.containsAll(
+                expectedSupportedDisasterServicesOfPlmn106));
+        assertTrue(expectedSupportedDisasterServicesOfPlmn106.containsAll(
+                supportedDisasterServicesOfPlmn106));
+        // Verify the supported disaster services for PLMN 00107 are the same as the configured
+        // values.
+        List<Integer> supportedDisasterServicesOfPlmn107 =
+                mSatelliteControllerUT.getSupportedSatelliteServicesForPlmn(SUB_ID, "00107");
+        assertTrue(supportedDisasterServicesOfPlmn107.containsAll(
+                expectedSupportedDisasterServicesOfPlmn107));
+        assertTrue(expectedSupportedDisasterServicesOfPlmn107.containsAll(
+                supportedDisasterServicesOfPlmn107));
+
+        // Make sure the satellite is enabled for the carrier.
+        logd("Trigger satellite entitlement status updated");
+        mSatelliteControllerUT.onSatelliteEntitlementStatusUpdated(SUB_ID, true, new ArrayList<>(),
+                new ArrayList<>(), new HashMap<>(), new HashMap<>(), new HashMap<>(),
+                new HashMap<>(), mIIntegerConsumer);
+        processAllMessages();
+        verify(mPhone, times(6)).setSatellitePlmn(anyInt(),
+                configuredCarrierPlmnListCaptor.capture(), configuredAllPlmnListCaptor.capture(),
+                any(Message.class));
+        logd("configuredCarrierPlmnListCaptor: "
+                + String.join(",", configuredCarrierPlmnListCaptor.getValue()));
+        logd("configuredAllPlmnListCaptor: "
+                + String.join(",", configuredAllPlmnListCaptor.getValue()));
+        assertFalse(configuredCarrierPlmnListCaptor.getValue().containsAll(
+                expectedEmergencyPlmnList));
+        assertTrue(configuredCarrierPlmnListCaptor.getValue().containsAll(
+                expectedDisasterPlmnList));
+        assertTrue(configuredCarrierPlmnListCaptor.getValue()
+                .containsAll(expectedCarrierPlmnList));
+        assertTrue(
+            expectedAllSatellitePlmnList.containsAll(configuredAllPlmnListCaptor.getValue()));
+        assertTrue(
+            configuredAllPlmnListCaptor.getValue().containsAll(expectedAllSatellitePlmnList));
+        verify(mPhone, times(3)).setSatelliteEnabledForCarrier(anyInt(), eq(true),
+                any(Message.class));
+    }
+
+    @Test
     public void testSatelliteCommunicationRestriction() {
         mCarrierConfigBundle.putBoolean(
                 CarrierConfigManager.KEY_SATELLITE_ATTACH_SUPPORTED_BOOL, true);

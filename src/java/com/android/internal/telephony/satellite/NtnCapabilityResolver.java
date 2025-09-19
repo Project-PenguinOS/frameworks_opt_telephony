@@ -21,6 +21,7 @@ import android.telephony.NetworkRegistrationInfo;
 import android.text.TextUtils;
 import android.util.Log;
 
+import java.util.List;
 import java.util.Set;
 
 /**
@@ -49,11 +50,13 @@ public class NtnCapabilityResolver {
         for (String satellitePlmn : allSatellitePlmns) {
             if (TextUtils.equals(satellitePlmn, registeredPlmn)
                     && networkRegistrationInfo.isInService()) {
-                logd("Registered to satellite PLMN " + satellitePlmn);
-                networkRegistrationInfo.setIsNonTerrestrialNetwork(true);
-                networkRegistrationInfo.setAvailableServices(
+                List<Integer> supportedServices =
                         satelliteController.getSupportedSatelliteServicesForPlmn(
-                                subId, satellitePlmn));
+                                subId, satellitePlmn);
+                networkRegistrationInfo.setIsNonTerrestrialNetwork(true);
+                networkRegistrationInfo.setAvailableServices(supportedServices);
+                logd("Registered to satellite PLMN " + satellitePlmn
+                        + ", supportedServices = " + supportedServices);
                 break;
             }
         }
