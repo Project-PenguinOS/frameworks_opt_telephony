@@ -19,6 +19,8 @@ import static android.telephony.euicc.EuiccCardManager.RESET_OPTION_DELETE_OPERA
 import static android.telephony.euicc.EuiccManager.EUICC_OTA_STATUS_UNAVAILABLE;
 import static android.telephony.euicc.EuiccManager.SWITCH_WITHOUT_PORT_INDEX_EXCEPTION_ON_DISABLE;
 
+import static com.android.internal.telephony.util.TelephonyUtils.TELEPHONY_FEATURE_ENFORCEMENT_VENDOR_API_LEVEL;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -47,7 +49,6 @@ import android.content.Intent;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.Signature;
-import android.os.Build;
 import android.os.Bundle;
 import android.os.Parcelable;
 import android.os.RemoteException;
@@ -1650,10 +1651,9 @@ public class EuiccControllerTest extends TelephonyTest {
     @EnableCompatChanges({EuiccManager.INACTIVE_PORT_AVAILABILITY_CHECK,
             TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testIsSimPortAvailable_WithTelephonyFeatureMapping() throws Exception {
-        // Replace field to set SDK version of vendor partition to Android V
-        int vendorApiLevel = Build.VERSION_CODES.VANILLA_ICE_CREAM;
+        // Replace field to set vendor API level to the one where the exceptions are enabled.
         replaceInstance(EuiccController.class, "mVendorApiLevel", (EuiccController) mController,
-                vendorApiLevel);
+                TELEPHONY_FEATURE_ENFORCEMENT_VENDOR_API_LEVEL);
 
         // Feature flag enabled, device has required telephony feature.
         doReturn(true).when(mPackageManager).hasSystemFeature(

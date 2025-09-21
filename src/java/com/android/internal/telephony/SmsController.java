@@ -20,7 +20,6 @@ package com.android.internal.telephony;
 
 import static android.content.pm.PackageManager.FEATURE_TELEPHONY_MESSAGING;
 import static android.content.pm.PackageManager.PERMISSION_GRANTED;
-import static android.telephony.TelephonyManager.ENABLE_FEATURE_MAPPING;
 
 import static com.android.internal.telephony.util.TelephonyUtils.checkDumpPermission;
 
@@ -29,7 +28,6 @@ import android.annotation.Nullable;
 import android.app.ActivityManager;
 import android.app.AppOpsManager;
 import android.app.PendingIntent;
-import android.app.compat.CompatChanges;
 import android.compat.annotation.UnsupportedAppUsage;
 import android.content.Context;
 import android.content.pm.PackageManager;
@@ -1256,22 +1254,7 @@ public class SmsController extends ISmsImplBase {
      */
     private void enforceTelephonyFeatureWithException(@Nullable String callingPackage,
             @NonNull String methodName) {
-        if (callingPackage == null || mPackageManager == null) {
-            return;
-        }
-
-        if (!CompatChanges.isChangeEnabled(ENABLE_FEATURE_MAPPING, callingPackage,
-                Binder.getCallingUserHandle())
-                || mVendorApiLevel < Build.VERSION_CODES.VANILLA_ICE_CREAM) {
-            // Skip to check associated telephony feature,
-            // if compatibility change is not enabled for the current process or
-            // the SDK version of vendor partition is less than Android V.
-            return;
-        }
-
-        if (!mPackageManager.hasSystemFeature(FEATURE_TELEPHONY_MESSAGING)) {
-            throw new UnsupportedOperationException(
-                    methodName + " is unsupported without " + FEATURE_TELEPHONY_MESSAGING);
-        }
+        TelephonyUtils.enforceTelephonyFeatureWithException(callingPackage, mPackageManager,
+                mVendorApiLevel, FEATURE_TELEPHONY_MESSAGING, methodName);
     }
 }

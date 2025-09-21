@@ -128,10 +128,10 @@ public class TelephonyCapabilitiesTest extends TelephonyTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_MINIMAL_TELEPHONY_CDM_CHECK_BOARD_API_LEVEL)
+    @EnableFlags(Flags.FLAG_MINIMAL_TELEPHONY_CDM_USE_BOARD_API_LEVEL)
     public void testSupportsTelephonyFeatures_apiLevelUpdated_boardApiLevel() throws Exception {
         // EnableFlags doesn't work with mFeatureFlags
-        doReturn(true).when(mFeatureFlags).minimalTelephonyCdmCheckBoardApiLevel();
+        doReturn(true).when(mFeatureFlags).minimalTelephonyCdmUseBoardApiLevel();
 
         // A device that was originally released with API level 34, and which was later upgraded
         // with a newer vendor partition introducing the new C/D/M feature flags.
@@ -186,10 +186,10 @@ public class TelephonyCapabilitiesTest extends TelephonyTest {
     }
 
     @Test
-    @DisableFlags(Flags.FLAG_MINIMAL_TELEPHONY_CDM_CHECK_BOARD_API_LEVEL)
+    @DisableFlags(Flags.FLAG_MINIMAL_TELEPHONY_CDM_USE_BOARD_API_LEVEL)
     public void testSupportsTelephonyFeatures_apiLevelUpdated_vendorApiLevel() throws Exception {
         // DisableFlags doesn't work with mFeatureFlags
-        doReturn(false).when(mFeatureFlags).minimalTelephonyCdmCheckBoardApiLevel();
+        doReturn(false).when(mFeatureFlags).minimalTelephonyCdmUseBoardApiLevel();
 
         // A device that was originally released with API level 34, and which was later upgraded
         // with a newer vendor partition introducing the new C/D/M feature flags.
