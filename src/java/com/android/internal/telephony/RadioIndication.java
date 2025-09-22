@@ -73,6 +73,7 @@ import android.hardware.radio.V1_0.CdmaSmsMessage;
 import android.hardware.radio.V1_0.CfData;
 import android.hardware.radio.V1_0.LceDataInfo;
 import android.hardware.radio.V1_0.PcoDataInfo;
+import android.hardware.radio.V1_0.RadioState;
 import android.hardware.radio.V1_0.SimRefreshResult;
 import android.hardware.radio.V1_0.SsInfoData;
 import android.hardware.radio.V1_0.StkCcUnsolSsResult;
@@ -128,7 +129,8 @@ public class RadioIndication extends IRadioIndication.Stub {
         int state = RILUtils.convertHalRadioState(radioState);
         if (mRil.isLogOrTrace()) {
             mRil.unsljLogMore(
-                    RIL_UNSOL_RESPONSE_RADIO_STATE_CHANGED, "radioStateChanged: " + state);
+                    RIL_UNSOL_RESPONSE_RADIO_STATE_CHANGED, "radioStateChanged: "
+                            + RadioState.toString(radioState));
         }
 
         mRil.setRadioState(state, false /* forceNotifyRegistrants */);
