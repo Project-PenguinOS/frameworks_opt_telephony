@@ -568,6 +568,8 @@ public abstract class TelephonyTest {
                 .notRecreateAgentWhenImmutableCapabilitiesChanged();
         lenient().doReturn(true).when(mFeatureFlags)
                 .unsupportedNetworkCapabilitiesPerCarrier();
+        lenient().doReturn(true).when(mFeatureFlags)
+                .enableTrafficDescriptorConnectionCapability();
 
         WorkerThread.reset();
         TelephonyManager.disableServiceHandleCaching();

@@ -61,6 +61,8 @@ import android.os.Looper;
 import android.os.Message;
 import android.os.PersistableBundle;
 import android.os.RegistrantList;
+import android.platform.test.annotations.EnableFlags;
+import android.platform.test.flag.junit.SetFlagsRule;
 import android.provider.Telephony;
 import android.telephony.AccessNetworkConstants;
 import android.telephony.AccessNetworkConstants.AccessNetworkType;
@@ -118,11 +120,13 @@ import com.android.internal.telephony.data.DataNetworkController.HandoverRule;
 import com.android.internal.telephony.data.DataRetryManager.DataRetryManagerCallback;
 import com.android.internal.telephony.data.LinkBandwidthEstimator.LinkBandwidthEstimatorCallback;
 import com.android.internal.telephony.flags.FeatureFlags;
+import com.android.internal.telephony.flags.Flags;
 import com.android.internal.telephony.ims.ImsResolver;
 import com.android.internal.telephony.subscription.SubscriptionInfoInternal;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
@@ -145,6 +149,9 @@ import javax.annotation.Nullable;
 @RunWith(AndroidTestingRunner.class)
 @TestableLooper.RunWithLooper
 public class DataNetworkControllerTest extends TelephonyTest {
+    @Rule
+    public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
+
     private static final String IPV4_ADDRESS = "10.0.2.15";
     private static final String IPV6_ADDRESS = "2607:fb90:a620:651d:eabe:f8da:c107:44be";
 
@@ -1054,13 +1061,26 @@ public class DataNetworkControllerTest extends TelephonyTest {
                 }
             }
 
-            if (networkRequest.hasAttribute(TelephonyNetworkRequest
-                    .CAPABILITY_ATTRIBUTE_TRAFFIC_DESCRIPTOR_OS_APP_ID)) {
+            boolean hasConnectionCapabilityAttribute = networkRequest.hasAttribute(
+                    TelephonyNetworkRequest
+                            .CAPABILITY_ATTRIBUTE_TRAFFIC_DESCRIPTOR_CONNECTION_CAPABILITY);
+            hasConnectionCapabilityAttribute &= Flags.enableTrafficDescriptorConnectionCapability();
+            boolean hasOsAppIdAttribute = networkRequest.hasAttribute(
+                    TelephonyNetworkRequest
+                            .CAPABILITY_ATTRIBUTE_TRAFFIC_DESCRIPTOR_OS_APP_ID);
+            if (hasOsAppIdAttribute || hasConnectionCapabilityAttribute) {
                 TrafficDescriptor.Builder trafficDescriptorBuilder =
                         new TrafficDescriptor.Builder();
-                TrafficDescriptor.OsAppId osAppId = networkRequest.getOsAppId();
-                if (osAppId != null) {
-                    trafficDescriptorBuilder.setOsAppId(osAppId.getBytes());
+                if (hasOsAppIdAttribute) {
+                    TrafficDescriptor.OsAppId osAppId = networkRequest.getOsAppId();
+                    if (osAppId != null) {
+                        trafficDescriptorBuilder.setOsAppId(osAppId.getBytes());
+                    }
+                }
+                if (hasConnectionCapabilityAttribute) {
+                    trafficDescriptorBuilder.setConnectionCapability(
+                            DataUtils.networkCapabilityToConnectionCapability(
+                                    networkRequest.getHighestPrioritySupportedNetworkCapability()));
                 }
                 DataProfile.Builder profileBuilder = new DataProfile.Builder();
                 DataProfile dp = profileBuilder.setTrafficDescriptor(
@@ -6492,5 +6512,86 @@ public class DataNetworkControllerTest extends TelephonyTest {
         // Make sure UFC network was torn down.
         verifyNoConnectedNetworkHasCapability(
                 NetworkCapabilities.NET_CAPABILITY_PRIORITIZE_UNIFIED_COMMUNICATIONS);
+    }
+
+    @Test
+    public void testGetDataNetworkByCid() throws Exception {
+        TelephonyNetworkRequest internetRequest = createNetworkRequest(
+                NetworkCapabilities.NET_CAPABILITY_INTERNET);
+        TelephonyNetworkRequest imsRequest = createNetworkRequest(
+                NetworkCapabilities.NET_CAPABILITY_IMS, NetworkCapabilities.NET_CAPABILITY_MMTEL);
+
+        // Add for INTERNET network
+        setSuccessfulSetupDataResponse(mMockedWwanDataServiceManager, 1);
+        mDataNetworkControllerUT.addNetworkRequest(internetRequest);
+        processAllMessages();
+
+        // Add for IMS network
+        setSuccessfulSetupDataResponse(mMockedWwanDataServiceManager, 2);
+        mDataNetworkControllerUT.addNetworkRequest(imsRequest);
+        processAllMessages();
+
+        // Verify cids
+        List<DataNetwork> dataNetworks = getDataNetworks();
+        assertThat(dataNetworks).hasSize(2);
+        DataNetwork internetNetwork = dataNetworks.stream()
+                .filter(dn -> dn.getId() == 1).findFirst().get();
+        DataNetwork imsNetwork = dataNetworks.stream()
+                .filter(dn -> dn.getId() == 2).findFirst().get();
+
+        assertThat(mDataNetworkControllerUT.getDataNetworkByCid(1)).isEqualTo(internetNetwork);
+        assertThat(mDataNetworkControllerUT.getDataNetworkByCid(2)).isEqualTo(imsNetwork);
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_ENABLE_TRAFFIC_DESCRIPTOR_CONNECTION_CAPABILITY)
+    public void testIntentionalCidReuse() throws Exception {
+        // 1. Set up the initial NET_CAPABILITY_PRIORITIZE_BANDWIDTH network.
+        mDataNetworkControllerUT.addNetworkRequest(new TelephonyNetworkRequest(
+                new NetworkRequest.Builder()
+                        .addCapability(NetworkCapabilities
+                                .NET_CAPABILITY_PRIORITIZE_BANDWIDTH)
+                        .build(), mPhone, mFeatureFlags));
+        processAllFutureMessages();
+
+        // Verify that the NET_CAPABILITY_PRIORITIZE_BANDWIDTH network is up and running.
+        verifyConnectedNetworkHasCapabilities(
+                NetworkCapabilities.NET_CAPABILITY_PRIORITIZE_BANDWIDTH);
+        List<DataNetwork> dataNetworkList = getDataNetworks();
+        assertThat(dataNetworkList).hasSize(1);
+        DataNetwork bandwidthNetwork = dataNetworkList.get(0);
+        clearInvocations(mMockedWwanDataServiceManager);
+
+        // 2. Simulate the scenario for the NET_CAPABILITY_PRIORITIZE_LATENCY request.
+        // The modem responds with the same CID and interface name,
+        // meaning the existing PDN should be reused.
+        List<TrafficDescriptor> mergedTds = List.of(
+                new TrafficDescriptor.Builder()
+                        .setConnectionCapability(
+                                TrafficDescriptor.CONNECTION_CAPABILITY_DOWNLINK_STREAMING)
+                        .build(),
+                new TrafficDescriptor.Builder()
+                        .setConnectionCapability(
+                                TrafficDescriptor.CONNECTION_CAPABILITY_REAL_TIME_INTERACTIVE)
+                        .build());
+        DataCallResponse updatedResponse = createDataCallResponse(
+                1, DataCallResponse.LINK_STATUS_ACTIVE, mergedTds);
+        setSuccessfulSetupDataResponse(mMockedWwanDataServiceManager, updatedResponse);
+        mDataNetworkControllerUT.addNetworkRequest(
+                createNetworkRequest(true, NetworkCapabilities.NET_CAPABILITY_PRIORITIZE_LATENCY));
+        processAllFutureMessages();
+
+        // Verify the outcome.
+        // The DataNetwork for the NET_CAPABILITY_PRIORITIZE_LATENCY should have been torn down.
+        // The NET_CAPABILITY_PRIORITIZE_BANDWIDTH DataNetwork should be the only one remaining.
+        dataNetworkList = getDataNetworks();
+        assertThat(dataNetworkList).hasSize(1);
+        DataNetwork finalNetwork = dataNetworkList.get(0);
+        assertThat(finalNetwork).isSameInstanceAs(bandwidthNetwork);
+
+        // The single, final network should now have both capabilities from the merged TDs.
+        verifyConnectedNetworkHasCapabilities(
+                NetworkCapabilities.NET_CAPABILITY_PRIORITIZE_BANDWIDTH,
+                NetworkCapabilities.NET_CAPABILITY_PRIORITIZE_LATENCY);
     }
 }
