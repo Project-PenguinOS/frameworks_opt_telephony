@@ -1455,13 +1455,13 @@ public abstract class InboundSmsHandler extends StateMachine {
                 if (mUserManager.isUserRunning(handle)) {
                     runningUserHandles.add(handle);
                 } else {
+                    long messageId = resultReceiver != null
+                            ? resultReceiver.mInboundSmsTracker.getMessageId() : -1;
                     if (mFeatureFlags.smsMmsDeliverBroadcastsRedirectToMainUser()
                             && handle.equals(mainUser)) {
-                        logeWithLocalLog("dispatchIntent: MAIN user is not running",
-                                resultReceiver.mInboundSmsTracker.getMessageId());
+                        logeWithLocalLog("dispatchIntent: MAIN user is not running", messageId);
                     } else if (handle.equals(UserHandle.SYSTEM)) {
-                        logeWithLocalLog("dispatchIntent: SYSTEM user is not running",
-                                resultReceiver.mInboundSmsTracker.getMessageId());
+                        logeWithLocalLog("dispatchIntent: SYSTEM user is not running", messageId);
                     }
                 }
             }
@@ -1492,7 +1492,6 @@ public abstract class InboundSmsHandler extends StateMachine {
                         isMainUser(users[i]) ? resultReceiver : null, targetUser);
             }
         } else {
-            resultReceiver.setWaitingForIntent(intent);
             sendBroadcast(intent, permission, appOp, opts, resultReceiver, user);
         }
     }
