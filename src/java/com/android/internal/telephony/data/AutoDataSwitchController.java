@@ -65,6 +65,7 @@ import android.util.ArraySet;
 import android.util.IndentingPrintWriter;
 import android.util.LocalLog;
 
+import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.telephony.Phone;
 import com.android.internal.telephony.PhoneFactory;
 // QTI_BEGIN: 2024-09-04: Telephony: Fix to update AutoDataSwitch threshold values
@@ -267,7 +268,10 @@ public class AutoDataSwitchController extends Handler {
     /**
      * The phone Id of the pending switching phone. Used for pruning frequent switch evaluation.
      */
-    private int mSelectedTargetPhoneId = INVALID_PHONE_INDEX;
+    protected int mSelectedTargetPhoneId = INVALID_PHONE_INDEX;
+
+    @VisibleForTesting
+    public boolean mAutoDdsValueAddedEvaluationforDdsRevert = false;
 
     /**
      * To track the signal status of a phone in order to evaluate whether it's a good candidate to
@@ -854,6 +858,14 @@ public class AutoDataSwitchController extends Handler {
                 logl(debugMessage.append(
                         ", immediately back to default as user turns off default").toString());
                 return;
+            } else if (autoDdsValueAddedEvaluationforDdsRevert()) {
+                mSelectedTargetPhoneId = INVALID_PHONE_INDEX;
+                mPhoneSwitcherCallback.onRequireImmediatelySwitchToPhone(
+                        DEFAULT_PHONE_INDEX, EVALUATION_REASON_DATA_SETTINGS_CHANGED);
+                cancelAnyPendingSwitch();
+                log(debugMessage.append(
+                        ", immediately back to default as additional value added evaluation")
+                        .toString());
             } else if (!(internetEvaluation = getInternetEvaluation(backupDataPhone))
                     .isSubsetOf(DataEvaluation.DataDisallowedReason.NOT_IN_SERVICE)) {
                 mSelectedTargetPhoneId = INVALID_PHONE_INDEX;
@@ -943,6 +955,17 @@ public class AutoDataSwitchController extends Handler {
                 cancelAnyPendingSwitch();
             }
         }
+    }
+
+    /**
+     * Determines whether the Default Data Subscription (DDS) should revert to its original setting.
+     *
+     * @return boolean - Returns true if DDS should revert (Auto Data Switch UI is disabled),
+     *                   returns false if DDS should not revert (Auto Data Switch UI is enabled)
+     */
+    protected boolean autoDdsValueAddedEvaluationforDdsRevert() {
+        log("autoDdsValueAddedEvaluationforDdsRevert: false");
+        return mAutoDdsValueAddedEvaluationforDdsRevert;
     }
 
     /**

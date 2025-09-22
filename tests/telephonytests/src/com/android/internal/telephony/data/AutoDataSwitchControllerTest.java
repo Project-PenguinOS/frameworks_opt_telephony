@@ -1420,6 +1420,42 @@ public class AutoDataSwitchControllerTest extends TelephonyTest {
         verify(mMockedPhoneSwitcherCallback).onRequireValidation(anyInt(), anyBoolean());
     }
 
+    @Test
+    public void testAutoDdsValueAddedEvaluation() {
+      // Set up initial conditions: Policy is DISABLED. Primary is OOS.
+      setupOpportunisticSwitchMode(
+              CarrierConfigManager.OPP_AUTO_DATA_SWITCH_POLICY_DISABLED);
+      doReturn(new int[]{SUB_1, SUB_2}).when(mSubscriptionManagerService)
+              .getActiveSubIdList(true);
+      setupStatePrimaryIsOos();
+
+      //Ensure that the device has switched to the Non-DDS before proceeding
+      doReturn(PHONE_2).when(mPhoneSwitcher).getPreferredDataPhoneId();
+      assertThat(mPhoneSwitcher.getPreferredDataPhoneId()).isEqualTo(PHONE_2);
+
+      // 1. Test DDS Reverts
+      //Mock autoDdsValueAddedEvaluationforDdsRevert as true
+      mAutoDataSwitchControllerUT.mAutoDdsValueAddedEvaluationforDdsRevert = true;
+      mAutoDataSwitchControllerUT.evaluateAutoDataSwitch(
+              EVALUATION_REASON_REGISTRATION_STATE_CHANGED);
+      processAllFutureMessages();
+
+      verify(mMockedPhoneSwitcherCallback).onRequireImmediatelySwitchToPhone(DEFAULT_PHONE_INDEX,
+              EVALUATION_REASON_DATA_SETTINGS_CHANGED);
+      clearInvocations(mMockedPhoneSwitcherCallback);
+
+      // 2. Test DDS Doesn't Revert
+      //Mock autoDdsValueAddedEvaluationforDdsRevert as false
+      mAutoDataSwitchControllerUT.mAutoDdsValueAddedEvaluationforDdsRevert = false;
+      mAutoDataSwitchControllerUT.evaluateAutoDataSwitch(
+              EVALUATION_REASON_REGISTRATION_STATE_CHANGED);
+      processAllFutureMessages();
+
+      verify(mMockedPhoneSwitcherCallback, never()).onRequireImmediatelySwitchToPhone(
+              DEFAULT_PHONE_INDEX,
+              EVALUATION_REASON_DATA_SETTINGS_CHANGED);
+    }
+
     /**
      * Trigger conditions
      * 1. service state changes
