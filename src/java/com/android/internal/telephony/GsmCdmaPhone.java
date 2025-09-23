@@ -4202,7 +4202,8 @@ public class GsmCdmaPhone extends Phone {
     }
 
     private void updateVoNrSettings(@NonNull PersistableBundle config) {
-        if (getIccCard().getState() != IccCardConstants.State.LOADED) {
+        if (!CarrierConfigManager.isConfigForIdentifiedCarrier(config)
+                || getIccCard().getState() != IccCardConstants.State.LOADED) {
             return;
         }
 
