@@ -1281,15 +1281,7 @@ public class SubscriptionManagerService extends ISub.Stub {
                         builder.setOnlyNonTerrestrialNetwork(1);
                     }
 
-                    if (android.os.Build.isDebuggable() &&
-                            SystemProperties.getInt("telephony.test.bootstrap_cid", -2)
-                                == carrierId) {
-                        // Force set as provisioning profile for test purpose
-                        log("Hardcording as bootstrap subscription for cid=" + carrierId);
-                        builder.setProfileClass(SimInfo.PROFILE_CLASS_PROVISIONING);
-                    } else {
-                        builder.setProfileClass(embeddedProfile.getProfileClass());
-                    }
+                    builder.setProfileClass(embeddedProfile.getProfileClass());
                     builder.setPortIndex(getPortIndex(embeddedProfile.getIccid()));
 
                     CarrierIdentifier cid = embeddedProfile.getCarrierIdentifier();
