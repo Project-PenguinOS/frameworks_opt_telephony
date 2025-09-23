@@ -4835,10 +4835,6 @@ public class SubscriptionManagerService extends ISub.Stub {
      *
      */
     public boolean isEsimBootStrapProvisioningActivated() {
-        if (!mFeatureFlags.esimBootstrapProvisioningFlag()) {
-            return false;
-        }
-
         List<SubscriptionInfo> activeSubInfos =
                 getActiveSubscriptionInfoList(mContext.getOpPackageName(),
                         mContext.getAttributionTag(), true/*isForAllProfile*/);
@@ -4854,10 +4850,6 @@ public class SubscriptionManagerService extends ISub.Stub {
      *
      */
     public boolean isEsimBootStrapProvisioningActiveForSubId(int subId) {
-        if (!mFeatureFlags.esimBootstrapProvisioningFlag()) {
-            return false;
-        }
-
         SubscriptionInfoInternal subInfo = getSubscriptionInfoInternal(subId);
         return subInfo != null
                 && subInfo.getProfileClass() == SubscriptionManager.PROFILE_CLASS_PROVISIONING;
