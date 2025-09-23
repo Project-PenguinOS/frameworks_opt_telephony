@@ -8433,7 +8433,12 @@ public class SatelliteController extends Handler {
             return subscriberId;
         }
 
-        String phoneNumber = subscriptionManager.getPhoneNumber(subId);
+        String phoneNumber = "";
+        if (mFeatureFlags.lastKnownPhoneNumber()) {
+            phoneNumber = subscriptionManager.getLastKnownPhoneNumber(subId);
+        } else {
+            phoneNumber = subscriptionManager.getPhoneNumber(subId);
+        }
         if (TextUtils.isEmpty(phoneNumber)) {
             plogd("getPhoneNumberBasedCarrier: phoneNumber is empty.");
             return subscriberId;
