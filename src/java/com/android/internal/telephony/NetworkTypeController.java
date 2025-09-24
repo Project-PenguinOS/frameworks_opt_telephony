@@ -1640,6 +1640,12 @@ public class NetworkTypeController extends StateMachine {
                     && !mSecondaryTimerState.equals(STATE_CONNECTED_NR_ADVANCED)) {
                 if (DBG) log("Reset non-NR advanced timers since state is NR connected/idle");
                 resetAllTimers();
+            // TODO: We should create a new config for this rather than reusing this config
+            } else if (mIsTimerResetEnabledForLegacyStateRrcIdle
+                    && mPrimaryTimerState.equals(STATE_CONNECTED_NR_ADVANCED)
+                    && currentState.equals(STATE_CONNECTED_RRC_IDLE)) {
+                if (DBG) log("Reset NR advanced timers since state is NR idle");
+                resetAllTimers();
             } else {
                 int rat = getDataNetworkType();
                 if (!isLte(rat) && rat != TelephonyManager.NETWORK_TYPE_NR) {
