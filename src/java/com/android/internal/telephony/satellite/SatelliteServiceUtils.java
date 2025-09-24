@@ -87,6 +87,7 @@ public class SatelliteServiceUtils {
         return switch (type) {
             case CarrierConfigManager.CARRIER_ROAMING_NTN_CONNECT_AUTOMATIC -> "AUTOMATIC";
             case CarrierConfigManager.CARRIER_ROAMING_NTN_CONNECT_MANUAL -> "MANUAL";
+            case CarrierConfigManager.CARRIER_ROAMING_NTN_CONNECT_HYBRID -> "HYBRID";
             default -> "Unknown(" + type + ")";
         };
     }
