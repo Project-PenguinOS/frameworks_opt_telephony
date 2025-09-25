@@ -35,14 +35,6 @@ flag {
     bug:"271921464"
 }
 
-# OWNER=stevestatia TARGET=24Q3
-flag {
-    name: "prevent_system_server_and_phone_deadlock"
-    namespace: "telephony"
-    description: "This flag controls the order of the binder to prevent deadlock in system_server"
-    bug: "315973270"
-}
-
 # OWNER=jackyu TARGET=25Q2
 flag {
     name: "power_down_race_fix"

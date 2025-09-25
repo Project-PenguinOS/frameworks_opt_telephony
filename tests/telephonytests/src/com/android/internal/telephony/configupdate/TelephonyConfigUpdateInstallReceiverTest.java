@@ -57,6 +57,7 @@ import org.mockito.MockitoAnnotations;
 import java.io.File;
 import java.util.Base64;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -191,7 +192,7 @@ public class TelephonyConfigUpdateInstallReceiverTest extends TelephonyTest {
         Mockito.clearInvocations(spyTelephonyConfigUpdateInstallReceiver);
 
         // Wrong plmn("1234") config data case
-        // mSupportedServicesPerCarrier:{1={"1234"=[1, 2, 3]}} |
+        // mSupportedServicesPerCarrier:{1={"1234"=[1, 2, 3]}} |US
         // mSatelliteRegionCountryCodes:[US]
         // | mIsSatelliteRegionAllowed:true | s2CellFile size:10
         mBase64StrForPBByteArray =
@@ -368,5 +369,29 @@ public class TelephonyConfigUpdateInstallReceiverTest extends TelephonyTest {
 
         doReturn(3).when(mockConfig).getSatelliteMaxAllowedDataMode();
         assertFalse(spyTelephonyConfigUpdateInstallReceiver.isValidMaxAllowedDataMode(mockParser));
+    }
+
+    @Test
+    public void testIsValidDeviceSatellitePlmns() {
+        TelephonyConfigUpdateInstallReceiver spyTelephonyConfigUpdateInstallReceiver =
+                spy(new TelephonyConfigUpdateInstallReceiver());
+        SatelliteConfigParser mockParser = mock(SatelliteConfigParser.class);
+        SatelliteConfig mockConfig = mock(SatelliteConfig.class);
+        doReturn(mockConfig).when(mockParser).getConfig();
+
+        assertTrue(spyTelephonyConfigUpdateInstallReceiver
+                .isValidSatelliteProvider(mockParser));
+
+        doReturn(null).when(mockConfig).getDeviceSatelliteProviderList();
+        assertTrue(spyTelephonyConfigUpdateInstallReceiver
+                .isValidSatelliteProvider(mockParser));
+
+        doReturn(List.of("310211", "310212")).when(mockConfig).getDeviceSatelliteProviderList();
+        assertTrue(spyTelephonyConfigUpdateInstallReceiver
+                .isValidSatelliteProvider(mockParser));
+
+        doReturn(List.of("310211", "123")).when(mockConfig).getDeviceSatelliteProviderList();
+        assertFalse(spyTelephonyConfigUpdateInstallReceiver
+                .isValidSatelliteProvider(mockParser));
     }
 }

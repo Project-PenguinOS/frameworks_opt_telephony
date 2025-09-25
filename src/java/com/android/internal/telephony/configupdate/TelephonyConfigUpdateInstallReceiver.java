@@ -39,6 +39,7 @@ import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -123,7 +124,7 @@ public class TelephonyConfigUpdateInstallReceiver extends ConfigUpdateInstallRec
                 if (!TelephonyUtils.isValidPlmn(plmn)) {
                     Log.e(TAG, "found invalid plmn : " + plmn);
                     mConfigUpdaterMetricsStats.reportCarrierConfigError(
-                            SatelliteConstants.CONFIG_UPDATE_RESULT_CARRIER_DATA_INVALID_PLMN);
+                            SatelliteConstants.CONFIG_UPDATE_RESULT_INVALID_PLMN);
                     return false;
                 }
                 Set<Integer> serviceSet = plmnsServices.get(plmn);
@@ -173,6 +174,40 @@ public class TelephonyConfigUpdateInstallReceiver extends ConfigUpdateInstallRec
         return true;
     }
 
+    /**
+     * Validates if the satellite provider plmns are valid
+     *
+     * @param parser target of validation.
+     * @return {@code true} if satellite provider plmn are valid, {@code false} otherwise.
+     */
+    public boolean isValidSatelliteProvider(@NonNull ConfigParser parser) {
+        SatelliteConfig satelliteConfig = (SatelliteConfig) parser.getConfig();
+        if (satelliteConfig == null) {
+            Log.e(TAG, "isValidSatelliteProvider: satelliteConfig is null");
+            mConfigUpdaterMetricsStats.reportOemAndCarrierConfigError(
+                    SatelliteConstants.CONFIG_UPDATE_RESULT_NO_SATELLITE_DATA);
+            return false;
+        }
+
+        List<String> satelliteProviderList = satelliteConfig.getDeviceSatelliteProviderList();
+        if (satelliteProviderList == null) {
+            Log.d(TAG, "isValidSatelliteProvider: satelliteProviderList is not set");
+            return true;
+        }
+
+        for (String satellitePlmn : satelliteProviderList) {
+            if (!TelephonyUtils.isValidPlmn(satellitePlmn)) {
+                Log.e(TAG, "isValidSatelliteProvider: invalid plmn = " + satellitePlmn);
+                mConfigUpdaterMetricsStats.reportOemConfigError(SatelliteConstants
+                        .CONFIG_UPDATE_RESULT_INVALID_PLMN);
+                return false;
+            }
+        }
+
+        Log.d(TAG, "satelliteProviderList is valid");
+        return true;
+    }
+
     @Override
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PROTECTED)
     public void postInstall(Context context, Intent intent) {
@@ -197,6 +232,11 @@ public class TelephonyConfigUpdateInstallReceiver extends ConfigUpdateInstallRec
 
         if (!isValidMaxAllowedDataMode(newConfigParser)) {
             Log.e(TAG, "received config data has invalid max allowed data mode");
+            return;
+        }
+
+        if (!isValidSatelliteProvider(newConfigParser)) {
+            Log.e(TAG, "received config data has invalid satellite plmn list");
             return;
         }
 
