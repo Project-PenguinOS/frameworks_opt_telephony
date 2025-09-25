@@ -2597,7 +2597,7 @@ public class GsmCdmaPhoneTest extends TelephonyTest {
         int subId = -1;
         when(mSubscriptionManagerService.getSubId(phoneId)).thenReturn(subId);
 
-        Phone phoneUT =
+        GsmCdmaPhone phoneUT =
                 new GsmCdmaPhone(
                         mContext,
                         mMockCi,
@@ -2623,6 +2623,23 @@ public class GsmCdmaPhoneTest extends TelephonyTest {
 
         verify(mIdentifierDisclosureNotifier, never())
                 .addDisclosure(eq(mContext), eq(subId), any(CellularIdentifierDisclosure.class));
+        assertTrue(phoneUT.mCellularEventMessages.size() == 1);
+
+        int subscriptionId = 10;
+        when(mSubscriptionManagerService.getSubId(phoneId)).thenReturn(subscriptionId);
+
+        // sending SIM loaded broadCast.
+        Intent simLoadedIntent = new Intent(TelephonyManager.ACTION_SIM_APPLICATION_STATE_CHANGED);
+        simLoadedIntent.putExtra(SubscriptionManager.EXTRA_SLOT_INDEX, mPhone.getPhoneId());
+        simLoadedIntent.putExtra(TelephonyManager.EXTRA_SIM_STATE,
+                TelephonyManager.SIM_STATE_LOADED);
+        mContext.sendBroadcast(simLoadedIntent);
+        processAllMessages();
+
+        verify(mIdentifierDisclosureNotifier, times(1))
+                .addDisclosure(eq(mContext), eq(subscriptionId), eq(disclosure));
+        assertTrue(phoneUT.mCellularEventMessages.isEmpty());
+
     }
 
     @Test
@@ -2690,7 +2707,7 @@ public class GsmCdmaPhoneTest extends TelephonyTest {
 
     @Test
     public void testSecurityAlgorithm_withInValidSubscriptionId() {
-        Phone phoneUT = makeNewPhoneUT();
+        GsmCdmaPhone phoneUT = makeNewPhoneUT();
         int subId = -1;
         int phoneId = 0;
         when(mSubscriptionManagerService.getSubId(phoneId)).thenReturn(subId);
@@ -2709,6 +2726,22 @@ public class GsmCdmaPhoneTest extends TelephonyTest {
 
         verify(mNullCipherNotifier, never())
                 .onSecurityAlgorithmUpdate(eq(mContext), eq(0), eq(subId), eq(update));
+        assertTrue(phoneUT.mCellularEventMessages.size() == 1);
+
+        int subscriptionId = 10;
+        when(mSubscriptionManagerService.getSubId(phoneId)).thenReturn(subscriptionId);
+
+        // sending SIM loaded broadCast.
+        Intent simLoadedIntent = new Intent(TelephonyManager.ACTION_SIM_APPLICATION_STATE_CHANGED);
+        simLoadedIntent.putExtra(SubscriptionManager.EXTRA_SLOT_INDEX, mPhone.getPhoneId());
+        simLoadedIntent.putExtra(TelephonyManager.EXTRA_SIM_STATE,
+                TelephonyManager.SIM_STATE_LOADED);
+        mContext.sendBroadcast(simLoadedIntent);
+        processAllMessages();
+
+        verify(mNullCipherNotifier, times(1))
+                .onSecurityAlgorithmUpdate(eq(mContext), eq(0), eq(subscriptionId), eq(update));
+        assertTrue(phoneUT.mCellularEventMessages.isEmpty());
     }
 
     @Test
