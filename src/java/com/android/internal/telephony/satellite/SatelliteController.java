@@ -461,6 +461,7 @@ public class SatelliteController extends Handler {
     private AtomicInteger mDelayInSendingEventDisplayEmergencyMessage = new AtomicInteger(0);
     private AtomicInteger mSimSlotIdForLaunchingT911ConversationThread = new AtomicInteger(0);
     private AtomicInteger mMaxAllowedDataModeForCtsTest = new AtomicInteger(-1);
+    private AtomicBoolean mUncapMaxAllowedDataMode = new AtomicBoolean(false);
     // The ID of the satellite subscription that has highest priority and is provisioned.
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PRIVATE)
     protected AtomicInteger mSelectedSatelliteSubId = new AtomicInteger(
@@ -4184,6 +4185,23 @@ public class SatelliteController extends Handler {
     }
 
     /**
+     * This API can be used for testing purposes to uncap the max allowed data mode.
+     *
+     * @return {@code true} if the max allowed data mode is uncapped successfully,
+     * {@code false} otherwise.
+     */
+    public boolean uncapMaxAllowedDataMode() {
+        if (!DEBUG) {
+            plogd("uncapMaxAllowedDataMode: Cannot uncap max allowed data mode on non debug"
+                    + " builds");
+            return false;
+        }
+        plogd("uncapMaxAllowedDataMode: Uncapping max allowed data mode");
+        mUncapMaxAllowedDataMode.set(true);
+        return true;
+    }
+
+    /**
      * This API can be used by only CTS to override timeout durations used by DatagramController
      * module.
      *
@@ -6260,6 +6278,11 @@ public class SatelliteController extends Handler {
             logd("getMaxAllowedDataMode: using the overridden value for CTS test="
                 + mMaxAllowedDataModeForCtsTest.get());
             return mMaxAllowedDataModeForCtsTest.get();
+        }
+        if (mUncapMaxAllowedDataMode.get()) {
+            logd("getMaxAllowedDataMode: max allowed data mode is uncapped, so return "
+                    + CarrierConfigManager.SATELLITE_DATA_SUPPORT_ALL);
+            return CarrierConfigManager.SATELLITE_DATA_SUPPORT_ALL;
         }
         int maxAllowedDataMode = getMaxAllowedDataModeDeviceConfigOverlay();
         logd("getMaxAllowedDataMode: device config=" + maxAllowedDataMode);
