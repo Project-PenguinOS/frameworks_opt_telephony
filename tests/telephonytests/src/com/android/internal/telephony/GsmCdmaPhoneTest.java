@@ -1378,6 +1378,42 @@ public class GsmCdmaPhoneTest extends TelephonyTest {
         verify(mMockCi, times(1)).setN1ModeEnabled(eq(true), messageCaptor.capture());
     }
 
+    @Test
+    public void testUpdateVoNrSettings_handlesUnidentifiedCarrierConfig() throws Exception {
+        mPhoneUT.mCi = mMockCi;
+
+        // SIM loaded
+        doReturn(IccCardConstants.State.LOADED).when(mUiccProfile).getState();
+        doReturn(mUiccProfile).when(mUiccController).getUiccProfileForPhone(anyInt());
+
+        PersistableBundle bundle = mContextFixture.getCarrierConfigBundle();
+        bundle.putBoolean(CarrierConfigManager.KEY_VONR_ENABLED_BOOL, true);
+        bundle.putBoolean(CarrierConfigManager.KEY_VONR_ON_BY_DEFAULT_BOOL, true);
+
+        // carrier config changed with KEY_CARRIER_CONFIG_APPLIED_BOOL as false
+        mPhoneUT.sendMessage(mPhoneUT.obtainMessage(Phone.EVENT_CARRIER_CONFIG_CHANGED));
+        processAllMessages();
+
+        // verify that mCi.setVoNrEnabled has never been called.
+        verify(mMockCi, never()).setVoNrEnabled(anyBoolean(), any(), any());
+
+        // set KEY_CARRIER_CONFIG_APPLIED_BOOL as true
+        setIsCarrierConfigForIdentifiedCarrier(bundle, true);
+
+        SubscriptionInfoInternal si = new SubscriptionInfoInternal.Builder()
+                .setId(1)
+                .setNrAdvancedCallingEnabled(1)
+                .build();
+        doReturn(si).when(mSubscriptionManagerService).getSubscriptionInfoInternal(anyInt());
+
+        // carrier config changed with KEY_CARRIER_CONFIG_APPLIED_BOOL as true
+        mPhoneUT.sendMessage(mPhoneUT.obtainMessage(Phone.EVENT_CARRIER_CONFIG_CHANGED));
+        processAllMessages();
+
+        // verify that mCi.setVoNrEnabled is called once.
+        verify(mMockCi, times(1)).setVoNrEnabled(eq(true), any(), any());
+    }
+
     private void setupForWpsCallTest() throws Exception {
         mSST.mSS = mServiceState;
         doReturn(ServiceState.STATE_IN_SERVICE).when(mServiceState).getState();
