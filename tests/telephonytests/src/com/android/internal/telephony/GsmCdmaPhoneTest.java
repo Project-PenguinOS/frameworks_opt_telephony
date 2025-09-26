@@ -47,6 +47,7 @@ import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.eq;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
@@ -117,6 +118,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -150,12 +152,12 @@ public class GsmCdmaPhoneTest extends TelephonyTest {
         super.setUp(getClass().getSimpleName());
         mPreTestProperties = DeviceConfig.getProperties(
                 TelephonyManager.PROPERTY_ENABLE_NULL_CIPHER_TOGGLE);
-        mTestHandler = Mockito.mock(Handler.class);
-        mUiccSlot = Mockito.mock(UiccSlot.class);
-        mUiccPort = Mockito.mock(UiccPort.class);
-        mMockCi = Mockito.mock(CommandsInterface.class);
-        adnRecordCache = Mockito.mock(AdnRecordCache.class);
-        mFeatureFlags = Mockito.mock(FeatureFlags.class);
+        mTestHandler = mock(Handler.class);
+        mUiccSlot = mock(UiccSlot.class);
+        mUiccPort = mock(UiccPort.class);
+        mMockCi = mock(CommandsInterface.class);
+        adnRecordCache = mock(AdnRecordCache.class);
+        mFeatureFlags = mock(FeatureFlags.class);
 
         doReturn(false).when(mSST).isDeviceShuttingDown();
         doReturn(true).when(mImsManager).isVolteEnabledByPlatform();
@@ -361,7 +363,7 @@ public class GsmCdmaPhoneTest extends TelephonyTest {
     @SmallTest
     public void testGetSubscriberIdForGsmPhone() {
         final String subscriberId = "123456789";
-        IccRecords iccRecords = Mockito.mock(IccRecords.class);
+        IccRecords iccRecords = mock(IccRecords.class);
         doReturn(subscriberId).when(iccRecords).getIMSI();
         doReturn(iccRecords).when(mUiccController)
                 .getIccRecords(anyInt() /* phoneId */, eq(UiccController.APP_FAM_3GPP));
@@ -416,9 +418,9 @@ public class GsmCdmaPhoneTest extends TelephonyTest {
     @Test
     @SmallTest
     public void testDialWithShortEmergencyNumber() throws Exception {
-        ServiceState serviceState = Mockito.mock(ServiceState.class);
-        ImsPhoneCall imsPhoneCall = Mockito.mock(ImsPhoneCall.class);
-        GsmCdmaCall gsmCdmaCall2 = Mockito.mock(GsmCdmaCall.class);
+        ServiceState serviceState = mock(ServiceState.class);
+        ImsPhoneCall imsPhoneCall = mock(ImsPhoneCall.class);
+        GsmCdmaCall gsmCdmaCall2 = mock(GsmCdmaCall.class);
 
         mSST.mSS = mServiceState;
         mCT.mForegroundCall = mGsmCdmaCall;
@@ -901,7 +903,7 @@ public class GsmCdmaPhoneTest extends TelephonyTest {
         // If UiccSlot.isStateUnknown is true, we should return a placeholder IccCard with the state
         // set to UNKNOWN
         doReturn(null).when(mUiccController).getUiccProfileForPhone(anyInt());
-        UiccSlot mockSlot = Mockito.mock(UiccSlot.class);
+        UiccSlot mockSlot = mock(UiccSlot.class);
         doReturn(mockSlot).when(mUiccController).getUiccSlotForPhone(anyInt());
         doReturn(true).when(mockSlot).isStateUnknown();
 
@@ -1185,8 +1187,8 @@ public class GsmCdmaPhoneTest extends TelephonyTest {
 
     private void setupTestSendUssd(PhoneInternalInterface.DialArgs dialArgs) throws Exception {
         mPhoneUT.mCi = mMockCi;
-        ServiceState mImsServiceState = Mockito.mock(ServiceState.class);
-        CallStateException callStateException = Mockito.mock(CallStateException.class);
+        ServiceState mImsServiceState = mock(ServiceState.class);
+        CallStateException callStateException = mock(CallStateException.class);
 
         // Enable VoWiFi
         doReturn(true).when(mImsManager).isVolteEnabledByPlatform();
@@ -1648,7 +1650,7 @@ public class GsmCdmaPhoneTest extends TelephonyTest {
         doReturn(true).when(mImsManager).isEnhanced4gLteModeSettingEnabledByUser();
         doReturn(true).when(mImsManager).isNonTtyOrTtyOnVolteEnabled();
         doReturn(true).when(mImsPhone).isVoiceOverCellularImsEnabled();
-        ServiceState ss = Mockito.mock(ServiceState.class);
+        ServiceState ss = mock(ServiceState.class);
         doReturn(ServiceState.STATE_IN_SERVICE).when(ss).getState();
         doReturn(ss).when(mImsPhone).getServiceState();
 
@@ -2392,7 +2394,7 @@ public class GsmCdmaPhoneTest extends TelephonyTest {
     @Test
     public void testSetAllowedNetworkTypes_admin2gRestrictionHonored() throws Exception {
         // circumvent loading/saving to sim db. it's not behavior under test.
-        TelephonyManager.setupISubForTest(Mockito.mock(SubscriptionManagerService.class));
+        TelephonyManager.setupISubForTest(mock(SubscriptionManagerService.class));
         TelephonyManager.enableServiceHandleCaching();
         mPhoneUT.loadAllowedNetworksFromSubscriptionDatabase();
 
@@ -2455,11 +2457,11 @@ public class GsmCdmaPhoneTest extends TelephonyTest {
     @Test
     @SmallTest
     public void testEcbmWhenDomainSelectionEnabled() throws Exception {
-        DomainSelectionResolver dsResolver = Mockito.mock(DomainSelectionResolver.class);
+        DomainSelectionResolver dsResolver = mock(DomainSelectionResolver.class);
         doReturn(true).when(dsResolver).isDomainSelectionSupported();
         DomainSelectionResolver.setDomainSelectionResolver(dsResolver);
 
-        EmergencyStateTracker est = Mockito.mock(EmergencyStateTracker.class);
+        EmergencyStateTracker est = mock(EmergencyStateTracker.class);
         replaceInstance(EmergencyStateTracker.class, "INSTANCE", null, est);
 
         mPhoneUT.handleMessage(mPhoneUT.obtainMessage(
@@ -2519,6 +2521,44 @@ public class GsmCdmaPhoneTest extends TelephonyTest {
         mPhoneUT.handleMessage(message);
         assertEquals(Phone.IMEI_TYPE_SECONDARY, mPhoneUT.getImeiType());
         assertEquals(FAKE_IMEI, mPhoneUT.getImei());
+    }
+
+    /**
+     * Verifies that the {@link CarrierKeyDownloadManager} instance (mCDM) is initialized
+     * within the {@link GsmCdmaPhone} constructor.
+     *
+     * This test is crucial to prevent static analysis tools from flagging and potentially removing
+     * the private {@code mCDM} field in {@link GsmCdmaPhone}, as it is essential for carrier key
+     * downloading functionality, even if not directly referenced in all code paths.
+     *
+     * <p>This test uses reflection to access the private {@code mCDM} field to ensure it is not
+     * null after the phone object is created. This is to prevent regressions where the
+     * initialization might be accidentally removed, as a non-null instance is expected
+     * for correct operation, even if not directly accessed through public methods.
+     *
+     * @throws Exception if any error occurs during reflection or test execution.
+     */
+    @Test
+    public void testCarrierKeyDownloadManagerInitialization() {
+        try {
+            GsmCdmaPhone phone = makeNewPhoneUT();
+
+            // Use reflection to access the private mCDM field
+            Field mcdmField = GsmCdmaPhone.class.getDeclaredField("mCDM");
+            mcdmField.setAccessible(true);
+            CarrierKeyDownloadManager mcdmInstance =
+                    (CarrierKeyDownloadManager) mcdmField.get(phone);
+
+            // Assert that the mCDM instance is not null
+            assertNotNull("CarrierKeyDownloadManager (mCDM) should be initialized", mcdmInstance);
+
+        } catch (NoSuchFieldException e) {
+            fail("Field mCDM not found in GsmCdmaPhone: " + e.getMessage());
+        } catch (IllegalAccessException e) {
+            fail("Cannot access field mCDM in GsmCdmaPhone: " + e.getMessage());
+        } catch (Exception e) {
+            fail("Exception during test: " + e.getMessage());
+        }
     }
 
     @Test
