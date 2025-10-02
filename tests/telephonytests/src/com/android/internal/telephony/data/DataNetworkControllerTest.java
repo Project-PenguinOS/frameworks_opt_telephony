@@ -5831,7 +5831,6 @@ public class DataNetworkControllerTest extends TelephonyTest {
 
     @Test
     public void testIsEsimBootStrapProvisioningActivatedWithFlagEnabledAndProvisioningClass() {
-        when(mFeatureFlags.esimBootstrapProvisioningFlag()).thenReturn(true);
         doReturn(new SubscriptionInfoInternal.Builder().setId(1)
                 .setProfileClass(SubscriptionManager.PROFILE_CLASS_PROVISIONING).build())
                 .when(mSubscriptionManagerService).getSubscriptionInfoInternal(anyInt());
@@ -5841,29 +5840,8 @@ public class DataNetworkControllerTest extends TelephonyTest {
 
     @Test
     public void testIsEsimBootStrapProvisioningActivatedWithFlagEnabledAndNoProvisioningClass() {
-        when(mFeatureFlags.esimBootstrapProvisioningFlag()).thenReturn(true);
         doReturn(new SubscriptionInfoInternal.Builder().setId(1)
                 .setProfileClass(SubscriptionManager.PROFILE_CLASS_UNSET).build())
-                .when(mSubscriptionManagerService).getSubscriptionInfoInternal(anyInt());
-
-        assertThat(mDataNetworkControllerUT.isEsimBootStrapProvisioningActivated()).isFalse();
-    }
-
-    @Test
-    public void testIsEsimBootStrapProvisioningActivatedWithFlagDisabledAndNoProvisioningClass() {
-        when(mFeatureFlags.esimBootstrapProvisioningFlag()).thenReturn(false);
-        doReturn(new SubscriptionInfoInternal.Builder().setId(1)
-                .setProfileClass(SubscriptionManager.PROFILE_CLASS_UNSET).build())
-                .when(mSubscriptionManagerService).getSubscriptionInfoInternal(anyInt());
-
-        assertThat(mDataNetworkControllerUT.isEsimBootStrapProvisioningActivated()).isFalse();
-    }
-
-    @Test
-    public void testIsEsimBootStrapProvisioningActivatedWithFlagDisabledAndProvisioningClass() {
-        when(mFeatureFlags.esimBootstrapProvisioningFlag()).thenReturn(false);
-        doReturn(new SubscriptionInfoInternal.Builder().setId(1)
-                .setProfileClass(SubscriptionManager.PROFILE_CLASS_PROVISIONING).build())
                 .when(mSubscriptionManagerService).getSubscriptionInfoInternal(anyInt());
 
         assertThat(mDataNetworkControllerUT.isEsimBootStrapProvisioningActivated()).isFalse();
@@ -5871,7 +5849,6 @@ public class DataNetworkControllerTest extends TelephonyTest {
 
     @Test
     public void testNetworkOnProvisioningProfileClass_WithFlagEnabled() throws Exception {
-        when(mFeatureFlags.esimBootstrapProvisioningFlag()).thenReturn(true);
         // Allowed data limit Unlimited
         mContextFixture.putIntResource(com.android.internal.R.integer
                 .config_esim_bootstrap_data_limit_bytes, -1);
@@ -5897,7 +5874,6 @@ public class DataNetworkControllerTest extends TelephonyTest {
 
     @Test
     public void testSetUpPdn_WithBootStrapDataLimit_Zero() throws Exception {
-        when(mFeatureFlags.esimBootstrapProvisioningFlag()).thenReturn(true);
         // Allowed data limit set as zero
         doReturn(new SubscriptionInfoInternal.Builder().setId(1)
                 .setProfileClass(SubscriptionManager.PROFILE_CLASS_PROVISIONING).build())
@@ -5921,7 +5897,6 @@ public class DataNetworkControllerTest extends TelephonyTest {
 
     @Test
     public void testSetUpPdn_WithBootStrapDataLimit_Unlimited() throws Exception {
-        when(mFeatureFlags.esimBootstrapProvisioningFlag()).thenReturn(true);
         // Allowed data limit
         mContextFixture.putIntResource(com.android.internal.R.integer
                  .config_esim_bootstrap_data_limit_bytes, -1/*unlimited*/);
@@ -5956,7 +5931,6 @@ public class DataNetworkControllerTest extends TelephonyTest {
 
     @Test
     public void testNetworkOnNonProvisioningProfileClass_WithFlagEnabled() throws Exception {
-        when(mFeatureFlags.esimBootstrapProvisioningFlag()).thenReturn(true);
         doReturn(new SubscriptionInfoInternal.Builder().setId(1)
                 .setProfileClass(SubscriptionManager.PROFILE_CLASS_UNSET).build())
                 .when(mSubscriptionManagerService).getSubscriptionInfoInternal(anyInt());
@@ -5978,7 +5952,6 @@ public class DataNetworkControllerTest extends TelephonyTest {
 
     @Test
     public void testNtnNetworkOnProvisioningProfileClassWithFlagEnabled() throws Exception {
-        when(mFeatureFlags.esimBootstrapProvisioningFlag()).thenReturn(true);
         // Allowed data limit Unlimited
         mContextFixture.putIntResource(com.android.internal.R.integer
                 .config_esim_bootstrap_data_limit_bytes, -1);
@@ -5999,7 +5972,6 @@ public class DataNetworkControllerTest extends TelephonyTest {
 
     @Test
     public void testNonNtnNetworkOnProvisioningProfileClassWithFlagEnabled() throws Exception {
-        when(mFeatureFlags.esimBootstrapProvisioningFlag()).thenReturn(true);
         doReturn(new SubscriptionInfoInternal.Builder().setId(1)
                 .setProfileClass(SubscriptionManager.PROFILE_CLASS_PROVISIONING).build())
                 .when(mSubscriptionManagerService).getSubscriptionInfoInternal(anyInt());

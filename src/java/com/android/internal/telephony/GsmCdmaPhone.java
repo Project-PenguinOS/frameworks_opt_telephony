@@ -281,6 +281,7 @@ public class GsmCdmaPhone extends Phone {
     private @ServiceState.RegState int mTelecomVoiceServiceStateOverride =
             ServiceState.STATE_OUT_OF_SERVICE;
 
+    private CarrierKeyDownloadManager mCDM;
     private CarrierInfoManager mCIM;
 
     private final ImsManagerFactory mImsManagerFactory;
@@ -540,6 +541,8 @@ public class GsmCdmaPhone extends Phone {
         }
         mContext.registerReceiver(mBroadcastReceiver, filter,
                 android.Manifest.permission.MODIFY_PHONE_STATE, null, Context.RECEIVER_EXPORTED);
+
+        mCDM = new CarrierKeyDownloadManager(this);
 
 // QTI_BEGIN: 2019-11-18: Telephony: Inject carrier info manager class
         mCIM = mTelephonyComponentFactory.inject(CarrierInfoManager.class.getName())
@@ -4182,7 +4185,8 @@ public class GsmCdmaPhone extends Phone {
     }
 
     protected void updateVoNrSettings(@NonNull PersistableBundle config) {
-        if (getIccCard().getState() != IccCardConstants.State.LOADED) {
+        if (!CarrierConfigManager.isConfigForIdentifiedCarrier(config)
+                || getIccCard().getState() != IccCardConstants.State.LOADED) {
             return;
         }
 

@@ -68,3 +68,14 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+# OWNER=jhyoon TARGET=26Q2
+flag {
+    name: "get_service_state_for_slot"
+    namespace: "telephony"
+    description: "Allows access to API that get service state for slot."
+    bug:"440943082"
+    metadata {
+        purpose: PURPOSE_FEATURE
+    }
+}

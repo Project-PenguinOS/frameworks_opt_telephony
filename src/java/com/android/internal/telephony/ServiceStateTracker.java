@@ -2367,8 +2367,10 @@ public class ServiceStateTracker extends Handler {
 
         String satellitePlmn = null;
         SatelliteModemStateListener satelliteModemStateListener = getSatelliteModemStateListener();
-        if (satelliteModemStateListener != null
-                && satelliteModemStateListener.isInConnectedState()) {
+        boolean shouldOverrideSatellitePlmnForNtnViaCarrier = mFeatureFlags.vzwAstSkyloFallback()
+                && SatelliteController.getInstance().isUsingNonTerrestrialNetworkViaCarrier().first;
+        if (shouldOverrideSatellitePlmnForNtnViaCarrier || (satelliteModemStateListener != null
+                && satelliteModemStateListener.isInConnectedState())) {
             satellitePlmn = getSatelliteDisplayName();
         }
         log("updateCarrierDisplayName: satellitePlmn=" + satellitePlmn);
@@ -2526,7 +2528,8 @@ public class ServiceStateTracker extends Handler {
             // override satellite display name
             mNewSS.setOperatorName(
                     satelliteDisplayName, satelliteDisplayName, mNewSS.getOperatorNumeric());
-            log("Override satellite display name to " + satelliteDisplayName);
+            log("updateSatelliteDisplayOverride: Override satellite display name to "
+                    + satelliteDisplayName);
         }
     }
 
@@ -2543,6 +2546,8 @@ public class ServiceStateTracker extends Handler {
                     == SatelliteManager.SATELLITE_RESULT_SUCCESS) {
                 mSatelliteModemStateListener = listener;
                 log("created SatelliteModemStateListener");
+            } else {
+                sc.unregisterForModemStateChanged(listener);
             }
         }
         return mSatelliteModemStateListener;
