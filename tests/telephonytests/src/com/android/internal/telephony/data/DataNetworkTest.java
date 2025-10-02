@@ -1875,6 +1875,7 @@ public class DataNetworkTest extends TelephonyTest {
     public void testChangingImmutableCapabilities() throws Exception {
         setupDataNetwork();
 
+        clearInvocations(mConnectivityManager);
         List<TrafficDescriptor> tds = List.of(
                 new TrafficDescriptor(null, new TrafficDescriptor.OsAppId(
                         TrafficDescriptor.OsAppId.ANDROID_OS_ID, "ENTERPRISE", 1).getBytes())
@@ -1895,8 +1896,8 @@ public class DataNetworkTest extends TelephonyTest {
                         new ArrayList<>(Arrays.asList(response)), null));
         processAllMessages();
 
-        // Agent re-created, so register should be called twice.
-        verify(mConnectivityManager, times(2)).registerNetworkAgent(any(), any(NetworkInfo.class),
+        // Network agent should not be re-created.
+        verify(mConnectivityManager, never()).registerNetworkAgent(any(), any(NetworkInfo.class),
                 any(LinkProperties.class), any(NetworkCapabilities.class), any(), any(),
                 anyInt());
 

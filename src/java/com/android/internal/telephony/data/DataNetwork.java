@@ -2682,8 +2682,9 @@ public class DataNetwork extends StateMachine {
             // careful and limit the use cases of changing immutable capabilities. Connectivity
             // service would not close sockets for clients if a network request becomes
             // unsatisfiable.
-            if (mEverConnected && areImmutableCapabilitiesChanged(mNetworkCapabilities, nc)
-                    && (isConnected() || isHandoverInProgress())) {
+            if (!mFlags.notRecreateAgentWhenImmutableCapabilitiesChanged()
+                    && (mEverConnected && areImmutableCapabilitiesChanged(mNetworkCapabilities, nc)
+                    && (isConnected() || isHandoverInProgress()))) {
                 // Before connectivity service supports making all capabilities mutable, it is
                 // suggested to de-register and re-register the network agent if it is needed to
                 // add/remove immutable capabilities.
