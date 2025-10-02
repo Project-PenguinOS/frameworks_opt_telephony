@@ -1354,8 +1354,7 @@ public class EuiccController extends IEuiccController.Stub {
                                     slot.getPhoneIdFromPortIndex(portIndex));
                     if (subscriptionInfo == null
                         || subscriptionInfo.isOpportunistic()
-                        || (mFeatureFlags.esimBootstrapProvisioningFlag()
-                            && subscriptionInfo.getProfileClass()
+                        || (subscriptionInfo.getProfileClass()
                             == SubscriptionManager.PROFILE_CLASS_PROVISIONING)) {
                             // If the port is active and has empty/opportunistic/provisioning
                             // profiles then return the portIndex.

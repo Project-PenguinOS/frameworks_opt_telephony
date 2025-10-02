@@ -2861,10 +2861,6 @@ public class DataNetworkController extends Handler {
      * @return {@code true} if the device is under eSIM bootstrap provisioning.
      */
     public boolean isEsimBootStrapProvisioningActivated() {
-        if (!mFeatureFlags.esimBootstrapProvisioningFlag()) {
-            return false;
-        }
-
         SubscriptionInfoInternal subInfo = SubscriptionManagerService.getInstance()
                 .getSubscriptionInfoInternal(mPhone.getSubId());
         return subInfo != null

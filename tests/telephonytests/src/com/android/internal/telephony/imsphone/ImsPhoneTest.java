@@ -1295,6 +1295,8 @@ public class ImsPhoneTest extends TelephonyTest {
     public void testClearPhoneNumberForSourceIms() {
         doReturn(true).when(mFeatureFlags)
                 .clearCachedImsPhoneNumberWhenDeviceLostImsRegistration();
+        doReturn(false).when(mFeatureFlags)
+                .lastKnownPhoneNumber();
 
         // In reality the method under test runs in phone process so has MODIFY_PHONE_STATE
         mContextFixture.addCallingOrSelfPermission(MODIFY_PHONE_STATE);
