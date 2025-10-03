@@ -3117,7 +3117,9 @@ public class DataNetwork extends StateMachine {
         }
 
         mDataServiceManagers.get(mTransport).deactivateDataCall(mCid.get(mTransport),
-                reason == TEAR_DOWN_REASON_AIRPLANE_MODE_ON ? DataService.REQUEST_REASON_SHUTDOWN
+                (reason == TEAR_DOWN_REASON_AIRPLANE_MODE_ON
+                        || reason == TEAR_DOWN_REASON_DEVICE_SHUT_DOWN)
+                        ? DataService.REQUEST_REASON_SHUTDOWN
                         : DataService.REQUEST_REASON_NORMAL,
                 obtainMessage(EVENT_DEACTIVATE_DATA_NETWORK_RESPONSE));
         mDataCallSessionStats.setDeactivateDataCallReason(reason);

@@ -1051,6 +1051,18 @@ public class DataNetworkTest extends TelephonyTest {
     }
 
     @Test
+    public void testShutdownDeactivateData() throws Exception {
+        setupDataNetwork();
+
+        mDataNetworkUT.tearDown(DataNetwork.TEAR_DOWN_REASON_DEVICE_SHUT_DOWN);
+        processAllMessages();
+
+        // Make sure REQUEST_REASON_SHUTDOWN is sent when tear down reason is SHUTDOWN.
+        verify(mMockedWwanDataServiceManager).deactivateDataCall(eq(123),
+                eq(DataService.REQUEST_REASON_SHUTDOWN), any(Message.class));
+    }
+
+    @Test
     public void testCreateDataNetworkOnIwlan() throws Exception {
         doReturn(mIwlanNetworkRegistrationInfo).when(mServiceState).getNetworkRegistrationInfo(
                 eq(NetworkRegistrationInfo.DOMAIN_PS),
