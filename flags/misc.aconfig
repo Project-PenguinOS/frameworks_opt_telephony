@@ -104,6 +104,17 @@ flag {
     }
 }
 
+# OWNER=peruboina TARGET=26Q1
+flag {
+    name: "use_relaxed_phone_id_match"
+    namespace: "telephony"
+    description: "This flag supports relaxed phone id match for radio state changes"
+    bug:"435278373"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
 # OWNER=boullanger TARGET=26Q2
 flag {
     name: "allow_multi_country_mcc"
