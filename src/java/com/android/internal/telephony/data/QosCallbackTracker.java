@@ -32,6 +32,7 @@ import android.telephony.data.QosBearerFilter;
 import android.telephony.data.QosBearerSession;
 
 import com.android.internal.telephony.Phone;
+import com.android.internal.telephony.flags.FeatureFlags;
 import com.android.internal.telephony.metrics.RcsStats;
 import com.android.telephony.Rlog;
 
@@ -68,6 +69,9 @@ public class QosCallbackTracker extends Handler {
 
     private final int mPhoneId;
 
+    /** Feature flags */
+    @NonNull
+    private final FeatureFlags mFlags;
     /**
      * QOS sessions filter interface
      */
@@ -107,13 +111,16 @@ public class QosCallbackTracker extends Handler {
      * @param networkAgent The network agent to send events to.
      * @param phone The phone instance.
      */
-    public QosCallbackTracker(@NonNull TelephonyNetworkAgent networkAgent, @NonNull Phone phone) {
+    public QosCallbackTracker(
+            @NonNull TelephonyNetworkAgent networkAgent,
+            @NonNull Phone phone, FeatureFlags featureFlags) {
         mQosBearerSessions = new HashMap<>();
         mCallbacksToFilter = new HashMap<>();
         mNetworkAgent = networkAgent;
         mPhoneId = phone.getPhoneId();
         mRcsStats = RcsStats.getInstance();
         mLogTag = "QOSCT" + "-" + ((NetworkAgent) mNetworkAgent).getNetwork().getNetId();
+        mFlags = featureFlags;
 
         registerTelephonyNetworkAgentCallback(mNetworkAgent);
     }
@@ -164,6 +171,13 @@ public class QosCallbackTracker extends Handler {
                                         return filter.matchesProtocol(protocol);
                                     }
                                 });
+                    }
+
+                    @Override
+                    public void onQosCallbackUnregistered(int qosCallbackId) {
+                        if (mFlags.removeUnregisteredQosFilter()) {
+                            removeFilter(qosCallbackId);
+                        }
                     }
                 });
     }

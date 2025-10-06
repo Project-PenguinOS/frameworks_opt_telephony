@@ -118,7 +118,7 @@ public class QosCallbackTrackerTest extends TelephonyTest {
         doReturn(mNetwork).when(mNetworkAgent).getNetwork();
         doReturn(100).when(mNetwork).getNetId();
         doReturn(0).when(mPhone).getPhoneId();
-        mQosCallbackTracker = new QosCallbackTracker(mNetworkAgent, mPhone);
+        mQosCallbackTracker = new QosCallbackTracker(mNetworkAgent, mPhone, mFeatureFlags);
         replaceInstance(QosCallbackTracker.class, "mRcsStats", mQosCallbackTracker, mRcsStats);
         processAllMessages();
     }

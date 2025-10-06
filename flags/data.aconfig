@@ -120,3 +120,14 @@ flag {
     purpose: PURPOSE_BUGFIX
   }
 }
+
+# OWNER=sewookseo TARGET=26Q2
+flag {
+  name: "remove_unregistered_qos_filter"
+  namespace: "telephony"
+  description: "Fix QoS callback filter is not cleared from QosCT even after clients unregister QoS callback."
+  bug:"446528114"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}
