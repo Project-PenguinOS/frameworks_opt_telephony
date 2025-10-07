@@ -1336,6 +1336,14 @@ public abstract class IccRecords extends Handler implements IccConstants {
     }
 
     /**
+     * Returns the IMS Application Reference Identifier(IARI).
+     * @return array of IARI or null if not presend
+     */
+    public String[] getUiccIari() {
+        return null;
+    }
+
+    /**
      * Solve authentication leakage issue. See b/147463955.
      * Returns the response of the SIM application on the UICC to authentication
      * challenge/response algorithm. The data string and challenge response are

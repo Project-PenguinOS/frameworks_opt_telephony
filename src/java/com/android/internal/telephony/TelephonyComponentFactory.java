@@ -38,7 +38,6 @@ import android.net.NetworkAgentConfig;
 import android.net.NetworkProvider;
 import android.net.NetworkScore;
 // QTI_END: 2022-03-05: Telephony: Add support for injecting data sub modules
-import android.os.Handler;
 // QTI_BEGIN: 2018-01-31: Telephony: Enable vendor Telephony plugin
 import android.os.Looper;
 // QTI_END: 2018-01-31: Telephony: Enable vendor Telephony plugin
@@ -53,8 +52,6 @@ import android.text.TextUtils;
 import android.util.SparseArray;
 
 import com.android.ims.ImsManager;
-import com.android.internal.telephony.cdma.CdmaSubscriptionSourceManager;
-import com.android.internal.telephony.cdma.EriManager;
 import com.android.internal.telephony.data.AccessNetworksManager;
 // QTI_BEGIN: 2025-02-07: Telephony: Telephony-Data: Decouple Qualcomm value adds.
 import com.android.internal.telephony.data.AutoDataSwitchController;
@@ -441,10 +438,6 @@ public class TelephonyComponentFactory {
         return new UiccProfile(context, ci, ics, phoneId, uiccCard, lock, flags);
     }
 
-    public EriManager makeEriManager(Phone phone, int eriFileSource) {
-        return new EriManager(phone, eriFileSource);
-    }
-
     public WspTypeDecoder makeWspTypeDecoder(byte[] pdu) {
         return new WspTypeDecoder(pdu);
     }
@@ -536,30 +529,12 @@ public class TelephonyComponentFactory {
      *
      * @param phone The phone instance
      * @param looper Looper for the handler.
-     * @return The access networks manager
-     * @deprecated {@link #makeAccessNetworksManager(Phone, Looper, FeatureFlags)} instead
-     */
-    public AccessNetworksManager makeAccessNetworksManager(Phone phone, Looper looper) {
-        return new AccessNetworksManager(phone, looper, new FeatureFlagsImpl());
-    }
-
-    /**
-     * Make access networks manager
-     *
-     * @param phone The phone instance
-     * @param looper Looper for the handler.
      * @param featureFlags feature flags.
      * @return The access networks manager
      */
     public AccessNetworksManager makeAccessNetworksManager(Phone phone, Looper looper,
             @NonNull FeatureFlags featureFlags) {
         return new AccessNetworksManager(phone, looper, featureFlags);
-    }
-
-    public CdmaSubscriptionSourceManager
-    getCdmaSubscriptionSourceManagerInstance(Context context, CommandsInterface ci, Handler h,
-                                             int what, Object obj) {
-        return CdmaSubscriptionSourceManager.getInstance(context, ci, h, what, obj);
     }
 
     public LocaleTracker makeLocaleTracker(Phone phone, NitzStateMachine nitzStateMachine,
@@ -625,8 +600,8 @@ public class TelephonyComponentFactory {
     }
 
     public RIL makeRIL(Context context, int preferredNetworkType,
-            int cdmaSubscription, Integer instanceId, @NonNull FeatureFlags featureFlags) {
-        return new RIL(context, preferredNetworkType, cdmaSubscription, instanceId, featureFlags);
+            Integer instanceId, @NonNull FeatureFlags featureFlags) {
+        return new RIL(context, preferredNetworkType, instanceId, featureFlags);
     }
 
 // QTI_BEGIN: 2019-02-11: Telephony: Start using inject framework support

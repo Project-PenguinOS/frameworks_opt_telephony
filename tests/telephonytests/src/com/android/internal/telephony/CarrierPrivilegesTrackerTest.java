@@ -63,6 +63,7 @@ import android.util.ArraySet;
 import android.util.Pair;
 
 import com.android.internal.telephony.uicc.IccUtils;
+import com.android.internal.telephony.util.WorkerThread;
 
 import org.junit.After;
 import org.junit.Before;
@@ -116,6 +117,7 @@ public class CarrierPrivilegesTrackerTest extends TelephonyTest {
     private static final int[] PRIVILEGED_UIDS = {UID_1, UID_2};
     private static final Set<Integer> PRIVILEGED_UIDS_SET = Set.of(UID_1, UID_2);
 
+    private static final int INIT_TIMEOUT_MILLIS = 5000;
     private static final int PM_FLAGS =
             PackageManager.GET_SIGNING_CERTIFICATES
                     | PackageManager.MATCH_DISABLED_UNTIL_USED_COMPONENTS
@@ -228,8 +230,16 @@ public class CarrierPrivilegesTrackerTest extends TelephonyTest {
         mCarrierConfigChangeListener = listenerArgumentCaptor.getAllValues().get(0);
         mTestableLooper.processAllMessages();
 
-        mTestableLooper.processAllMessages();
-
+        // Ensure that the CPT has finished initialization on the WorkerThread.
+        // Yes, this is leaking some implementation details.
+        final Object lock = new Object();
+        synchronized (lock) {
+            WorkerThread.getExecutor().execute(() ->  {
+                synchronized (lock) {
+                    lock.notifyAll();
+                }});
+            lock.wait(INIT_TIMEOUT_MILLIS);
+        }
         return cpt;
     }
 

@@ -17,10 +17,12 @@
 package com.android.internal.telephony.cat;
 
 import static com.android.internal.telephony.cat.CatCmdMessage.SetupEventListConstants.IDLE_SCREEN_AVAILABLE_EVENT;
+import static com.android.internal.telephony.cat.CatCmdMessage.SetupEventListConstants.IMS_REGISTRATION_EVENT;
 import static com.android.internal.telephony.cat.CatCmdMessage.SetupEventListConstants.LANGUAGE_SELECTION_EVENT;
 import static com.android.internal.telephony.cat.CatCmdMessage.SetupEventListConstants.USER_ACTIVITY_EVENT;
 import static com.android.internal.telephony.uicc.IccCardApplicationStatus.AppType.APPTYPE_UNKNOWN;
 
+import android.annotation.NonNull;
 import android.app.Activity;
 import android.app.ActivityManager;
 import android.app.PendingIntent;
@@ -36,7 +38,6 @@ import android.content.res.Resources.NotFoundException;
 import android.os.AsyncResult;
 import android.os.Build;
 import android.os.Handler;
-import android.os.HandlerThread;
 import android.os.LocaleList;
 import android.os.Looper;
 import android.os.Message;
@@ -45,6 +46,7 @@ import android.os.UserHandle;
 import android.telephony.SubscriptionInfo;
 import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyManager;
+import android.telephony.ims.feature.ImsFeature;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.telephony.CommandsInterface;
@@ -54,6 +56,7 @@ import com.android.internal.telephony.SmsController;
 import com.android.internal.telephony.flags.FeatureFlags;
 import com.android.internal.telephony.flags.FeatureFlagsImpl;
 import com.android.internal.telephony.flags.Flags;
+import com.android.internal.telephony.ims.ImsResolver;
 import com.android.internal.telephony.subscription.SubscriptionManagerService;
 import com.android.internal.telephony.uicc.IccCardStatus.CardState;
 import com.android.internal.telephony.uicc.IccFileHandler;
@@ -110,7 +113,7 @@ public class CatService extends Handler implements AppInterface {
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     private static CatService[] sInstance = null;
     @UnsupportedAppUsage
-    private static final FeatureFlags sFlags = new FeatureFlagsImpl();
+    private final FeatureFlags mFeatureFlags;
     @UnsupportedAppUsage
     private CommandsInterface mCmdIf;
     @UnsupportedAppUsage
@@ -166,12 +169,11 @@ public class CatService extends Handler implements AppInterface {
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     private int mSlotId;
     private SetUpCallCommandHandler mSetUpCallHandler = null;
-    private static HandlerThread sCatServiceThread;
 
     /* For multisim catservice should not be singleton */
     private CatService(CommandsInterface ci, UiccCardApplication ca, IccRecords ir,
             Context context, IccFileHandler fh, UiccProfile uiccProfile, int slotId,
-            Looper looper) {
+            Looper looper, FeatureFlags featureFlags) {
         //creating new thread to avoid deadlock conditions with the framework thread.
         super(looper);
         if (ci == null || ca == null || ir == null || context == null || fh == null
@@ -182,6 +184,7 @@ public class CatService extends Handler implements AppInterface {
         mCmdIf = ci;
         mContext = context;
         mSlotId = slotId;
+        mFeatureFlags = featureFlags;
 
         // Get the RilMessagesDecoder for decoding the messages.
         mMsgDecoder = RilMessageDecoder.getInstance(this, fh, context, slotId);
@@ -255,18 +258,27 @@ public class CatService extends Handler implements AppInterface {
      *
      * @param ci CommandsInterface object
      * @param context phone app context
-     * @param ic Icc card
+     * @param uiccProfile Icc card
      * @param slotId to know the index of card
      * @return The only Service object in the system
      */
     public static CatService getInstance(CommandsInterface ci,
             Context context, UiccProfile uiccProfile, int slotId) {
-        if (!sFlags.threadShred()) {
-            if (sCatServiceThread == null) {
-                sCatServiceThread = new HandlerThread("CatServiceThread");
-                sCatServiceThread.start();
-            }
-        }
+        return getInstance(ci, context, uiccProfile, slotId, new FeatureFlagsImpl());
+    }
+
+    /**
+     * Used for instantiating the Service from the Card.
+     *
+     * @param ci CommandsInterface object
+     * @param context phone app context
+     * @param uiccProfile Icc card
+     * @param slotId to know the index of card
+     * @param featureFlags The telephony feature flags.
+     * @return The only Service object in the system
+     */
+    public static CatService getInstance(CommandsInterface ci, Context context,
+            UiccProfile uiccProfile, int slotId, @NonNull FeatureFlags featureFlags) {
         UiccCardApplication ca = null;
         IccFileHandler fh = null;
         IccRecords ir = null;
@@ -289,13 +301,8 @@ public class CatService extends Handler implements AppInterface {
                         || uiccProfile == null) {
                     return null;
                 }
-                if (sFlags.threadShred()) {
-                    sInstance[slotId] = new CatService(ci, ca, ir, context, fh, uiccProfile, slotId,
-                            WorkerThread.get().getLooper());
-                } else {
-                    sInstance[slotId] = new CatService(ci, ca, ir, context, fh, uiccProfile, slotId,
-                            sCatServiceThread.getLooper());
-                }
+                sInstance[slotId] = new CatService(ci, ca, ir, context, fh, uiccProfile, slotId,
+                        WorkerThread.get().getLooper(), featureFlags);
             } else if ((ir != null) && (mIccRecords != ir)) {
                 if (mIccRecords != null) {
                     mIccRecords.unregisterForRecordsLoaded(sInstance[slotId]);
@@ -320,7 +327,7 @@ public class CatService extends Handler implements AppInterface {
             CatLog.d(this, "Disposing CatService object");
             mIccRecords.unregisterForRecordsLoaded(this);
 
-            if (sFlags.unregisterSmsBroadcastReceiverFromCatService()) {
+            if (mFeatureFlags.unregisterSmsBroadcastReceiverFromCatService()) {
                 try {
                     mContext.unregisterReceiver(mSmsBroadcastReceiver);
                 } catch (IllegalArgumentException e) {
@@ -433,6 +440,7 @@ public class CatService extends Handler implements AppInterface {
                 /* Currently android is supporting only the below events in SetupEventList
                  * Language Selection.  */
                 case IDLE_SCREEN_AVAILABLE_EVENT:
+                case IMS_REGISTRATION_EVENT:
                 case LANGUAGE_SELECTION_EVENT:
                 case USER_ACTIVITY_EVENT:
                     break;
@@ -483,6 +491,7 @@ public class CatService extends Handler implements AppInterface {
             case SET_UP_EVENT_LIST:
                 if (isSupportedSetupEventCommand(cmdMsg)) {
                     sendTerminalResponse(cmdParams.mCmdDet, ResultCode.OK, false, 0, null);
+                    broadcastSetupEventList(cmdMsg);
                 } else {
                     sendTerminalResponse(cmdParams.mCmdDet, ResultCode.BEYOND_TERMINAL_CAPABILITY,
                             false, 0, null);
@@ -536,7 +545,7 @@ public class CatService extends Handler implements AppInterface {
                     }
                     if (text != null && destAddr != null) {
                         ProxyController proxyController = ProxyController
-                                .getInstance(mContext, sFlags);
+                                .getInstance(mContext, mFeatureFlags);
                         SubscriptionManager subscriptionManager = (SubscriptionManager)
                                 mContext.getSystemService(
                                         Context.TELEPHONY_SUBSCRIPTION_SERVICE);
@@ -757,6 +766,44 @@ public class CatService extends Handler implements AppInterface {
         CatLog.d(this, "Sending CmdMsg: " + cmdMsg+ " on slotid:" + mSlotId);
 
         mContext.sendBroadcastAsUser(intent, UserHandle.ALL, AppInterface.STK_PERMISSION);
+    }
+
+    private void broadcastSetupEventList(CatCmdMessage cmdMsg) {
+        if (!mFeatureFlags.supportImsRegistrationEventDownload()) {
+            CatLog.d(this, "supportImsRegistrationEventDownload is disabled");
+            return;
+        }
+
+        String receiver = getSetupEventListReceiver();
+        if (receiver == null) {
+            return;
+        }
+
+        Intent intent = new Intent(TelephonyManager.ACTION_STK_SETUP_EVENT_LIST);
+        intent.putExtra(TelephonyManager.EXTRA_SETUP_EVENT_LIST,
+                cmdMsg.getSetEventList().eventList);
+        intent.putExtra(TelephonyManager.EXTRA_SUBSCRIPTION_ID,
+                SubscriptionManager.getSubscriptionId(mSlotId));
+        intent.setPackage(receiver);
+        mContext.sendBroadcastAsUser(intent, UserHandle.ALL, AppInterface.STK_PERMISSION);
+    }
+
+    /**
+     * @return Receiver to receive broadcast intent for set up event list of UICC.
+     */
+    public String getSetupEventListReceiver() {
+        ImsResolver resolver = ImsResolver.getInstance();
+        if (resolver == null) {
+            CatLog.d(this, "getImsRcsPackage: Device does not support IMS - skipping");
+            return null;
+        }
+
+        try {
+            return resolver.getConfiguredImsServicePackageName(mSlotId, ImsFeature.FEATURE_MMTEL);
+        } catch (Exception ex) {
+            CatLog.e(this, "getSetupEventListReceiver: " + ex);
+        }
+        return null;
     }
 
     /**

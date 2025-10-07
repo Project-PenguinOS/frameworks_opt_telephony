@@ -87,3 +87,14 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+# OWNER=tjstuart TARGET=25Q2
+flag {
+    name: "vvm_async_sim_state_handling"
+    namespace: "telephony"
+    description: "Prevent ANRs in the VvmSimStateTracker by moving tasks to the background"
+    bug:"433343546"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}

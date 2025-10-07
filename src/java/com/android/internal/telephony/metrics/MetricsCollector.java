@@ -53,6 +53,10 @@ import static com.android.internal.telephony.TelephonyStatsLog.SIP_DELEGATE_STAT
 import static com.android.internal.telephony.TelephonyStatsLog.SIP_MESSAGE_RESPONSE;
 import static com.android.internal.telephony.TelephonyStatsLog.SIP_TRANSPORT_FEATURE_TAG_STATS;
 import static com.android.internal.telephony.TelephonyStatsLog.SIP_TRANSPORT_SESSION;
+import static com.android.internal.telephony.TelephonyStatsLog.SMS_OTP_EVALUATION;
+import static com.android.internal.telephony.TelephonyStatsLog.SMS_OTP_REDACTED;
+import static com.android.internal.telephony.TelephonyStatsLog.SMS_OTP_REDACTED__REDACTION_ALGORITHM__REDACTION_ALGORITHM_SMS_RETRIEVER;
+import static com.android.internal.telephony.TelephonyStatsLog.SMS_OTP_REDACTED__REDACTION_LOCATION__REDACTION_LOCATION_SMS_BROADCAST;
 import static com.android.internal.telephony.TelephonyStatsLog.SUPPORTED_RADIO_ACCESS_FAMILY;
 import static com.android.internal.telephony.TelephonyStatsLog.TELEPHONY_NETWORK_REQUESTS_V2;
 import static com.android.internal.telephony.TelephonyStatsLog.UCE_EVENT_STATS;
@@ -91,6 +95,8 @@ import com.android.internal.telephony.nano.PersistAtomsProto.ImsRegistrationStat
 import com.android.internal.telephony.nano.PersistAtomsProto.ImsRegistrationTermination;
 import com.android.internal.telephony.nano.PersistAtomsProto.IncomingSms;
 import com.android.internal.telephony.nano.PersistAtomsProto.NetworkRequestsV2;
+import com.android.internal.telephony.nano.PersistAtomsProto.OtpEvaluationEvent;
+import com.android.internal.telephony.nano.PersistAtomsProto.OtpRedactionEvent;
 import com.android.internal.telephony.nano.PersistAtomsProto.OutgoingShortCodeSms;
 import com.android.internal.telephony.nano.PersistAtomsProto.OutgoingSms;
 import com.android.internal.telephony.nano.PersistAtomsProto.PresenceNotifyEvent;
@@ -245,6 +251,8 @@ public class MetricsCollector implements StatsManager.StatsPullAtomCallback {
             registerAtom(SATELLITE_ENTITLEMENT);
             registerAtom(SATELLITE_CONFIG_UPDATER);
             registerAtom(SATELLITE_ACCESS_CONTROLLER);
+            registerAtom(SMS_OTP_EVALUATION);
+            registerAtom(SMS_OTP_REDACTED);
             Rlog.d(TAG, "registered");
         } else {
             Rlog.e(TAG, "could not get StatsManager, atoms not registered");
@@ -351,6 +359,10 @@ public class MetricsCollector implements StatsManager.StatsPullAtomCallback {
                 return pullSatelliteConfigUpdater(data);
             case SATELLITE_ACCESS_CONTROLLER:
                 return pullSatelliteAccessController(data);
+            case SMS_OTP_EVALUATION:
+                return pullOtpEvaluationEvent(data);
+            case SMS_OTP_REDACTED:
+                return pullOtpRedactionEvent(data);
             default:
                 Rlog.e(TAG, String.format("unexpected atom ID %d", atomTag));
                 return StatsManager.PULL_SKIP;
@@ -1069,6 +1081,32 @@ public class MetricsCollector implements StatsManager.StatsPullAtomCallback {
         }
     }
 
+    private int pullOtpRedactionEvent(List<StatsEvent> data) {
+        OtpRedactionEvent[] otpRedactionEvents =
+                mStorage.getOtpRedactionEventStats(MIN_COOLDOWN_MILLIS);
+        if (otpRedactionEvents != null) {
+            Arrays.stream(otpRedactionEvents)
+                    .forEach(persistAtom -> data.add(buildStatsEvent(persistAtom)));
+        } else {
+            Rlog.w(TAG, "OTP_REDACTION_EVENT pull too frequent, skipping");
+            return StatsManager.PULL_SKIP;
+        }
+        return StatsManager.PULL_SUCCESS;
+    }
+
+    private int pullOtpEvaluationEvent(List<StatsEvent> data) {
+        OtpEvaluationEvent[] otpEvaluationEvents =
+                mStorage.getOtpEvaluationEventStats(MIN_COOLDOWN_MILLIS);
+        if (otpEvaluationEvents != null) {
+            Arrays.stream(otpEvaluationEvents)
+                    .forEach(persistAtom -> data.add(buildStatsEvent(persistAtom)));
+        } else {
+            Rlog.w(TAG, "OTP_EVALUATION_EVENT pull too frequent, skipping");
+            return StatsManager.PULL_SKIP;
+        }
+        return StatsManager.PULL_SUCCESS;
+    }
+
     /** Registers a pulled atom ID {@code atomId}. */
     private void registerAtom(int atomId) {
         mStatsManager.setPullAtomCallback(atomId, /* metadata= */ null,
@@ -1704,6 +1742,26 @@ public class MetricsCollector implements StatsManager.StatsPullAtomCallback {
                 stats.carrierId,
                 stats.triggeringEvent,
                 stats.isNtnOnlyCarrier);
+    }
+
+    private static StatsEvent buildStatsEvent(OtpRedactionEvent event) {
+        return TelephonyStatsLog.buildStatsEvent(
+                SMS_OTP_REDACTED,
+                event.uid,
+                SMS_OTP_REDACTED__REDACTION_ALGORITHM__REDACTION_ALGORITHM_SMS_RETRIEVER,
+                SMS_OTP_REDACTED__REDACTION_LOCATION__REDACTION_LOCATION_SMS_BROADCAST,
+                event.count
+        );
+    }
+
+    private static StatsEvent buildStatsEvent(OtpEvaluationEvent event) {
+        return TelephonyStatsLog.buildStatsEvent(
+                SMS_OTP_REDACTED,
+                event.result,
+                event.redactionTimeMs,
+                SMS_OTP_REDACTED__REDACTION_ALGORITHM__REDACTION_ALGORITHM_SMS_RETRIEVER,
+                SMS_OTP_REDACTED__REDACTION_LOCATION__REDACTION_LOCATION_SMS_BROADCAST
+        );
     }
 
     /** Returns all phones in {@link PhoneFactory}, or an empty array if phones not made yet. */

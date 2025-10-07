@@ -51,6 +51,7 @@ import android.text.TextUtils;
 import android.util.Log;
 import android.util.SparseArray;
 
+import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.telephony.MccTable;
 import com.android.internal.telephony.Phone;
 import com.android.internal.telephony.flags.FeatureFlags;
@@ -290,6 +291,14 @@ public class CarrierRoamingSatelliteSessionStats {
             }
             return sCarrierRoamingSatelliteSessionStats.get(subId);
         }
+    }
+
+    /**
+     * Clear all CarrierRoamingSatelliteSessionStats instances. This is used for testing only.
+     */
+    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PRIVATE)
+    public static void clearInstancesForTest() {
+        sCarrierRoamingSatelliteSessionStats.clear();
     }
 
     /** Log carrier roaming satellite session start */

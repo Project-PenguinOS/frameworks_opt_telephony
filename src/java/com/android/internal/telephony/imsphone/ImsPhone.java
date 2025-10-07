@@ -27,8 +27,8 @@ import static android.telephony.ims.RegistrationManager.SUGGESTED_ACTION_TRIGGER
 import static android.telephony.ims.RegistrationManager.SUGGESTED_ACTION_TRIGGER_PLMN_BLOCK;
 import static android.telephony.ims.RegistrationManager.SUGGESTED_ACTION_TRIGGER_PLMN_BLOCK_WITH_TIMEOUT;
 import static android.telephony.ims.RegistrationManager.SUGGESTED_ACTION_TRIGGER_RAT_BLOCK;
-import static android.telephony.ims.stub.ImsRegistrationImplBase.REGISTRATION_TECH_NONE;
 import static android.telephony.ims.stub.ImsRegistrationImplBase.DEFAULT_THROTTLE_SEC;
+import static android.telephony.ims.stub.ImsRegistrationImplBase.REGISTRATION_TECH_NONE;
 
 import static com.android.internal.telephony.CommandsInterface.CB_FACILITY_BAIC;
 import static com.android.internal.telephony.CommandsInterface.CB_FACILITY_BAICr;
@@ -96,6 +96,8 @@ import android.telecom.VideoProfile;
 import android.telephony.AccessNetworkConstants;
 import android.telephony.CarrierConfigManager;
 import android.telephony.NetworkRegistrationInfo;
+import android.telephony.ParsedPhoneNumber;
+import android.telephony.PhoneNumberManager;
 import android.telephony.PhoneNumberUtils;
 import android.telephony.ServiceState;
 import android.telephony.SubscriptionManager;
@@ -153,9 +155,7 @@ import com.android.internal.telephony.emergency.EmergencyStateTracker;
 import com.android.internal.telephony.flags.FeatureFlags;
 import com.android.internal.telephony.gsm.SuppServiceNotification;
 import com.android.internal.telephony.metrics.ImsStats;
-import com.android.internal.telephony.metrics.TelephonyMetrics;
 import com.android.internal.telephony.metrics.VoiceCallSessionStats;
-import com.android.internal.telephony.nano.TelephonyProto.ImsConnectionState;
 import com.android.internal.telephony.subscription.SubscriptionInfoInternal;
 import com.android.internal.telephony.uicc.IccRecords;
 import com.android.internal.telephony.util.NotificationChannelController;
@@ -323,7 +323,6 @@ public class ImsPhone extends ImsPhoneBase {
     private final RegistrantList mImsRegistrationUpdateRegistrants = new RegistrantList();
 
     private final LocalLog mRegLocalLog = new LocalLog(64);
-    private TelephonyMetrics mMetrics;
 
     // The helper class to receive and store the MmTel registration status updated.
     private ImsRegistrationCallbackHelper mImsMmTelRegistrationHelper;
@@ -350,6 +349,7 @@ public class ImsPhone extends ImsPhoneBase {
     private @AccessNetworkConstants.TransportType int mTransportType = TRANSPORT_TYPE_INVALID;
     private int mImsRegistrationCapabilities;
     private boolean mNotifiedRegisteredState;
+    private PhoneNumberManager mPhoneNumberManager = null;
 
     private Uri[] mCurrentSubscriberUris;
 
@@ -534,8 +534,6 @@ public class ImsPhone extends ImsPhoneBase {
 // QTI_END: 2023-06-13: Telephony: Revert "Removed IWLAN legacy mode support"
 
         mPhoneId = mDefaultPhone.getPhoneId();
-
-        mMetrics = TelephonyMetrics.getInstance();
 
         mImsMmTelRegistrationHelper = new ImsRegistrationCallbackHelper(mMmTelRegistrationUpdate,
                 context.getMainExecutor());
@@ -1057,7 +1055,8 @@ public class ImsPhone extends ImsPhoneBase {
         // Get the CLIR info if needed
         imsDialArgsBuilder.setClirMode(mCT.getClirMode());
 
-        if (mDefaultPhone.getPhoneType() == PhoneConstants.PHONE_TYPE_CDMA) {
+        if (!mFeatureFlags.deleteCdma()
+                && mDefaultPhone.getPhoneType() == PhoneConstants.PHONE_TYPE_CDMA) {
 // QTI_BEGIN: 2025-01-28: Telephony: Revert "DSDA: Add support for MMI codes, adhoc conference"
             return mCT.dial(dialString, imsDialArgsBuilder.build());
 // QTI_END: 2025-01-28: Telephony: Revert "DSDA: Add support for MMI codes, adhoc conference"
@@ -2454,16 +2453,6 @@ public class ImsPhone extends ImsPhoneBase {
         return mCT.isUtEnabled();
     }
 
-    @Override
-    public void sendEmergencyCallStateChange(boolean callActive) {
-        mDefaultPhone.sendEmergencyCallStateChange(callActive);
-    }
-
-    @Override
-    public void setBroadcastEmergencyCallStateChanges(boolean broadcast) {
-        mDefaultPhone.setBroadcastEmergencyCallStateChanges(broadcast);
-    }
-
 // QTI_BEGIN: 2018-04-09: Telephony: IMS: Add UT interface to query CF setting for service class.
     @Override
     public void notifyCallForwardingIndicator() {
@@ -2600,7 +2589,6 @@ public class ImsPhone extends ImsPhoneBase {
                     + AccessNetworkConstants.transportTypeToString(imsTransportType));
             setServiceState(ServiceState.STATE_IN_SERVICE);
             getDefaultPhone().setImsRegistrationState(true);
-            mMetrics.writeOnImsConnectionState(mPhoneId, ImsConnectionState.State.CONNECTED, null);
             mImsStats.onImsRegistered(attributes);
             mImsNrSaModeHandler.onImsRegistered(
                     attributes.getRegistrationTechnology(), attributes.getFeatureTags());
@@ -2625,8 +2613,6 @@ public class ImsPhone extends ImsPhoneBase {
                     + AccessNetworkConstants.transportTypeToString(imsRadioTech));
             setServiceState(ServiceState.STATE_OUT_OF_SERVICE);
             getDefaultPhone().setImsRegistrationState(false);
-            mMetrics.writeOnImsConnectionState(mPhoneId, ImsConnectionState.State.PROGRESSING,
-                    null);
             mImsStats.onImsRegistering(imsRadioTech);
 
             AsyncResult ar;
@@ -2681,8 +2667,6 @@ public class ImsPhone extends ImsPhoneBase {
                 setServiceState(ServiceState.STATE_OUT_OF_SERVICE);
                 processDisconnectReason(imsReasonInfo);
                 getDefaultPhone().setImsRegistrationState(false);
-                mMetrics.writeOnImsConnectionState(mPhoneId, ImsConnectionState.State.DISCONNECTED,
-                        imsReasonInfo);
                 mImsStats.onImsUnregistered(imsReasonInfo);
                 mImsNrSaModeHandler.onImsUnregistered(imsRadioTech);
                 mImsRegistrationTech = REGISTRATION_TECH_NONE;
@@ -2762,8 +2746,6 @@ public class ImsPhone extends ImsPhoneBase {
         setServiceState(ServiceState.STATE_OUT_OF_SERVICE);
         processDisconnectReason(imsReasonInfo);
         getDefaultPhone().setImsRegistrationState(false);
-        mMetrics.writeOnImsConnectionState(mPhoneId, ImsConnectionState.State.DISCONNECTED,
-                imsReasonInfo);
         mImsStats.onImsUnregistered(imsReasonInfo);
         mImsNrSaModeHandler.onImsUnregistered(imsRadioTech);
         mImsRegistrationTech = REGISTRATION_TECH_NONE;
@@ -2830,6 +2812,39 @@ public class ImsPhone extends ImsPhoneBase {
         if (subInfo == null) {
             return;
         }
+        String subCountryIso = subInfo.getCountryIso();
+        if (mFeatureFlags.enablePhoneNumberParsingApi()) {
+            PhoneNumberManager phoneNumberManager = getPhoneNumberManager();
+            if (uris == null) {
+                loge("setPhoneNumberForSourceIms: input is null");
+            } else if (phoneNumberManager != null) {
+                try {
+                    ParsedPhoneNumber result = phoneNumberManager.parsePhoneNumber(
+                            Arrays.asList(uris),
+                            subCountryIso);
+                    if (result == null) {
+                        loge("setPhoneNumberForSourceIms: PhoneNumberManager returned a null");
+                    } else if (result.isValidPhoneNumber()) {
+                        mSubscriptionManagerService.setNumberFromIms(subId,
+                                result.getParsedPhoneNumber());
+                        logd("setPhoneNumberForSourceIms: update IMS phone number");
+                        return;
+                    } else {
+                        loge("setPhoneNumberForSourceIms: PhoneNumberManager return error "
+                                + result.getErrorCode());
+                        // try to run existing implementation.
+                    }
+                } catch (IllegalArgumentException e) {
+                    loge("setPhoneNumberForSourceIms: failed to parse phone number, " + e);
+                    // Fall through to the existing implementation
+                }
+            } else {
+                logi("setPhoneNumberForSourceIms: can't access PhoneNumberManager");
+            }
+        }
+
+        // When flag enablePhoneNumberParsingApi is not enabled, PhoneNumberManager is unavailable
+        // or parsePhoneNumber() return error, existing implementation is performed.
         if (phoneNumber != null) {
             phoneNumber = PhoneNumberUtils.formatNumberToE164(phoneNumber,
                     subInfo.getCountryIso());
@@ -2857,6 +2872,29 @@ public class ImsPhone extends ImsPhoneBase {
             logd("extract phone number failed");
 // QTI_END: 2023-11-10: Telephony: Remove legacy subscription code
         }
+    }
+
+    private PhoneNumberManager getPhoneNumberManager() {
+        if (mPhoneNumberManager == null) {
+            try {
+                mPhoneNumberManager = mContext.getSystemService(PhoneNumberManager.class);
+            } catch (UnsupportedOperationException e) {
+                logd("getPhoneNumberManager: can't access PhoneNumberManager");
+                mPhoneNumberManager = null;
+            }
+        }
+
+        return mPhoneNumberManager;
+    }
+
+    /**
+     * Set PhoneNumberMnager object for testing.
+     *
+     * @param phoneNumberManager PhoneNumberManager object for testing.
+     */
+    @VisibleForTesting
+    public void setPhoneNumberManager(PhoneNumberManager phoneNumberManager) {
+        mPhoneNumberManager = phoneNumberManager;
     }
 
     /**

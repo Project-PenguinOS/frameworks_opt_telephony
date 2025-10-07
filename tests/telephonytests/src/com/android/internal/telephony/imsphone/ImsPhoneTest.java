@@ -75,6 +75,8 @@ import android.os.PersistableBundle;
 import android.sysprop.TelephonyProperties;
 import android.telecom.VideoProfile;
 import android.telephony.CarrierConfigManager;
+import android.telephony.ParsedPhoneNumber;
+import android.telephony.PhoneNumberManager;
 import android.telephony.ServiceState;
 import android.telephony.SubscriptionInfo;
 import android.telephony.TelephonyManager;
@@ -149,6 +151,7 @@ public class ImsPhoneTest extends TelephonyTest {
     private static final int EVENT_CALL_RING_CONTINUE = 15;
 
     private boolean mIsPhoneUtInEcm = false;
+    private PhoneNumberManager mPhoneNumberManager;
 
     private static class ImsPhoneUT extends ImsPhone {
         private int mSimState = TelephonyManager.SIM_STATE_UNKNOWN;
@@ -179,6 +182,9 @@ public class ImsPhoneTest extends TelephonyTest {
         mConnection = mock(Connection.class);
         mImsUtInterface = mock(ImsUtInterface.class);
         mFeatureFlags = mock(FeatureFlags.class);
+        mPhoneNumberManager = mock(PhoneNumberManager.class);
+        doReturn(new ParsedPhoneNumber("", ParsedPhoneNumber.ERROR_TYPE_UNKNOWN, false)).when(
+                mPhoneNumberManager).parsePhoneNumber(any(), any());
 
         mImsCT.mForegroundCall = mForegroundCall;
         mImsCT.mBackgroundCall = mBackgroundCall;
@@ -223,7 +229,6 @@ public class ImsPhoneTest extends TelephonyTest {
         mBundle.putBoolean(CarrierConfigManager.KEY_CARRIER_CONFIG_APPLIED_BOOL, true);
         processAllMessages();
     }
-
 
     @After
     public void tearDown() throws Exception {
@@ -1311,6 +1316,60 @@ public class ImsPhoneTest extends TelephonyTest {
         mImsPhoneUT.clearPhoneNumberForSourceIms();
 
         verify(mSubscriptionManagerService).setNumberFromIms(subId, "");
+
+        // Clean up
+        mContextFixture.addCallingOrSelfPermission("");
+    }
+
+    @Test
+    @SmallTest
+    public void testParsePhoneNumberUsingApi() {
+        doReturn(true).when(mFeatureFlags).enablePhoneNumberParsingApi();
+        mImsPhoneUT.setPhoneNumberManager(mPhoneNumberManager);
+
+        // In reality the method under test runs in phone process so has MODIFY_PHONE_STATE
+        mContextFixture.addCallingOrSelfPermission(MODIFY_PHONE_STATE);
+        int subId = 1;
+        doReturn(subId).when(mPhone).getSubId();
+        doReturn(new SubscriptionInfoInternal.Builder().setId(subId).setSimSlotIndex(0)
+                .setCountryIso("gb").build()).when(mSubscriptionManagerService)
+                .getSubscriptionInfoInternal(subId);
+
+        Uri[] associatedUris = new Uri[] {
+                Uri.parse("sip:+447539447777@ims.x.com"),
+                Uri.parse("tel:+447539446666")
+        };
+
+        // Set error return value for mock
+        doReturn(new ParsedPhoneNumber("", ParsedPhoneNumber.ERROR_TYPE_UNKNOWN, false)).when(
+                mPhoneNumberManager).parsePhoneNumber(any(), any());
+        mImsPhoneUT.setPhoneNumberForSourceIms(associatedUris);
+
+        verify(mPhoneNumberManager).parsePhoneNumber(any(), eq("gb"));
+        // PhoneNumberManager returns error, but existing implementation should be performed.
+        verify(mSubscriptionManagerService).setNumberFromIms(subId, "+447539447777");
+        clearInvocations(mPhoneNumberManager);
+        clearInvocations(mSubscriptionManagerService);
+
+        // Set valid return value for mock
+        doReturn(new ParsedPhoneNumber("+447539447777", ParsedPhoneNumber.ERROR_TYPE_NONE,
+                true)).when(mPhoneNumberManager).parsePhoneNumber(any(), eq("gb"));
+        mImsPhoneUT.setPhoneNumberForSourceIms(associatedUris);
+
+        verify(mPhoneNumberManager).parsePhoneNumber(any(), eq("gb"));
+        verify(mSubscriptionManagerService).setNumberFromIms(subId, "+447539447777");
+
+        // set throw exception for mock
+        doThrow(new IllegalArgumentException("test"))
+            .when(mPhoneNumberManager).parsePhoneNumber(any(), any());
+        try {
+            mImsPhoneUT.setPhoneNumberForSourceIms(associatedUris);
+        } catch (Exception IllegalArgumentException) {
+            throw new AssertionError("not expected exception", IllegalArgumentException);
+        }
+
+        // put input with null
+        mImsPhoneUT.setPhoneNumberForSourceIms(null);
 
         // Clean up
         mContextFixture.addCallingOrSelfPermission("");

@@ -1,15 +1,6 @@
 package: "com.android.internal.telephony.flags"
 container: "system"
 
-# OWNER=nharold TARGET=24Q4
-flag {
-    name: "async_init_carrier_privileges_tracker"
-    is_exported: true
-    namespace: "telephony"
-    description: "Offload the heavyweight initialization of CarrierPrivilegesTracker to a worker thread"
-    bug:"357096337"
-}
-
 # OWNER=melhuishj TARGET=25Q1
 flag {
     name: "cleanup_carrier_app_update_enabled_state_logic"
@@ -50,5 +41,17 @@ flag {
     bug:"333571417"
     metadata {
       purpose: PURPOSE_BUGFIX
+    }
+}
+
+# OWNER=tgunn TARGET=26Q2
+flag {
+    name: "log_calls_answered_elsewhere"
+    is_exported: true
+    namespace: "telephony"
+    description: "New CC key Log calls which were answered on another device."
+    bug: "405460896"
+    metadata {
+        purpose: PURPOSE_FEATURE
     }
 }

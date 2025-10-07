@@ -99,18 +99,14 @@ import android.text.TextUtils;
 import android.util.SparseArray;
 
 import com.android.internal.annotations.VisibleForTesting;
-import com.android.internal.telephony.cdma.CdmaInformationRecords;
 import com.android.internal.telephony.cdma.CdmaSmsBroadcastConfigInfo;
 import com.android.internal.telephony.emergency.EmergencyConstants;
 import com.android.internal.telephony.flags.FeatureFlags;
 import com.android.internal.telephony.gsm.SmsBroadcastConfigInfo;
 import com.android.internal.telephony.imsphone.ImsCallInfo;
 import com.android.internal.telephony.metrics.ModemRestartStats;
-import com.android.internal.telephony.metrics.TelephonyMetrics;
-import com.android.internal.telephony.nano.TelephonyProto.SmsSession;
 import com.android.internal.telephony.satellite.SatelliteModemInterface;
 import com.android.internal.telephony.uicc.IccCardApplicationStatus.PersoSubState;
-import com.android.internal.telephony.uicc.IccUtils;
 import com.android.internal.telephony.uicc.SimPhonebookRecord;
 import com.android.internal.telephony.util.TelephonyUtils;
 import com.android.internal.util.FunctionalUtils;
@@ -261,10 +257,6 @@ public class RIL extends BaseCommands implements CommandsInterface {
     /* Worksource containing all applications causing wakelock to be held */
     private WorkSource mActiveWakelockWorkSource;
 
-    /** Telephony metrics instance for logging metrics event */
-// QTI_BEGIN: 2018-08-01: Telephony: CDMA MO SMS follow on DC feature
-    protected TelephonyMetrics mMetrics = TelephonyMetrics.getInstance();
-// QTI_END: 2018-08-01: Telephony: CDMA MO SMS follow on DC feature
     /** Radio bug detector instance */
     private RadioBugDetector mRadioBugDetector = null;
 
@@ -391,7 +383,6 @@ public class RIL extends BaseCommands implements CommandsInterface {
                         Object timeoutResponse = getResponseForTimedOutRILRequest(rr);
                         AsyncResult.forMessage(rr.mResult, timeoutResponse, null);
                         rr.mResult.sendToTarget();
-                        mMetrics.writeOnRilTimeoutResponse(mPhoneId, rr.mSerial, rr.mRequest);
                     }
 
                     decrementWakeLock(rr);
@@ -1082,26 +1073,21 @@ public class RIL extends BaseCommands implements CommandsInterface {
     //***** Constructors
 
     @UnsupportedAppUsage
-    public RIL(Context context, int allowedNetworkTypes, int cdmaSubscription, Integer instanceId,
-            @NonNull FeatureFlags flags) {
-        this(context, allowedNetworkTypes, cdmaSubscription, instanceId, null, flags);
+    public RIL(Context context, int allowedNetworkTypes, Integer instanceId,
+               @NonNull FeatureFlags flags) {
+        this(context, allowedNetworkTypes, instanceId, null, flags);
     }
 
     @VisibleForTesting
-    public RIL(Context context, int allowedNetworkTypes, int cdmaSubscription, Integer instanceId,
+    public RIL(Context context, int allowedNetworkTypes, Integer instanceId,
             SparseArray<RadioServiceProxy> proxies, @NonNull FeatureFlags flags) {
         super(context);
         mFeatureFlags = flags;
-        if (mFeatureFlags.cleanupCdma()) {
-            cdmaSubscription = TelephonyManager.CDMA_SUBSCRIPTION_UNKNOWN;
-        }
         if (RILJ_LOGD) {
-            riljLog("RIL: init allowedNetworkTypes=" + allowedNetworkTypes
-                    + " cdmaSubscription=" + cdmaSubscription + ")");
+            riljLog("RIL: init allowedNetworkTypes=" + allowedNetworkTypes);
         }
 
         mContext = context;
-        mCdmaSubscription  = cdmaSubscription;
         mAllowedNetworkTypesBitmask = allowedNetworkTypes;
         mPhoneType = RILConstants.NO_PHONE;
         mPhoneId = instanceId == null ? 0 : instanceId;
@@ -1192,13 +1178,6 @@ public class RIL extends BaseCommands implements CommandsInterface {
         mRILDefaultWorkSource = new WorkSource(context.getApplicationInfo().uid,
                 context.getPackageName());
         mActiveWakelockWorkSource = new WorkSource();
-
-        TelephonyDevController tdc = TelephonyDevController.getInstance();
-        if (proxies == null) {
-            // TelephonyDevController#registerRIL will call getHardwareConfig.
-            // To prevent extra requests when running tests, only registerRIL when proxies is null
-            tdc.registerRIL(this);
-        }
 
         validateFeatureFlags();
 
@@ -1443,6 +1422,7 @@ public class RIL extends BaseCommands implements CommandsInterface {
 
     @Override
     public void supplyIccPin(String pin, Message result) {
+        riljLoge("supplyIccPin: pin : " + RILUtils.getRedactedPin(pin));
         supplyIccPinForApp(pin, null, result);
     }
 
@@ -1464,11 +1444,6 @@ public class RIL extends BaseCommands implements CommandsInterface {
             simProxy.supplyIccPinForApp(rr.mSerial, RILUtils.convertNullToEmptyString(pin),
                     RILUtils.convertNullToEmptyString(aid));
         });
-    }
-
-    @Override
-    public void supplyIccPuk(String puk, String newPin, Message result) {
-        supplyIccPukForApp(puk, newPin, null, result);
     }
 
     @Override
@@ -1494,11 +1469,6 @@ public class RIL extends BaseCommands implements CommandsInterface {
     }
 
     @Override
-    public void supplyIccPin2(String pin, Message result) {
-        supplyIccPin2ForApp(pin, null, result);
-    }
-
-    @Override
     public void supplyIccPin2ForApp(String pin, String aid, Message result) {
         RadioSimProxy simProxy = getRadioServiceProxy(RadioSimProxy.class);
         if (!canMakeRequest("supplyIccPin2ForApp", simProxy, result, RADIO_HAL_VERSION_1_4)) {
@@ -1516,11 +1486,6 @@ public class RIL extends BaseCommands implements CommandsInterface {
             simProxy.supplyIccPin2ForApp(rr.mSerial, RILUtils.convertNullToEmptyString(pin),
                     RILUtils.convertNullToEmptyString(aid));
         });
-    }
-
-    @Override
-    public void supplyIccPuk2(String puk2, String newPin2, Message result) {
-        supplyIccPuk2ForApp(puk2, newPin2, null, result);
     }
 
     @Override
@@ -1560,7 +1525,8 @@ public class RIL extends BaseCommands implements CommandsInterface {
 
         if (RILJ_LOGD) {
             riljLog(rr.serialString() + "> " + RILUtils.requestToString(rr.mRequest)
-                    + " oldPin = " + oldPin + " newPin = " + newPin + " aid = " + aid);
+                    + " oldPin = " + RILUtils.getRedactedPin(oldPin) + " newPin = "
+                    + RILUtils.getRedactedPin(newPin) + " aid = " + aid);
         }
 
         radioServiceInvokeHelper(HAL_SERVICE_SIM, rr, "changeIccPinForApp", () -> {
@@ -1569,11 +1535,6 @@ public class RIL extends BaseCommands implements CommandsInterface {
                     RILUtils.convertNullToEmptyString(newPin),
                     RILUtils.convertNullToEmptyString(aid));
         });
-    }
-
-    @Override
-    public void changeIccPin2(String oldPin2, String newPin2, Message result) {
-        changeIccPin2ForApp(oldPin2, newPin2, null, result);
     }
 
     @Override
@@ -1587,7 +1548,8 @@ public class RIL extends BaseCommands implements CommandsInterface {
 
         if (RILJ_LOGD) {
             riljLog(rr.serialString() + "> " + RILUtils.requestToString(rr.mRequest)
-                    + " oldPin = " + oldPin2 + " newPin = " + newPin2 + " aid = " + aid);
+                    + " oldPin = " + RILUtils.getRedactedPin(oldPin2) + " newPin = "
+                    + RILUtils.getRedactedPin(newPin2) + " aid = " + aid);
         }
 
         radioServiceInvokeHelper(HAL_SERVICE_SIM, rr, "changeIccPin2ForApp", () -> {
@@ -2101,8 +2063,6 @@ public class RIL extends BaseCommands implements CommandsInterface {
 
         radioServiceInvokeHelper(HAL_SERVICE_MESSAGING, rr, "sendSMS", () -> {
             messagingProxy.sendSms(rr.mSerial, smscPdu, pdu);
-            mMetrics.writeRilSendSms(mPhoneId, rr.mSerial, SmsSession.Event.Tech.SMS_GSM,
-                    SmsSession.Event.Format.SMS_FORMAT_3GPP, getOutgoingSmsMessageId(result));
         });
     }
 
@@ -2141,8 +2101,6 @@ public class RIL extends BaseCommands implements CommandsInterface {
 
         radioServiceInvokeHelper(HAL_SERVICE_MESSAGING, rr, "sendSMSExpectMore", () -> {
             messagingProxy.sendSmsExpectMore(rr.mSerial, smscPdu, pdu);
-            mMetrics.writeRilSendSms(mPhoneId, rr.mSerial, SmsSession.Event.Tech.SMS_GSM,
-                    SmsSession.Event.Format.SMS_FORMAT_3GPP, getOutgoingSmsMessageId(result));
         });
     }
 
@@ -2404,7 +2362,6 @@ public class RIL extends BaseCommands implements CommandsInterface {
 
         radioServiceInvokeHelper(HAL_SERVICE_VOICE, rr, "acceptCall", () -> {
             voiceProxy.acceptCall(rr.mSerial);
-            mMetrics.writeRilAnswer(mPhoneId, rr.mSerial);
         });
     }
 
@@ -2426,7 +2383,6 @@ public class RIL extends BaseCommands implements CommandsInterface {
 
         radioServiceInvokeHelper(HAL_SERVICE_DATA, rr, "deactivateDataCall", () -> {
             dataProxy.deactivateDataCall(rr.mSerial, cid, reason);
-            mMetrics.writeRilDeactivateDataCall(mPhoneId, rr.mSerial, cid, reason);
         });
     }
 
@@ -2797,27 +2753,6 @@ public class RIL extends BaseCommands implements CommandsInterface {
     }
 
     @Override
-    public void setSuppServiceNotifications(boolean enable, Message result) {
-        RadioNetworkProxy networkProxy = getRadioServiceProxy(RadioNetworkProxy.class);
-        if (!canMakeRequest("setSuppServiceNotifications", networkProxy, result,
-                RADIO_HAL_VERSION_1_4)) {
-            return;
-        }
-
-        RILRequest rr = obtainRequest(RIL_REQUEST_SET_SUPP_SVC_NOTIFICATION, result,
-                mRILDefaultWorkSource);
-
-        if (RILJ_LOGD) {
-            riljLog(rr.serialString() + "> " + RILUtils.requestToString(rr.mRequest)
-                    + " enable = " + enable);
-        }
-
-        radioServiceInvokeHelper(HAL_SERVICE_NETWORK, rr, "setSuppServiceNotifications", () -> {
-            networkProxy.setSuppServiceNotifications(rr.mSerial, enable);
-        });
-    }
-
-    @Override
     public void writeSmsToSim(int status, String smsc, String pdu, Message result) {
         RadioMessagingProxy messagingProxy = getRadioServiceProxy(RadioMessagingProxy.class);
         if (!canMakeRequest("writeSmsToSim", messagingProxy, result, RADIO_HAL_VERSION_1_4)) {
@@ -2854,45 +2789,6 @@ public class RIL extends BaseCommands implements CommandsInterface {
 
         radioServiceInvokeHelper(HAL_SERVICE_MESSAGING, rr, "deleteSmsOnSim", () -> {
             messagingProxy.deleteSmsOnSim(rr.mSerial, index);
-        });
-    }
-
-    @Override
-    public void setBandMode(int bandMode, Message result) {
-        RadioNetworkProxy networkProxy = getRadioServiceProxy(RadioNetworkProxy.class);
-        if (!canMakeRequest("setBandMode", networkProxy, result, RADIO_HAL_VERSION_1_4)) {
-            return;
-        }
-
-        RILRequest rr = obtainRequest(RIL_REQUEST_SET_BAND_MODE, result, mRILDefaultWorkSource);
-
-        if (RILJ_LOGD) {
-            riljLog(rr.serialString() + "> " + RILUtils.requestToString(rr.mRequest)
-                    + " bandMode = " + bandMode);
-        }
-
-        radioServiceInvokeHelper(HAL_SERVICE_NETWORK, rr, "setBandMode", () -> {
-            networkProxy.setBandMode(rr.mSerial, bandMode);
-        });
-    }
-
-    @Override
-    public void queryAvailableBandMode(Message result) {
-        RadioNetworkProxy networkProxy = getRadioServiceProxy(RadioNetworkProxy.class);
-        if (!canMakeRequest("queryAvailableBandMode", networkProxy, result,
-                RADIO_HAL_VERSION_1_4)) {
-            return;
-        }
-
-        RILRequest rr = obtainRequest(RIL_REQUEST_QUERY_AVAILABLE_BAND_MODE, result,
-                mRILDefaultWorkSource);
-
-        if (RILJ_LOGD) {
-            riljLog(rr.serialString() + "> " + RILUtils.requestToString(rr.mRequest));
-        }
-
-        radioServiceInvokeHelper(HAL_SERVICE_NETWORK, rr, "queryAvailableBandMode", () -> {
-            networkProxy.getAvailableBandModes(rr.mSerial);
         });
     }
 
@@ -2994,7 +2890,6 @@ public class RIL extends BaseCommands implements CommandsInterface {
                     + " networkType = " + networkType);
         }
         mAllowedNetworkTypesBitmask = RadioAccessFamily.getRafFromNetworkType(networkType);
-        mMetrics.writeSetPreferredNetworkType(mPhoneId, networkType);
 
         radioServiceInvokeHelper(HAL_SERVICE_NETWORK, rr, "setPreferredNetworkType", () -> {
             networkProxy.setPreferredNetworkTypeBitmap(rr.mSerial, mAllowedNetworkTypesBitmask);
@@ -3217,73 +3112,6 @@ public class RIL extends BaseCommands implements CommandsInterface {
     }
 
     @Override
-    public void setCdmaSubscriptionSource(int cdmaSubscription, Message result) {
-        if (mFeatureFlags.cleanupCdma()) return;
-
-        RadioSimProxy simProxy = getRadioServiceProxy(RadioSimProxy.class);
-        if (!canMakeRequest("setCdmaSubscriptionSource", simProxy, result, RADIO_HAL_VERSION_1_4)) {
-            return;
-        }
-
-        RILRequest rr = obtainRequest(RIL_REQUEST_CDMA_SET_SUBSCRIPTION_SOURCE, result,
-                mRILDefaultWorkSource);
-
-        if (RILJ_LOGD) {
-            riljLog(rr.serialString() + "> " + RILUtils.requestToString(rr.mRequest)
-                    + " cdmaSubscription = " + cdmaSubscription);
-        }
-
-        radioServiceInvokeHelper(HAL_SERVICE_SIM, rr, "setCdmaSubscriptionSource", () -> {
-            simProxy.setCdmaSubscriptionSource(rr.mSerial, cdmaSubscription);
-        });
-    }
-
-    @Override
-    public void queryCdmaRoamingPreference(Message result) {
-        if (mFeatureFlags.cleanupCdma()) return;
-
-        RadioNetworkProxy networkProxy = getRadioServiceProxy(RadioNetworkProxy.class);
-        if (!canMakeRequest("queryCdmaRoamingPreference", networkProxy, result,
-                RADIO_HAL_VERSION_1_4)) {
-            return;
-        }
-
-        RILRequest rr = obtainRequest(RIL_REQUEST_CDMA_QUERY_ROAMING_PREFERENCE, result,
-                mRILDefaultWorkSource);
-
-        if (RILJ_LOGD) {
-            riljLog(rr.serialString() + "> " + RILUtils.requestToString(rr.mRequest));
-        }
-
-        radioServiceInvokeHelper(HAL_SERVICE_NETWORK, rr, "queryCdmaRoamingPreference", () -> {
-            networkProxy.getCdmaRoamingPreference(rr.mSerial);
-        });
-    }
-
-    @Override
-    public void setCdmaRoamingPreference(int cdmaRoamingType, Message result) {
-        if (mFeatureFlags.cleanupCdma()) return;
-
-        RadioNetworkProxy networkProxy = getRadioServiceProxy(RadioNetworkProxy.class);
-        if (!canMakeRequest("setCdmaRoamingPreference", networkProxy, result,
-                RADIO_HAL_VERSION_1_4)) {
-            return;
-        }
-
-        RILRequest rr = obtainRequest(RIL_REQUEST_CDMA_SET_ROAMING_PREFERENCE, result,
-                mRILDefaultWorkSource);
-
-        if (RILJ_LOGD) {
-            riljLog(rr.serialString() + "> " + RILUtils.requestToString(rr.mRequest)
-                    + " cdmaRoamingType = " + cdmaRoamingType);
-        }
-
-        radioServiceInvokeHelper(HAL_SERVICE_NETWORK, rr, "setCdmaRoamingPreference", () -> {
-            networkProxy.setCdmaRoamingPreference(rr.mSerial, cdmaRoamingType);
-        });
-    }
-
-    @Override
     public void queryTTYMode(Message result) {
         RadioVoiceProxy voiceProxy = getRadioServiceProxy(RadioVoiceProxy.class);
         if (!canMakeRequest("queryTTYMode", voiceProxy, result, RADIO_HAL_VERSION_1_4)) {
@@ -3362,28 +3190,6 @@ public class RIL extends BaseCommands implements CommandsInterface {
     }
 
     @Override
-    public void sendCDMAFeatureCode(String featureCode, Message result) {
-        if (mFeatureFlags.cleanupCdma()) return;
-
-        RadioVoiceProxy voiceProxy = getRadioServiceProxy(RadioVoiceProxy.class);
-        if (!canMakeRequest("sendCDMAFeatureCode", voiceProxy, result, RADIO_HAL_VERSION_1_4)) {
-            return;
-        }
-
-        RILRequest rr = obtainRequest(RIL_REQUEST_CDMA_FLASH, result, mRILDefaultWorkSource);
-
-        if (RILJ_LOGD) {
-            riljLog(rr.serialString() + "> " + RILUtils.requestToString(rr.mRequest)
-                    + " featureCode = " + Rlog.pii(RILJ_LOG_TAG, featureCode));
-        }
-
-        radioServiceInvokeHelper(HAL_SERVICE_VOICE, rr, "sendCDMAFeatureCode", () -> {
-            voiceProxy.sendCdmaFeatureCode(rr.mSerial,
-                    RILUtils.convertNullToEmptyString(featureCode));
-        });
-    }
-
-    @Override
     public void sendBurstDtmf(String dtmfString, int on, int off, Message result) {
         RadioVoiceProxy voiceProxy = getRadioServiceProxy(RadioVoiceProxy.class);
         if (!canMakeRequest("sendBurstDtmf", voiceProxy, result, RADIO_HAL_VERSION_1_4)) {
@@ -3407,79 +3213,14 @@ public class RIL extends BaseCommands implements CommandsInterface {
     @Override
 // QTI_END: 2018-08-01: Telephony: CDMA MO SMS follow on DC feature
     public void sendCdmaSMSExpectMore(byte[] pdu, Message result) {
-        if (mFeatureFlags.cleanupCdma()) return;
-
-        RadioMessagingProxy messagingProxy = getRadioServiceProxy(RadioMessagingProxy.class);
-        if (!canMakeRequest("sendCdmaSMSExpectMore", messagingProxy, result,
-                RADIO_HAL_VERSION_1_4)) {
-            return;
-        }
-
-        RILRequest rr = obtainRequest(RIL_REQUEST_CDMA_SEND_SMS_EXPECT_MORE, result,
-                mRILDefaultWorkSource);
-
-        // Do not log function arg for privacy
-        if (RILJ_LOGD) {
-            riljLog(rr.serialString() + "> " + RILUtils.requestToString(rr.mRequest));
-        }
-
-        radioServiceInvokeHelper(HAL_SERVICE_MESSAGING, rr, "sendCdmaSMSExpectMore", () -> {
-            messagingProxy.sendCdmaSmsExpectMore(rr.mSerial, pdu);
-            if (mHalVersion.get(HAL_SERVICE_MESSAGING).greaterOrEqual(RADIO_HAL_VERSION_1_5)) {
-                mMetrics.writeRilSendSms(mPhoneId, rr.mSerial, SmsSession.Event.Tech.SMS_CDMA,
-                        SmsSession.Event.Format.SMS_FORMAT_3GPP2,
-                        getOutgoingSmsMessageId(result));
-            }
-        });
-// QTI_BEGIN: 2018-08-01: Telephony: CDMA MO SMS follow on DC feature
     }
 
-// QTI_END: 2018-08-01: Telephony: CDMA MO SMS follow on DC feature
     @Override
     public void sendCdmaSms(byte[] pdu, Message result) {
-        if (mFeatureFlags.cleanupCdma()) return;
-
-        RadioMessagingProxy messagingProxy = getRadioServiceProxy(RadioMessagingProxy.class);
-        if (!canMakeRequest("sendCdmaSms", messagingProxy, result, RADIO_HAL_VERSION_1_4)) {
-            return;
-        }
-
-        RILRequest rr = obtainRequest(RIL_REQUEST_CDMA_SEND_SMS, result, mRILDefaultWorkSource);
-
-        // Do not log function arg for privacy
-        if (RILJ_LOGD) {
-            riljLog(rr.serialString() + "> " + RILUtils.requestToString(rr.mRequest));
-        }
-
-        radioServiceInvokeHelper(HAL_SERVICE_MESSAGING, rr, "sendCdmaSms", () -> {
-            messagingProxy.sendCdmaSms(rr.mSerial, pdu);
-            mMetrics.writeRilSendSms(mPhoneId, rr.mSerial, SmsSession.Event.Tech.SMS_CDMA,
-                    SmsSession.Event.Format.SMS_FORMAT_3GPP2, getOutgoingSmsMessageId(result));
-        });
     }
 
     @Override
     public void acknowledgeLastIncomingCdmaSms(boolean success, int cause, Message result) {
-        if (mFeatureFlags.cleanupCdma()) return;
-
-        RadioMessagingProxy messagingProxy = getRadioServiceProxy(RadioMessagingProxy.class);
-        if (!canMakeRequest("acknowledgeLastIncomingCdmaSms", messagingProxy, result,
-                RADIO_HAL_VERSION_1_4)) {
-            return;
-        }
-
-        RILRequest rr = obtainRequest(RIL_REQUEST_CDMA_SMS_ACKNOWLEDGE, result,
-                mRILDefaultWorkSource);
-
-        if (RILJ_LOGD) {
-            riljLog(rr.serialString() + "> " + RILUtils.requestToString(rr.mRequest)
-                    + " success = " + success + " cause = " + cause);
-        }
-
-        radioServiceInvokeHelper(HAL_SERVICE_MESSAGING, rr, "acknowledgeLastIncomingCdmaSms",
-                () -> {
-                    messagingProxy.acknowledgeLastIncomingCdmaSms(rr.mSerial, success, cause);
-                });
     }
 
     @Override
@@ -3549,93 +3290,14 @@ public class RIL extends BaseCommands implements CommandsInterface {
 
     @Override
     public void getCdmaBroadcastConfig(Message result) {
-        if (mFeatureFlags.cleanupCdma()) return;
-
-        RadioMessagingProxy messagingProxy = getRadioServiceProxy(RadioMessagingProxy.class);
-        if (!canMakeRequest("getCdmaBroadcastConfig", messagingProxy, result,
-                RADIO_HAL_VERSION_1_4)) {
-            return;
-        }
-
-        RILRequest rr = obtainRequest(RIL_REQUEST_CDMA_GET_BROADCAST_CONFIG, result,
-                mRILDefaultWorkSource);
-
-        if (RILJ_LOGD) {
-            riljLog(rr.serialString() + "> " + RILUtils.requestToString(rr.mRequest));
-        }
-
-        radioServiceInvokeHelper(HAL_SERVICE_MESSAGING, rr, "getCdmaBroadcastConfig", () -> {
-            messagingProxy.getCdmaBroadcastConfig(rr.mSerial);
-        });
     }
 
     @Override
     public void setCdmaBroadcastConfig(CdmaSmsBroadcastConfigInfo[] configs, Message result) {
-        if (mFeatureFlags.cleanupCdma()) return;
-
-        RadioMessagingProxy messagingProxy = getRadioServiceProxy(RadioMessagingProxy.class);
-        if (!canMakeRequest("setCdmaBroadcastConfig", messagingProxy, result,
-                RADIO_HAL_VERSION_1_4)) {
-            return;
-        }
-
-        RILRequest rr = obtainRequest(RIL_REQUEST_CDMA_SET_BROADCAST_CONFIG, result,
-                mRILDefaultWorkSource);
-
-        if (RILJ_LOGD) {
-            riljLog(rr.serialString() + "> " + RILUtils.requestToString(rr.mRequest)
-                    + " with " + configs.length + " configs : ");
-            for (CdmaSmsBroadcastConfigInfo config : configs) {
-                riljLog(config.toString());
-            }
-        }
-
-        radioServiceInvokeHelper(HAL_SERVICE_MESSAGING, rr, "setCdmaBroadcastConfig", () -> {
-            messagingProxy.setCdmaBroadcastConfig(rr.mSerial, configs);
-        });
     }
 
     @Override
     public void setCdmaBroadcastActivation(boolean activate, Message result) {
-        if (mFeatureFlags.cleanupCdma()) return;
-
-        RadioMessagingProxy messagingProxy = getRadioServiceProxy(RadioMessagingProxy.class);
-        if (!canMakeRequest("setCdmaBroadcastActivation", messagingProxy, result,
-                RADIO_HAL_VERSION_1_4)) {
-            return;
-        }
-
-        RILRequest rr = obtainRequest(RIL_REQUEST_CDMA_BROADCAST_ACTIVATION, result,
-                mRILDefaultWorkSource);
-
-        if (RILJ_LOGD) {
-            riljLog(rr.serialString() + "> " + RILUtils.requestToString(rr.mRequest)
-                    + " activate = " + activate);
-        }
-
-        radioServiceInvokeHelper(HAL_SERVICE_MESSAGING, rr, "setCdmaBroadcastActivation", () -> {
-            messagingProxy.setCdmaBroadcastActivation(rr.mSerial, activate);
-        });
-    }
-
-    @Override
-    public void getCDMASubscription(Message result) {
-        if (mFeatureFlags.cleanupCdma()) return;
-
-        RadioSimProxy simProxy = getRadioServiceProxy(RadioSimProxy.class);
-        if (!canMakeRequest("getCDMASubscription", simProxy, result, RADIO_HAL_VERSION_1_4)) {
-            return;
-        }
-
-        RILRequest rr = obtainRequest(RIL_REQUEST_CDMA_SUBSCRIPTION, result, mRILDefaultWorkSource);
-
-        if (RILJ_LOGD) {
-            riljLog(rr.serialString() + "> " + RILUtils.requestToString(rr.mRequest));
-        }
-
-        radioServiceInvokeHelper(HAL_SERVICE_SIM, rr, "getCDMASubscription", () -> {
-            simProxy.getCdmaSubscription(rr.mSerial);
-        });
     }
 
     @Override
@@ -3655,28 +3317,6 @@ public class RIL extends BaseCommands implements CommandsInterface {
 
         radioServiceInvokeHelper(HAL_SERVICE_MESSAGING, rr, "writeSmsToRuim", () -> {
             messagingProxy.writeSmsToRuim(rr.mSerial, status, pdu);
-        });
-    }
-
-    @Override
-    public void deleteSmsOnRuim(int index, Message result) {
-        if (mFeatureFlags.cleanupCdma()) return;
-
-        RadioMessagingProxy messagingProxy = getRadioServiceProxy(RadioMessagingProxy.class);
-        if (!canMakeRequest("deleteSmsOnRuim", messagingProxy, result, RADIO_HAL_VERSION_1_4)) {
-            return;
-        }
-
-        RILRequest rr = obtainRequest(RIL_REQUEST_CDMA_DELETE_SMS_ON_RUIM, result,
-                mRILDefaultWorkSource);
-
-        if (RILJ_LOGV) {
-            riljLog(rr.serialString() + "> " + RILUtils.requestToString(rr.mRequest)
-                    + " index = " + index);
-        }
-
-        radioServiceInvokeHelper(HAL_SERVICE_MESSAGING, rr, "deleteSmsOnRuim", () -> {
-            messagingProxy.deleteSmsOnRuim(rr.mSerial, index);
         });
     }
 
@@ -3811,27 +3451,6 @@ public class RIL extends BaseCommands implements CommandsInterface {
 
         radioServiceInvokeHelper(HAL_SERVICE_SIM, rr, "reportStkServiceIsRunning", () -> {
             simProxy.reportStkServiceIsRunning(rr.mSerial);
-        });
-    }
-
-    @Override
-    public void getCdmaSubscriptionSource(Message result) {
-        if (mFeatureFlags.cleanupCdma()) return;
-
-        RadioSimProxy simProxy = getRadioServiceProxy(RadioSimProxy.class);
-        if (!canMakeRequest("getCdmaSubscriptionSource", simProxy, result, RADIO_HAL_VERSION_1_4)) {
-            return;
-        }
-
-        RILRequest rr = obtainRequest(RIL_REQUEST_CDMA_GET_SUBSCRIPTION_SOURCE, result,
-                mRILDefaultWorkSource);
-
-        if (RILJ_LOGD) {
-            riljLog(rr.serialString() + "> " + RILUtils.requestToString(rr.mRequest));
-        }
-
-        radioServiceInvokeHelper(HAL_SERVICE_SIM, rr, "getCdmaSubscriptionSource", () -> {
-            simProxy.getCdmaSubscriptionSource(rr.mSerial);
         });
     }
 
@@ -3972,8 +3591,6 @@ public class RIL extends BaseCommands implements CommandsInterface {
 
         radioServiceInvokeHelper(HAL_SERVICE_MESSAGING, rr, "sendImsGsmSms", () -> {
             messagingProxy.sendImsSms(rr.mSerial, smscPdu, pdu, null, retry, messageRef);
-            mMetrics.writeRilSendSms(mPhoneId, rr.mSerial, SmsSession.Event.Tech.SMS_IMS,
-                    SmsSession.Event.Format.SMS_FORMAT_3GPP, getOutgoingSmsMessageId(result));
         });
     }
 
@@ -3993,8 +3610,6 @@ public class RIL extends BaseCommands implements CommandsInterface {
 
         radioServiceInvokeHelper(HAL_SERVICE_MESSAGING, rr, "sendImsCdmaSms", () -> {
             messagingProxy.sendImsSms(rr.mSerial, null, null, pdu, retry, messageRef);
-            mMetrics.writeRilSendSms(mPhoneId, rr.mSerial, SmsSession.Event.Tech.SMS_IMS,
-                    SmsSession.Event.Format.SMS_FORMAT_3GPP2, getOutgoingSmsMessageId(result));
         });
     }
 
@@ -4104,76 +3719,9 @@ public class RIL extends BaseCommands implements CommandsInterface {
     }
 
     @Override
-    public void nvReadItem(int itemID, Message result, WorkSource workSource) {
-        if (mFeatureFlags.cleanupCdma()) return;
-
-        RadioModemProxy modemProxy = getRadioServiceProxy(RadioModemProxy.class);
-        if (!canMakeRequest("nvReadItem", modemProxy, result, RADIO_HAL_VERSION_1_4)) {
-            return;
-        }
-
-        RILRequest rr = obtainRequest(RIL_REQUEST_NV_READ_ITEM, result,
-                getDefaultWorkSourceIfInvalid(workSource));
-
-        if (RILJ_LOGD) {
-            riljLog(rr.serialString() + "> " + RILUtils.requestToString(rr.mRequest)
-                    + " itemId = " + itemID);
-        }
-
-        radioServiceInvokeHelper(HAL_SERVICE_MODEM, rr, "nvReadItem", () -> {
-            modemProxy.nvReadItem(rr.mSerial, itemID);
-        });
-    }
-
-    @Override
-    public void nvWriteItem(int itemId, String itemValue, Message result, WorkSource workSource) {
-        if (mFeatureFlags.cleanupCdma()) return;
-
-        RadioModemProxy modemProxy = getRadioServiceProxy(RadioModemProxy.class);
-        if (!canMakeRequest("nvWriteItem", modemProxy, result, RADIO_HAL_VERSION_1_4)) {
-            return;
-        }
-
-        RILRequest rr = obtainRequest(RIL_REQUEST_NV_WRITE_ITEM, result,
-                getDefaultWorkSourceIfInvalid(workSource));
-
-        if (RILJ_LOGD) {
-            riljLog(rr.serialString() + "> " + RILUtils.requestToString(rr.mRequest)
-                    + " itemId = " + itemId + " itemValue = " + itemValue);
-        }
-
-        radioServiceInvokeHelper(HAL_SERVICE_MODEM, rr, "nvWriteItem", () -> {
-            modemProxy.nvWriteItem(rr.mSerial, itemId,
-                    RILUtils.convertNullToEmptyString(itemValue));
-        });
-    }
-
-    @Override
-    public void nvWriteCdmaPrl(byte[] preferredRoamingList, Message result) {
-        if (mFeatureFlags.cleanupCdma()) return;
-
-        RadioModemProxy modemProxy = getRadioServiceProxy(RadioModemProxy.class);
-        if (!canMakeRequest("nvWriteCdmaPrl", modemProxy, result, RADIO_HAL_VERSION_1_4)) {
-            return;
-        }
-
-        RILRequest rr = obtainRequest(RIL_REQUEST_NV_WRITE_CDMA_PRL, result, mRILDefaultWorkSource);
-
-        if (RILJ_LOGD) {
-            riljLog(rr.serialString() + "> " + RILUtils.requestToString(rr.mRequest)
-                    + " PreferredRoamingList = 0x"
-                    + IccUtils.bytesToHexString(preferredRoamingList));
-        }
-
-        radioServiceInvokeHelper(HAL_SERVICE_MODEM, rr, "nvWriteCdmaPrl", () -> {
-            modemProxy.nvWriteCdmaPrl(rr.mSerial, preferredRoamingList);
-        });
-    }
-
-    @Override
     public void nvResetConfig(int resetType, Message result) {
         // Disable all NV reset functions except modem restart.
-        if (mFeatureFlags.cleanupCdma() && resetType != 1) return;
+        if (resetType != 1) return;
 
         RadioModemProxy modemProxy = getRadioServiceProxy(RadioModemProxy.class);
         if (!canMakeRequest("nvResetConfig", modemProxy, result, RADIO_HAL_VERSION_1_4)) {
@@ -5903,7 +5451,6 @@ public class RIL extends BaseCommands implements CommandsInterface {
 
     private void processResponseCleanUp(RILRequest rr, int rilError, int responseType, Object ret) {
         if (rr != null) {
-            mMetrics.writeOnRilSolicitedResponse(mPhoneId, rr.mSerial, rilError, rr.mRequest, ret);
             if (responseType == RadioResponseType.SOLICITED) {
                 decrementWakeLock(rr);
             }
@@ -6295,17 +5842,12 @@ public class RIL extends BaseCommands implements CommandsInterface {
         return s;
     }
 
-    void writeMetricsCallRing(char[] response) {
-        mMetrics.writeRilCallRing(mPhoneId, response);
-    }
 
     void writeMetricsSrvcc(int state) {
-        mMetrics.writeRilSrvcc(mPhoneId, state);
         PhoneFactory.getPhone(mPhoneId).getVoiceCallSessionStats().onRilSrvccStateChanged(state);
     }
 
     void writeMetricsModemRestartEvent(String reason) {
-        mMetrics.writeModemRestartEvent(mPhoneId, reason);
         // Write metrics to statsd. Generate metric only when modem reset is detected by the
         // first instance of RIL to avoid duplicated events.
         if (mPhoneId == 0) {
@@ -6324,58 +5866,6 @@ public class RIL extends BaseCommands implements CommandsInterface {
         if (mRilConnectedRegistrants != null) {
             mRilConnectedRegistrants.notifyRegistrants(
                     new AsyncResult(null, new Integer(rilVer), null));
-        }
-    }
-
-    @UnsupportedAppUsage
-    void notifyRegistrantsCdmaInfoRec(CdmaInformationRecords infoRec) {
-        if (mFeatureFlags.cleanupCdma()) return;
-
-        int response = RIL_UNSOL_CDMA_INFO_REC;
-        if (infoRec.record instanceof CdmaInformationRecords.CdmaDisplayInfoRec) {
-            if (mDisplayInfoRegistrants != null) {
-                if (isLogOrTrace()) unsljLogRet(response, infoRec.record);
-                mDisplayInfoRegistrants.notifyRegistrants(
-                        new AsyncResult(null, infoRec.record, null));
-            }
-        } else if (infoRec.record instanceof CdmaInformationRecords.CdmaSignalInfoRec) {
-            if (mSignalInfoRegistrants != null) {
-                if (isLogOrTrace()) unsljLogRet(response, infoRec.record);
-                mSignalInfoRegistrants.notifyRegistrants(
-                        new AsyncResult(null, infoRec.record, null));
-            }
-        } else if (infoRec.record instanceof CdmaInformationRecords.CdmaNumberInfoRec) {
-            if (mNumberInfoRegistrants != null) {
-                if (isLogOrTrace()) unsljLogRet(response, infoRec.record);
-                mNumberInfoRegistrants.notifyRegistrants(
-                        new AsyncResult(null, infoRec.record, null));
-            }
-        } else if (infoRec.record instanceof CdmaInformationRecords.CdmaRedirectingNumberInfoRec) {
-            if (mRedirNumInfoRegistrants != null) {
-                if (isLogOrTrace()) unsljLogRet(response, infoRec.record);
-                mRedirNumInfoRegistrants.notifyRegistrants(
-                        new AsyncResult(null, infoRec.record, null));
-            }
-        } else if (infoRec.record instanceof CdmaInformationRecords.CdmaLineControlInfoRec) {
-            if (mLineControlInfoRegistrants != null) {
-                if (isLogOrTrace()) unsljLogRet(response, infoRec.record);
-                mLineControlInfoRegistrants.notifyRegistrants(
-                        new AsyncResult(null, infoRec.record, null));
-            }
-        } else if (infoRec.record instanceof CdmaInformationRecords.CdmaT53ClirInfoRec) {
-            if (mT53ClirInfoRegistrants != null) {
-                if (isLogOrTrace()) unsljLogRet(response, infoRec.record);
-                mT53ClirInfoRegistrants.notifyRegistrants(
-                        new AsyncResult(null, infoRec.record, null));
-            }
-        } else if (infoRec.record instanceof CdmaInformationRecords.CdmaT53AudioControlInfoRec) {
-            if (mT53AudCntrlInfoRegistrants != null) {
-                if (isLogOrTrace()) {
-                    unsljLogRet(response, infoRec.record);
-                }
-                mT53AudCntrlInfoRegistrants.notifyRegistrants(
-                        new AsyncResult(null, infoRec.record, null));
-            }
         }
     }
 

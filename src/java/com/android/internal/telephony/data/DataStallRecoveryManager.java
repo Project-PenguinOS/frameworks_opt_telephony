@@ -39,6 +39,7 @@ import android.telephony.Annotation.RadioPowerState;
 import android.telephony.Annotation.ValidationStatus;
 import android.telephony.CellSignalStrength;
 import android.telephony.SubscriptionManager;
+import android.telephony.TelephonyCallback;
 import android.telephony.TelephonyManager;
 import android.text.TextUtils;
 import android.util.IndentingPrintWriter;
@@ -53,7 +54,6 @@ import com.android.internal.telephony.data.DataNetworkController.DataNetworkCont
 import com.android.internal.telephony.data.DataSettingsManager.DataSettingsManagerCallback;
 import com.android.internal.telephony.flags.FeatureFlags;
 import com.android.internal.telephony.metrics.DataStallRecoveryStats;
-import com.android.internal.telephony.metrics.TelephonyMetrics;
 import com.android.telephony.Rlog;
 
 import java.io.FileDescriptor;
@@ -164,6 +164,10 @@ public class DataStallRecoveryManager extends Handler {
     @NonNull
     private final DataServiceManager mWwanDataServiceManager;
 
+    /** Cellular data service */
+    @NonNull
+    private final TelephonyManager mTelephonyManager;
+
     /** The data stall recovery action. */
     @RecoveryAction
     private int mRecoveryAction;
@@ -214,6 +218,8 @@ public class DataStallRecoveryManager extends Handler {
     @NonNull
     private boolean[] mSkipRecoveryActionArray;
 
+    private int mActiveDataSubId = SubscriptionManager.INVALID_SUBSCRIPTION_ID;
+
     /**
      * The content URI for the DSRM recovery actions.
      *
@@ -260,6 +266,13 @@ public class DataStallRecoveryManager extends Handler {
         public abstract void onDataStallReestablishInternet();
     }
 
+    private abstract static class ActiveDataSubscriptionIdChangedCallback
+            extends TelephonyCallback
+            implements TelephonyCallback.ActiveDataSubscriptionIdListener {
+        @Override
+        public abstract void onActiveDataSubscriptionIdChanged(int subId);
+    }
+
     /**
      * Constructor
      *
@@ -300,10 +313,13 @@ public class DataStallRecoveryManager extends Handler {
                         });
         mDataStallRecoveryManagerCallback = callback;
         mRadioPowerState = mPhone.getRadioPowerState();
+        mTelephonyManager = mPhone.getContext().getSystemService(TelephonyManager.class);
         updateDataStallRecoveryConfigs();
 
         registerAllEvents();
 
+        // For some reason this has to be after registerAllEvents() is invoked.
+        // That feels like a ticking timebomb.
         mStats = new DataStallRecoveryStats(mPhone, mFeatureFlags, dataNetworkController);
     }
 
@@ -315,6 +331,7 @@ public class DataStallRecoveryManager extends Handler {
                 DataStallRecoveryManager.this.onCarrierConfigUpdated();
             }
         });
+
         mDataNetworkController.registerDataNetworkControllerCallback(
                 new DataNetworkControllerCallback(this::post) {
                     @Override
@@ -361,6 +378,15 @@ public class DataStallRecoveryManager extends Handler {
         mPhone.getContext().getContentResolver().registerContentObserver(
                 CONTENT_URL_DSRM_DURATION_MILLIS, false, mContentObserver);
 
+        // This does not require a TM with any particular subscription.
+        mTelephonyManager.registerTelephonyCallback(
+                this::post,
+                new ActiveDataSubscriptionIdChangedCallback() {
+                    @Override
+                    public void onActiveDataSubscriptionIdChanged(int subId) {
+                        mActiveDataSubId = subId;
+                    }
+                });
     }
 
     @Override
@@ -823,6 +849,12 @@ public class DataStallRecoveryManager extends Handler {
             return false;
         }
 
+        if (mFeatureFlags.inactiveDataNetworkIsNotStalled()
+                && mPhone.getSubId() != mActiveDataSubId) {
+            logl("skip data stall recovery for non-active data connection");
+            return false;
+        }
+
         // Skip recovery if we have already attempted all steps.
         if (mIsAttemptedAllSteps) {
             logl("skip retrying continue recovery action");
@@ -1023,11 +1055,6 @@ public class DataStallRecoveryManager extends Handler {
     /** Perform a series of data stall recovery actions. */
     private void doRecovery() {
         @RecoveryAction final int recoveryAction = getRecoveryAction();
-        final int signalStrength = mPhone.getSignalStrength().getLevel();
-
-        TelephonyMetrics.getInstance()
-                .writeSignalStrengthEvent(mPhone.getPhoneId(), signalStrength);
-        TelephonyMetrics.getInstance().writeDataStallEvent(mPhone.getPhoneId(), recoveryAction);
         mLastAction = recoveryAction;
         mLastActionReported = false;
         mNetworkCheckTimerStarted = false;

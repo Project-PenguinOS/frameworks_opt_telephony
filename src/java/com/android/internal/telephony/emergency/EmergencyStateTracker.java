@@ -480,7 +480,7 @@ public class EmergencyStateTracker {
                     break;
                 }
                 case MSG_EXIT_SCBM: {
-                    exitEmergencySmsCallbackModeAndEmergencyMode(STOP_REASON_TIMER_EXPIRED);
+                    exitEmergencySmsCallbackModeAndEmergencyMode(STOP_REASON_TIMER_EXPIRED, false);
                     break;
                 }
                 case MSG_NEW_RINGING_CONNECTION: {
@@ -676,10 +676,8 @@ public class EmergencyStateTracker {
                     releaseWakeLock();
                     ((GsmCdmaPhone) mPhone).notifyEcbmTimerReset(Boolean.TRUE);
 
-                    if (mFeatureFlags.emergencyCallbackModeNotification()) {
-                        mPhone.stopEmergencyCallbackMode(EMERGENCY_CALLBACK_MODE_CALL,
-                                STOP_REASON_OUTGOING_EMERGENCY_CALL_INITIATED);
-                    }
+                    mPhone.stopEmergencyCallbackMode(EMERGENCY_CALLBACK_MODE_CALL,
+                            STOP_REASON_OUTGOING_EMERGENCY_CALL_INITIATED);
 
                     mOngoingCallProperties = 0;
                     mCallEmergencyModeFuture = new CompletableFuture<>();
@@ -1217,7 +1215,7 @@ public class EmergencyStateTracker {
      * Handles the radio power off request.
      */
     public void onCellularRadioPowerOffRequested() {
-        exitEmergencySmsCallbackModeAndEmergencyMode(STOP_REASON_UNKNOWN);
+        exitEmergencySmsCallbackModeAndEmergencyMode(STOP_REASON_UNKNOWN, true);
         exitEmergencyCallbackMode();
     }
 
@@ -1306,9 +1304,8 @@ public class EmergencyStateTracker {
 
         long delayInMillis = TelephonyProperties.ecm_exit_timer()
                 .orElse(mEcmExitTimeoutMs);
-        if (mFeatureFlags.emergencyCallbackModeNotification()) {
-            mPhone.startEmergencyCallbackMode(EMERGENCY_CALLBACK_MODE_CALL, delayInMillis);
-        }
+
+        mPhone.startEmergencyCallbackMode(EMERGENCY_CALLBACK_MODE_CALL, delayInMillis);
 
         // Post this runnable so we will automatically exit if no one invokes
         // exitEmergencyCallbackMode() directly.
@@ -1357,10 +1354,7 @@ public class EmergencyStateTracker {
             // Send intents that ECM has changed.
             sendEmergencyCallbackModeChange();
             gsmCdmaPhone.notifyEmergencyCallRegistrants(false);
-
-            if (mFeatureFlags.emergencyCallbackModeNotification()) {
-                gsmCdmaPhone.stopEmergencyCallbackMode(EMERGENCY_CALLBACK_MODE_CALL, reason);
-            }
+            gsmCdmaPhone.stopEmergencyCallbackMode(EMERGENCY_CALLBACK_MODE_CALL, reason);
 
             // Exit emergency mode on modem.
             exitEmergencyMode(gsmCdmaPhone, EMERGENCY_TYPE_CALL);
@@ -1449,6 +1443,7 @@ public class EmergencyStateTracker {
      * Returns {@code true} if currently in emergency callback mode over CS
      */
     public boolean isInCdmaEcm() {
+        if (mFeatureFlags.deleteCdma()) return false;
         // Phone can be null in the case where we are not actively tracking an emergency call.
         if (mPhone == null) return false;
         // Ensure that this method doesn't return true when we are attached to GSM.
@@ -1509,7 +1504,7 @@ public class EmergencyStateTracker {
                 // emergency SMS callback mode first.
                 exitScbmInOtherPhone = true;
                 mIsEmergencySmsStartedDuringScbm = true;
-                exitEmergencySmsCallbackModeAndEmergencyMode(STOP_REASON_EMERGENCY_SMS_SENT);
+                exitEmergencySmsCallbackModeAndEmergencyMode(STOP_REASON_EMERGENCY_SMS_SENT, false);
             } else {
                 Rlog.e(TAG, "Emergency SMS is in progress on the other slot.");
                 return CompletableFuture.completedFuture(DisconnectCause.ERROR_UNSPECIFIED);
@@ -1686,12 +1681,10 @@ public class EmergencyStateTracker {
         // exitEmergencySmsCallbackModeAndEmergencyMode() directly.
         mHandler.sendEmptyMessageDelayed(MSG_EXIT_SCBM, delayInMillis);
 
-        if (mFeatureFlags.emergencyCallbackModeNotification()) {
-            if (shouldRestartEcm) {
-                mSmsPhone.restartEmergencyCallbackMode(EMERGENCY_CALLBACK_MODE_SMS, delayInMillis);
-            } else {
-                mSmsPhone.startEmergencyCallbackMode(EMERGENCY_CALLBACK_MODE_SMS, delayInMillis);
-            }
+        if (shouldRestartEcm) {
+            mSmsPhone.restartEmergencyCallbackMode(EMERGENCY_CALLBACK_MODE_SMS, delayInMillis);
+        } else {
+            mSmsPhone.startEmergencyCallbackMode(EMERGENCY_CALLBACK_MODE_SMS, delayInMillis);
         }
     }
 
@@ -1701,18 +1694,29 @@ public class EmergencyStateTracker {
      *
      * @param reason The reason for exiting. See
      *               {@link TelephonyManager.EmergencyCallbackModeStopReason} for possible values.
+     * @param isRadioPowerOff {@code true} if it's caused by radio power off, {@code false}
+     *                        otherwise.
      */
     private void exitEmergencySmsCallbackModeAndEmergencyMode(
-            @TelephonyManager.EmergencyCallbackModeStopReason int reason) {
+            @TelephonyManager.EmergencyCallbackModeStopReason int reason, boolean isRadioPowerOff) {
         Rlog.d(TAG, "exit SCBM and emergency mode");
         final Phone smsPhone = mSmsPhone;
         boolean wasInScbm = isInScbm();
         exitEmergencySmsCallbackMode(reason);
 
-        // The emergency mode needs to be checked to ensure that there is no ongoing emergency SMS.
-        if (wasInScbm && mOngoingEmergencySmsIds.isEmpty()) {
+        // The emergency mode needs to be checked to ensure that there is no ongoing emergency SMS
+        // unless radio power off. If there was an ongoing SMS when turning radio power off, it
+        // should make modem to exit emergency mode before radio power off, as AP can't request
+        // modem to exit the emergency mode after radio power off.
+        if ((smsPhone != null && isRadioPowerOff)
+                || (wasInScbm && mOngoingEmergencySmsIds.isEmpty())) {
             // Exit emergency mode on modem.
             exitEmergencyMode(smsPhone, EMERGENCY_TYPE_SMS);
+
+            // Clear all emergency SMS information when radio power off.
+            if (isRadioPowerOff) {
+                clearEmergencySmsInfo();
+            }
         }
     }
 
@@ -1729,11 +1733,7 @@ public class EmergencyStateTracker {
 
         if (isInScbm()) {
             Rlog.i(TAG, "exit SCBM");
-
-            if (mFeatureFlags.emergencyCallbackModeNotification()) {
-                mSmsPhone.stopEmergencyCallbackMode(EMERGENCY_CALLBACK_MODE_SMS, reason);
-            }
-
+            mSmsPhone.stopEmergencyCallbackMode(EMERGENCY_CALLBACK_MODE_SMS, reason);
             setIsInScbm(false);
         }
 

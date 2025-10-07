@@ -16,7 +16,6 @@
 
 package com.android.internal.telephony;
 
-import static android.Manifest.permission.RECEIVE_SENSITIVE_NOTIFICATIONS;
 import static android.os.PowerWhitelistManager.REASON_EVENT_MMS;
 import static android.os.PowerWhitelistManager.REASON_EVENT_SMS;
 import static android.os.PowerWhitelistManager.TEMPORARY_ALLOWLIST_TYPE_FOREGROUND_SERVICE_ALLOWED;
@@ -28,6 +27,10 @@ import static android.provider.Telephony.Sms.Intents.RESULT_SMS_NULL_PDU;
 import static android.provider.Telephony.Sms.Intents.SMS_RECEIVED_ACTION;
 import static android.service.carrier.CarrierMessagingService.RECEIVE_OPTIONS_SKIP_NOTIFY_WHEN_CREDENTIAL_PROTECTED_STORAGE_UNAVAILABLE;
 import static android.telephony.TelephonyManager.PHONE_TYPE_CDMA;
+
+import static com.android.internal.telephony.TelephonyStatsLog.SMS_OTP_EVALUATION__RESULT__EVALUATION_RESULT_HAS_OTP;
+import static com.android.internal.telephony.TelephonyStatsLog.SMS_OTP_EVALUATION__RESULT__EVALUATION_RESULT_NOT_CHECKED;
+import static com.android.internal.telephony.TelephonyStatsLog.SMS_OTP_EVALUATION__RESULT__EVALUATION_RESULT_NO_OTP;
 
 import android.annotation.IntDef;
 import android.annotation.NonNull;
@@ -50,6 +53,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
+import android.content.pm.ResolveInfo;
 import android.database.Cursor;
 import android.database.SQLException;
 import android.net.Uri;
@@ -61,12 +65,14 @@ import android.os.Looper;
 import android.os.Message;
 import android.os.PowerManager;
 import android.os.PowerWhitelistManager;
+import android.os.SystemClock;
 import android.os.UserHandle;
 import android.os.UserManager;
 import android.os.storage.StorageManager;
 import android.provider.Telephony;
 import android.provider.Telephony.Sms.Intents;
 import android.service.carrier.CarrierMessagingService;
+import android.telephony.SmsManager;
 import android.telephony.SmsMessage;
 import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyManager;
@@ -83,7 +89,8 @@ import com.android.internal.telephony.SmsConstants.MessageClass;
 import com.android.internal.telephony.analytics.TelephonyAnalytics;
 import com.android.internal.telephony.analytics.TelephonyAnalytics.SmsMmsAnalytics;
 import com.android.internal.telephony.flags.FeatureFlags;
-import com.android.internal.telephony.metrics.TelephonyMetrics;
+import com.android.internal.telephony.metrics.PersistAtomsStorage;
+import com.android.internal.telephony.nano.PersistAtomsProto;
 import com.android.internal.telephony.satellite.SatelliteController;
 import com.android.internal.telephony.satellite.metrics.CarrierRoamingSatelliteSessionStats;
 import com.android.internal.telephony.util.NotificationChannelController;
@@ -101,9 +108,12 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -237,6 +247,8 @@ public abstract class InboundSmsHandler extends StateMachine {
 
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     protected final Context mContext;
+
+    protected final PackageManager mPackageManager;
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     private final ContentResolver mResolver;
 
@@ -277,8 +289,6 @@ public abstract class InboundSmsHandler extends StateMachine {
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     private UserManager mUserManager;
 
-    protected TelephonyMetrics mMetrics = TelephonyMetrics.getInstance();
-
     private LocalLog mLocalLog = new LocalLog(64);
     private LocalLog mCarrierServiceLocalLog = new LocalLog(8);
 
@@ -297,7 +307,7 @@ public abstract class InboundSmsHandler extends StateMachine {
 
     private static final TextClassifier.EntityConfig TC_REQUEST_CONFIG =
             new TextClassifier.EntityConfig.Builder()
-                    .setIncludedTypes(List.of(TextClassifier.TYPE_OTP))
+                    .setIncludedTypes(List.of(TextClassifier.TYPE_SMS_RETRIEVER_OTP))
                     .includeTypesFromTextClassifier(false)
                     .build();
 
@@ -305,7 +315,10 @@ public abstract class InboundSmsHandler extends StateMachine {
 
     private final Handler mMainThreadHandler = new Handler(Looper.getMainLooper());
 
+    private final PersistAtomsStorage mAtomsStorage;
+
     private TextClassifier mTextClassifier;
+
 
     private static String ACTION_OPEN_SMS_APP =
         "com.android.internal.telephony.OPEN_DEFAULT_SMS_APP";
@@ -329,10 +342,12 @@ public abstract class InboundSmsHandler extends StateMachine {
 
         mFeatureFlags = featureFlags;
         mContext = context;
+        mPackageManager = context.getPackageManager();
         mStorageMonitor = storageMonitor;
         mPhone = phone;
         mResolver = context.getContentResolver();
         mWapPush = new WapPushOverSms(context, mFeatureFlags);
+        mAtomsStorage = PhoneFactory.getMetricsCollector().getAtomsStorage();
 
         TelephonyManager telephonyManager = TelephonyManager.from(mContext);
         boolean smsCapable = telephonyManager.isDeviceSmsCapable();
@@ -812,7 +827,6 @@ public abstract class InboundSmsHandler extends StateMachine {
         // In case of error, add to metrics. This is not required in case of success, as the
         // data will be tracked when the message is processed (processMessagePart).
         if (result != Intents.RESULT_SMS_HANDLED && result != Activity.RESULT_OK) {
-            mMetrics.writeIncomingSmsError(mPhone.getPhoneId(), is3gpp2(), smsSource, result);
             mPhone.getSmsStats().onIncomingSmsError(is3gpp2(), smsSource, result,
                     isEmergencyNumber(smsb.getOriginatingAddress()), 0);
             if (mPhone != null) {
@@ -1114,9 +1128,6 @@ public abstract class InboundSmsHandler extends StateMachine {
                     } else {
                         loge("processMessagePart: SmsMessage.createFromPdu returned null",
                                 tracker.getMessageId());
-                        mMetrics.writeIncomingWapPush(mPhone.getPhoneId(), tracker.getSource(),
-                                SmsConstants.FORMAT_3GPP, timestamps, false,
-                                tracker.getMessageId());
                         mPhone.getSmsStats().onIncomingSmsWapPush(tracker.getSource(),
                                 messageCount, RESULT_SMS_NULL_MESSAGE, tracker.getMessageId(),
                                 isEmergencyNumber(tracker.getAddress()), 0);
@@ -1152,8 +1163,6 @@ public abstract class InboundSmsHandler extends StateMachine {
             boolean wapPushResult =
                     result == Activity.RESULT_OK || result == Intents.RESULT_SMS_HANDLED;
             int pduLength = wapPushResult ? output.size() : 0;
-            mMetrics.writeIncomingWapPush(mPhone.getPhoneId(), tracker.getSource(),
-                    format, timestamps, wapPushResult, tracker.getMessageId());
             mPhone.getSmsStats().onIncomingSmsWapPush(tracker.getSource(), messageCount,
                     result, tracker.getMessageId(), isEmergencyNumber(tracker.getAddress()),
                     pduLength);
@@ -1173,8 +1182,6 @@ public abstract class InboundSmsHandler extends StateMachine {
         // The metrics are generated before SMS filters are invoked.
         // For messages composed by multiple parts, the metrics are generated considering the
         // characteristics of the last one.
-        mMetrics.writeIncomingSmsSession(mPhone.getPhoneId(), tracker.getSource(),
-                format, timestamps, block, tracker.getMessageId());
         mPhone.getSmsStats().onIncomingSmsSuccess(is3gpp2(), tracker.getSource(),
                 messageCount, block, tracker.getMessageId(),
                 isEmergencyNumber(tracker.getAddress()), getTotalPduLength(pdus));
@@ -1525,6 +1532,11 @@ public abstract class InboundSmsHandler extends StateMachine {
                                 null /* initialExtras */, opts);
             } catch (PackageManager.NameNotFoundException ignored) {
             }
+            PersistAtomsProto.OtpEvaluationEvent evaluationEvent =
+                    new PersistAtomsProto.OtpEvaluationEvent();
+            evaluationEvent.result = SMS_OTP_EVALUATION__RESULT__EVALUATION_RESULT_NOT_CHECKED;
+            evaluationEvent.redactionTimeMs = -1;
+            mAtomsStorage.addOtpEvaluationEvent(evaluationEvent);
         } else {
             checkOtpAndSendBroadcast(intent, permission, appOp, opts, resultReceiver, user);
         }
@@ -1532,6 +1544,7 @@ public abstract class InboundSmsHandler extends StateMachine {
 
     private void checkOtpAndSendBroadcast(Intent intent, String permission, String appOp,
             Bundle opts, SmsBroadcastReceiver resultReceiver, UserHandle user) {
+        final long start = SystemClock.elapsedRealtime();
         mBackgroundExecutor.execute(() -> {
             AtomicBoolean containsOtpCallPending = new AtomicBoolean(true);
             AtomicBoolean sentBroadcastAfterWaitingMaxTime = new AtomicBoolean(false);
@@ -1544,28 +1557,40 @@ public abstract class InboundSmsHandler extends StateMachine {
                             resultReceiver, user);
                 }
             }, MAXIMUM_BROADCAST_DELAY_TIME_MS);
-            boolean containsOtp = containsOtp(intent);
+            Collection<TextLinks.TextLink> textLinks = generateOtpTextLinks(intent);
+            boolean containsOtp = containsOtp(textLinks);
             containsOtpCallPending.set(false);
+            int classificationTime = (int)
+                    (Math.min(SystemClock.elapsedRealtime() - start, Integer.MAX_VALUE));
             if (sentBroadcastAfterWaitingMaxTime.get()) {
                 // Broadcast was already sent, don't re-send
                 return;
             }
+            int result;
             if (containsOtp) {
-                sendBroadcastWithRedactedPermissionChecks(intent, permission, appOp, opts,
-                        resultReceiver, user);
+                String smsRetrieverHashMatchedPackageName = getSmsRetrieverTargetPackageName(
+                        textLinks);
+                sendBroadcastToTrustedPackages(intent, permission, appOp, opts,
+                        resultReceiver, user, smsRetrieverHashMatchedPackageName);
+                result = SMS_OTP_EVALUATION__RESULT__EVALUATION_RESULT_HAS_OTP;
             } else {
                 sendBroadcastWithStandardPermissions(intent, permission, appOp, opts,
                         resultReceiver, user);
+                result = SMS_OTP_EVALUATION__RESULT__EVALUATION_RESULT_NO_OTP;
             }
-
+            PersistAtomsProto.OtpEvaluationEvent evaluationEvent =
+                    new PersistAtomsProto.OtpEvaluationEvent();
+            evaluationEvent.result = result;
+            evaluationEvent.redactionTimeMs = classificationTime;
+            mAtomsStorage.addOtpEvaluationEvent(evaluationEvent);
         });
     }
 
     @WorkerThread
-    private boolean containsOtp(Intent intent) {
+    private Collection<TextLinks.TextLink> generateOtpTextLinks(Intent intent) {
         SmsMessage[] messages = Telephony.Sms.Intents.getMessagesFromIntent(intent);
         if (messages == null) {
-            return false;
+            return Collections.emptyList();
         }
 
         StringBuilder textBuilder = new StringBuilder();
@@ -1575,23 +1600,41 @@ public abstract class InboundSmsHandler extends StateMachine {
             }
         }
         if (textBuilder.isEmpty()) {
-            return false;
+            return Collections.emptyList();
         }
         String text = textBuilder.toString();
 
         TextLinks.Request request =
                 new TextLinks.Request.Builder(text).setEntityConfig(TC_REQUEST_CONFIG).build();
 
-        TextLinks links = getTextClassifier().generateLinks(request);
+        return getTextClassifier().generateLinks(request).getLinks();
+    }
 
-        for (TextLinks.TextLink link : links.getLinks()) {
+    private boolean containsOtp(Collection<TextLinks.TextLink> links) {
+        for (TextLinks.TextLink link : links) {
             for (int i = 0; i < link.getEntityCount(); i++) {
-                if (link.getEntity(i).equals(TextClassifier.TYPE_OTP)) {
+                if (link.getEntity(i).equals(TextClassifier.TYPE_SMS_RETRIEVER_OTP)) {
                     return true;
                 }
             }
         }
         return false;
+    }
+
+    // When the TextClassifier detects an SMS_RETRIEVER_OTP type, it means a hash within the message
+    // was matched to a specific app. This method extracts and returns the package name for that
+    // intended app from the TextClassifier response.
+    @Nullable
+    private String getSmsRetrieverTargetPackageName(Collection<TextLinks.TextLink> links) {
+        for (TextLinks.TextLink link : links) {
+            for (int i = 0; i < link.getEntityCount(); i++) {
+                if (link.getEntity(i).equals(TextClassifier.TYPE_SMS_RETRIEVER_OTP)) {
+                    return link.getExtras().getString(
+                            TextClassifier.EXTRA_SMS_RETRIEVER_HASH_MATCHED_PACKAGE);
+                }
+            }
+        }
+        return null;
     }
 
     private void sendBroadcastWithStandardPermissions(Intent intent, String permission,
@@ -1605,34 +1648,67 @@ public abstract class InboundSmsHandler extends StateMachine {
         }
     }
 
-    private void sendBroadcastWithRedactedPermissionChecks(Intent intent, String permission,
-            String appOp, Bundle opts, SmsBroadcastReceiver resultReceiver, UserHandle user) {
-        // Send a message with the RECEIVE_SENSITIVE_NOTIFICATIONS permission. The result receiver
-        // is not passed, as we will pass it when sending the second copy of this broadcast.
-        String[] permissions = new String[]{permission, RECEIVE_SENSITIVE_NOTIFICATIONS};
-        try {
-            mContext.createPackageContextAsUser(mContext.getPackageName(), 0, user)
-                    .sendOrderedBroadcastMultiplePermissions(intent, permissions, appOp,
-                            /* resultReceiver */ null, getHandler(), Activity.RESULT_OK,
-                            null /* initialData */, null /* initialExtras */, opts);
-        } catch (PackageManager.NameNotFoundException ignored) {
+    @SuppressLint("MissingPermission")
+    private void sendBroadcastToTrustedPackages(Intent intent, String permission,
+            String appOp, Bundle opts, SmsBroadcastReceiver resultReceiver, UserHandle user,
+            @Nullable String additionalTrustedPackage) {
+        Set<String> trustedPackages = SmsManager.getSmsOtpTrustedPackages(mContext, user);
+        if (additionalTrustedPackage != null) {
+            trustedPackages.add(additionalTrustedPackage);
+        }
+        final String[] trustedPackagesArray = new String[trustedPackages.size()];
+        int i = 0;
+        for (String trusted: trustedPackages) {
+            trustedPackagesArray[i] = trusted;
+            i++;
         }
 
-        // Send a message with the RECEIVE_SENSITIVE_NOTIFICATIONS app op. While this does override
-        // the specified app op, for the RECEIVE_SMS permission, the app op is automatically checked
-        // at the same time as the permission, so specifying the app op is superfluous.
         try {
-            permissions = new String[]{permission};
-            appOp = AppOpsManager.OPSTR_RECEIVE_SENSITIVE_NOTIFICATIONS;
-            // Don't send this to receivers that got the first broadcast
-            String[] excludedPermissions = new String[]{RECEIVE_SENSITIVE_NOTIFICATIONS};
+            BroadcastOptions options = new BroadcastOptions(opts);
+            options.setIncludedPackages(trustedPackagesArray);
             mContext.createPackageContextAsUser(mContext.getPackageName(), 0, user)
-                    .sendOrderedBroadcastMultiplePermissions(intent, permissions,
-                            excludedPermissions, appOp, resultReceiver, getHandler(),
-                            Activity.RESULT_OK, null /* initialData */, null /* initialExtras */,
-                            opts);
+                    .sendOrderedBroadcast(intent, Activity.RESULT_OK, permission, appOp,
+                            resultReceiver, getHandler(), null /* initialData */,
+                            null /* initialExtras */, options.toBundle());
+            logRedactedPackages(intent, permission, user, trustedPackages);
         } catch (PackageManager.NameNotFoundException ignored) {
         }
+    }
+
+    private void logRedactedPackages(Intent intent, String permission, UserHandle user,
+            Set<String> trustedPackages) {
+        mBackgroundExecutor.execute(() -> {
+            // Aggregate all apps listening for the SMS_RECEIVED broadcast, with the RECEIVE_SMS
+            // permission, filter out trusted ones, and log metrics for the remaining
+            PackageManager userPm = mContext.createContextAsUser(user, 0).getPackageManager();
+            List<ResolveInfo> receivers = userPm.queryBroadcastReceivers(intent,
+                    PackageManager.MATCH_ALL);
+            List<String> redactedPackages = new ArrayList<>();
+            for (ResolveInfo info: receivers) {
+                if (mPackageManager.checkPermission(permission, info.resolvePackageName)
+                        != PackageManager.PERMISSION_GRANTED) {
+                    continue;
+                }
+                if (trustedPackages.contains(info.resolvePackageName)) {
+                    continue;
+                }
+                redactedPackages.add(info.resolvePackageName);
+            }
+            for (String redactedPackage: redactedPackages) {
+                int uid;
+                try {
+                    uid = mContext.getPackageManager().getPackageUid(redactedPackage,
+                            PackageManager.MATCH_ALL);
+                } catch (PackageManager.NameNotFoundException e) {
+                    continue;
+                }
+                PersistAtomsProto.OtpRedactionEvent event =
+                        new PersistAtomsProto.OtpRedactionEvent();
+                event.uid = uid;
+                event.count = 1;
+                mAtomsStorage.addOtpRedactionEvent(event);
+            }
+        });
     }
 
     private boolean hasUserRestriction(String restrictionKey, UserHandle userHandle) {
@@ -2285,27 +2361,6 @@ public abstract class InboundSmsHandler extends StateMachine {
         Rlog.e(getName(), s, e);
     }
 
-    /**
-     * Build up the SMS message body from the SmsMessage array of received SMS
-     *
-     * @param msgs The SmsMessage array of the received SMS
-     * @return The text message body
-     */
-    private static String buildMessageBodyFromPdus(SmsMessage[] msgs) {
-        if (msgs.length == 1) {
-            // There is only one part, so grab the body directly.
-            return replaceFormFeeds(msgs[0].getDisplayMessageBody());
-        } else {
-            // Build up the body from the parts.
-            StringBuilder body = new StringBuilder();
-            for (SmsMessage msg: msgs) {
-                // getDisplayMessageBody() can NPE if mWrappedMessage inside is null.
-                body.append(msg.getDisplayMessageBody());
-            }
-            return replaceFormFeeds(body.toString());
-        }
-    }
-
     @Override
     public void dump(FileDescriptor fd, PrintWriter printWriter, String[] args) {
         IndentingPrintWriter pw = new IndentingPrintWriter(printWriter, "  ");
@@ -2324,11 +2379,6 @@ public abstract class InboundSmsHandler extends StateMachine {
         mCarrierServiceLocalLog.dump(fd, pw, args);
         pw.decreaseIndent();
         pw.decreaseIndent();
-    }
-
-    // Some providers send formfeeds in their messages. Convert those formfeeds to newlines.
-    private static String replaceFormFeeds(String s) {
-        return s == null ? "" : s.replace('\f', '\n');
     }
 
     @VisibleForTesting
@@ -2377,8 +2427,23 @@ public abstract class InboundSmsHandler extends StateMachine {
                 PackageManager pm = context.getPackageManager();
                 pm = context.createContextAsUser(UserHandle.CURRENT, 0).getPackageManager();
                 if (userManager.isUserUnlocked()) {
-                    context.startActivityAsUser(pm.getLaunchIntentForPackage(
-                            Telephony.Sms.getDefaultSmsPackage(context)), UserHandle.CURRENT);
+                    String defaultSmsPackage = Telephony.Sms.getDefaultSmsPackage(context);
+                    if (defaultSmsPackage == null) {
+                        Rlog.e("InboundSmsHandler",
+                                "NewMessageNotificationActionReceiver: failed to launch default "
+                                        + "sms app, default sms package is null");
+                        return;
+                    }
+                    Intent launchIntent = pm.getLaunchIntentForPackage(defaultSmsPackage);
+                    if (launchIntent == null) {
+                        Rlog.e("InboundSmsHandler",
+                                "NewMessageNotificationActionReceiver: failed to get launch "
+                                        + "intent for "
+                                        + defaultSmsPackage);
+                        return;
+                    }
+                    context.startActivityAsUser(launchIntent, UserHandle.CURRENT);
+
                 }
             }
         }
@@ -2467,5 +2532,16 @@ public abstract class InboundSmsHandler extends StateMachine {
         boolean filterSms(byte[][] pdus, int destPort, InboundSmsTracker tracker,
                 SmsBroadcastReceiver resultReceiver, boolean userUnlocked, boolean block,
                 List<SmsFilter> remainingFilters);
+    }
+
+    /**
+     * Creates a new instance of the private {@code NewMessageNotificationActionReceiver} for
+     * testing.
+     *
+     * @return A new instance of {@code NewMessageNotificationActionReceiver}.
+     */
+    @VisibleForTesting
+    public BroadcastReceiver makeNewMessageNotificationActionReceiver() {
+        return new NewMessageNotificationActionReceiver();
     }
 }

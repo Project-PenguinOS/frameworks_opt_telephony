@@ -70,8 +70,6 @@ import android.telephony.SubscriptionInfo;
 import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyManager;
 import android.telephony.TelephonyRegistryManager;
-import android.telephony.ims.ImsReasonInfo;
-import android.telephony.ims.ImsRegistrationAttributes;
 import android.telephony.ims.RegistrationManager;
 import android.telephony.ims.stub.ImsRegistrationImplBase;
 import android.util.ArrayMap;
@@ -98,7 +96,6 @@ import com.android.internal.telephony.data.DataNetworkController.NetworkRequestL
 import com.android.internal.telephony.data.DataSettingsManager.DataSettingsManagerCallback;
 import com.android.internal.telephony.flags.FeatureFlags;
 import com.android.internal.telephony.imsphone.ImsPhone;
-import com.android.internal.telephony.metrics.TelephonyMetrics;
 import com.android.internal.telephony.nano.TelephonyProto.TelephonyEvent;
 import com.android.internal.telephony.nano.TelephonyProto.TelephonyEvent.DataSwitch;
 import com.android.internal.telephony.subscription.SubscriptionInfoInternal;
@@ -413,7 +410,7 @@ public class PhoneSwitcher extends Handler {
             mAutoDataSwitchCallback;
 
     private final ConnectivityManager mConnectivityManager;
-    private int mImsRegistrationTech = REGISTRATION_TECH_NONE;
+
     @VisibleForTesting
     public final SparseIntArray mImsRegistrationRadioTechMap = new SparseIntArray();
     @NonNull
@@ -450,26 +447,6 @@ public class PhoneSwitcher extends Handler {
             mAutoDataSwitchController.updateDefaultNetworkCapabilities(null);
         }
     }
-
-    private final RegistrationManager.RegistrationCallback mRegistrationCallback =
-            new RegistrationManager.RegistrationCallback() {
-        @Override
-        public void onRegistered(@NonNull ImsRegistrationAttributes attributes) {
-            int imsRegistrationTech = attributes.getRegistrationTechnology();
-            if (imsRegistrationTech != mImsRegistrationTech) {
-                mImsRegistrationTech = imsRegistrationTech;
-                sendMessage(obtainMessage(EVENT_IMS_RADIO_TECH_CHANGED));
-            }
-        }
-
-        @Override
-        public void onUnregistered(@NonNull ImsReasonInfo info) {
-            if (mImsRegistrationTech != REGISTRATION_TECH_NONE) {
-                mImsRegistrationTech = REGISTRATION_TECH_NONE;
-                sendMessage(obtainMessage(EVENT_IMS_RADIO_TECH_CHANGED));
-            }
-        }
-    };
 
     private final DefaultNetworkCallback mDefaultNetworkCallback = new DefaultNetworkCallback();
 
@@ -542,26 +519,6 @@ public class PhoneSwitcher extends Handler {
             return true;
         } else {
             return false;
-        }
-    }
-
-    private void registerForImsRadioTechChange(Context context, int phoneId) {
-        try {
-            mImsRegisterCallback.setCallback(context, phoneId, mRegistrationCallback, this::post);
-            mIsRegisteredForImsRadioTechChange = true;
-        } catch (ImsException imsException) {
-            mIsRegisteredForImsRadioTechChange = false;
-        }
-    }
-
-// QTI_BEGIN: 2024-06-04: Telephony: Fix for temp DDS being triggered by IMS radio tech changed
-    protected void registerForImsRadioTechChange() {
-// QTI_END: 2024-06-04: Telephony: Fix for temp DDS being triggered by IMS radio tech changed
-        // register for radio tech change to listen to radio tech handover.
-        if (!mIsRegisteredForImsRadioTechChange) {
-            for (int i = 0; i < mActiveModemCount; i++) {
-                registerForImsRadioTechChange(mContext, i);
-            }
         }
     }
 
@@ -744,14 +701,6 @@ public class PhoneSwitcher extends Handler {
             @TelephonyManager.MobileDataPolicy int policy) {}
 
 // QTI_END: 2025-02-07: Telephony: Telephony-Data: Decouple Qualcomm value adds.
-    private final BroadcastReceiver mDefaultDataChangedReceiver = new BroadcastReceiver() {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            Message msg = PhoneSwitcher.this.obtainMessage(EVENT_PRIMARY_DATA_SUB_CHANGED);
-            msg.sendToTarget();
-        }
-    };
-
     private final BroadcastReceiver mSimStateIntentReceiver = new BroadcastReceiver() {
 // QTI_BEGIN: 2021-04-19: Telephony: Add support to retry for DDS switch failures
         @Override
@@ -1910,17 +1859,18 @@ public class PhoneSwitcher extends Handler {
         }
         Call bgCall = phone.getBackgroundCall();
         Call fgCall = phone.getForegroundCall();
-        if (bgCall == null || fgCall == null) {
+        Call ringingCall = phone.getRingingCall();
+        if (bgCall == null || fgCall == null || ringingCall == null) {
             return false;
         }
         // A phone in voice call might trigger data being switched to it.
         // Exclude dialing to give modem time to process an EMC first before dealing with DDS switch
         // Include alerting because modem RLF leads to delay in switch, so carrier required to
         // switch in alerting phase.
-        // TODO: check ringing call for vDADA
         return (!bgCall.isIdle() && bgCall.getState() != Call.State.DIALING)
                 || (!fgCall.isIdle() && fgCall.getState() != Call.State.DIALING)
-                || phone.getRingingCall().isRinging();
+                || phone.getRingingCall().isRinging()
+                || (!ringingCall.isIdle() && ringingCall.getState() != Call.State.DIALING);
     }
 
     private void updateHalCommandToUse() {
@@ -2005,7 +1955,6 @@ public class PhoneSwitcher extends Handler {
         DataSwitch dataSwitch = new DataSwitch();
         dataSwitch.state = state;
         dataSwitch.reason = reason;
-        TelephonyMetrics.getInstance().writeDataSwitch(subId, dataSwitch);
     }
 
     /**

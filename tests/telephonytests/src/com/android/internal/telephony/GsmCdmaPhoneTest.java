@@ -27,8 +27,8 @@ import static com.android.internal.telephony.Phone.EVENT_SET_SECURITY_ALGORITHMS
 import static com.android.internal.telephony.Phone.EVENT_SRVCC_STATE_CHANGED;
 import static com.android.internal.telephony.Phone.EVENT_UICC_APPS_ENABLEMENT_STATUS_CHANGED;
 import static com.android.internal.telephony.TelephonyTestUtils.waitForMs;
-import static com.android.internal.telephony.test.SimulatedCommands.FAKE_IMEI;
-import static com.android.internal.telephony.test.SimulatedCommands.FAKE_IMEISV;
+import static com.android.internal.telephony.SimulatedCommands.FAKE_IMEI;
+import static com.android.internal.telephony.SimulatedCommands.FAKE_IMEISV;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -97,8 +97,6 @@ import com.android.internal.telephony.imsphone.ImsPhone;
 import com.android.internal.telephony.imsphone.ImsPhoneCall;
 import com.android.internal.telephony.subscription.SubscriptionInfoInternal;
 import com.android.internal.telephony.subscription.SubscriptionManagerService;
-import com.android.internal.telephony.test.SimulatedCommands;
-import com.android.internal.telephony.test.SimulatedCommandsVerifier;
 import com.android.internal.telephony.uicc.AdnRecord;
 import com.android.internal.telephony.uicc.AdnRecordCache;
 import com.android.internal.telephony.uicc.IccCardApplicationStatus;
@@ -370,9 +368,6 @@ public class GsmCdmaPhoneTest extends TelephonyTest {
 
         // Ensure the phone type is GSM
         GsmCdmaPhone spyPhone = spy(mPhoneUT);
-        doReturn(false).when(spyPhone).isPhoneTypeCdma();
-        doReturn(false).when(spyPhone).isPhoneTypeCdmaLte();
-        doReturn(true).when(spyPhone).isPhoneTypeGsm();
 
         assertEquals(subscriberId, spyPhone.getSubscriberId());
     }
@@ -829,32 +824,6 @@ public class GsmCdmaPhoneTest extends TelephonyTest {
     }
 
 // QTI_END: 2018-04-09: Telephony: IMS: Add UT interface to query CF setting for service class.
-    @Test
-    public void testZeroMeid() {
-        doReturn(false).when(mSST).isDeviceShuttingDown();
-
-        SimulatedCommands sc = new SimulatedCommands() {
-            @Override
-            public void getDeviceIdentity(Message response) {
-                SimulatedCommandsVerifier.getInstance().getDeviceIdentity(response);
-                resultSuccess(response, new String[] {FAKE_IMEI, FAKE_IMEISV, FAKE_ESN, "0000000"});
-            }
-        };
-
-        Phone phone = new GsmCdmaPhone(mContext, sc, mNotifier, true, 0,
-                PhoneConstants.PHONE_TYPE_GSM, mTelephonyComponentFactory, (c, p) -> mImsManager,
-                mFeatureFlags);
-        phone.setVoiceCallSessionStats(mVoiceCallSessionStats);
-        ArgumentCaptor<Integer> integerArgumentCaptor = ArgumentCaptor.forClass(Integer.class);
-        verify(mUiccController).registerForIccChanged(eq(phone), integerArgumentCaptor.capture(),
-                nullable(Object.class));
-        Message msg = Message.obtain();
-        msg.what = integerArgumentCaptor.getValue();
-        phone.sendMessage(msg);
-        processAllMessages();
-
-        assertNull(phone.getMeid());
-    }
 
     private void verifyEcbmIntentSent(int times, boolean isInEcm) throws Exception {
         ArgumentCaptor<Intent> intentArgumentCaptor = ArgumentCaptor.forClass(Intent.class);

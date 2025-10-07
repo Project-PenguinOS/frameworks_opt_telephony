@@ -28,6 +28,7 @@ import static android.net.NetworkCapabilities.TRANSPORT_CELLULAR;
 import static android.telephony.CarrierConfigManager.OPP_AUTO_DATA_SWITCH_POLICY_BITMASK_AVAILABILITY;
 import static android.telephony.CarrierConfigManager.OPP_AUTO_DATA_SWITCH_POLICY_BITMASK_PERFORMANCE;
 import static android.telephony.CarrierConfigManager.OPP_AUTO_DATA_SWITCH_POLICY_DISABLED;
+import static android.telephony.CarrierConfigManager.OPP_AUTO_DATA_SWITCH_POLICY_FOLLOW_SYSTEM;
 import static android.telephony.CarrierConfigManager.OpportunisticNetworkSwitchPolicy;
 import static android.telephony.SubscriptionManager.DEFAULT_PHONE_INDEX;
 import static android.telephony.SubscriptionManager.INVALID_PHONE_INDEX;
@@ -51,6 +52,7 @@ import android.os.Message;
 import android.os.SystemClock;
 import android.provider.Settings;
 import android.telephony.AccessNetworkConstants;
+import android.telephony.CarrierConfigManager;
 import android.telephony.NetworkRegistrationInfo;
 import android.telephony.NetworkRegistrationInfo.RegistrationState;
 import android.telephony.ServiceState;
@@ -73,7 +75,6 @@ import com.android.internal.telephony.subscription.SubscriptionManagerService;
 import com.android.internal.telephony.util.NotificationChannelController;
 import com.android.telephony.Rlog;
 
-
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
 import java.lang.annotation.Retention;
@@ -81,9 +82,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 
 /**
  * Recommend a data phone to use based on its availability.
@@ -105,6 +104,8 @@ public class AutoDataSwitchController extends Handler {
     public static final int EVALUATION_REASON_SIM_LOADED = 7;
     /** Voice call ended. */
     public static final int EVALUATION_REASON_VOICE_CALL_END = 8;
+    /** Carrier configuration changed */
+    public static final int EVALUATION_REASON_CARRIER_CONFIG_CHANGED = 9;
     @Retention(RetentionPolicy.SOURCE)
     @IntDef(prefix = "EVALUATION_REASON_",
             value = {EVALUATION_REASON_REGISTRATION_STATE_CHANGED,
@@ -114,7 +115,8 @@ public class AutoDataSwitchController extends Handler {
                     EVALUATION_REASON_DATA_SETTINGS_CHANGED,
                     EVALUATION_REASON_RETRY_VALIDATION,
                     EVALUATION_REASON_SIM_LOADED,
-                    EVALUATION_REASON_VOICE_CALL_END})
+                    EVALUATION_REASON_VOICE_CALL_END,
+                    EVALUATION_REASON_CARRIER_CONFIG_CHANGED})
     public @interface AutoDataSwitchEvaluationReason {}
 
     /**
@@ -200,6 +202,8 @@ public class AutoDataSwitchController extends Handler {
     private final AutoDataSwitchControllerCallback mPhoneSwitcherCallback;
     @NonNull
     private final AlarmManager mAlarmManager;
+    @NonNull
+    private final CarrierConfigManager mCarrierConfigManager;
     /** A map of a scheduled event to its associated extra for action when the event fires off. */
     @NonNull
     private final Map<Integer, Object> mScheduledEventsToExtras;
@@ -309,7 +313,7 @@ public class AutoDataSwitchController extends Handler {
         private int getRatSignalScore() {
             return isInService(mDataRegState)
                     ? mPhone.getDataNetworkController().getDataConfigManager()
-                            .getAutoDataSwitchScore(mDisplayInfo, mSignalStrength) : 0;
+                    .getAutoDataSwitchScore(mDisplayInfo, mSignalStrength) : 0;
         }
 
         /**
@@ -394,6 +398,18 @@ public class AutoDataSwitchController extends Handler {
         sFeatureFlags = featureFlags;
         mPhoneSwitcherCallback = phoneSwitcherCallback;
         mAlarmManager = context.getSystemService(AlarmManager.class);
+        mCarrierConfigManager = context.getSystemService(CarrierConfigManager.class);
+        if (sFeatureFlags.monitorCarrierConfigChangeForAutoDataSwitch()) {
+            mCarrierConfigManager.registerCarrierConfigChangeListener(this::post,
+                    (logicalSlotIndex, subId, carrierId, specificCarrierId) -> {
+                        // Carrier config change is only used from primary sub to detect OPPT switch
+                        if (!shouldExcludeOpportunisticForSwitch() && isActiveVisibleSubId(subId)) {
+                            logl("onCarrierConfigChanged: slot=" + logicalSlotIndex + ", sub="
+                                    + subId + ", carrierId=" + carrierId);
+                            evaluateAutoDataSwitch(EVALUATION_REASON_CARRIER_CONFIG_CHANGED);
+                        }
+                    });
+        }
         mScheduledEventsToExtras = new HashMap<>();
         mEventsToAlarmListener = new HashMap<>();
         mSubscriptionManagerService = SubscriptionManagerService.getInstance();
@@ -437,32 +453,8 @@ public class AutoDataSwitchController extends Handler {
      * sub to reduce unnecessary tracking.
      */
     private void onSubscriptionsChanged() {
-        if (sFeatureFlags.autoDataPruneListener()) {
-            boolean changed = updateListenerRegistrations();
-            if (changed) logl("onSubscriptionChanged: " + Arrays.toString(mPhonesSignalStatus));
-        } else {
-            Set<Integer> activePhoneIds = Arrays.stream(mSubscriptionManagerService
-                            .getActiveSubIdList(shouldExcludeOpportunisticForSwitch()
-                                    /*visibleOnly*/))
-                    .map(mSubscriptionManagerService::getPhoneId)
-                    .boxed()
-                    .collect(Collectors.toSet());
-            // Track events only if there are at least two active subscriptions.
-            if (activePhoneIds.size() < 2) activePhoneIds.clear();
-            boolean changed = false;
-            for (int phoneId = 0; phoneId < mPhonesSignalStatus.length; phoneId++) {
-                if (activePhoneIds.contains(phoneId)
-                        && !mPhonesSignalStatus[phoneId].mListeningForEvents) {
-                    registerAllEventsForPhone(phoneId);
-                    changed = true;
-                } else if (!activePhoneIds.contains(phoneId)
-                        && mPhonesSignalStatus[phoneId].mListeningForEvents) {
-                    unregisterAllEventsForPhone(phoneId);
-                    changed = true;
-                }
-            }
-            if (changed) logl("onSubscriptionChanged: " + Arrays.toString(mPhonesSignalStatus));
-        }
+        boolean changed = updateListenerRegistrations();
+        if (changed) logl("onSubscriptionChanged: " + Arrays.toString(mPhonesSignalStatus));
     }
 
     /**
@@ -481,9 +473,6 @@ public class AutoDataSwitchController extends Handler {
      * @return `true` if any registration changed; `false` otherwise.
      */
     private boolean updateListenerRegistrations() {
-        if (!sFeatureFlags.autoDataPruneListener()) {
-            return false;
-        }
         boolean shouldUnregister = false;
         String reason = "";
 
@@ -777,7 +766,8 @@ public class AutoDataSwitchController extends Handler {
                 << mAutoSwitchValidationFailedCount
                 : 0;
         if (reason == EVALUATION_REASON_DATA_SETTINGS_CHANGED
-                || reason == EVALUATION_REASON_DEFAULT_NETWORK_CHANGED) {
+                || reason == EVALUATION_REASON_DEFAULT_NETWORK_CHANGED
+                || reason == EVALUATION_REASON_CARRIER_CONFIG_CHANGED) {
             // In some conditions, listeners are paused to reduce unnecessary tracking.
             updateListenerRegistrations();
             // Always reevaluate with those critical condition change.
@@ -796,6 +786,15 @@ public class AutoDataSwitchController extends Handler {
      * @param reason The reason for the evaluation.
      */
     private void onEvaluateAutoDataSwitch(@AutoDataSwitchEvaluationReason int reason) {
+        if (sFeatureFlags.monitorCarrierConfigChangeForAutoDataSwitch()
+                && reason == EVALUATION_REASON_CARRIER_CONFIG_CHANGED
+                && shouldExcludeOpportunisticForSwitch()
+                && mScheduledEventsToExtras.containsKey(EVENT_STABILITY_CHECK_PASSED)) {
+            log("onEvaluateAutoDataSwitch: opportunistic policy disabled, cancelling pending "
+                    + "switch");
+            cancelAnyPendingSwitch();
+            return;
+        }
         // auto data switch feature is disabled.
         if (!isAvailabilityBasedSwitchEnabled()) return;
         int defaultDataSubId = mSubscriptionManagerService.getDefaultDataSubId();
@@ -1148,7 +1147,21 @@ public class AutoDataSwitchController extends Handler {
             case EVALUATION_REASON_RETRY_VALIDATION -> "RETRY_VALIDATION";
             case EVALUATION_REASON_SIM_LOADED -> "SIM_LOADED";
             case EVALUATION_REASON_VOICE_CALL_END -> "VOICE_CALL_END";
+            case EVALUATION_REASON_CARRIER_CONFIG_CHANGED -> "CARRIER_CONFIG_CHANGED";
             default -> "Unknown(" + reason + ")";
+        };
+    }
+
+    /** Opportunistic network switch policy to string. */
+    @NonNull
+    public static String opportunisticNetworkSwitchPolicyToString(
+            @OpportunisticNetworkSwitchPolicy int policy) {
+        return switch (policy) {
+            case OPP_AUTO_DATA_SWITCH_POLICY_DISABLED -> "DISABLED";
+            case OPP_AUTO_DATA_SWITCH_POLICY_FOLLOW_SYSTEM -> "FOLLOW_SYSTEM";
+            case OPP_AUTO_DATA_SWITCH_POLICY_BITMASK_AVAILABILITY -> "AVAILABILITY";
+            case OPP_AUTO_DATA_SWITCH_POLICY_BITMASK_PERFORMANCE -> "PERFORMANCE";
+            default -> "Unknown(" + policy + ")";
         };
     }
 
@@ -1157,6 +1170,13 @@ public class AutoDataSwitchController extends Handler {
         SubscriptionInfoInternal subInfo = mSubscriptionManagerService
                 .getSubscriptionInfoInternal(subId);
         return subInfo != null && subInfo.isActive();
+    }
+
+    /** @return {@code true} if the sub is active and visible. */
+    private boolean isActiveVisibleSubId(int subId) {
+        SubscriptionInfoInternal subInfo = mSubscriptionManagerService
+                .getSubscriptionInfoInternal(subId);
+        return subInfo != null && subInfo.isActive() && subInfo.isVisible();
     }
 
     /**
@@ -1307,10 +1327,12 @@ public class AutoDataSwitchController extends Handler {
      * - Primary profile doesn't override carrier config to enable the feature
      */
     private boolean shouldExcludeOpportunisticForSwitch() {
-        return !sFeatureFlags.macroBasedOpportunisticNetworks()
+        final boolean excludeOppt =  !sFeatureFlags.macroBasedOpportunisticNetworks()
                 || mSubscriptionManagerService.getActiveSubIdList(true /*visibleOnly*/).length != 1
                 || getOpptSwitchPolicyForPrimaryPhone()
                 == OPP_AUTO_DATA_SWITCH_POLICY_DISABLED;
+        if (!excludeOppt) log("OPPT switch included!");
+        return excludeOppt;
     }
 
     /**
@@ -1322,10 +1344,17 @@ public class AutoDataSwitchController extends Handler {
         if (activeSubs.length != 1) {
             return OPP_AUTO_DATA_SWITCH_POLICY_DISABLED;
         }
-        return PhoneFactory.getPhone(mSubscriptionManagerService.getPhoneId(activeSubs[0]))
-                .getDataNetworkController()
-                .getDataConfigManager()
-                .getCarrierOverriddenAutoDataSwitchPolicyForOppt();
+        if (sFeatureFlags.monitorCarrierConfigChangeForAutoDataSwitch()) {
+            return mCarrierConfigManager.getCarrierConfigSubset(mContext, activeSubs[0],
+                    CarrierConfigManager.KEY_OPP_AUTO_DATA_SWITCH_POLICY_INT).getInt(
+                    CarrierConfigManager.KEY_OPP_AUTO_DATA_SWITCH_POLICY_INT,
+                    OPP_AUTO_DATA_SWITCH_POLICY_DISABLED);
+        } else {
+            return PhoneFactory.getPhone(mSubscriptionManagerService.getPhoneId(activeSubs[0]))
+                    .getDataNetworkController()
+                    .getDataConfigManager()
+                    .getCarrierOverriddenAutoDataSwitchPolicyForOppt();
+        }
     }
 
     private boolean isAvailabilityBasedSwitchEnabledForOppt() {
@@ -1382,6 +1411,10 @@ public class AutoDataSwitchController extends Handler {
         STABILITY_CHECK_TIMER_MAP.forEach((key, value)
                 -> pw.println(switchTypeToString(key) + ": " + value));
         pw.println("mSelectedTargetPhoneId=" + mSelectedTargetPhoneId);
+        if (sFeatureFlags.monitorCarrierConfigChangeForAutoDataSwitch()) {
+            pw.println("autoDataSwitchPolicyForOppt=" + opportunisticNetworkSwitchPolicyToString(
+                    getOpptSwitchPolicyForPrimaryPhone()));
+        }
         pw.increaseIndent();
         for (PhoneSignalStatus status: mPhonesSignalStatus) {
             pw.println(status);

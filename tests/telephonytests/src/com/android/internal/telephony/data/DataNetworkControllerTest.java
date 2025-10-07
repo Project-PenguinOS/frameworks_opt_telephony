@@ -5780,7 +5780,7 @@ public class DataNetworkControllerTest extends TelephonyTest {
         NetworkCapabilities netCaps = new NetworkCapabilities();
         netCaps.addCapability(NetworkCapabilities.NET_CAPABILITY_RCS);
         try {
-            netCaps.addCapability(DataUtils.NET_CAPABILITY_NOT_BANDWIDTH_CONSTRAINED);
+            netCaps.addCapability(NetworkCapabilities.NET_CAPABILITY_NOT_BANDWIDTH_CONSTRAINED);
         } catch (Exception ignored) { }
         request = new TelephonyNetworkRequest(new NetworkRequest(netCaps,
                 ConnectivityManager.TYPE_MOBILE, ++mNetworkRequestId,
@@ -5796,7 +5796,7 @@ public class DataNetworkControllerTest extends TelephonyTest {
         netCaps.addCapability(NetworkCapabilities.NET_CAPABILITY_RCS);
         netCaps.removeCapability(NetworkCapabilities.NET_CAPABILITY_NOT_RESTRICTED);
         try {
-            netCaps.addCapability(DataUtils.NET_CAPABILITY_NOT_BANDWIDTH_CONSTRAINED);
+            netCaps.addCapability(NetworkCapabilities.NET_CAPABILITY_NOT_BANDWIDTH_CONSTRAINED);
         } catch (Exception ignored) { }
         request = new TelephonyNetworkRequest(new NetworkRequest(netCaps,
                 ConnectivityManager.TYPE_MOBILE, ++mNetworkRequestId,

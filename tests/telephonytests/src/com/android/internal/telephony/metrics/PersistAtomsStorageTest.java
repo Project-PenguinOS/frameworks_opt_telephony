@@ -95,6 +95,8 @@ import com.android.internal.telephony.nano.PersistAtomsProto.ImsRegistrationServ
 import com.android.internal.telephony.nano.PersistAtomsProto.ImsRegistrationStats;
 import com.android.internal.telephony.nano.PersistAtomsProto.ImsRegistrationTermination;
 import com.android.internal.telephony.nano.PersistAtomsProto.IncomingSms;
+import com.android.internal.telephony.nano.PersistAtomsProto.OtpEvaluationEvent;
+import com.android.internal.telephony.nano.PersistAtomsProto.OtpRedactionEvent;
 import com.android.internal.telephony.nano.PersistAtomsProto.OutgoingShortCodeSms;
 import com.android.internal.telephony.nano.PersistAtomsProto.OutgoingSms;
 import com.android.internal.telephony.nano.PersistAtomsProto.PersistAtoms;
@@ -326,6 +328,7 @@ public class PersistAtomsStorageTest extends TelephonyTest {
     private SatelliteAccessController mSatelliteAccessController1;
     private SatelliteAccessController mSatelliteAccessController2;
     private SatelliteAccessController[] mSatelliteAccessControllers;
+
 
     private void makeTestData() {
         // MO call with SRVCC (LTE to UMTS)
@@ -5619,6 +5622,162 @@ public class PersistAtomsStorageTest extends TelephonyTest {
         DataNetworkValidation[] output =
                 mPersistAtomsStorage.getDataNetworkValidation(0L);
         assertTrue(output.length <= maxNumDataNetworkValidation);
+    }
+
+    @Test
+    public void addOtpEvaluationEvent_newEntry() throws Exception {
+        // Set up
+        doReturn(false).when(mPackageManager).hasSystemFeature(anyString());
+        createEmptyTestFile();
+
+        OtpEvaluationEvent event = createOtpEvaluationEvent(0, 1);
+        mPersistAtomsStorage = new TestablePersistAtomsStorage(mContext);
+        mPersistAtomsStorage.addOtpEvaluationEvent(createOtpEvaluationEvent(0, 1));
+        mPersistAtomsStorage.incTimeMillis(100L);
+
+        // There should be 1 OtpEvaluationEvent
+        verifyCurrentStateSavedToFileOnce();
+        OtpEvaluationEvent[] output = mPersistAtomsStorage.getOtpEvaluationEventStats(0L);
+        assertProtoArrayEqualsIgnoringOrder(new OtpEvaluationEvent[] { event }, output);
+    }
+
+    @Test
+    public void addOtpEvaluationEvent_tooMany_doesntEjectMaximums() throws Exception {
+        // Set up
+        doReturn(false).when(mPackageManager).hasSystemFeature(anyString());
+        createEmptyTestFile();
+
+        mPersistAtomsStorage = new TestablePersistAtomsStorage(mContext);
+        // Current maximum OTP events is 100.
+        int maxNumOtpEvents = 100;
+        int maxTime = 1;
+        // Log 99 events, each with their own result
+        for (int i = 0; i < maxNumOtpEvents - 1; i++) {
+            mPersistAtomsStorage.addOtpEvaluationEvent(createOtpEvaluationEvent(i, maxTime));
+        }
+        int testTime = 0;
+        // Add 10 events, each with different results, and a lower redaction time than the previous
+        // 99
+        for (int i = 0; i < maxNumOtpEvents / 10; i++) {
+            mPersistAtomsStorage.addOtpEvaluationEvent(createOtpEvaluationEvent(i, testTime));
+        }
+
+        // There should be only one event with the "testTime" redactionTime
+        int numNonMaxTimeEvents = 0;
+        for (OtpEvaluationEvent event : mPersistAtomsStorage.getOtpEvaluationEventStats(0)) {
+            if (event.redactionTimeMs == testTime) {
+                numNonMaxTimeEvents++;
+            }
+        }
+        assertEquals("Expected only one event with time 0 to remain", 1, numNonMaxTimeEvents);
+    }
+
+    @Test
+    public void addOtpEvaluationEvent_asManyResultsAsSpace_ejectsRandomly() throws Exception {
+        // Set up
+        doReturn(false).when(mPackageManager).hasSystemFeature(anyString());
+        createEmptyTestFile();
+
+        mPersistAtomsStorage = new TestablePersistAtomsStorage(mContext);
+        // Current maximum OTP events is 100.
+        int maxNumOtpEvents = 100;
+        int maxTime = 1;
+        // Log 100 events, each with their own result
+        for (int i = 0; i < maxNumOtpEvents; i++) {
+            mPersistAtomsStorage.addOtpEvaluationEvent(createOtpEvaluationEvent(i, maxTime));
+        }
+        int testTime = 0;
+        // Add 10 events, each with a lower redaction time than the previous 99
+        for (int i = 0; i < maxNumOtpEvents / 10; i++) {
+            mPersistAtomsStorage.addOtpEvaluationEvent(createOtpEvaluationEvent(1, testTime));
+        }
+
+        // There should be only one event with the "testTime" redactionTime, since we're ejecting
+        // one maximum, leaving one space with a non-maximum value, which will be repeatedly filled
+        int numNonMaxTimeEvents = 0;
+        for (OtpEvaluationEvent event : mPersistAtomsStorage.getOtpEvaluationEventStats(0)) {
+            if (event.redactionTimeMs == testTime) {
+                numNonMaxTimeEvents++;
+            }
+        }
+        assertEquals("Expected only one event with time 0 to remain", 1, numNonMaxTimeEvents);
+    }
+
+    private OtpEvaluationEvent createOtpEvaluationEvent(int result, int redactionTime) {
+        OtpEvaluationEvent event = new OtpEvaluationEvent();
+        event.result = result;
+        event.redactionTimeMs = redactionTime;
+        return event;
+    }
+
+    @Test
+    public void addOtpRedactionEvent_newEntry() throws Exception {
+        // Set up
+        doReturn(false).when(mPackageManager).hasSystemFeature(anyString());
+        createEmptyTestFile();
+
+        OtpRedactionEvent event = createOtpRedactionEvent(0, 1);
+        mPersistAtomsStorage = new TestablePersistAtomsStorage(mContext);
+        mPersistAtomsStorage.addOtpRedactionEvent(createOtpRedactionEvent(0, 1));
+        mPersistAtomsStorage.incTimeMillis(100L);
+
+        // There should be 1 OtpRedactionEvent
+        verifyCurrentStateSavedToFileOnce();
+        OtpRedactionEvent[] output = mPersistAtomsStorage.getOtpRedactionEventStats(0L);
+        assertProtoArrayEqualsIgnoringOrder(new OtpRedactionEvent[] { event }, output);
+    }
+
+    @Test
+    public void addOtpRedactionEvent_incrementCountForExistingUid() throws Exception {
+        // Set up
+        doReturn(false).when(mPackageManager).hasSystemFeature(anyString());
+        createEmptyTestFile();
+
+        OtpRedactionEvent event = createOtpRedactionEvent(0, 1);
+        OtpRedactionEvent event2 = createOtpRedactionEvent(0, 2);
+        mPersistAtomsStorage = new TestablePersistAtomsStorage(mContext);
+        mPersistAtomsStorage.addOtpRedactionEvent(event);
+        mPersistAtomsStorage.addOtpRedactionEvent(event);
+        mPersistAtomsStorage.incTimeMillis(100L);
+
+        // There should be one event, with a count of 2
+        OtpRedactionEvent[] output = mPersistAtomsStorage.getOtpRedactionEventStats(0L);
+        assertProtoArrayEqualsIgnoringOrder(new OtpRedactionEvent[] { event2 }, output);
+    }
+
+    @Test
+    public void addOtpRedactionEvent_newUidWhenArrayFull_replacesOld() throws Exception {
+        // Set up
+        doReturn(false).when(mPackageManager).hasSystemFeature(anyString());
+        createEmptyTestFile();
+
+        mPersistAtomsStorage = new TestablePersistAtomsStorage(mContext);
+        // Current maximum OTP events is 100.
+        int maxNumOtpEvents = 100;
+        int maxTime = 1;
+        // Log 99 events, each with their own result
+        for (int i = 0; i < maxNumOtpEvents; i++) {
+            mPersistAtomsStorage.addOtpRedactionEvent(createOtpRedactionEvent(i, 1));
+        }
+        mPersistAtomsStorage.addOtpRedactionEvent(createOtpRedactionEvent(maxNumOtpEvents + 1, 1));
+
+        // The most recent event should be present
+        boolean foundLast = false;
+        OtpRedactionEvent[] events = mPersistAtomsStorage.getOtpRedactionEventStats(0);
+        assertEquals("Expected 100 events", maxNumOtpEvents, events.length);
+        for (OtpRedactionEvent event : events) {
+            if (event.uid == maxNumOtpEvents + 1) {
+                foundLast = true;
+            }
+        }
+        assertTrue("Expected the 101st event added to be present", foundLast);
+    }
+
+    private OtpRedactionEvent createOtpRedactionEvent(int uid, int count) {
+        OtpRedactionEvent event = new OtpRedactionEvent();
+        event.uid = uid;
+        event.count = count;
+        return event;
     }
 
     @Test

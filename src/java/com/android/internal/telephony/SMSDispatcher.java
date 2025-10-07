@@ -3333,7 +3333,7 @@ public abstract class SMSDispatcher extends Handler {
             if (mFeatureFlags.satellite25q4Apis()
                     && result == SmsManager.RESULT_RIL_SMS_SEND_FAIL_RETRY
                     && tracker.mRetryCount >= getMaxSmsRetryCount()) {
-                resultForMetrics = SmsManager.RESULT_SMS_SEND_FAIL_AFTER_MAX_RETRY;
+                resultForMetrics = SmsManager.RESULT_SMS_SEND_FAILED_AFTER_MAX_RETRY;
             }
 
             mPhone.getSmsStats().onOutgoingSms(

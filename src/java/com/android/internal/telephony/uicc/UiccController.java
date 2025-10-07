@@ -38,11 +38,9 @@ import android.app.BroadcastOptions;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.content.pm.PackageManager;
 import android.os.AsyncResult;
 import android.os.Build;
 import android.os.Handler;
-import android.os.Looper;
 import android.os.Message;
 import android.os.RegistrantList;
 import android.os.SystemProperties;
@@ -65,7 +63,6 @@ import android.util.LocalLog;
 import android.util.Log;
 
 import com.android.internal.annotations.VisibleForTesting;
-import com.android.internal.hidden_from_bootclasspath.com.android.internal.telephony.flags.Flags;
 import com.android.internal.telephony.CarrierServiceBindHelper;
 import com.android.internal.telephony.CommandException;
 import com.android.internal.telephony.CommandsInterface;
@@ -78,7 +75,6 @@ import com.android.internal.telephony.PhoneFactory;
 import com.android.internal.telephony.RadioConfig;
 import com.android.internal.telephony.TelephonyIntents;
 import com.android.internal.telephony.flags.FeatureFlags;
-import com.android.internal.telephony.metrics.TelephonyMetrics;
 import com.android.internal.telephony.subscription.SubscriptionManagerService;
 import com.android.internal.telephony.uicc.euicc.EuiccCard;
 import com.android.internal.telephony.util.ArrayUtils;
@@ -167,6 +163,7 @@ public class UiccController extends Handler {
     private static final int EVENT_SIM_REFRESH = 8;
     private static final int EVENT_EID_READY = 9;
     private static final int EVENT_MULTI_SIM_CONFIG_CHANGED = 10;
+    private static final int EVENT_GET_SIM_TYPE_INFO = 11;
     // NOTE: any new EVENT_* values must be added to eventToString.
 
     @NonNull
@@ -232,9 +229,6 @@ public class UiccController extends Handler {
 
     // The physical slots which correspond to built-in eUICCs
     private final int[] mEuiccSlots;
-
-    // SharedPreferences key for saving the default euicc card ID
-    private static final String DEFAULT_CARD = "default_card";
 
     private static final Object mLock = new Object();
 
@@ -334,12 +328,9 @@ public class UiccController extends Handler {
         PhoneConfigurationManager.registerForMultiSimConfigChange(
                 this, EVENT_MULTI_SIM_CONFIG_CHANGED, null);
 
-        if (mFeatureFlags.threadShred()) {
-            mPinStorage = new PinStorage(mContext, WorkerThread.getHandler().getLooper(),
-                    mFeatureFlags);
-        } else {
-            mPinStorage = new PinStorage(mContext, Looper.myLooper(), mFeatureFlags);
-        }
+        mPinStorage = new PinStorage(mContext, WorkerThread.getHandler().getLooper(),
+                mFeatureFlags);
+
         if (!TelephonyUtils.IS_USER) {
             mUseRemovableEsimAsDefault = PreferenceManager.getDefaultSharedPreferences(mContext)
                     .getBoolean(REMOVABLE_ESIM_AS_DEFAULT, false);
@@ -497,7 +488,45 @@ public class UiccController extends Handler {
      *  it is inactive. */
     public void switchSlots(List<UiccSlotMapping> slotMapping, Message response) {
         logl("switchSlots: " + slotMapping);
-        mRadioConfig.setSimSlotsMapping(slotMapping, response);
+        if (mFeatureFlags.supportSlotSwitching2psim1esimConfig()
+                && mRadioConfig.isGetOrSetSimTypeSupported()) {
+            if (isSimTypeChangeRequest(slotMapping)) {
+                logl("switchSlots: request for physical slot-simtype change");
+                @TelephonyManager.SimType int[] simTypes = new int[mUiccSlots.length];
+                for (UiccSlotMapping uiccSlotMapping : slotMapping) {
+                    simTypes[uiccSlotMapping.getPhysicalSlotIndex()] = uiccSlotMapping.getSimType();
+                }
+                mRadioConfig.setSimType(simTypes, response);
+            } else {
+                logl("switchSlots: request for logical slot to slot-port mapping");
+                mRadioConfig.setSimSlotsMapping(slotMapping, response);
+            }
+        } else {
+            mRadioConfig.setSimSlotsMapping(slotMapping, response);
+        }
+    }
+
+    /**
+     * Validates slot mapping data to know if the request is for sim slot mapping or changing
+     * sim type.
+     *
+     * @return {@code true} if the functionality is supported, {@code false} otherwise.
+     */
+    @VisibleForTesting
+    public boolean isSimTypeChangeRequest(List<UiccSlotMapping> uiccSlotMapping) {
+        boolean isSimTypeRequest = false;
+        for (UiccSlotMapping slotMapping : uiccSlotMapping) {
+            int slotIndex = slotMapping.getPhysicalSlotIndex();
+            // If sim type is not unknown and different from existing slot's sim type,
+            // consider this as sim type change request.
+            if (slotMapping.getSimType() != TelephonyManager.SIM_TYPE_UNKNOWN
+                    && isValidSlotIndex(slotIndex)
+                    && mUiccSlots[slotIndex].getSimType() != slotMapping.getSimType()) {
+                isSimTypeRequest = true;
+                break;
+            }
+        }
+        return isSimTypeRequest;
     }
 
     /**
@@ -705,10 +734,30 @@ public class UiccController extends Handler {
                     int activeModemCount = (int) ((AsyncResult) msg.obj).result;
                     onMultiSimConfigChanged(activeModemCount);
                     break;
+                case EVENT_GET_SIM_TYPE_INFO:
+                    if (DBG) log("Received EVENT_GET_SIM_TYPE_INFO");
+                    onGetSimTypeInfo(ar);
+                    break;
                 default:
                     logel(" Unknown Event " + msg.what);
                     break;
             }
+        }
+    }
+
+    private void onGetSimTypeInfo(AsyncResult ar) {
+        if (ar.exception != null) {
+            logel("onGetSimTypeInfo: Exception during getSimTypeInfo: " + ar.exception);
+            return;
+        }
+        ArrayList<SimTypeInfo> simTypeInfos = (ArrayList<SimTypeInfo>) ar.result;
+        logl("onGetSimTypeInfo: " + simTypeInfos);
+        for (SimTypeInfo simTypeInfo : simTypeInfos) {
+            if (simTypeInfo == null || !isValidSlotIndex(simTypeInfo.mPhysicalSlotIndex)) {
+                logel("onGetSimTypeInfo invalid sim type info: " + simTypeInfo);
+                continue;
+            }
+            mUiccSlots[simTypeInfo.mPhysicalSlotIndex].updateSimTypeInfo(simTypeInfo);
         }
     }
 
@@ -768,6 +817,7 @@ public class UiccController extends Handler {
             case EVENT_SIM_REFRESH: return "SIM_REFRESH";
             case EVENT_EID_READY: return "EID_READY";
             case EVENT_MULTI_SIM_CONFIG_CHANGED: return "MULTI_SIM_CONFIG_CHANGED";
+            case EVENT_GET_SIM_TYPE_INFO: return "GET_SIM_TYPE_INFO";
             default: return "UNKNOWN(" + event + ")";
         }
     }
@@ -880,7 +930,6 @@ public class UiccController extends Handler {
 // QTI_END: 2025-02-10: Telephony: Decouple Qualcomm value adds
             mContext.sendBroadcastAsUser(intent, UserHandle.ALL,
                     Manifest.permission.READ_PRIVILEGED_PHONE_STATE);
-            TelephonyMetrics.getInstance().updateSimState(phoneId, state);
         }
     }
 
@@ -917,11 +966,10 @@ public class UiccController extends Handler {
             }
             log("Broadcasting intent ACTION_SIM_APPLICATION_STATE_CHANGED "
                     + TelephonyManager.simStateToString(state)
-                    + " for phone: " + phoneId + " slot: " + slotId + "port: "
-                    + (slot != null ? slot.getPortIndexFromPhoneId(phoneId) : null) + " sub: " + subId);
+                    + " for phone: " + phoneId + " slot: " + slotId + " port: "
+                    + ((slot != null) ? slot.getPortIndexFromPhoneId(phoneId) : -1) + " sub: " + subId);
             mContext.sendBroadcastAsUser(intent, UserHandle.ALL,
                     Manifest.permission.READ_PRIVILEGED_PHONE_STATE);
-            TelephonyMetrics.getInstance().updateSimState(phoneId, state);
         }
     }
 
@@ -1376,6 +1424,12 @@ public class UiccController extends Handler {
         }
         logl("onGetSlotStatusDone: " + status);
 
+        if (mFeatureFlags.supportSlotSwitching2psim1esimConfig()
+                && mRadioConfig.isGetOrSetSimTypeSupported()) {
+            logl("onGetSlotStatusDone: request simType info");
+            mRadioConfig.getSimTypeInfo(obtainMessage(EVENT_GET_SIM_TYPE_INFO));
+        }
+
         sLastSlotStatus = status;
 
         int numActivePorts = 0;
@@ -1673,19 +1727,6 @@ public class UiccController extends Handler {
         return false;
     }
 
-    /**
-     * static method to return whether CDMA is supported on the device
-     * @param context object representative of the application that is calling this method
-     * @return true if CDMA is supported by the device
-     */
-    public static boolean isCdmaSupported(Context context) {
-        if (Flags.phoneTypeCleanup()) return false;
-        PackageManager packageManager = context.getPackageManager();
-        boolean isCdmaSupported =
-                packageManager.hasSystemFeature(PackageManager.FEATURE_TELEPHONY_CDMA);
-        return isCdmaSupported;
-    }
-
     private boolean isValidPhoneIndex(int index) {
         return (index >= 0 && index < mTelephonyManager.getActiveModemCount());
     }
@@ -1855,7 +1896,6 @@ public class UiccController extends Handler {
 
     public void dump(FileDescriptor fd, PrintWriter printWriter, String[] args) {
         IndentingPrintWriter pw = new IndentingPrintWriter(printWriter, "  ");
-        pw.println("mIsCdmaSupported=" + isCdmaSupported(mContext));
         pw.println("mHasBuiltInEuicc=" + mHasBuiltInEuicc);
         pw.println("mHasActiveBuiltInEuicc=" + mHasActiveBuiltInEuicc);
         pw.println("mCardStrings=" + getPrintableCardStrings());
