@@ -109,3 +109,14 @@ flag {
         purpose: PURPOSE_FEATURE
     }
 }
+
+# OWNER=gargakash TARGET=26Q1
+flag {
+    name: "use_worker_thread_for_pinstorage_keystore_apis"
+    namespace: "telephony"
+    description: "When Enable, all pinstorage keystore access works on worker threads to prevent ANRs."
+    bug:"331549683"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
