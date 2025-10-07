@@ -349,7 +349,7 @@ public class AutoDataSwitchController extends Handler {
                     // Satellite may bypass User's roaming settings
                     if (isUsingNonTerrestrialNetwork) {
                         boolean byPassRoamingSettings = mPhone.getDataNetworkController()
-                                .getDataConfigManager().isIgnoringDataRoamingSettingForSatellite();
+                                .getDataConfigManager().isDataRoamingAllowedOnSatellite();
                         if (byPassRoamingSettings) yield UsableState.NON_TERRESTRIAL;
                     }
                     if (mPhone.getDataRoamingEnabled()) {

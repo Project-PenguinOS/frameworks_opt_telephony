@@ -1766,7 +1766,7 @@ public class DataNetworkController extends Handler {
         // data plan is included in the user mobile plan, then we should not disallow data due to
         // roaming disabled.
         if (mServiceState.getDataRoaming() && !mDataSettingsManager.isDataRoamingEnabled()
-                    && !shouldIgnoreDataRoamingSettingForSatellite()) {
+                    && !shouldAllowSatelliteDataWhenRoamingDisabled()) {
             evaluation.addDataDisallowedReason(DataDisallowedReason.ROAMING_DISABLED);
         }
 
@@ -1925,9 +1925,9 @@ public class DataNetworkController extends Handler {
      * @return {@code true} if the data roaming setting should be ignored for satellite connection.
      * {@code false} otherwise.
      */
-    private boolean shouldIgnoreDataRoamingSettingForSatellite() {
+    private boolean shouldAllowSatelliteDataWhenRoamingDisabled() {
         return mServiceState.isUsingNonTerrestrialNetwork()
-                && mDataConfigManager.isIgnoringDataRoamingSettingForSatellite();
+                && mDataConfigManager.isDataRoamingAllowedOnSatellite();
     }
 
     /**

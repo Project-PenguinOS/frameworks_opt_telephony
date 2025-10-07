@@ -3156,4 +3156,112 @@ public class DataNetworkTest extends TelephonyTest {
         processAllMessages();
         assertThat(mDataNetworkUT.isConnected()).isTrue();
     }
+
+    @Test
+    public void testAllowRoamingForSatellite_whenSatelliteDataAllowed() throws Exception {
+        doReturn(false).when(mDataSettingsManager).isDataRoamingEnabled();
+        serviceStateChanged(TelephonyManager.NETWORK_TYPE_LTE,
+                NetworkRegistrationInfo.REGISTRATION_STATE_ROAMING, true /* isNtn */);
+
+        doReturn(true).when(mDataConfigManager).isDataRoamingAllowedOnSatellite();
+
+        NetworkRequestList networkRequestList = new NetworkRequestList();
+        networkRequestList.add(new TelephonyNetworkRequest(new NetworkRequest.Builder()
+                .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                .build(), mPhone, mFeatureFlags));
+
+        mDataNetworkUT = new DataNetwork(mPhone, mFeatureFlags, Looper.myLooper(),
+                mDataServiceManagers, mInternetDataProfile, networkRequestList,
+                AccessNetworkConstants.TRANSPORT_TYPE_WWAN, true /* isSatellite */,
+                DataAllowedReason.NORMAL, mDataNetworkCallback);
+        processAllMessages();
+
+        ArgumentCaptor<Boolean> allowRoamingCaptor = ArgumentCaptor.forClass(Boolean.class);
+        verify(mMockedWwanDataServiceManager).setupDataCall(
+                anyInt(), any(DataProfile.class), eq(true), allowRoamingCaptor.capture(),
+                anyInt(), any(), anyInt(), any(), any(), anyBoolean(), any(Message.class));
+
+        assertThat(allowRoamingCaptor.getValue()).isTrue();
+    }
+
+    @Test
+    public void testAllowRoamingForSatellite_whenSatelliteDataNotAllowed() throws Exception {
+        doReturn(false).when(mDataSettingsManager).isDataRoamingEnabled();
+        serviceStateChanged(TelephonyManager.NETWORK_TYPE_LTE,
+                NetworkRegistrationInfo.REGISTRATION_STATE_ROAMING, true /* isNtn */);
+
+        doReturn(false).when(mDataConfigManager).isDataRoamingAllowedOnSatellite();
+
+        NetworkRequestList networkRequestList = new NetworkRequestList();
+        networkRequestList.add(new TelephonyNetworkRequest(new NetworkRequest.Builder()
+                .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                .build(), mPhone, mFeatureFlags));
+
+        mDataNetworkUT = new DataNetwork(mPhone, mFeatureFlags, Looper.myLooper(),
+                mDataServiceManagers, mInternetDataProfile, networkRequestList,
+                AccessNetworkConstants.TRANSPORT_TYPE_WWAN, true /* isSatellite */,
+                DataAllowedReason.NORMAL, mDataNetworkCallback);
+        processAllMessages();
+
+        ArgumentCaptor<Boolean> allowRoamingCaptor = ArgumentCaptor.forClass(Boolean.class);
+        verify(mMockedWwanDataServiceManager).setupDataCall(
+                anyInt(), any(DataProfile.class), eq(true), allowRoamingCaptor.capture(),
+                anyInt(), any(), anyInt(), any(), any(), anyBoolean(), any(Message.class));
+
+        assertThat(allowRoamingCaptor.getValue()).isFalse();
+    }
+
+    @Test
+    public void testAllowRoamingForSatellite_ModemNotRoaming_SatelliteAllowed() throws Exception {
+        doReturn(false).when(mDataSettingsManager).isDataRoamingEnabled();
+        serviceStateChanged(TelephonyManager.NETWORK_TYPE_LTE,
+                NetworkRegistrationInfo.REGISTRATION_STATE_HOME, true /* isNtn */);
+
+        doReturn(true).when(mDataConfigManager).isDataRoamingAllowedOnSatellite();
+
+        NetworkRequestList networkRequestList = new NetworkRequestList();
+        networkRequestList.add(new TelephonyNetworkRequest(new NetworkRequest.Builder()
+                .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                .build(), mPhone, mFeatureFlags));
+
+        mDataNetworkUT = new DataNetwork(mPhone, mFeatureFlags, Looper.myLooper(),
+                mDataServiceManagers, mInternetDataProfile, networkRequestList,
+                AccessNetworkConstants.TRANSPORT_TYPE_WWAN, true /* isSatellite */,
+                DataAllowedReason.NORMAL, mDataNetworkCallback);
+        processAllMessages();
+
+        ArgumentCaptor<Boolean> allowRoamingCaptor = ArgumentCaptor.forClass(Boolean.class);
+        verify(mMockedWwanDataServiceManager).setupDataCall(
+                anyInt(), any(DataProfile.class), eq(false), allowRoamingCaptor.capture(),
+                anyInt(), any(), anyInt(), any(), any(), anyBoolean(), any(Message.class));
+
+        assertThat(allowRoamingCaptor.getValue()).isFalse();
+    }
+
+    @Test
+    public void testAllowRoaming_ModemRoaming_FrameworkNotRoaming() throws Exception {
+        doReturn(false).when(mDataSettingsManager).isDataRoamingEnabled();
+        doReturn(false).when(mDataConfigManager).isDataRoamingAllowedOnSatellite();
+
+        doReturn(true).when(mServiceState).getDataRoamingFromRegistration();
+        doReturn(false).when(mServiceState).getDataRoaming();
+
+        NetworkRequestList networkRequestList = new NetworkRequestList();
+        networkRequestList.add(new TelephonyNetworkRequest(new NetworkRequest.Builder()
+                .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                .build(), mPhone, mFeatureFlags));
+
+        mDataNetworkUT = new DataNetwork(mPhone, mFeatureFlags, Looper.myLooper(),
+                mDataServiceManagers, mInternetDataProfile, networkRequestList,
+                AccessNetworkConstants.TRANSPORT_TYPE_WWAN, false /* isSatellite */,
+                DataAllowedReason.NORMAL, mDataNetworkCallback);
+        processAllMessages();
+
+        ArgumentCaptor<Boolean> allowRoamingCaptor = ArgumentCaptor.forClass(Boolean.class);
+        verify(mMockedWwanDataServiceManager).setupDataCall(
+                anyInt(), any(DataProfile.class), eq(true), allowRoamingCaptor.capture(),
+                anyInt(), any(), anyInt(), any(), any(), anyBoolean(), any(Message.class));
+
+        assertThat(allowRoamingCaptor.getValue()).isTrue();
+    }
 }
