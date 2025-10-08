@@ -560,7 +560,6 @@ public abstract class TelephonyTest {
         mNullCipherNotifier = Mockito.mock(NullCipherNotifier.class);
 
         lenient().doReturn(true).when(mFeatureFlags).dataServiceCheck();
-        lenient().doReturn(true).when(mFeatureFlags).dynamicModemShutdown();
         lenient().doReturn(true).when(mFeatureFlags).dataServiceNotifyImsDataNetwork();
         lenient().doReturn(true).when(mFeatureFlags).keepWfcOnApm();
         lenient().doReturn(true).when(mFeatureFlags).allowMultiCountryMcc();
