@@ -128,6 +128,7 @@ import static org.mockito.Mockito.when;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.AlarmManager;
+import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.usage.NetworkStatsManager;
 import android.content.BroadcastReceiver;
@@ -8347,5 +8348,30 @@ public class SatelliteControllerTest extends TelephonyTest {
 
         // Carrier subscription should be selected as binding satellite subscription
         assertEquals(carrierSubId, mSatelliteControllerUT.getSelectedSatelliteSubId());
+    }
+
+    @Test
+    public void testNotification_isAuthenticationRequired() throws Exception {
+        mContextFixture.putBooleanResource(
+                R.bool.config_satellite_should_notify_availability, true);
+        mCarrierConfigBundle.putInt(KEY_CARRIER_ROAMING_NTN_CONNECT_TYPE_INT,
+                CARRIER_ROAMING_NTN_CONNECT_AUTOMATIC);
+        invokeCarrierConfigChanged();
+
+        ArgumentCaptor<Notification> notificationCaptor = ArgumentCaptor.forClass(
+                Notification.class);
+
+        // Check sending a system notification when the satellite is connected
+        doReturn(true).when(mServiceState).isUsingNonTerrestrialNetwork();
+        sendServiceStateChangedEvent();
+        processAllMessages();
+        verify(mMockNotificationManager, times(1)).notifyAsUser(
+                anyString(), anyInt(), notificationCaptor.capture(), any());
+
+        // Check authentication required is set to true for actions in the notification
+        Notification notification = notificationCaptor.getValue();
+        for (Notification.Action action : notification.actions) {
+            assertTrue(action.isAuthenticationRequired());
+        }
     }
 }
