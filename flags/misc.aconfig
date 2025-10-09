@@ -125,3 +125,12 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+# OWNER=aditimutagi TARGET=26Q2
+flag {
+    name: "guard_identifier_and_network_country_apis"
+    is_exported: true
+    namespace: "telephony"
+    description: "Guards getSubscriberId and getNetworkCountryIso APIs with permission."
+    bug: "417788332"
+}
