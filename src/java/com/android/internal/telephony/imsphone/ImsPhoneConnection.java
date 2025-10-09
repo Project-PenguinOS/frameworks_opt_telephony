@@ -1375,7 +1375,7 @@ public class ImsPhoneConnection extends Connection implements
                 maybeInjectBusinessComposerExtras(mExtras);
             }
 
-            if (com.android.server.telecom.flags.Flags.isUsingVideoRingback()) {
+            if (android.telecom.flags.Flags.isUsingVideoRingback()) {
                 maybeInjectIsUsingVideoRingbackExtras(mExtras);
             }
 
