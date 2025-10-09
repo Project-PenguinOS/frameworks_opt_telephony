@@ -7960,7 +7960,9 @@ public class SatelliteController extends Handler {
                 openMessageIntent, PendingIntent.FLAG_IMMUTABLE);
         Notification.Action actionOpenMessage = new Notification.Action.Builder(0,
                 mContext.getResources().getString(R.string.satellite_notification_open_message),
-                openMessagePendingIntent).build();
+                openMessagePendingIntent)
+                .setAuthenticationRequired(true)
+                .build();
         notificationBuilder.addAction(actionOpenMessage);   // Handle `Open Messages` button
 
         // Button for `How it works` [Button 2]
@@ -7971,7 +7973,9 @@ public class SatelliteController extends Handler {
                 howItWorksIntent, PendingIntent.FLAG_IMMUTABLE);
         Notification.Action actionHowItWorks = new Notification.Action.Builder(0,
                 mContext.getResources().getString(R.string.satellite_notification_how_it_works),
-                howItWorksPendingIntent).build();
+                howItWorksPendingIntent)
+                .setAuthenticationRequired(true)
+                .build();
         notificationBuilder.addAction(actionHowItWorks);    // Handle `How it works` button
 
         // Intent for clicking the main notification body
