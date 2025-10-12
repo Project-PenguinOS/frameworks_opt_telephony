@@ -80,8 +80,6 @@ flag {
   }
 }
 
-
-
 # OWNER=gwenlin TARGET=26Q2
 flag {
   name: "data_service_notify_ims_data_network"
@@ -107,6 +105,17 @@ flag {
   namespace: "telephony"
   description: "Prevent DataStallRecoveryManager from broadcasting a data stall event during initial setup when no data stall has occurred"
   bug:"432293174"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}
+
+# OWNER=jackyu TARGET=26Q1
+flag {
+  name: "not_recreate_agent_when_immutable_capabilities_changed"
+  namespace: "telephony"
+  description: "Do not recreate network agent when immutable capabilities changed"
+  bug:"448915789"
   metadata {
     purpose: PURPOSE_BUGFIX
   }

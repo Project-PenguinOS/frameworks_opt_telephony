@@ -564,6 +564,8 @@ public abstract class TelephonyTest {
         lenient().doReturn(true).when(mFeatureFlags).keepWfcOnApm();
         lenient().doReturn(true).when(mFeatureFlags).allowMultiCountryMcc();
         lenient().doReturn(true).when(mFeatureFlags).deleteCdma();
+        lenient().doReturn(true).when(mFeatureFlags)
+                .notRecreateAgentWhenImmutableCapabilitiesChanged();
 
         WorkerThread.reset();
         TelephonyManager.disableServiceHandleCaching();
