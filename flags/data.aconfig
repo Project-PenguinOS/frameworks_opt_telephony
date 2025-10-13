@@ -110,6 +110,15 @@ flag {
   }
 }
 
+# OWNER=rambowang TARGET=26Q2
+flag {
+  name: "expose_oppt_auto_data_switch_policies"
+  is_exported: true
+  namespace: "telephony"
+  description: "This flag exposes auto data switch policies APIs for opportunistic network switch."
+  bug:"448973795"
+}
+
 # OWNER=jackyu TARGET=26Q1
 flag {
   name: "not_recreate_agent_when_immutable_capabilities_changed"
