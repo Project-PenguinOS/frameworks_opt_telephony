@@ -27,7 +27,6 @@ import android.telephony.TelephonyManager;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.telephony.CommandsInterface;
 import com.android.internal.telephony.RadioInterfaceCapabilityController;
-import com.android.internal.telephony.flags.Flags;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -455,9 +454,7 @@ public class SimPhonebookRecordCache extends Handler {
 // QTI_BEGIN: 2023-03-24: Telephony: Fix SIM Contact not shown in hotswap scenario.
             } else {
 // QTI_END: 2023-03-24: Telephony: Fix SIM Contact not shown in hotswap scenario.
-                if(Flags.simPhonebookCacheFix()) {
-                    mIsCacheInvalidated.set(false);
-                }
+                mIsCacheInvalidated.set(false);
                 notifyAdnLoadingWaiters();
                 tryFireUpdatePendingList();
             }

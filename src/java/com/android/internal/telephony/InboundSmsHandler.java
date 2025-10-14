@@ -1545,23 +1545,20 @@ public abstract class InboundSmsHandler extends StateMachine {
             Bundle opts, SmsBroadcastReceiver resultReceiver, UserHandle user) {
         final long start = SystemClock.elapsedRealtime();
         mBackgroundExecutor.execute(() -> {
-            AtomicBoolean containsOtpCallPending = new AtomicBoolean(true);
-            AtomicBoolean sentBroadcastAfterWaitingMaxTime = new AtomicBoolean(false);
+            AtomicBoolean sentBroadcast = new AtomicBoolean(false);
             mMainThreadHandler.postDelayed(() -> {
-                if (containsOtpCallPending.get()) {
+                if (!sentBroadcast.getAndSet(true)) {
                     // If we've waited the maximum time, and still haven't classified, send the
                     // broadcast.
-                    sentBroadcastAfterWaitingMaxTime.set(true);
                     sendBroadcastWithStandardPermissions(intent, permission, appOp, opts,
                             resultReceiver, user);
                 }
             }, MAXIMUM_BROADCAST_DELAY_TIME_MS);
             Collection<TextLinks.TextLink> textLinks = generateOtpTextLinks(intent);
             boolean containsOtp = containsOtp(textLinks);
-            containsOtpCallPending.set(false);
             int classificationTime = (int)
                     (Math.min(SystemClock.elapsedRealtime() - start, Integer.MAX_VALUE));
-            if (sentBroadcastAfterWaitingMaxTime.get()) {
+            if (sentBroadcast.getAndSet(true)) {
                 // Broadcast was already sent, don't re-send
                 return;
             }

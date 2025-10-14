@@ -185,20 +185,6 @@ public final class MccTable {
             return "";
         }
 
-        if (!isNewMccTableEnabled()) {
-            try {
-                MccEntry entry = entryForMcc(Integer.parseInt(mcc));
-
-                if (entry == null) {
-                    return "";
-                } else {
-                    return entry.mIso;
-                }
-            } catch (NumberFormatException ex) {
-                return "";
-            }
-        }
-
         TelephonyNetworkFinder telephonyNetworkFinder;
 
         synchronized (MccTable.class) {
@@ -332,10 +318,6 @@ public final class MccTable {
      * Maps a given locale to a fallback locale that approximates it. This is a hack.
      */
     public static final Map<Locale, Locale> FALLBACKS = new HashMap<Locale, Locale>();
-
-    public static boolean isNewMccTableEnabled() {
-        return com.android.internal.telephony.flags.Flags.useI18nForMccMapping();
-    }
 
     static {
         // If we have English (without a country) explicitly prioritize en_US. http://b/28998094

@@ -54,6 +54,7 @@ import android.os.PersistableBundle;
 import android.os.WorkSource;
 import android.provider.Settings;
 import android.security.keystore.KeyGenParameterSpec;
+import android.telephony.AnomalyReporter;
 import android.telephony.CarrierConfigManager;
 import android.telephony.TelephonyManager;
 import android.telephony.TelephonyManager.SimState;
@@ -83,6 +84,7 @@ import java.security.KeyStore;
 import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.UUID;
 
 import javax.crypto.Cipher;
 import javax.crypto.KeyGenerator;
@@ -138,7 +140,7 @@ public class PinStorage extends Handler {
     private static final String SHARED_PREFS_AVAILABLE_PIN_BASE_KEY = "encrypted_pin_available_";
     private static final String SHARED_PREFS_REBOOT_PIN_BASE_KEY = "encrypted_pin_reboot_";
     private static final String SHARED_PREFS_STORED_PINS = "stored_pins";
-
+    private final UUID mAnomalyUUID = UUID.fromString("aaa85c00-7a31-4a46-b42a-753256664784");
     // Events
     private static final int ICC_CHANGED_EVENT = 1;
     private static final int TIMER_EXPIRATION_EVENT = 3;
@@ -147,7 +149,7 @@ public class PinStorage extends Handler {
 
     private final Context mContext;
     private final int mBootCount;
-    private final KeyStore mKeyStore;
+    private KeyStore mKeyStore;
 
     @Nullable
     private SecretKey mLongTermSecretKey;
@@ -162,7 +164,8 @@ public class PinStorage extends Handler {
     public int mShortTermSecretKeyDurationMinutes;
 
     /** RAM storage is used on secure devices before the device is unlocked. */
-    private final SparseArray<byte[]> mRamStorage;
+    private SparseArray<byte[]> mRamStorage;
+    private FeatureFlags mFeatureFlags;
 
     /** Receiver for the required intents. */
     private final BroadcastReceiver mBroadcastReceiver = new BroadcastReceiver() {
@@ -186,8 +189,8 @@ public class PinStorage extends Handler {
     public PinStorage(Context context, @NonNull Looper looper, @NonNull FeatureFlags featureFlags) {
         super(looper);
         mContext = context;
+        mFeatureFlags = featureFlags;
         mBootCount = getBootCount();
-        mKeyStore = initializeKeyStore();
         mShortTermSecretKeyDurationMinutes = SHORT_TERM_KEY_DURATION_MINUTES;
 
         mIsDeviceSecure = isDeviceSecure();
@@ -215,18 +218,47 @@ public class PinStorage extends Handler {
         String alias = (!mIsDeviceSecure || mIsDeviceLocked)
                 ? KEYSTORE_ALIAS_LONG_TERM_ALWAYS : KEYSTORE_ALIAS_LONG_TERM_USER_AUTH;
         // This is the main thread, so accessing keystore in a separate thread to prevent ANR.
-        WorkerThread.getExecutor().execute(() -> mLongTermSecretKey = initializeSecretKey(
-                alias, /*createIfAbsent=*/ true));
+        if (mFeatureFlags.useWorkerThreadForPinstorageKeystoreApis()) {
+            post(() -> {
+                mKeyStore = initializeKeyStore();
+                mLongTermSecretKey = initializeSecretKey(
+                        alias, /*createIfAbsent=*/ true);
 
-        // If the device is not secured or is unlocked, we can start logic. Otherwise we need to
-        // wait for the device to be unlocked and store any temporary PIN in RAM.
-        if (!mIsDeviceSecure || !mIsDeviceLocked) {
-            mRamStorage = null;
-            onDeviceReady();
+                // If the device is not secured or is unlocked, we can start logic. Otherwise we
+                // need to wait for the device to be unlocked and store any temporary PIN in RAM.
+                if (!mIsDeviceSecure || !mIsDeviceLocked) {
+                    mRamStorage = null;
+                    onDeviceReady();
+                } else {
+                    logd("Device is locked - Postponing initialization");
+                    mRamStorage = new SparseArray<>();
+                }
+            });
         } else {
-            logd("Device is locked - Postponing initialization");
-            mRamStorage = new SparseArray<>();
+            mKeyStore = initializeKeyStore();
+            WorkerThread.getExecutor().execute(() ->
+                    mLongTermSecretKey = initializeSecretKey(alias, /*createIfAbsent=*/ true));
+
+            // If the device is not secured or is unlocked, we can start logic. Otherwise we need to
+            // wait for the device to be unlocked and store any temporary PIN in RAM.
+            if (!mIsDeviceSecure || !mIsDeviceLocked) {
+                mRamStorage = null;
+                onDeviceReady();
+            } else {
+                logd("Device is locked - Postponing initialization");
+                mRamStorage = new SparseArray<>();
+            }
         }
+    }
+
+    /** return the {@link KeyStore}. */
+    private KeyStore getKeyStore() {
+        if (mFeatureFlags.useWorkerThreadForPinstorageKeystoreApis()
+                && Looper.myLooper() == Looper.getMainLooper()) {
+            String message = "PinStorage keyStore invoked on main thread";
+            AnomalyReporter.reportAnomaly(mAnomalyUUID, message);
+        }
+        return mKeyStore;
     }
 
     /** Store the {@code pin} for the {@code slotId}. */
@@ -1051,7 +1083,7 @@ public class PinStorage extends Handler {
      */
     @Nullable
     private SecretKey initializeSecretKey(String alias, boolean createIfAbsent) {
-        if (mKeyStore == null) {
+        if (getKeyStore() == null) {
             return null;
         }
 
@@ -1084,7 +1116,7 @@ public class PinStorage extends Handler {
     private SecretKey getSecretKey(String alias) {
         try {
             final KeyStore.SecretKeyEntry secretKeyEntry =
-                    (KeyStore.SecretKeyEntry) mKeyStore.getEntry(alias, null);
+                    (KeyStore.SecretKeyEntry) getKeyStore().getEntry(alias, null);
             if (secretKeyEntry != null) {
                 return secretKeyEntry.getSecretKey();
             }
@@ -1146,10 +1178,10 @@ public class PinStorage extends Handler {
 
     /** Deletes the short term key from KeyStore, if it exists. */
     private void deleteSecretKey(String alias) {
-        if (mKeyStore != null) {
+        if (getKeyStore() != null) {
             logd("Delete key: %s", alias);
             try {
-                mKeyStore.deleteEntry(alias);
+                getKeyStore().deleteEntry(alias);
             } catch (Exception e) {
                 // Nothing to do. Even if the key removal fails, it becomes unusable.
                 loge("Delete key exception");

@@ -22,9 +22,6 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assume.assumeTrue;
 
 import android.content.Context;
-import android.platform.test.annotations.UsesFlags;
-import android.platform.test.flag.junit.FlagsParameterization;
-import android.platform.test.flag.junit.SetFlagsRule;
 import android.timezone.MobileCountries;
 import android.timezone.TelephonyNetworkFinder;
 
@@ -32,38 +29,13 @@ import androidx.test.InstrumentationRegistry;
 import androidx.test.filters.SmallTest;
 
 import com.android.internal.telephony.MccTable.MccMnc;
-import com.android.internal.telephony.flags.Flags;
 import com.android.internal.telephony.util.LocaleUtils;
 
-import org.junit.ClassRule;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 
-import java.util.List;
 import java.util.Locale;
 
-@RunWith(Parameterized.class)
-@UsesFlags({
-        com.android.internal.telephony.flags.Flags.class,
-        com.android.icu.Flags.class
-})
 public class MccTableTest {
-    @ClassRule
-    public static final SetFlagsRule.ClassRule mSetFlagsClassRule = new SetFlagsRule.ClassRule();
-
-    @Parameterized.Parameters(name = "{0}")
-    public static List<FlagsParameterization> getParams() {
-        return FlagsParameterization.allCombinationsOf(Flags.FLAG_USE_I18N_FOR_MCC_MAPPING);
-    }
-
-    @Rule
-    public final SetFlagsRule mSetFlagsRule;
-
-    public MccTableTest(FlagsParameterization flags) {
-        mSetFlagsRule = mSetFlagsClassRule.createSetFlagsRule(flags);
-    }
 
     @SmallTest
     @Test
@@ -151,8 +123,6 @@ public class MccTableTest {
 
     @Test
     public void telephonyFinder_shouldBeIdenticalToTelephonyMccTable() {
-        assumeTrue(Flags.useI18nForMccMapping());
-
         TelephonyNetworkFinder telephonyNetworkFinder = TelephonyNetworkFinder.getInstance();
 
         MccTable.getAllMccEntries().forEach(mccEntry -> {

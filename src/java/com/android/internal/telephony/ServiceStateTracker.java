@@ -2602,11 +2602,9 @@ public class ServiceStateTracker extends Handler {
         // If we want it on and it's off, turn it on
         if (mDesiredPowerState && mRadioPowerOffReasons.isEmpty()
                 && (forceApply || mCi.getRadioState() == TelephonyManager.RADIO_POWER_OFF
-                  // When dynamic_modem_shutdown feature is enabled, allow turn on the modem at
-                  // RADIO_POWER_UNAVAILABLE state.
-                     || (mFeatureFlags.dynamicModemShutdown()
-                             && mCi.getRadioState()
-                                     == TelephonyManager.RADIO_POWER_UNAVAILABLE))) {
+                     // Allow turn on the modem at RADIO_POWER_UNAVAILABLE state.
+                     || mCi.getRadioState()
+                                     == TelephonyManager.RADIO_POWER_UNAVAILABLE)) {
             mCi.setRadioPower(true, forEmergencyCall, isSelectedPhoneForEmergencyCall, null);
         } else if ((!mDesiredPowerState || !mRadioPowerOffReasons.isEmpty()) && mCi.getRadioState()
                 == TelephonyManager.RADIO_POWER_ON) {
@@ -2794,9 +2792,7 @@ public class ServiceStateTracker extends Handler {
         switch (mCi.getRadioState()) {
             case TelephonyManager.RADIO_POWER_UNAVAILABLE:
                 handlePollStateInternalForRadioOffOrUnavailable(false);
-                if (mFeatureFlags.dynamicModemShutdown()) {
-                    mDeviceShuttingDown = false;
-                }
+                mDeviceShuttingDown = false;
                 pollStateDone();
                 break;
 
