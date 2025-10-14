@@ -82,3 +82,14 @@ flag {
     bug:"421990884"
     is_exported: true
 }
+
+# OWNER=breadley TARGET=26Q1
+flag {
+    name: "ignore_incall_mmi_for_emergency"
+    namespace: "telephony"
+    description: "Do not process in-call MMI codes when there is an active emergency call."
+    bug:"444515076"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
