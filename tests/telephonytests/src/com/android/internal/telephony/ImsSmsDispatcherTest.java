@@ -38,6 +38,7 @@ import android.os.Binder;
 import android.os.PersistableBundle;
 import android.os.Process;
 import android.telephony.CarrierConfigManager;
+import android.telephony.SmsManager;
 import android.telephony.SmsMessage;
 import android.telephony.ims.stub.ImsSmsImplBase;
 import android.testing.AndroidTestingRunner;
@@ -473,4 +474,29 @@ public class ImsSmsDispatcherTest extends TelephonyTest {
         assertNotNull(captor.getValue());
         assertTrue(captor.getValue().mRetryCount > 0);
     }
+
+    @Test
+    @SmallTest
+    public void testFdnCheckFailure() throws Exception {
+        final int token = 1;
+        mTrackerData.put("pdu", com.android.internal.telephony.gsm.SmsMessage.getSubmitPdu(null,
+                "+15555551212", "Test", false).encodedMessage);
+        when(mImsManager.getSmsFormat()).thenReturn(SmsMessage.FORMAT_3GPP);
+        mImsSmsDispatcher.mTrackers.put(token, mSmsTracker);
+        when(mPhone.getPhoneType()).thenReturn(PhoneConstants.PHONE_TYPE_GSM);
+
+        // Simulate FDN check failure with an error status
+        mImsSmsDispatcher.getSmsListener().onSendSmsResult(token, 0,
+                ImsSmsImplBase.SEND_STATUS_ERROR,
+                SmsManager.RESULT_ERROR_FDN_CHECK_FAILURE,
+                SmsResponse.NO_ERROR_CODE);
+
+        // onFailed should be called with same RESULT_ERROR_FDN_CHECK_FAILURE error
+        verify(mSmsTracker).onFailed(any(Context.class),
+                eq(SmsManager.RESULT_ERROR_FDN_CHECK_FAILURE), eq(SmsResponse.NO_ERROR_CODE));
+
+        // Retry shouldn't be called for SEND_STATUS_ERROR
+        verify(mSmsDispatchersController, times(0)).sendRetrySms(any());
+    }
+
 }
