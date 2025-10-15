@@ -129,3 +129,25 @@ flag {
     purpose: PURPOSE_BUGFIX
   }
 }
+
+# OWNER=sewookseo TARGET=26Q2
+flag {
+  name: "remove_unregistered_qos_filter"
+  namespace: "telephony"
+  description: "Fix QoS callback filter is not cleared from QosCT even after clients unregister QoS callback."
+  bug:"446528114"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}
+
+# OWNER=sewookseo TARGET=26Q2
+flag {
+  name: "qos_filter_match_address_range"
+  namespace: "telephony"
+  description: "Support QosFilter address match function for IP address range based on the prefix length."
+  bug:"399960748"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}
