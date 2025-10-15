@@ -113,6 +113,7 @@ import com.android.internal.telephony.RIL;
 import com.android.internal.telephony.TelephonyTest;
 import com.android.internal.telephony.data.AccessNetworksManager.AccessNetworksManagerCallback;
 import com.android.internal.telephony.data.DataEvaluation.DataDisallowedReason;
+import com.android.internal.telephony.data.DataEvaluation.DataEvaluationReason;
 import com.android.internal.telephony.data.DataNetworkController.HandoverRule;
 import com.android.internal.telephony.data.DataRetryManager.DataRetryManagerCallback;
 import com.android.internal.telephony.data.LinkBandwidthEstimator.LinkBandwidthEstimatorCallback;
@@ -1886,7 +1887,7 @@ public class DataNetworkControllerTest extends TelephonyTest {
         doReturn(AccessNetworkConstants.TRANSPORT_TYPE_WLAN).when(mAccessNetworksManager)
                 .getPreferredTransportByNetworkCapability(anyInt());
         mDataNetworkControllerUT.obtainMessage(5 /*EVENT_REEVALUATE_UNSATISFIED_NETWORK_REQUESTS*/,
-                DataEvaluation.DataEvaluationReason.PREFERRED_TRANSPORT_CHANGED).sendToTarget();
+                DataEvaluationReason.PREFERRED_TRANSPORT_CHANGED).sendToTarget();
         processAllMessages();
         verify(mMockedDataNetworkControllerCallback).onConnectedInternetDataNetworksChanged(any());
 
@@ -2253,7 +2254,7 @@ public class DataNetworkControllerTest extends TelephonyTest {
                 .when(mSatelliteController)
                 .getSatelliteDataServicePolicyForPlmn(anyInt(), any());
         mDataNetworkControllerUT.obtainMessage(5 /*EVENT_REEVALUATE_UNSATISFIED_NETWORK_REQUESTS*/,
-                DataEvaluation.DataEvaluationReason.PREFERRED_TRANSPORT_CHANGED).sendToTarget();
+                DataEvaluationReason.PREFERRED_TRANSPORT_CHANGED).sendToTarget();
         processAllMessages();
 
         // Verify internet is connected
@@ -2425,7 +2426,7 @@ public class DataNetworkControllerTest extends TelephonyTest {
         verifyNoConnectedNetworkHasCapability(NetworkCapabilities.NET_CAPABILITY_SUPL);
 
         mDataNetworkControllerUT.obtainMessage(16 /*EVENT_REEVALUATE_EXISTING_DATA_NETWORKS*/,
-                DataEvaluation.DataEvaluationReason.DATA_SERVICE_STATE_CHANGED).sendToTarget();
+                DataEvaluationReason.DATA_SERVICE_STATE_CHANGED).sendToTarget();
 
         processAllFutureMessages();
 
@@ -2588,7 +2589,7 @@ public class DataNetworkControllerTest extends TelephonyTest {
         mDataNetworkControllerUT.obtainMessage(21 /*EVENT_EVALUATE_PREFERRED_TRANSPORT*/,
                 NetworkCapabilities.NET_CAPABILITY_INTERNET, 0).sendToTarget();
         mDataNetworkControllerUT.obtainMessage(5 /*EVENT_REEVALUATE_UNSATISFIED_NETWORK_REQUESTS*/,
-                DataEvaluation.DataEvaluationReason.PREFERRED_TRANSPORT_CHANGED).sendToTarget();
+                DataEvaluationReason.PREFERRED_TRANSPORT_CHANGED).sendToTarget();
         processAllMessages();
 
         // Verify data is allowed even if data is disabled.
@@ -5917,7 +5918,7 @@ public class DataNetworkControllerTest extends TelephonyTest {
 
         // Both internet and IMS should be retained after network re-evaluation
         mDataNetworkControllerUT.obtainMessage(16 /*EVENT_REEVALUATE_EXISTING_DATA_NETWORKS*/,
-                DataEvaluation.DataEvaluationReason.CHECK_DATA_USAGE).sendToTarget();
+                DataEvaluationReason.CHECK_DATA_USAGE).sendToTarget();
         processAllMessages();
         // With allowed data limit unlimited, connection is allowed
         verifyConnectedNetworkHasDataProfile(mEsimBootstrapDataProfile);
@@ -6161,7 +6162,7 @@ public class DataNetworkControllerTest extends TelephonyTest {
         mDataNetworkControllerUT.addNetworkRequest(
                 createNetworkRequest(NetworkCapabilities.NET_CAPABILITY_INTERNET));
         mDataNetworkControllerUT.obtainMessage(5 /*EVENT_REEVALUATE_UNSATISFIED_NETWORK_REQUESTS*/,
-                DataEvaluation.DataEvaluationReason.PREFERRED_TRANSPORT_CHANGED).sendToTarget();
+                DataEvaluationReason.PREFERRED_TRANSPORT_CHANGED).sendToTarget();
         processAllMessages();
 
         // Verify internet is not connected
@@ -6187,7 +6188,7 @@ public class DataNetworkControllerTest extends TelephonyTest {
         mDataNetworkControllerUT.addNetworkRequest(
                 createNetworkRequest(NetworkCapabilities.NET_CAPABILITY_INTERNET));
         mDataNetworkControllerUT.obtainMessage(5 /*EVENT_REEVALUATE_UNSATISFIED_NETWORK_REQUESTS*/,
-                DataEvaluation.DataEvaluationReason.PREFERRED_TRANSPORT_CHANGED).sendToTarget();
+                DataEvaluationReason.PREFERRED_TRANSPORT_CHANGED).sendToTarget();
         processAllMessages();
 
         // Verify internet is connected
@@ -6216,7 +6217,7 @@ public class DataNetworkControllerTest extends TelephonyTest {
                 new NetworkRequest(netCaps, ConnectivityManager.TYPE_MOBILE, ++mNetworkRequestId,
                         NetworkRequest.Type.REQUEST), mPhone, mFeatureFlags));
         mDataNetworkControllerUT.obtainMessage(5 /*EVENT_REEVALUATE_UNSATISFIED_NETWORK_REQUESTS*/,
-                DataEvaluation.DataEvaluationReason.PREFERRED_TRANSPORT_CHANGED).sendToTarget();
+                DataEvaluationReason.PREFERRED_TRANSPORT_CHANGED).sendToTarget();
         processAllMessages();
 
         // Verify internet is not connected
@@ -6244,7 +6245,7 @@ public class DataNetworkControllerTest extends TelephonyTest {
         mDataNetworkControllerUT.addNetworkRequest(
                 createNetworkRequest(NetworkCapabilities.NET_CAPABILITY_INTERNET));
         mDataNetworkControllerUT.obtainMessage(5 /*EVENT_REEVALUATE_UNSATISFIED_NETWORK_REQUESTS*/,
-                DataEvaluation.DataEvaluationReason.PREFERRED_TRANSPORT_CHANGED).sendToTarget();
+                DataEvaluationReason.PREFERRED_TRANSPORT_CHANGED).sendToTarget();
         processAllMessages();
 
         // Verify internet is not connected
@@ -6279,7 +6280,7 @@ public class DataNetworkControllerTest extends TelephonyTest {
                 new NetworkRequest(netCaps, ConnectivityManager.TYPE_MOBILE, ++mNetworkRequestId,
                         NetworkRequest.Type.REQUEST), mPhone, mFeatureFlags));
         mDataNetworkControllerUT.obtainMessage(5 /*EVENT_REEVALUATE_UNSATISFIED_NETWORK_REQUESTS*/,
-                DataEvaluation.DataEvaluationReason.PREFERRED_TRANSPORT_CHANGED).sendToTarget();
+                DataEvaluationReason.PREFERRED_TRANSPORT_CHANGED).sendToTarget();
         processAllMessages();
 
         // Verify internet is connected
@@ -6314,7 +6315,7 @@ public class DataNetworkControllerTest extends TelephonyTest {
                 new NetworkRequest(netCaps, ConnectivityManager.TYPE_MOBILE, ++mNetworkRequestId,
                         NetworkRequest.Type.REQUEST), mPhone, mFeatureFlags));
         mDataNetworkControllerUT.obtainMessage(5 /*EVENT_REEVALUATE_UNSATISFIED_NETWORK_REQUESTS*/,
-                DataEvaluation.DataEvaluationReason.PREFERRED_TRANSPORT_CHANGED).sendToTarget();
+                DataEvaluationReason.PREFERRED_TRANSPORT_CHANGED).sendToTarget();
         processAllMessages();
 
         // Verify internet is not connected
@@ -6350,7 +6351,7 @@ public class DataNetworkControllerTest extends TelephonyTest {
                 new NetworkRequest(netCaps, ConnectivityManager.TYPE_MOBILE, ++mNetworkRequestId,
                         NetworkRequest.Type.REQUEST), mPhone, mFeatureFlags));
         mDataNetworkControllerUT.obtainMessage(5 /*EVENT_REEVALUATE_UNSATISFIED_NETWORK_REQUESTS*/,
-                DataEvaluation.DataEvaluationReason.PREFERRED_TRANSPORT_CHANGED).sendToTarget();
+                DataEvaluationReason.PREFERRED_TRANSPORT_CHANGED).sendToTarget();
         processAllMessages();
 
         // Verify internet is connected
@@ -6362,5 +6363,39 @@ public class DataNetworkControllerTest extends TelephonyTest {
         mCarrierSupportedServices.clear();
         serviceStateChanged(TelephonyManager.NETWORK_TYPE_LTE,
                 NetworkRegistrationInfo.REGISTRATION_STATE_HOME);
+    }
+
+    @Test
+    public void testRemoveSoftDisallowedReasons() throws Exception {
+        //Mobile Data Disabled
+        mDataNetworkControllerUT.getDataSettingsManager().setDataEnabled(
+                TelephonyManager.DATA_ENABLED_REASON_USER, false, mContext.getOpPackageName());
+        processAllMessages();
+
+        serviceStateChanged(TelephonyManager.NETWORK_TYPE_LTE,
+                NetworkRegistrationInfo.REGISTRATION_STATE_HOME);
+
+        TelephonyNetworkRequest networkRequest = createNetworkRequest(
+                NetworkCapabilities.NET_CAPABILITY_INTERNET,
+                NetworkCapabilities.NET_CAPABILITY_MMTEL);
+        DataEvaluation evaluation = mDataNetworkControllerUT.evaluateNetworkRequest(networkRequest,
+                DataEvaluationReason.NEW_REQUEST);
+
+        assertThat(evaluation.containsDisallowedReasons()).isTrue();
+        // There should be only one reason in the evaluation.
+        assertThat(evaluation.contains(DataDisallowedReason.DATA_DISABLED)).isTrue();
+
+        serviceStateChanged(TelephonyManager.NETWORK_TYPE_LTE,
+                NetworkRegistrationInfo.REGISTRATION_STATE_NOT_REGISTERED_SEARCHING);
+        networkRequest = createNetworkRequest(
+                NetworkCapabilities.NET_CAPABILITY_IMS,
+                NetworkCapabilities.NET_CAPABILITY_MMTEL);
+        evaluation = mDataNetworkControllerUT.evaluateNetworkRequest(networkRequest,
+                DataEvaluationReason.NEW_REQUEST);
+        assertThat(evaluation.containsDisallowedReasons()).isTrue();
+        assertThat(evaluation.contains(DataDisallowedReason.NOT_IN_SERVICE)).isTrue();
+
+        // Data disabled is a soft reason. Make sure it's clear if there are other hard reasons.
+        assertThat(evaluation.contains(DataDisallowedReason.DATA_DISABLED)).isFalse();
     }
 }
