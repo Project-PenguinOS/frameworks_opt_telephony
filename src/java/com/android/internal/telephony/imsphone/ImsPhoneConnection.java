@@ -1434,6 +1434,10 @@ public class ImsPhoneConnection extends Connection implements
         if (extras == null) {
             return;
         }
+
+        if (!isVideoRingbackEnabledByConfig(mOwner.getPhone())) {
+            return;
+        }
         try {
             if (extras.containsKey(ImsCallProfile.EXTRA_IS_USING_VIDEO_RINGBACK)) {
                 boolean v = extras.getBoolean(ImsCallProfile.EXTRA_IS_USING_VIDEO_RINGBACK);
@@ -1515,6 +1519,14 @@ public class ImsPhoneConnection extends Connection implements
             // Return static default defined in CarrierConfigManager.
             return CarrierConfigManager.getDefaultConfig().getBoolean(carrierConfig);
         }
+    }
+
+    /**
+     * Checks if video ringback is enabled in the carrier configuration.
+     */
+    private boolean isVideoRingbackEnabledByConfig(Phone phone) {
+        return isCarrierEnabledByConfig(phone,
+                CarrierConfigManager.KEY_SUPPORTS_VIDEO_RINGBACK_BOOL);
     }
 
     /**
