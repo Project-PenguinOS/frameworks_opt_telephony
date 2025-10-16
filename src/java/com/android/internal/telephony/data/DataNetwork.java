@@ -86,6 +86,7 @@ import android.util.LocalLog;
 import android.util.SparseArray;
 import android.util.SparseIntArray;
 
+import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.telephony.CarrierSignalAgent;
 import com.android.internal.telephony.CommandsInterface;
 import com.android.internal.telephony.Phone;
@@ -768,11 +769,6 @@ public class DataNetwork extends StateMachine {
      */
     private boolean mLastKnownRoamingState;
 
-    /**
-     * The non-terrestrial status
-     */
-    private final boolean mIsSatellite;
-
     /** The reason that why setting up this data network is allowed. */
     @NonNull
     private final DataAllowedReason mDataAllowedReason;
@@ -1094,8 +1090,6 @@ public class DataNetwork extends StateMachine {
         }
         mLastKnownDataNetworkType = getDataNetworkType();
         mLastKnownRoamingState = mPhone.getServiceState().getDataRoamingFromRegistration();
-        mIsSatellite = mPhone.getServiceState().isUsingNonTerrestrialNetwork()
-                && transport == AccessNetworkConstants.TRANSPORT_TYPE_WWAN;
         mDataAllowedReason = dataAllowedReason;
         dataProfile.setLastSetupTimestamp(SystemClock.elapsedRealtime());
         for (int transportType : mAccessNetworksManager.getAvailableTransports()) {
@@ -2416,8 +2410,10 @@ public class DataNetwork extends StateMachine {
     /**
      * @return {@code true} if this is a satellite data network.
      */
+    @VisibleForTesting
     public boolean isSatellite() {
-        return mIsSatellite;
+        return mTransport == AccessNetworkConstants.TRANSPORT_TYPE_WWAN
+                && mPhone.getServiceState().isUsingNonTerrestrialNetwork();
     }
 
     /**
@@ -2426,7 +2422,7 @@ public class DataNetwork extends StateMachine {
     private void updateNetworkCapabilities() {
         final NetworkCapabilities.Builder builder = new NetworkCapabilities.Builder();
 
-        if (mIsSatellite && mDataConfigManager.getForcedCellularTransportCapabilities().stream()
+        if (isSatellite() && mDataConfigManager.getForcedCellularTransportCapabilities().stream()
                 .noneMatch(this::hasNetworkCapabilityInNetworkRequests)) {
             logd("transport satellite is set");
             builder.addTransportType(NetworkCapabilities.TRANSPORT_SATELLITE);
@@ -2556,7 +2552,8 @@ public class DataNetwork extends StateMachine {
         }
 
         // Always start with not-restricted, and then remove if needed.
-        // By default, NET_CAPABILITY_NOT_RESTRICTED and NET_CAPABILITY_NOT_CONSTRAINED are included
+        // By default, NET_CAPABILITY_NOT_RESTRICTED and NET_CAPABILITY_NOT_BANDWIDTH_CONSTRAINED
+        // are included
         builder.addCapability(NetworkCapabilities.NET_CAPABILITY_NOT_RESTRICTED);
 
         // When data is disabled, or data roaming is disabled and the device is roaming, we need
@@ -2642,7 +2639,7 @@ public class DataNetwork extends StateMachine {
         builder.setLinkUpstreamBandwidthKbps(mNetworkBandwidth.uplinkBandwidthKbps);
 
         // Configure the network as restricted/constrained for unrestricted satellite network.
-        if (mIsSatellite && builder.build().hasCapability(
+        if (isSatellite() && builder.build().hasCapability(
                 NetworkCapabilities.NET_CAPABILITY_NOT_RESTRICTED)) {
 
             int dataPolicy;
