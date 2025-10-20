@@ -278,9 +278,6 @@ public class ImsPhoneCallTrackerTest extends TelephonyTest {
             return mMockConnector;
         }).when(mConnectorFactory).create(any(), anyInt(), anyString(), any(), any());
 
-        doReturn(false)
-                .when(mFeatureFlags).updateImsServiceByGatheringProvisioningChanges();
-
         // Capture CarrierConfigChangeListener to emulate the carrier config change notification
         ArgumentCaptor<CarrierConfigManager.CarrierConfigChangeListener> listenerArgumentCaptor =
                 ArgumentCaptor.forClass(CarrierConfigManager.CarrierConfigChangeListener.class);
@@ -1480,8 +1477,6 @@ public class ImsPhoneCallTrackerTest extends TelephonyTest {
     @Test
     @SmallTest
     public void testSipRequestCancelled() {
-        doReturn(true).when(mFeatureFlags).remapDisconnectCauseSipRequestCancelled();
-
         assertEquals(DisconnectCause.NORMAL,
                 mCTUT.getDisconnectCauseFromReasonInfo(
                         new ImsReasonInfo(ImsReasonInfo.CODE_SIP_REQUEST_CANCELLED, 0),
@@ -2719,9 +2714,7 @@ public class ImsPhoneCallTrackerTest extends TelephonyTest {
     }
 
     @Test
-    public void testProvisioningItemAndUpdateImsServiceConfigWithFeatureEnabled() {
-        doReturn(true)
-                .when(mFeatureFlags).updateImsServiceByGatheringProvisioningChanges();
+    public void testProvisioningItemAndUpdateImsServiceConfig() {
 
         // Receive a subscription loaded and IMS connection ready indication.
         mContextFixture.getCarrierConfigBundle().putBoolean(
@@ -2747,42 +2740,6 @@ public class ImsPhoneCallTrackerTest extends TelephonyTest {
         // 2. ProvisioningManager.KEY_VOICE_OVER_WIFI_ENABLED_OVERRIDE(28), ProvisioningManager
         // .KEY_VOLTE_PROVISIONING_STATUS(10) and ProvisioningManager.KEY_VT_PROVISIONING_STATUS(11)
         verify(mImsManager, times(2)).updateImsServiceConfig();
-    }
-
-
-    @Test
-    public void testProvisioningItemAndUpdateImsServiceConfigWithFeatureDisabled() {
-        doReturn(false)
-                .when(mFeatureFlags).updateImsServiceByGatheringProvisioningChanges();
-
-        // Receive a subscription loaded and IMS connection ready indication.
-        mContextFixture.getCarrierConfigBundle().putBoolean(
-                CarrierConfigManager.KEY_CARRIER_CONFIG_APPLIED_BOOL, true);
-        sendCarrierConfigChanged();
-        processAllMessages();
-        verify(mImsManager, times(1)).updateImsServiceConfig();
-
-        logd("deliver provisioning items");
-        mConfigCallback.onProvisioningIntChanged(27, 2);
-        //ProvisioningManager.KEY_VOICE_OVER_WIFI_ENABLED_OVERRIDE(28) call updateImsServiceConfig.
-        mConfigCallback.onProvisioningIntChanged(28, 1);
-        //ProvisioningManager.KEY_VOLTE_PROVISIONING_STATUS(10) call updateImsServiceConfig.
-        mConfigCallback.onProvisioningIntChanged(10, 1);
-        //ProvisioningManager.KEY_VT_PROVISIONING_STATUS(11) call updateImsServiceConfig.
-        mConfigCallback.onProvisioningIntChanged(11, 1);
-        mConfigCallback.onProvisioningStringChanged(12, "msg.pc.t-mobile.com");
-        mConfigCallback.onProvisioningIntChanged(26, 0);
-        mConfigCallback.onProvisioningIntChanged(66, 0);
-
-        logd("proc provisioning items");
-        processAllFutureMessages();
-
-        // updateImsServiceConfig is called with below 4 events.
-        // 1. CarrierConfig
-        // 2. ProvisioningManager.KEY_VOICE_OVER_WIFI_ENABLED_OVERRIDE(28)
-        // 3. ProvisioningManager.KEY_VOLTE_PROVISIONING_STATUS(10)
-        // 4. ProvisioningManager.KEY_VT_PROVISIONING_STATUS(11)
-        verify(mImsManager, times(4)).updateImsServiceConfig();
     }
 
     private void sendCarrierConfigChanged() {

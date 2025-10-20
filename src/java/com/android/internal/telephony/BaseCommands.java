@@ -37,7 +37,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * {@hide}
+ * @hide
  */
 public abstract class BaseCommands implements CommandsInterface {
     //***** Instance Variables

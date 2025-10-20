@@ -31,6 +31,7 @@ import android.content.res.Configuration;
 import android.hardware.radio.modem.ImeiInfo;
 import android.net.Uri;
 import android.os.AsyncResult;
+import android.os.Binder;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
@@ -148,7 +149,7 @@ import java.util.stream.Collectors;
  * from a single application thread. This should be the same thread that
  * originally called PhoneFactory to obtain the interface.
  *
- *  {@hide}
+ * @hide
  *
  */
 
@@ -2553,7 +2554,10 @@ public abstract class Phone extends Handler implements PhoneInternalInterface {
         SubscriptionManager.setSubscriptionProperty(subId,
                 SubscriptionManager.ALLOWED_NETWORK_TYPES,
                 mapAsString);
-        logd("setAllowedNetworkTypes: SubId" + subId + ",setAllowedNetworkTypes " + mapAsString);
+        logl("setAllowedNetworkTypes: subId=" + subId + ", reason="
+                + convertAllowedNetworkTypeMapIndexToDbName(reason) + ", allowed network types="
+                + TelephonyManager.convertNetworkTypeBitmaskToString(networkTypes)
+                + ", uid=" + Binder.getCallingUid());
 
         updateAllowedNetworkTypes(response);
         notifyAllowedNetworkTypesChanged(reason);
@@ -2703,8 +2707,7 @@ public abstract class Phone extends Handler implements PhoneInternalInterface {
     }
 
     /**
-     * Perform the radio modem reboot. The radio will be taken offline. Used for device
-     * configuration by some CDMA operators.
+     * Perform the radio modem reboot. The radio will be taken offline.
      *
      * @param response Callback message.
      */
@@ -5387,6 +5390,11 @@ public abstract class Phone extends Handler implements PhoneInternalInterface {
 
     private void logd(String s) {
         Rlog.d(mLogTag, "[" + mPhoneId + "] " + s);
+    }
+
+    private void logl(String s) {
+        mLocalLog.log(s);
+        Log.d(mLogTag, s);
     }
 
     private void logi(String s) {

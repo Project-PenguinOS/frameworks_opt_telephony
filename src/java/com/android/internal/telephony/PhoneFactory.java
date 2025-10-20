@@ -64,7 +64,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * {@hide}
+ * @hide
  */
 public class PhoneFactory {
     static final String LOG_TAG = "PhoneFactory";

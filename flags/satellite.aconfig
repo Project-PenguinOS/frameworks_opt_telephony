@@ -169,6 +169,9 @@ flag {
   namespace: "telephony"
   description: "This flag controls the changes for the new satellite APIs in 26Q2"
   bug: "434764963"
+  metadata {
+    purpose: PURPOSE_FEATURE
+  }
 }
 
 # OWNER=arunvoddu TARGET=26Q2
@@ -179,5 +182,39 @@ flag {
   bug: "371872603"
   metadata {
     purpose: PURPOSE_FEATURE
+  }
+}
+
+# OWNER=tnd TARGET=26Q1
+flag {
+    name: "fix_satellite_provision_state_out_of_sync"
+    namespace: "telephony"
+    description: "Fix satellite provision state out of sync"
+    bug:"445769117"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+# OWNER=youngtaecha TARGET=26Q1
+flag {
+  name: "update_device_satellite_plmn_by_configupdater"
+  is_exported: false
+  namespace: "telephony"
+  description: "Support updating device satellite plmn by configupdater"
+  bug:"442556034"
+  metadata {
+      purpose: PURPOSE_BUGFIX
+  }
+}
+
+# OWNER=gargakash TARGET=26Q2
+flag {
+  name: "satellite_service_metadata_check"
+  namespace: "telephony"
+  description: "Check for satellite optimization metadata in <service> tags."
+  bug: "427846736"
+  metadata {
+    purpose: PURPOSE_BUGFIX
   }
 }

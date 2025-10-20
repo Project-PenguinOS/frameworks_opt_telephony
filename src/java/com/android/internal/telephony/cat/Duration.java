@@ -25,7 +25,7 @@ import android.os.Parcelable;
 /**
  * Class for representing "Duration" object for CAT.
  *
- * {@hide}
+ * @hide
  */
 public class Duration implements Parcelable {
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)

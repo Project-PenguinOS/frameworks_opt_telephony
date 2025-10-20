@@ -99,7 +99,7 @@ import java.util.Set;
  * while Profile contains all the {@link UiccCardApplication} which will be used to fetch those
  * subscription information from the {@link UiccCard}.
  *
- * {@hide}
+ * @hide
  */
 public class UiccProfile extends IccCard {
     protected static final String LOG_TAG = "UiccProfile";

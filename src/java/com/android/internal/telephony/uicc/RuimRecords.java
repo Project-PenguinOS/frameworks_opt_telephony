@@ -45,7 +45,7 @@ import java.util.Arrays;
 import java.util.Locale;
 
 /**
- * {@hide}
+ * @hide
  */
 public class RuimRecords extends IccRecords {
     static final String LOG_TAG = "RuimRecords";

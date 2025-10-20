@@ -135,7 +135,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
- * {@hide}
+ * @hide
  */
 public class ServiceStateTracker extends Handler {
     static final String LOG_TAG = "SST";
@@ -2297,8 +2297,10 @@ public class ServiceStateTracker extends Handler {
 
         String satellitePlmn = null;
         SatelliteModemStateListener satelliteModemStateListener = getSatelliteModemStateListener();
-        if (satelliteModemStateListener != null
-                && satelliteModemStateListener.isInConnectedState()) {
+        boolean shouldOverrideSatellitePlmnForNtnViaCarrier = mFeatureFlags.vzwAstSkyloFallback()
+                && SatelliteController.getInstance().isUsingNonTerrestrialNetworkViaCarrier().first;
+        if (shouldOverrideSatellitePlmnForNtnViaCarrier || (satelliteModemStateListener != null
+                && satelliteModemStateListener.isInConnectedState())) {
             satellitePlmn = getSatelliteDisplayName();
         }
         log("updateCarrierDisplayName: satellitePlmn=" + satellitePlmn);
@@ -2456,7 +2458,8 @@ public class ServiceStateTracker extends Handler {
             // override satellite display name
             mNewSS.setOperatorName(
                     satelliteDisplayName, satelliteDisplayName, mNewSS.getOperatorNumeric());
-            log("Override satellite display name to " + satelliteDisplayName);
+            log("updateSatelliteDisplayOverride: Override satellite display name to "
+                    + satelliteDisplayName);
         }
     }
 
@@ -2473,6 +2476,8 @@ public class ServiceStateTracker extends Handler {
                     == SatelliteManager.SATELLITE_RESULT_SUCCESS) {
                 mSatelliteModemStateListener = listener;
                 log("created SatelliteModemStateListener");
+            } else {
+                sc.unregisterForModemStateChanged(listener);
             }
         }
         return mSatelliteModemStateListener;
@@ -2527,11 +2532,9 @@ public class ServiceStateTracker extends Handler {
         // If we want it on and it's off, turn it on
         if (mDesiredPowerState && mRadioPowerOffReasons.isEmpty()
                 && (forceApply || mCi.getRadioState() == TelephonyManager.RADIO_POWER_OFF
-                  // When dynamic_modem_shutdown feature is enabled, allow turn on the modem at
-                  // RADIO_POWER_UNAVAILABLE state.
-                     || (mFeatureFlags.dynamicModemShutdown()
-                             && mCi.getRadioState()
-                                     == TelephonyManager.RADIO_POWER_UNAVAILABLE))) {
+                     // Allow turn on the modem at RADIO_POWER_UNAVAILABLE state.
+                     || mCi.getRadioState()
+                                     == TelephonyManager.RADIO_POWER_UNAVAILABLE)) {
             mCi.setRadioPower(true, forEmergencyCall, isSelectedPhoneForEmergencyCall, null);
         } else if ((!mDesiredPowerState || !mRadioPowerOffReasons.isEmpty()) && mCi.getRadioState()
                 == TelephonyManager.RADIO_POWER_ON) {
@@ -2719,9 +2722,7 @@ public class ServiceStateTracker extends Handler {
         switch (mCi.getRadioState()) {
             case TelephonyManager.RADIO_POWER_UNAVAILABLE:
                 handlePollStateInternalForRadioOffOrUnavailable(false);
-                if (mFeatureFlags.dynamicModemShutdown()) {
-                    mDeviceShuttingDown = false;
-                }
+                mDeviceShuttingDown = false;
                 pollStateDone();
                 break;
 

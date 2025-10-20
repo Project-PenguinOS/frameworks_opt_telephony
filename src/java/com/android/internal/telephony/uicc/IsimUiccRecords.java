@@ -42,7 +42,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 
 /**
- * {@hide}
+ * @hide
  */
 public class IsimUiccRecords extends IccRecords implements IsimRecords {
     protected static final String LOG_TAG = "IsimUiccRecords";

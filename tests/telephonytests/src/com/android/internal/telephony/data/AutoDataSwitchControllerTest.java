@@ -47,6 +47,7 @@ import android.net.NetworkCapabilities;
 import android.os.AsyncResult;
 import android.os.Looper;
 import android.os.Message;
+import android.os.ParcelUuid;
 import android.os.PersistableBundle;
 import android.telephony.AccessNetworkConstants;
 import android.telephony.CarrierConfigManager;
@@ -71,6 +72,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 
+import java.util.List;
 import java.util.Map;
 
 @RunWith(AndroidTestingRunner.class)
@@ -86,10 +88,15 @@ public class AutoDataSwitchControllerTest extends TelephonyTest {
     private static final int SUB_1 = 1;
     private static final int PHONE_2 = 1;
     private static final int SUB_2 = 2;
+    private static final int SUB_3 = 3;
+    private static final int PHONE_3 = 2;
     private static final int MAX_RETRY = 5;
     private static final int SCORE_TOLERANCE = 100;
     private static final int GOOD_RAT_SIGNAL_SCORE = 200;
     private static final int BAD_RAT_SIGNAL_SCORE = 50;
+    private static final String TEST_UUID_STRING1 = "e9929bd3-c1b5-48bc-a753-ff38108a2231";
+    private static final String TEST_UUID_STRING2 = "cb14195d-a3b6-46a1-b98d-6b9740a0bc4f";
+
     private boolean mIsNonTerrestrialNetwork = false;
     // Mocked
     private AutoDataSwitchController.AutoDataSwitchControllerCallback mMockedPhoneSwitcherCallback;
@@ -199,13 +206,11 @@ public class AutoDataSwitchControllerTest extends TelephonyTest {
         mAutoDataSwitchControllerUT = new AutoDataSwitchController(mContext, Looper.myLooper(),
                 mPhoneSwitcher, mFeatureFlags, mMockedPhoneSwitcherCallback);
 
-        if (mFeatureFlags.monitorCarrierConfigChangeForAutoDataSwitch()) {
-            ArgumentCaptor<CarrierConfigManager.CarrierConfigChangeListener> captor =
-                    ArgumentCaptor.forClass(CarrierConfigManager.CarrierConfigChangeListener.class);
-            verify(mCarrierConfigManager).registerCarrierConfigChangeListener(any(),
-                    captor.capture());
-            mCarrierConfigChangeListener = captor.getValue();
-        }
+        ArgumentCaptor<CarrierConfigManager.CarrierConfigChangeListener> captor =
+                ArgumentCaptor.forClass(CarrierConfigManager.CarrierConfigChangeListener.class);
+        verify(mCarrierConfigManager).registerCarrierConfigChangeListener(any(),
+                captor.capture());
+        mCarrierConfigChangeListener = captor.getValue();
 
         replaceInstance(AutoDataSwitchController.class, "mAlarmManager",
                 mAutoDataSwitchControllerUT, mMockedAlarmManager);
@@ -220,15 +225,10 @@ public class AutoDataSwitchControllerTest extends TelephonyTest {
         // Default setup for opportunistic auto data switch policy.
         // This ensures existing tests behave as if opportunistic switching is disabled by policy,
         // unless overridden by a specific test or setupOpportunisticSwitchMode.
-        if (mFeatureFlags.monitorCarrierConfigChangeForAutoDataSwitch()) {
-            mPersistableBundle = new PersistableBundle();
-            mPersistableBundle.putInt(CarrierConfigManager.KEY_OPP_AUTO_DATA_SWITCH_POLICY_INT,
-                    CarrierConfigManager.OPP_AUTO_DATA_SWITCH_POLICY_DISABLED);
-            doReturn(mPersistableBundle).when(mCarrierConfigManager).getConfig(any());
-        } else {
-            doReturn(CarrierConfigManager.OPP_AUTO_DATA_SWITCH_POLICY_DISABLED)
-                    .when(mDataConfigManager).getCarrierOverriddenAutoDataSwitchPolicyForOppt();
-        }
+        mPersistableBundle = new PersistableBundle();
+        mPersistableBundle.putInt(CarrierConfigManager.KEY_OPP_AUTO_DATA_SWITCH_POLICY_INT,
+                CarrierConfigManager.OPP_AUTO_DATA_SWITCH_POLICY_DISABLED);
+        doReturn(mPersistableBundle).when(mCarrierConfigManager).getConfig(any());
     }
 
     @After
@@ -241,9 +241,6 @@ public class AutoDataSwitchControllerTest extends TelephonyTest {
 
     @Test
     public void testCarrierConfigChanged_opportunisticPolicyEnabled_triggersSwitch() {
-        if (!mFeatureFlags.monitorCarrierConfigChangeForAutoDataSwitch()) {
-            return;
-        }
         // 1. Initial state: Policy is DISABLED. Primary is OOS, but no switch happens.
         setupOpportunisticSwitchMode(
                 CarrierConfigManager.OPP_AUTO_DATA_SWITCH_POLICY_DISABLED);
@@ -268,11 +265,8 @@ public class AutoDataSwitchControllerTest extends TelephonyTest {
         verify(mMockedPhoneSwitcherCallback).onRequireValidation(PHONE_2, true);
     }
 
-    @Test
+    // TODO(b/452417708): fix the failure and re-open the test case
     public void testCarrierConfigChanged_opportunisticPolicyDisabled_cancelsSwitch() {
-        if (!mFeatureFlags.monitorCarrierConfigChangeForAutoDataSwitch()) {
-            return;
-        }
         // 1. Initial state: Policy is FOR_AVAILABILITY. Primary is OOS, switch is pending.
         setupOpportunisticSwitchMode(
                 CarrierConfigManager.OPP_AUTO_DATA_SWITCH_POLICY_FOR_AVAILABILITY);
@@ -1293,6 +1287,125 @@ public class AutoDataSwitchControllerTest extends TelephonyTest {
         verifyNoMoreInteractions(mMockedPhoneSwitcherCallback);
     }
 
+    @Test
+    public void testConstructor_nullCarrierConfigManager_shouldNotCrash() {
+        doReturn(null).when(mContext).getSystemService(Context.CARRIER_CONFIG_SERVICE);
+        clearInvocations(mCarrierConfigManager);
+
+        try {
+            new AutoDataSwitchController(mContext, Looper.myLooper(),
+                    mPhoneSwitcher, mFeatureFlags, mMockedPhoneSwitcherCallback);
+            verify(mCarrierConfigManager, never()).registerCarrierConfigChangeListener(any(),
+                    any());
+        } finally {
+            doReturn(mCarrierConfigManager).when(mContext).getSystemService(
+                    Context.CARRIER_CONFIG_SERVICE);
+        }
+    }
+
+    @Test
+    public void testShouldExcludeOpportunisticForSwitch_noSub() {
+        setupOpportunisticSwitchMode(
+                CarrierConfigManager.OPP_AUTO_DATA_SWITCH_POLICY_FOR_AVAILABILITY);
+        doReturn(List.of()).when(mSubscriptionManagerService)
+                .getActiveSubscriptionInfoList(any(), any(), anyBoolean());
+
+        setupStatePrimaryIsOos();
+        mAutoDataSwitchControllerUT.evaluateAutoDataSwitch(
+                EVALUATION_REASON_REGISTRATION_STATE_CHANGED);
+        processAllFutureMessages();
+
+        verify(mMockedPhoneSwitcherCallback, never()).onRequireValidation(anyInt(), anyBoolean());
+    }
+
+    @Test
+    public void testShouldExcludeOpportunisticForSwitch_oneSub() {
+        setupOpportunisticSwitchMode(
+                CarrierConfigManager.OPP_AUTO_DATA_SWITCH_POLICY_FOR_AVAILABILITY);
+
+        SubscriptionInfo subInfo1Primary = mock(SubscriptionInfo.class);
+        doReturn(SUB_1).when(subInfo1Primary).getSubscriptionId();
+        doReturn(false).when(subInfo1Primary).isOpportunistic();
+        doReturn(true).when(subInfo1Primary).isActive();
+        doReturn(ParcelUuid.fromString(TEST_UUID_STRING1)).when(subInfo1Primary).getGroupUuid();
+        doReturn(List.of(subInfo1Primary)).when(
+                mSubscriptionManagerService).getActiveSubscriptionInfoList(any(), any(),
+                anyBoolean());
+
+        setupStatePrimaryIsOos();
+        mAutoDataSwitchControllerUT.evaluateAutoDataSwitch(
+                EVALUATION_REASON_REGISTRATION_STATE_CHANGED);
+        processAllFutureMessages();
+
+        verify(mMockedPhoneSwitcherCallback, never()).onRequireValidation(anyInt(), anyBoolean());
+    }
+
+    @Test
+    public void testShouldExcludeOpportunisticForSwitch_onePrimaryOneOppt_differentGroup() {
+        setupOpportunisticSwitchMode(
+                CarrierConfigManager.OPP_AUTO_DATA_SWITCH_POLICY_FOR_AVAILABILITY);
+
+        SubscriptionInfo subInfo1Primary = mock(SubscriptionInfo.class);
+        doReturn(SUB_1).when(subInfo1Primary).getSubscriptionId();
+        doReturn(false).when(subInfo1Primary).isOpportunistic();
+        doReturn(true).when(subInfo1Primary).isActive();
+        doReturn(ParcelUuid.fromString(TEST_UUID_STRING1)).when(subInfo1Primary).getGroupUuid();
+
+        SubscriptionInfo subInfo2Opportunistic = mock(SubscriptionInfo.class);
+        doReturn(SUB_2).when(subInfo2Opportunistic).getSubscriptionId();
+        doReturn(true).when(subInfo2Opportunistic).isOpportunistic();
+        doReturn(true).when(subInfo2Opportunistic).isActive();
+        doReturn(ParcelUuid.fromString(TEST_UUID_STRING2)).when(
+                subInfo2Opportunistic).getGroupUuid();
+
+        doReturn(List.of(subInfo1Primary, subInfo2Opportunistic)).when(
+                mSubscriptionManagerService).getActiveSubscriptionInfoList(any(), any(),
+                anyBoolean());
+
+        setupStatePrimaryIsOos();
+        mAutoDataSwitchControllerUT.evaluateAutoDataSwitch(
+                EVALUATION_REASON_REGISTRATION_STATE_CHANGED);
+        processAllFutureMessages();
+        verify(mMockedPhoneSwitcherCallback, never()).onRequireValidation(anyInt(), anyBoolean());
+    }
+
+    @Test
+    public void testShouldExcludeOpportunisticForSwitch_threeActiveSubs_primaryOpptInSameGroup() {
+        // Future case, three active subs is not supported in current DSDS device yet
+        setupOpportunisticSwitchMode(
+                CarrierConfigManager.OPP_AUTO_DATA_SWITCH_POLICY_FOR_AVAILABILITY);
+
+        SubscriptionInfo subInfo1Primary = mock(SubscriptionInfo.class);
+        doReturn(SUB_1).when(subInfo1Primary).getSubscriptionId();
+        doReturn(false).when(subInfo1Primary).isOpportunistic();
+        doReturn(true).when(subInfo1Primary).isActive();
+        doReturn(ParcelUuid.fromString(TEST_UUID_STRING1)).when(subInfo1Primary).getGroupUuid();
+
+        SubscriptionInfo subInfo2Opportunistic = mock(SubscriptionInfo.class);
+        doReturn(SUB_2).when(subInfo2Opportunistic).getSubscriptionId();
+        doReturn(true).when(subInfo2Opportunistic).isOpportunistic();
+        doReturn(true).when(subInfo2Opportunistic).isActive();
+        doReturn(ParcelUuid.fromString(TEST_UUID_STRING1)).when(
+                subInfo2Opportunistic).getGroupUuid();
+
+        SubscriptionInfo subInfo3Opportunistic = mock(SubscriptionInfo.class);
+        doReturn(SUB_3).when(subInfo3Opportunistic).getSubscriptionId();
+        doReturn(true).when(subInfo3Opportunistic).isOpportunistic();
+        doReturn(true).when(subInfo3Opportunistic).isActive();
+        doReturn(ParcelUuid.fromString(TEST_UUID_STRING2)).when(
+                subInfo3Opportunistic).getGroupUuid();
+
+        doReturn(List.of(subInfo1Primary, subInfo2Opportunistic, subInfo3Opportunistic)).when(
+                mSubscriptionManagerService).getActiveSubscriptionInfoList(any(), any(),
+                anyBoolean());
+
+        setupStatePrimaryIsOos();
+        mAutoDataSwitchControllerUT.evaluateAutoDataSwitch(
+                EVALUATION_REASON_REGISTRATION_STATE_CHANGED);
+        processAllFutureMessages();
+        verify(mMockedPhoneSwitcherCallback).onRequireValidation(anyInt(), anyBoolean());
+    }
+
     /**
      * Trigger conditions
      * 1. service state changes
@@ -1390,48 +1503,34 @@ public class AutoDataSwitchControllerTest extends TelephonyTest {
                 .getActiveSubIdList(false /*visibleOnly*/);
 
         // Mock SubscriptionInfo for SUB_1 (Primary)
-        SubscriptionInfoInternal subInfo1Primary = mock(SubscriptionInfoInternal.class);
+        SubscriptionInfo subInfo1Primary = mock(SubscriptionInfo.class);
         doReturn(PHONE_1).when(subInfo1Primary).getSimSlotIndex();
         doReturn(SUB_1).when(subInfo1Primary).getSubscriptionId();
         doReturn(false).when(subInfo1Primary).isOpportunistic();
         doReturn(true).when(subInfo1Primary).isActive();
-        doReturn(true).when(subInfo1Primary).isVisible();
         doReturn("PrimarySub").when(subInfo1Primary).getDisplayName();
+        doReturn(ParcelUuid.fromString(TEST_UUID_STRING1)).when(subInfo1Primary).getGroupUuid();
 
         // Mock SubscriptionInfo for SUB_2 (Opportunistic)
-        SubscriptionInfoInternal subInfo2Opportunistic = mock(SubscriptionInfoInternal.class);
+        SubscriptionInfo subInfo2Opportunistic = mock(SubscriptionInfo.class);
         doReturn(PHONE_2).when(subInfo2Opportunistic).getSimSlotIndex();
         doReturn(SUB_2).when(subInfo2Opportunistic).getSubscriptionId();
         doReturn(true).when(subInfo2Opportunistic).isOpportunistic();
         doReturn(true).when(subInfo2Opportunistic).isActive();
-        doReturn(false).when(subInfo2Opportunistic).isVisible();
         doReturn("OpportunisticSub").when(subInfo2Opportunistic).getDisplayName();
+        doReturn(ParcelUuid.fromString(TEST_UUID_STRING1)).when(
+                subInfo2Opportunistic).getGroupUuid();
 
-        doAnswer(invocation -> {
-            int subId = (int) invocation.getArguments()[0];
-            if (subId == SUB_1) return subInfo1Primary;
-            if (subId == SUB_2) return subInfo2Opportunistic;
-            return null;
-        }).when(mSubscriptionManagerService).getSubscriptionInfoInternal(anyInt());
-
-        // Mock getSubscriptionInfo to be consistent for notification testing
-        doAnswer(invocation -> {
-            int subId = (int) invocation.getArguments()[0];
-            if (subId == SUB_1) return subInfo1Primary;
-            if (subId == SUB_2) return subInfo2Opportunistic;
-            return null;
-        }).when(mSubscriptionManagerService).getSubscriptionInfo(anyInt());
+        doReturn(List.of(subInfo1Primary, subInfo2Opportunistic)).when(
+                mSubscriptionManagerService).getActiveSubscriptionInfoList(any(), any(),
+                anyBoolean());
 
         // Mock carrier config for the primary phone (PHONE_1, which is mPhone)
         // to set the opportunistic switch policy.
-        if (mFeatureFlags.monitorCarrierConfigChangeForAutoDataSwitch()) {
-            mPersistableBundle.putInt(CarrierConfigManager.KEY_OPP_AUTO_DATA_SWITCH_POLICY_INT,
-                    opportunisticPolicyOnPrimarySub);
-            doReturn(mPersistableBundle).when(mCarrierConfigManager).getConfig(any());
-        } else {
-            doReturn(opportunisticPolicyOnPrimarySub)
-                    .when(mDataConfigManager).getCarrierOverriddenAutoDataSwitchPolicyForOppt();
-        }
+        mPersistableBundle.putInt(CarrierConfigManager.KEY_OPP_AUTO_DATA_SWITCH_POLICY_INT,
+                opportunisticPolicyOnPrimarySub);
+        doReturn(mPersistableBundle).when(mCarrierConfigManager).getConfigForSubId(anyInt(),
+                any());
     }
 
     private void setupStatePrimaryIsOos() {

@@ -37,7 +37,6 @@ import android.annotation.NonNull;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
-import android.content.pm.PackageManager;
 import android.os.AsyncResult;
 import android.os.Handler;
 import android.os.Looper;
@@ -264,21 +263,15 @@ public class MultiSimSettingController extends Handler {
     }
 
     private boolean hasCalling() {
-        if (!TelephonyCapabilities.minimalTelephonyCdmCheck(mFeatureFlags)) return true;
-        return mContext.getPackageManager().hasSystemFeature(
-                PackageManager.FEATURE_TELEPHONY_CALLING);
+        return TelephonyCapabilities.supportsTelephonyCalling(mFeatureFlags, mContext);
     }
 
     private boolean hasData() {
-        if (!TelephonyCapabilities.minimalTelephonyCdmCheck(mFeatureFlags)) return true;
-        return mContext.getPackageManager().hasSystemFeature(
-                PackageManager.FEATURE_TELEPHONY_DATA);
+        return TelephonyCapabilities.supportsTelephonyData(mFeatureFlags, mContext);
     }
 
     private boolean hasMessaging() {
-        if (!TelephonyCapabilities.minimalTelephonyCdmCheck(mFeatureFlags)) return true;
-        return mContext.getPackageManager().hasSystemFeature(
-                PackageManager.FEATURE_TELEPHONY_MESSAGING);
+        return TelephonyCapabilities.supportsTelephonyMessaging(mFeatureFlags, mContext);
     }
 
     /**

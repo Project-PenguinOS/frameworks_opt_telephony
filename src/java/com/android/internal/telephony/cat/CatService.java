@@ -97,7 +97,7 @@ class RilMessage {
  * Class that implements SIM Toolkit Telephony Service. Interacts with the RIL
  * and application.
  *
- * {@hide}
+ * @hide
  */
 public class CatService extends Handler implements AppInterface {
     private static final boolean DBG = false;
@@ -327,12 +327,10 @@ public class CatService extends Handler implements AppInterface {
             CatLog.d(this, "Disposing CatService object");
             mIccRecords.unregisterForRecordsLoaded(this);
 
-            if (mFeatureFlags.unregisterSmsBroadcastReceiverFromCatService()) {
-                try {
-                    mContext.unregisterReceiver(mSmsBroadcastReceiver);
-                } catch (IllegalArgumentException e) {
-                    CatLog.e(this, "mSmsBroadcastReceiver: was not registered" + e);
-                }
+            try {
+                mContext.unregisterReceiver(mSmsBroadcastReceiver);
+            } catch (IllegalArgumentException e) {
+                CatLog.e(this, "mSmsBroadcastReceiver: was not registered" + e);
             }
 
             // Clean up stk icon if dispose is called

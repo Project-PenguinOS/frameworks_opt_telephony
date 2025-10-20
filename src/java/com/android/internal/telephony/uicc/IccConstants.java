@@ -17,7 +17,7 @@
 package com.android.internal.telephony.uicc;
 
 /**
- * {@hide}
+ * @hide
  */
 public interface IccConstants {
     // GSM SIM file ids from TS 51.011

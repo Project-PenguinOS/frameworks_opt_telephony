@@ -475,7 +475,18 @@ public class DataStallRecoveryManagerTest extends TelephonyTest {
      * Tests the DSRM process to send three intents for three action changes.
      */
     @Test
+    public void testInitialValidStateIsNotDataStall() throws Exception {
+        when(mFeatureFlags.ignoreInitialDataStallRecovered()).thenReturn(true);
+        sendValidationStatusCallback(NetworkAgent.VALIDATION_STATUS_VALID);
+        verify(mPhone.getContext(), never()).sendBroadcast(any());
+    }
+
+    /**
+     * Tests the DSRM process to send three intents for three action changes.
+     */
+    @Test
     public void testSendDSRMData() throws Exception {
+        when(mFeatureFlags.ignoreInitialDataStallRecovered()).thenReturn(false);
         ArgumentCaptor<Intent> captorIntent = ArgumentCaptor.forClass(Intent.class);
 
         sendValidationStatusCallback(NetworkAgent.VALIDATION_STATUS_VALID);

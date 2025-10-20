@@ -615,6 +615,13 @@ public class DataStallRecoveryManager extends Handler {
     private void onInternetValidationStatusChanged(@ValidationStatus int status) {
         logl("onInternetValidationStatusChanged: " + DataUtils.validationStatusToString(status));
         final boolean isValid = status == NetworkAgent.VALIDATION_STATUS_VALID;
+
+        // The state has not changed so there are no actions to perform.
+        if (mFeatureFlags.ignoreInitialDataStallRecovered() && isValid && !mDataStalled) {
+            reset(false);
+            return;
+        }
+
         mValidationCount += 1;
         mActionValidationCount += 1;
         setNetworkValidationState(isValid);
@@ -974,7 +981,7 @@ public class DataStallRecoveryManager extends Handler {
         boolean isFirstValidationAfterDoRecovery = false;
         @RecoveredReason int reason = getRecoveredReason(isValid);
         // Validation status is true and was not data stall.
-        if (isValid && !mDataStalled) {
+        if (!mFeatureFlags.ignoreInitialDataStallRecovered() && isValid && !mDataStalled) {
             return;
         }
 

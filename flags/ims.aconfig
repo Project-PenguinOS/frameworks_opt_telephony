@@ -17,14 +17,6 @@ flag {
     bug:"288002989"
 }
 
-# OWNER=sangyun TARGET=24Q2
-flag {
-    name: "update_ims_service_by_gathering_provisioning_changes"
-    namespace: "telephony"
-    description: "This flag is created to prevent unnecessary updates when multiple provisioning items to update ims service are changed."
-    bug:"302281114"
-}
-
 # OWNER=shmun TARGET=24Q3
 flag {
     name: "add_rat_related_suggested_action_to_ims_registration"
@@ -41,17 +33,6 @@ flag {
     namespace: "telephony"
     description: "This flag is created to notify emergency registration state changed."
     bug:"312101946"
-}
-
-# OWNER=breadley TARGET=25Q1
-flag {
-    name: "ims_resolver_user_aware"
-    namespace: "telephony"
-    description: "When enabled, it makes ImsResolver mult-user aware for configurations like HSUM."
-    bug:"371272669"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
 }
 
 # OWNER=meghapatil TARGET=25Q2
@@ -134,4 +115,12 @@ flag {
     namespace: "telephony"
     description: "This flag exposes sms memory availability notification related APIs"
     bug:"428178177"
+}
+
+# OWNER=gwenlin TARGET=26Q2
+flag {
+    name: "pcscf_address"
+    namespace: "telephony"
+    description: "This flag adds P-CSCF address in IMS registration attributes"
+    bug:"433593483"
 }

@@ -166,7 +166,6 @@ public class CATServiceTest extends TelephonyTest {
         createCommandDetails();
         createComprehensionTlvList();
 
-        doReturn(true).when(mFeatureFlags).unregisterSmsBroadcastReceiverFromCatService();
         doReturn(true).when(mFeatureFlags).supportImsRegistrationEventDownload();
     }
 

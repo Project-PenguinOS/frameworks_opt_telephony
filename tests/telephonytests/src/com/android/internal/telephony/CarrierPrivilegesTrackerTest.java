@@ -190,15 +190,9 @@ public class CarrierPrivilegesTrackerTest extends TelephonyTest {
             pkg.packageName = pkgCertInfo.pkgName;
             pkg.signatures = new Signature[] {new Signature(pkgCertInfo.cert)};
 
-            if (mFeatureFlags.supportCarrierServicesForHsum()) {
-                when(mPackageManager.getPackageInfoAsUser(
-                        eq(pkgCertInfo.pkgName), eq(PM_FLAGS), anyInt()))
-                        .thenReturn(pkg);
-            } else {
-                when(mPackageManager.getPackageInfo(
-                        eq(pkgCertInfo.pkgName), eq(PM_FLAGS)))
-                        .thenReturn(pkg);
-            }
+            when(mPackageManager.getPackageInfoAsUser(
+                    eq(pkgCertInfo.pkgName), eq(PM_FLAGS), anyInt()))
+                    .thenReturn(pkg);
             when(mPackageManager.getPackageUidAsUser(
                     eq(pkgCertInfo.pkgName), eq(pkgCertInfo.userInfo.id)))
                     .thenReturn(pkgCertInfo.uid);
@@ -597,14 +591,9 @@ public class CarrierPrivilegesTrackerTest extends TelephonyTest {
 
         ResolveInfo pkg1ResolveInfo = new ResolveInfoBuilder().setActivity(PACKAGE_1).build();
         ResolveInfo pkg2ResolveInfo = new ResolveInfoBuilder().setActivity(PACKAGE_2).build();
-        if (mFeatureFlags.supportCarrierServicesForHsum()) {
-            when(mPackageManager.queryBroadcastReceiversAsUser(any(), anyInt(),
-                    anyInt())).thenReturn(
-                    List.of(pkg1ResolveInfo, pkg2ResolveInfo));
-        } else {
-            when(mPackageManager.queryBroadcastReceivers(any(), anyInt())).thenReturn(
-                    List.of(pkg1ResolveInfo, pkg2ResolveInfo));
-        }
+        when(mPackageManager.queryBroadcastReceiversAsUser(any(), anyInt(),
+                anyInt())).thenReturn(
+                List.of(pkg1ResolveInfo, pkg2ResolveInfo));
 
         // SIM is READY
         sendSimCardStateChangedIntent(PHONE_ID, SIM_STATE_READY);
@@ -736,13 +725,8 @@ public class CarrierPrivilegesTrackerTest extends TelephonyTest {
         // Update PACKAGE_1 to have no signatures
         PackageInfo pkg = new PackageInfo();
         pkg.packageName = PACKAGE_1;
-        if (mFeatureFlags.supportCarrierServicesForHsum()) {
-            when(mPackageManager.getPackageInfoAsUser(eq(PACKAGE_1), eq(PM_FLAGS), anyInt()))
-                    .thenReturn(pkg);
-        } else {
-            when(mPackageManager.getPackageInfo(eq(PACKAGE_1), eq(PM_FLAGS)))
-                    .thenReturn(pkg);
-        }
+        when(mPackageManager.getPackageInfoAsUser(eq(PACKAGE_1), eq(PM_FLAGS), anyInt()))
+                .thenReturn(pkg);
 
         sendPackageChangedIntent(Intent.ACTION_PACKAGE_ADDED, PACKAGE_1);
         mTestableLooper.processAllMessages();
@@ -813,35 +797,19 @@ public class CarrierPrivilegesTrackerTest extends TelephonyTest {
         setupInstalledPackages(
                 new PackageCertInfo(PACKAGE_1, CERT_1, USER_1, UID_1),
                 new PackageCertInfo(PACKAGE_2, CERT_2, USER_1, UID_2));
-        if (mFeatureFlags.supportCarrierServicesForHsum()) {
-            when(mPackageManager.getPackageUidAsUser(eq(PACKAGE_1), anyInt())).thenReturn(UID_1);
-            when(mPackageManager.getPackageUidAsUser(eq(PACKAGE_2), anyInt())).thenReturn(UID_2);
-        } else {
-            when(mPackageManager.getPackageUid(eq(PACKAGE_1), anyInt())).thenReturn(UID_1);
-            when(mPackageManager.getPackageUid(eq(PACKAGE_2), anyInt())).thenReturn(UID_2);
-        }
+        when(mPackageManager.getPackageUidAsUser(eq(PACKAGE_1), anyInt())).thenReturn(UID_1);
+        when(mPackageManager.getPackageUidAsUser(eq(PACKAGE_2), anyInt())).thenReturn(UID_2);
         ResolveInfo resolveInfoPkg1 = new ResolveInfoBuilder().setService(PACKAGE_1).build();
-        if (mFeatureFlags.supportCarrierServicesForHsum()) {
-            doReturn(List.of(resolveInfoPkg1))
-                    .when(mPackageManager)
-                    .queryIntentServicesAsUser(any(), anyInt(), anyInt());
-        } else {
-            doReturn(List.of(resolveInfoPkg1))
-                    .when(mPackageManager)
-                    .queryIntentServices(any(), anyInt());
-        }
+        doReturn(List.of(resolveInfoPkg1))
+                .when(mPackageManager)
+                .queryIntentServicesAsUser(any(), anyInt(), anyInt());
         mCarrierPrivilegesTracker = createCarrierPrivilegesTracker();
 
         // Package_1 is disabled
         when(mPackageManager.getApplicationEnabledSetting(eq(PACKAGE_1))).thenReturn(
                 PackageManager.COMPONENT_ENABLED_STATE_DISABLED_USER);
-        if (mFeatureFlags.supportCarrierServicesForHsum()) {
-            doReturn(List.of()).when(
-                    mPackageManager).queryIntentServicesAsUser(any(), anyInt(), anyInt());
-        } else {
-            doReturn(List.of()).when(
-                    mPackageManager).queryIntentServices(any(), anyInt());
-        }
+        doReturn(List.of()).when(
+                mPackageManager).queryIntentServicesAsUser(any(), anyInt(), anyInt());
         sendPackageChangedIntent(Intent.ACTION_PACKAGE_CHANGED, PACKAGE_1);
         mTestableLooper.processAllMessages();
 
@@ -852,13 +820,8 @@ public class CarrierPrivilegesTrackerTest extends TelephonyTest {
         // Package_1 is re-enabled
         when(mPackageManager.getApplicationEnabledSetting(eq(PACKAGE_1))).thenReturn(
                 PackageManager.COMPONENT_ENABLED_STATE_ENABLED);
-        if (mFeatureFlags.supportCarrierServicesForHsum()) {
-            doReturn(List.of(resolveInfoPkg1)).when(
-                    mPackageManager).queryIntentServicesAsUser(any(), anyInt(), anyInt());
-        } else {
-            doReturn(List.of(resolveInfoPkg1)).when(
-                    mPackageManager).queryIntentServices(any(), anyInt());
-        }
+        doReturn(List.of(resolveInfoPkg1)).when(
+                mPackageManager).queryIntentServicesAsUser(any(), anyInt(), anyInt());
         sendPackageChangedIntent(Intent.ACTION_PACKAGE_CHANGED, PACKAGE_1);
         mTestableLooper.processAllMessages();
 
@@ -938,45 +901,25 @@ public class CarrierPrivilegesTrackerTest extends TelephonyTest {
 
         ResolveInfo privilegeBroadcast = new ResolveInfoBuilder().setActivity(PACKAGE_1).build();
         ResolveInfo noPrivilegeBroadcast = new ResolveInfoBuilder().setActivity(PACKAGE_2).build();
-        if (mFeatureFlags.supportCarrierServicesForHsum()) {
-            when(mPackageManager.queryBroadcastReceiversAsUser(any(), anyInt(),
-                    anyInt())).thenReturn(
-                    List.of(privilegeBroadcast, noPrivilegeBroadcast));
-        } else {
-            when(mPackageManager.queryBroadcastReceivers(any(), anyInt())).thenReturn(
-                    List.of(privilegeBroadcast, noPrivilegeBroadcast));
-        }
+        when(mPackageManager.queryBroadcastReceiversAsUser(any(), anyInt(),
+                anyInt())).thenReturn(
+                List.of(privilegeBroadcast, noPrivilegeBroadcast));
 
         ResolveInfo privilegeActivity = new ResolveInfoBuilder().setActivity(PACKAGE_3).build();
         ResolveInfo noPrivilegeActivity = new ResolveInfoBuilder().setActivity(PACKAGE_4).build();
-        if (mFeatureFlags.supportCarrierServicesForHsum()) {
-            when(mPackageManager.queryIntentActivitiesAsUser(any(), anyInt(), anyInt())).thenReturn(
-                    List.of(privilegeActivity, noPrivilegeActivity));
-        } else {
-            when(mPackageManager.queryIntentActivities(any(), anyInt())).thenReturn(
-                    List.of(privilegeActivity, noPrivilegeActivity));
-        }
+        when(mPackageManager.queryIntentActivitiesAsUser(any(), anyInt(), anyInt())).thenReturn(
+                List.of(privilegeActivity, noPrivilegeActivity));
 
         ResolveInfo privilegeService = new ResolveInfoBuilder().setService(PACKAGE_5).build();
         ResolveInfo noPrivilegeService = new ResolveInfoBuilder().setService(PACKAGE_6).build();
         // Use doReturn instead of when/thenReturn which has NPE with unknown reason
-        if (mFeatureFlags.supportCarrierServicesForHsum()) {
-            doReturn(List.of(privilegeService, noPrivilegeService)).when(
-                    mPackageManager).queryIntentServicesAsUser(any(), anyInt(), anyInt());
-        } else {
-            doReturn(List.of(privilegeService, noPrivilegeService)).when(
-                    mPackageManager).queryIntentServices(any(), anyInt());
-        }
+        doReturn(List.of(privilegeService, noPrivilegeService)).when(
+                mPackageManager).queryIntentServicesAsUser(any(), anyInt(), anyInt());
 
         ResolveInfo privilegeProvider = new ResolveInfoBuilder().setProvider(PACKAGE_7).build();
         ResolveInfo noPrivilegeProvider = new ResolveInfoBuilder().setProvider(PACKAGE_8).build();
-        if (mFeatureFlags.supportCarrierServicesForHsum()) {
-            when(mPackageManager.queryIntentContentProvidersAsUser(any(), anyInt(), anyInt()))
-                    .thenReturn(List.of(privilegeProvider, noPrivilegeProvider));
-        } else {
-            when(mPackageManager.queryIntentContentProviders(any(), anyInt())).thenReturn(
-                    List.of(privilegeProvider, noPrivilegeProvider));
-        }
+        when(mPackageManager.queryIntentContentProvidersAsUser(any(), anyInt(), anyInt()))
+                .thenReturn(List.of(privilegeProvider, noPrivilegeProvider));
 
         mCarrierPrivilegesTracker = createCarrierPrivilegesTracker();
         Intent intent = new Intent(CarrierService.CARRIER_SERVICE_INTERFACE);
@@ -1005,19 +948,11 @@ public class CarrierPrivilegesTrackerTest extends TelephonyTest {
         ResolveInfo privilegeService = new ResolveInfoBuilder().setService(PACKAGE_1).build();
         ResolveInfo noPrivilegeService = new ResolveInfoBuilder().setService(PACKAGE_2).build();
         // Use doReturn instead of when/thenReturn which has NPE with unknown reason
-        if (mFeatureFlags.supportCarrierServicesForHsum()) {
-            doReturn(List.of(privilegeService, noPrivilegeService)).when(
-                    mPackageManager).queryIntentServicesAsUser(any(), anyInt(), anyInt());
-            when(mPackageManager.getPackageUidAsUser(eq(PACKAGE_1), anyInt())).thenReturn(UID_1);
-            when(mPackageManager.getPackageUidAsUser(eq(PACKAGE_2), anyInt())).thenReturn(UID_2);
-            when(mPackageManager.getPackageUidAsUser(eq(PACKAGE_3), anyInt())).thenReturn(UID_1);
-        } else {
-            doReturn(List.of(privilegeService, noPrivilegeService)).when(
-                    mPackageManager).queryIntentServices(any(), anyInt());
-            when(mPackageManager.getPackageUid(eq(PACKAGE_1), anyInt())).thenReturn(UID_1);
-            when(mPackageManager.getPackageUid(eq(PACKAGE_2), anyInt())).thenReturn(UID_2);
-            when(mPackageManager.getPackageUid(eq(PACKAGE_3), anyInt())).thenReturn(UID_1);
-        }
+        doReturn(List.of(privilegeService, noPrivilegeService)).when(
+                mPackageManager).queryIntentServicesAsUser(any(), anyInt(), anyInt());
+        when(mPackageManager.getPackageUidAsUser(eq(PACKAGE_1), anyInt())).thenReturn(UID_1);
+        when(mPackageManager.getPackageUidAsUser(eq(PACKAGE_2), anyInt())).thenReturn(UID_2);
+        when(mPackageManager.getPackageUidAsUser(eq(PACKAGE_3), anyInt())).thenReturn(UID_1);
 
         // Get CS package name for the first time
         mCarrierPrivilegesTracker = createCarrierPrivilegesTracker();
@@ -1026,11 +961,7 @@ public class CarrierPrivilegesTrackerTest extends TelephonyTest {
         mTestableLooper.processAllMessages();
 
         // Package manager should be queried from
-        if (mFeatureFlags.supportCarrierServicesForHsum()) {
-            verify(mPackageManager).queryIntentServicesAsUser(any(), anyInt(), anyInt());
-        } else {
-            verify(mPackageManager).queryIntentServices(any(), anyInt());
-        }
+        verify(mPackageManager).queryIntentServicesAsUser(any(), anyInt(), anyInt());
         assertEquals(PACKAGE_1, carrierServicePackageName);
         assertEquals(UID_1, carrierServiceUid);
 
@@ -1041,11 +972,7 @@ public class CarrierPrivilegesTrackerTest extends TelephonyTest {
         mTestableLooper.processAllMessages();
 
         // It should return the same result, but didn't query package manager
-        if (mFeatureFlags.supportCarrierServicesForHsum()) {
-            verify(mPackageManager, never()).queryIntentServicesAsUser(any(), anyInt(), anyInt());
-        } else {
-            verify(mPackageManager, never()).queryIntentServices(any(), anyInt());
-        }
+        verify(mPackageManager, never()).queryIntentServicesAsUser(any(), anyInt(), anyInt());
         assertEquals(PACKAGE_1, carrierServicePackageName);
         assertEquals(UID_1, carrierServiceUid);
     }
@@ -1065,21 +992,12 @@ public class CarrierPrivilegesTrackerTest extends TelephonyTest {
         ResolveInfo service1 = new ResolveInfoBuilder().setService(PACKAGE_1).build();
         ResolveInfo service2 = new ResolveInfoBuilder().setService(PACKAGE_2).build();
         // Use doReturn instead of when/thenReturn which has NPE with unknown reason
-        if (mFeatureFlags.supportCarrierServicesForHsum()) {
-            doReturn(List.of(service1, service2))
-                    .when(mPackageManager)
-                    .queryIntentServicesAsUser(any(), anyInt(), anyInt());
-            when(mPackageManager.getPackageUidAsUser(eq(PACKAGE_1), anyInt())).thenReturn(UID_1);
-            when(mPackageManager.getPackageUidAsUser(eq(PACKAGE_2), anyInt())).thenReturn(UID_2);
-            when(mPackageManager.getPackageUidAsUser(eq(PACKAGE_3), anyInt())).thenReturn(UID_1);
-        } else {
-            doReturn(List.of(service1, service2))
-                    .when(mPackageManager)
-                    .queryIntentServices(any(), anyInt());
-            when(mPackageManager.getPackageUid(eq(PACKAGE_1), anyInt())).thenReturn(UID_1);
-            when(mPackageManager.getPackageUid(eq(PACKAGE_2), anyInt())).thenReturn(UID_2);
-            when(mPackageManager.getPackageUid(eq(PACKAGE_3), anyInt())).thenReturn(UID_1);
-        }
+        doReturn(List.of(service1, service2))
+                .when(mPackageManager)
+                .queryIntentServicesAsUser(any(), anyInt(), anyInt());
+        when(mPackageManager.getPackageUidAsUser(eq(PACKAGE_1), anyInt())).thenReturn(UID_1);
+        when(mPackageManager.getPackageUidAsUser(eq(PACKAGE_2), anyInt())).thenReturn(UID_2);
+        when(mPackageManager.getPackageUidAsUser(eq(PACKAGE_3), anyInt())).thenReturn(UID_1);
 
         // Verify that neither carrier service (no privileges, or carrier-config based privileges)
         // are accepted.
@@ -1088,11 +1006,7 @@ public class CarrierPrivilegesTrackerTest extends TelephonyTest {
         int carrierServiceUid = mCarrierPrivilegesTracker.getCarrierServicePackageUid();
         mTestableLooper.processAllMessages();
 
-        if (mFeatureFlags.supportCarrierServicesForHsum()) {
-            verify(mPackageManager).queryIntentServicesAsUser(any(), anyInt(), anyInt());
-        } else {
-            verify(mPackageManager).queryIntentServices(any(), anyInt());
-        }
+        verify(mPackageManager).queryIntentServicesAsUser(any(), anyInt(), anyInt());
         assertNull(carrierServicePackageName);
         assertEquals(Process.INVALID_UID, carrierServiceUid);
     }
@@ -1108,19 +1022,11 @@ public class CarrierPrivilegesTrackerTest extends TelephonyTest {
                 new PackageCertInfo(PACKAGE_3, CERT_1, USER_1, UID_1));
         // No CarrierService declared at all
         // Use doReturn instead of when/thenReturn which has NPE with unknown reason
-        if (mFeatureFlags.supportCarrierServicesForHsum()) {
-            doReturn(List.of()).when(
-                    mPackageManager).queryIntentServicesAsUser(any(), anyInt(), anyInt());
-            when(mPackageManager.getPackageUidAsUser(eq(PACKAGE_1), anyInt())).thenReturn(UID_1);
-            when(mPackageManager.getPackageUidAsUser(eq(PACKAGE_2), anyInt())).thenReturn(UID_2);
-            when(mPackageManager.getPackageUidAsUser(eq(PACKAGE_3), anyInt())).thenReturn(UID_1);
-        } else {
-            doReturn(List.of()).when(
-                    mPackageManager).queryIntentServices(any(), anyInt());
-            when(mPackageManager.getPackageUid(eq(PACKAGE_1), anyInt())).thenReturn(UID_1);
-            when(mPackageManager.getPackageUid(eq(PACKAGE_2), anyInt())).thenReturn(UID_2);
-            when(mPackageManager.getPackageUid(eq(PACKAGE_3), anyInt())).thenReturn(UID_1);
-        }
+        doReturn(List.of()).when(
+                mPackageManager).queryIntentServicesAsUser(any(), anyInt(), anyInt());
+        when(mPackageManager.getPackageUidAsUser(eq(PACKAGE_1), anyInt())).thenReturn(UID_1);
+        when(mPackageManager.getPackageUidAsUser(eq(PACKAGE_2), anyInt())).thenReturn(UID_2);
+        when(mPackageManager.getPackageUidAsUser(eq(PACKAGE_3), anyInt())).thenReturn(UID_1);
 
         mCarrierPrivilegesTracker = createCarrierPrivilegesTracker();
         String carrierServicePackageName = mCarrierPrivilegesTracker.getCarrierServicePackageName();
@@ -1129,11 +1035,7 @@ public class CarrierPrivilegesTrackerTest extends TelephonyTest {
 
         assertNull(carrierServicePackageName);
         assertEquals(Process.INVALID_UID, carrierServiceUid);
-        if (mFeatureFlags.supportCarrierServicesForHsum()) {
-            verify(mPackageManager).queryIntentServicesAsUser(any(), anyInt(), anyInt());
-        } else {
-            verify(mPackageManager).queryIntentServices(any(), anyInt());
-        }
+        verify(mPackageManager).queryIntentServicesAsUser(any(), anyInt(), anyInt());
     }
 
     @Test
@@ -1142,17 +1044,10 @@ public class CarrierPrivilegesTrackerTest extends TelephonyTest {
         setupInstalledPackages(new PackageCertInfo(PACKAGE_1, CERT_1, USER_1, UID_1));
         ResolveInfo carrierService = new ResolveInfoBuilder().setService(PACKAGE_1).build();
 
-        if (mFeatureFlags.supportCarrierServicesForHsum()) {
-            doReturn(List.of(carrierService))
-                    .when(mPackageManager)
-                    .queryIntentServicesAsUser(any(), anyInt(), anyInt());
-            when(mPackageManager.getPackageUidAsUser(eq(PACKAGE_1), anyInt())).thenReturn(UID_1);
-        } else {
-            doReturn(List.of(carrierService))
-                    .when(mPackageManager)
-                    .queryIntentServices(any(), anyInt());
-            when(mPackageManager.getPackageUid(eq(PACKAGE_1), anyInt())).thenReturn(UID_1);
-        }
+        doReturn(List.of(carrierService))
+                .when(mPackageManager)
+                .queryIntentServicesAsUser(any(), anyInt(), anyInt());
+        when(mPackageManager.getPackageUidAsUser(eq(PACKAGE_1), anyInt())).thenReturn(UID_1);
 
         // Set override, and verify the carrier service package was not set due to a lack of a
         // matching cert.
@@ -1175,19 +1070,11 @@ public class CarrierPrivilegesTrackerTest extends TelephonyTest {
         ResolveInfo service1 = new ResolveInfoBuilder().setService(PACKAGE_1).build();
         ResolveInfo service2 = new ResolveInfoBuilder().setService(PACKAGE_2).build();
 
-        if (mFeatureFlags.supportCarrierServicesForHsum()) {
-            doReturn(List.of(service1, service2))
-                    .when(mPackageManager)
-                    .queryIntentServicesAsUser(any(), anyInt(), anyInt());
-            when(mPackageManager.getPackageUidAsUser(eq(PACKAGE_1), anyInt())).thenReturn(UID_1);
-            when(mPackageManager.getPackageUidAsUser(eq(PACKAGE_2), anyInt())).thenReturn(UID_2);
-        } else {
-            doReturn(List.of(service1, service2))
-                    .when(mPackageManager)
-                    .queryIntentServices(any(), anyInt());
-            when(mPackageManager.getPackageUid(eq(PACKAGE_1), anyInt())).thenReturn(UID_1);
-            when(mPackageManager.getPackageUid(eq(PACKAGE_2), anyInt())).thenReturn(UID_2);
-        }
+        doReturn(List.of(service1, service2))
+                .when(mPackageManager)
+                .queryIntentServicesAsUser(any(), anyInt(), anyInt());
+        when(mPackageManager.getPackageUidAsUser(eq(PACKAGE_1), anyInt())).thenReturn(UID_1);
+        when(mPackageManager.getPackageUidAsUser(eq(PACKAGE_2), anyInt())).thenReturn(UID_2);
 
         mCarrierPrivilegesTracker = createCarrierPrivilegesTracker();
 
@@ -1220,17 +1107,10 @@ public class CarrierPrivilegesTrackerTest extends TelephonyTest {
         setupInstalledPackages(new PackageCertInfo(PACKAGE_1, CERT_1, USER_1, UID_1));
         ResolveInfo carrierService = new ResolveInfoBuilder().setService(PACKAGE_1).build();
 
-        if (mFeatureFlags.supportCarrierServicesForHsum()) {
-            doReturn(List.of(carrierService))
-                    .when(mPackageManager)
-                    .queryIntentServicesAsUser(any(), anyInt(), anyInt());
-            when(mPackageManager.getPackageUidAsUser(eq(PACKAGE_1), anyInt())).thenReturn(UID_1);
-        } else {
-            doReturn(List.of(carrierService))
-                    .when(mPackageManager)
-                    .queryIntentServices(any(), anyInt());
-            when(mPackageManager.getPackageUid(eq(PACKAGE_1), anyInt())).thenReturn(UID_1);
-        }
+        doReturn(List.of(carrierService))
+                .when(mPackageManager)
+                .queryIntentServicesAsUser(any(), anyInt(), anyInt());
+        when(mPackageManager.getPackageUidAsUser(eq(PACKAGE_1), anyInt())).thenReturn(UID_1);
 
         // Set override, and expect that an invalid package name would not be selected as the
         // carrier config service.
@@ -1248,40 +1128,22 @@ public class CarrierPrivilegesTrackerTest extends TelephonyTest {
     }
 
     private void sendSimCardStateChangedIntent(int phoneId, int simState) {
-        if (mFeatureFlags.supportCarrierServicesForHsum()) {
-            mContext.sendBroadcastAsUser(
-                    new Intent(TelephonyManager.ACTION_SIM_CARD_STATE_CHANGED)
-                            .putExtra(EXTRA_SIM_STATE, simState)
-                            .putExtra(PhoneConstants.PHONE_KEY, phoneId), UserHandle.ALL);
-        } else {
-            mContext.sendBroadcast(
-                    new Intent(TelephonyManager.ACTION_SIM_CARD_STATE_CHANGED)
-                            .putExtra(EXTRA_SIM_STATE, simState)
-                            .putExtra(PhoneConstants.PHONE_KEY, phoneId));
-        }
+        mContext.sendBroadcastAsUser(
+                new Intent(TelephonyManager.ACTION_SIM_CARD_STATE_CHANGED)
+                        .putExtra(EXTRA_SIM_STATE, simState)
+                        .putExtra(PhoneConstants.PHONE_KEY, phoneId), UserHandle.ALL);
     }
 
     private void sendSimApplicationStateChangedIntent(int phoneId, int simState) {
-        if (mFeatureFlags.supportCarrierServicesForHsum()) {
-            mContext.sendBroadcastAsUser(
-                    new Intent(TelephonyManager.ACTION_SIM_APPLICATION_STATE_CHANGED)
-                            .putExtra(EXTRA_SIM_STATE, simState)
-                            .putExtra(PhoneConstants.PHONE_KEY, phoneId), UserHandle.ALL);
-        } else {
-            mContext.sendBroadcast(
-                    new Intent(TelephonyManager.ACTION_SIM_APPLICATION_STATE_CHANGED)
-                            .putExtra(EXTRA_SIM_STATE, simState)
-                            .putExtra(PhoneConstants.PHONE_KEY, phoneId));
-        }
+        mContext.sendBroadcastAsUser(
+                new Intent(TelephonyManager.ACTION_SIM_APPLICATION_STATE_CHANGED)
+                        .putExtra(EXTRA_SIM_STATE, simState)
+                        .putExtra(PhoneConstants.PHONE_KEY, phoneId), UserHandle.ALL);
     }
 
     private void sendPackageChangedIntent(String action, String pkgName) {
-        if (mFeatureFlags.supportCarrierServicesForHsum()) {
-            mContext.sendBroadcastAsUser(
-                    new Intent(action, new Uri.Builder().path(pkgName).build()), UserHandle.ALL);
-        } else {
-            mContext.sendBroadcast(new Intent(action, new Uri.Builder().path(pkgName).build()));
-        }
+        mContext.sendBroadcastAsUser(
+                new Intent(action, new Uri.Builder().path(pkgName).build()), UserHandle.ALL);
     }
 
     /** Returns the SHA-1 hash (as a hex String) for the given hex String. */

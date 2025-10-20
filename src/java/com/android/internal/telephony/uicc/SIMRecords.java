@@ -54,7 +54,7 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * {@hide}
+ * @hide
  */
 public class SIMRecords extends IccRecords {
     protected static final String LOG_TAG = "SIMRecords";

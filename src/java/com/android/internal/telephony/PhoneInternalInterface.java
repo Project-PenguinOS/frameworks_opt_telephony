@@ -44,7 +44,7 @@ import java.util.function.Consumer;
  * Internal interface used to control the phone; SDK developers cannot
  * obtain this interface.
  *
- * {@hide}
+ * @hide
  *
  */
 public interface PhoneInternalInterface {

@@ -55,6 +55,7 @@ import static com.android.internal.telephony.subscription.SubscriptionDatabaseMa
 import static com.android.internal.telephony.subscription.SubscriptionDatabaseManagerTest.FAKE_SUBSCRIPTION_INFO1;
 import static com.android.internal.telephony.subscription.SubscriptionDatabaseManagerTest.FAKE_SUBSCRIPTION_INFO2;
 import static com.android.internal.telephony.subscription.SubscriptionDatabaseManagerTest.FAKE_UUID1;
+import static com.android.internal.telephony.util.TelephonyUtils.TELEPHONY_FEATURE_ENFORCEMENT_VENDOR_API_LEVEL;
 
 import static com.google.common.truth.Truth.assertThat;
 
@@ -482,10 +483,9 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
         // Grant carrier privilege
         setCarrierPrivilegesForSubId(true, 1);
 
-        // Replace field to set SDK version of vendor partition to Android V
-        int vendorApiLevel = Build.VERSION_CODES.VANILLA_ICE_CREAM;
+        // Replace field to set vendor API level to the one where the exceptions are enabled.
         replaceInstance(SubscriptionManagerService.class, "mVendorApiLevel",
-                mSubscriptionManagerServiceUT, vendorApiLevel);
+                mSubscriptionManagerServiceUT, TELEPHONY_FEATURE_ENFORCEMENT_VENDOR_API_LEVEL);
 
         // Enabled ENABLE_FEATURE_MAPPING, telephony features are defined
         doReturn(true).when(mPackageManager).hasSystemFeature(
@@ -1828,6 +1828,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     @Test
     @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testGetPhoneNumberSourcePriority() throws Exception {
+        doReturn(true).when(mFeatureFlags).lastKnownPhoneNumber();
         mContextFixture.addCallingOrSelfPermission(Manifest.permission.READ_PHONE_NUMBERS);
 
         String phoneNumberFromCarrier = "8675309";
@@ -1861,8 +1862,51 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
 
         doReturn("").when(mPhone).getLine1Number();
 
+        doReturn(mTelephonyManager).when(mTelephonyManager).createForSubscriptionId(anyInt());
+        doReturn(true).when(mTelephonyManager).isImsRegistered();
+        mSubscriptionManagerServiceUT.setImsNumberUpdateStatus(subId, true);
         assertThat(mSubscriptionManagerServiceUT.getPhoneNumberFromFirstAvailableSource(
                 subId, CALLING_PACKAGE, CALLING_FEATURE)).isEqualTo(phoneNumberFromIms);
+    }
+
+    @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
+    public void testGetPhoneNumber_ImsNotRegistered() throws Exception {
+        doReturn(true).when(mFeatureFlags).lastKnownPhoneNumber();
+        mContextFixture.addCallingOrSelfPermission(Manifest.permission.READ_PHONE_NUMBERS);
+
+        String phoneNumberFromCarrier = "";
+        String phoneNumberFromUicc = "";
+        String phoneNumberFromPhoneObject = "";
+        String phoneNumberFromIms = "5553466";
+
+        // Set up a scenario where the number is unavailable from the phone or UICC,
+        // but is available from IMS.
+        doReturn(phoneNumberFromPhoneObject).when(mPhone).getLine1Number();
+        SubscriptionInfoInternal multiNumberSubInfo =
+                new SubscriptionInfoInternal.Builder(FAKE_SUBSCRIPTION_INFO1)
+                        .setNumberFromCarrier(phoneNumberFromCarrier)
+                        .setNumber(phoneNumberFromUicc)
+                        .setNumberFromIms(phoneNumberFromIms)
+                        .build();
+        int subId = insertSubscription(multiNumberSubInfo);
+
+        // Mock the IMS registration state of TelephonyManager to be unregistered (false).
+        doReturn(mTelephonyManager).when(mTelephonyManager).createForSubscriptionId(anyInt());
+        doReturn(false).when(mTelephonyManager).isImsRegistered();
+
+        // Verify the legacy API: It should return an empty string when IMS is not registered.
+        assertThat(mSubscriptionManagerServiceUT.getPhoneNumberFromFirstAvailableSource(
+                subId, CALLING_PACKAGE, CALLING_FEATURE)).isEmpty();
+
+        // Verify the new API: It should return the cached IMS number even when IMS is not
+        // registered.
+        assertThat(mSubscriptionManagerServiceUT.getLastKnownPhoneNumberFromFirstAvailableSource(
+                subId, CALLING_PACKAGE, CALLING_FEATURE)).isEqualTo(phoneNumberFromIms);
+
+        // Additional verification: The IMS number should remain stored in the SubscriptionInfo.
+        assertThat(mSubscriptionManagerServiceUT.getSubscriptionInfoInternal(subId)
+                .getNumberFromIms()).isEqualTo(phoneNumberFromIms);
     }
 
     @Test
@@ -2609,11 +2653,15 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     @Test
     @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testGetPhoneNumberFromDefaultSubscription() {
+        doReturn(true).when(mFeatureFlags).lastKnownPhoneNumber();
         mContextFixture.addCallingOrSelfPermission(Manifest.permission.READ_PRIVILEGED_PHONE_STATE);
         mContextFixture.addCallingOrSelfPermission(Manifest.permission.MODIFY_PHONE_STATE);
         int subId = insertSubscription(FAKE_SUBSCRIPTION_INFO1);
 
         mSubscriptionManagerServiceUT.setDefaultVoiceSubId(subId);
+        doReturn(mTelephonyManager).when(mTelephonyManager).createForSubscriptionId(anyInt());
+        doReturn(true).when(mTelephonyManager).isImsRegistered();
+        mSubscriptionManagerServiceUT.setImsNumberUpdateStatus(subId, true);
 
         assertThat(
                 mSubscriptionManagerServiceUT.getPhoneNumberFromFirstAvailableSource(
@@ -3622,9 +3670,9 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
             throws Exception {
         doReturn(enableFeature).when(mPackageManager).hasSystemFeature(
                 eq(PackageManager.FEATURE_TELEPHONY_SUBSCRIPTION));
-        int vendorApiLevel = Build.VERSION_CODES.BAKLAVA;
+        // Replace field to set vendor API level to the one where the exceptions are enabled.
         replaceInstance(SubscriptionManagerService.class, "mVendorApiLevel",
-                mSubscriptionManagerServiceUT, vendorApiLevel);
+                mSubscriptionManagerServiceUT, TELEPHONY_FEATURE_ENFORCEMENT_VENDOR_API_LEVEL);
         doReturn(new String[]{CALLING_PACKAGE}).when(mPackageManager).getPackagesForUid(anyInt());
         mContextFixture.putBooleanResource(
                 com.android.internal.R.bool.config_force_phone_globals_creation, enableOverlay);

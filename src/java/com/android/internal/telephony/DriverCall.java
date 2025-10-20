@@ -19,7 +19,7 @@ package com.android.internal.telephony;
 import android.compat.annotation.UnsupportedAppUsage;
 
 /**
- * {@hide}
+ * @hide
  */
 public class DriverCall implements Comparable<DriverCall> {
     public enum State {

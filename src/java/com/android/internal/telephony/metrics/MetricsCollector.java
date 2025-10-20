@@ -1560,7 +1560,8 @@ public class MetricsCollector implements StatsManager.StatsPullAtomCallback {
                 satelliteController.countOfIncomingDatagramTypeSmsSuccess,
                 satelliteController.countOfIncomingDatagramTypeSmsFail,
                 satelliteController.carrierRoamingSatelliteConfigVersion,
-                satelliteController.maxAllowedDataMode);
+                satelliteController.maxAllowedDataMode,
+                satelliteController.supportedConnectionMode);
     }
 
     private static StatsEvent buildStatsEvent(SatelliteSession satelliteSession) {
@@ -1585,7 +1586,9 @@ public class MetricsCollector implements StatsManager.StatsPullAtomCallback {
                 satelliteSession.countOfAutoExitDueToTnNetwork,
                 satelliteSession.isEmergency,
                 satelliteSession.isNtnOnlyCarrier,
-                satelliteSession.maxInactivityDurationSec);
+                satelliteSession.maxInactivityDurationSec,
+                satelliteSession.supportedConnectionMode,
+                satelliteSession.sessionConnectionMode);
     }
 
     private static StatsEvent buildStatsEvent(SatelliteIncomingDatagram stats) {
@@ -1596,7 +1599,9 @@ public class MetricsCollector implements StatsManager.StatsPullAtomCallback {
                 stats.datagramTransferTimeMillis,
                 stats.isDemoMode,
                 stats.carrierId,
-                stats.isNtnOnlyCarrier);
+                stats.isNtnOnlyCarrier,
+                stats.supportedConnectionMode,
+                stats.sessionConnectionMode);
     }
 
     private static StatsEvent buildStatsEvent(SatelliteOutgoingDatagram stats) {
@@ -1608,7 +1613,9 @@ public class MetricsCollector implements StatsManager.StatsPullAtomCallback {
                 stats.datagramTransferTimeMillis,
                 stats.isDemoMode,
                 stats.carrierId,
-                stats.isNtnOnlyCarrier);
+                stats.isNtnOnlyCarrier,
+                stats.supportedConnectionMode,
+                stats.sessionConnectionMode);
     }
 
     private static StatsEvent buildStatsEvent(SatelliteProvision stats) {
@@ -1619,7 +1626,8 @@ public class MetricsCollector implements StatsManager.StatsPullAtomCallback {
                 stats.isProvisionRequest,
                 stats.isCanceled,
                 stats.carrierId,
-                stats.isNtnOnlyCarrier);
+                stats.isNtnOnlyCarrier,
+                stats.supportedConnectionMode);
     }
 
     private static StatsEvent buildStatsEvent(SatelliteSosMessageRecommender stats) {
@@ -1635,7 +1643,9 @@ public class MetricsCollector implements StatsManager.StatsPullAtomCallback {
                 stats.isSatelliteAllowedInCurrentLocation,
                 stats.isWifiConnected,
                 stats.carrierId,
-                stats.isNtnOnlyCarrier);
+                stats.isNtnOnlyCarrier,
+                stats.supportedConnectionMode,
+                stats.sessionConnectionMode);
     }
 
     private static StatsEvent buildStatsEvent(DataNetworkValidation stats) {
@@ -1686,7 +1696,9 @@ public class MetricsCollector implements StatsManager.StatsPullAtomCallback {
                 stats.maxDownlinkBandwidthKbps,
                 stats.satelliteSupportedApps,
                 stats.satelliteSupportedUids,
-                stats.perAppSatelliteDataConsumedBytes);
+                stats.perAppSatelliteDataConsumedBytes,
+                stats.supportedConnectionMode,
+                stats.sessionConnectionMode);
     }
 
     private static StatsEvent buildStatsEvent(CarrierRoamingSatelliteControllerStats stats) {
@@ -1703,7 +1715,11 @@ public class MetricsCollector implements StatsManager.StatsPullAtomCallback {
                 stats.isDeviceEntitled,
                 stats.isMultiSim,
                 stats.countOfSatelliteSessions,
-                stats.isNbIotNtn);
+                stats.isNbIotNtn,
+                stats.supportedConnectionMode,
+                stats.countOfSessionConnectionModeAutomatic,
+                stats.countOfSessionConnectionModeManual,
+                stats.serviceDataPolicy);
     }
 
     private static StatsEvent buildStatsEvent(SatelliteEntitlement stats) {
@@ -1716,7 +1732,9 @@ public class MetricsCollector implements StatsManager.StatsPullAtomCallback {
                 stats.count,
                 stats.isAllowedServiceEntitlement,
                 stats.entitlementServiceType,
-                stats.entitlementDataPolicy);
+                stats.entitlementDataPolicy,
+                stats.supportedConnectionMode,
+                stats.httpStatusCode);
     }
 
     private static StatsEvent buildStatsEvent(SatelliteConfigUpdater stats) {
@@ -1741,7 +1759,9 @@ public class MetricsCollector implements StatsManager.StatsPullAtomCallback {
                 stats.configDataSource,
                 stats.carrierId,
                 stats.triggeringEvent,
-                stats.isNtnOnlyCarrier);
+                stats.isNtnOnlyCarrier,
+                stats.supportedConnectionMode,
+                stats.sessionConnectionMode);
     }
 
     private static StatsEvent buildStatsEvent(OtpRedactionEvent event) {
