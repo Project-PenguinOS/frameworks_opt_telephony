@@ -1670,6 +1670,15 @@ public class DataNetworkController extends Handler {
                     DataDisallowedReason.DATA_NETWORK_TRANSPORT_NOT_ALLOWED);
         }
 
+        if (mFeatureFlags.unsupportedNetworkCapabilitiesPerCarrier()) {
+            // Check if there is any unsupported network capabilities.
+            if (Arrays.stream(networkRequest.getCapabilities())
+                    .anyMatch(mDataConfigManager.getUnsupportedNetworkCapabilities()::contains)) {
+                evaluation.addDataDisallowedReason(
+                        DataDisallowedReason.UNSUPPORTED_NETWORK_CAPABILITIES);
+            }
+        }
+
         // Bypass all checks for emergency network request.
         if (networkRequest.hasCapability(NetworkCapabilities.NET_CAPABILITY_EIMS)) {
             DataProfile emergencyProfile = mDataProfileManager.getDataProfileForNetworkRequest(
@@ -2050,6 +2059,15 @@ public class DataNetworkController extends Handler {
             evaluation.addDataAllowedReason(DataAllowedReason.EMERGENCY_REQUEST);
             log(evaluation.toString());
             return evaluation;
+        }
+
+        if (mFeatureFlags.unsupportedNetworkCapabilitiesPerCarrier()) {
+            // Check if there is any unsupported network capabilities.
+            if (Arrays.stream(dataNetwork.getNetworkCapabilities().getCapabilities())
+                    .anyMatch(mDataConfigManager.getUnsupportedNetworkCapabilities()::contains)) {
+                evaluation.addDataDisallowedReason(
+                        DataDisallowedReason.UNSUPPORTED_NETWORK_CAPABILITIES);
+            }
         }
 
         // Check SIM state
@@ -2596,6 +2614,8 @@ public class DataNetworkController extends Handler {
                     return DataNetwork.TEAR_DOWN_REASON_DATA_LIMIT_REACHED;
                 case DATA_NETWORK_TRANSPORT_NOT_ALLOWED:
                     return DataNetwork.TEAR_DOWN_REASON_DATA_NETWORK_TRANSPORT_NOT_ALLOWED;
+                case UNSUPPORTED_NETWORK_CAPABILITIES:
+                    return DataNetwork.TEAR_DOWN_REASON_UNSUPPORTED_NETWORK_CAPABILITIES;
             }
         }
         return DataNetwork.TEAR_DOWN_REASON_NONE;
@@ -2909,7 +2929,10 @@ public class DataNetworkController extends Handler {
                 + "carrier specific. mSimState="
                 + TelephonyManager.simStateToString(mSimState));
         updateNetworkRequestsPriority();
-        onReevaluateUnsatisfiedNetworkRequests(DataEvaluationReason.DATA_CONFIG_CHANGED);
+        sendMessage(obtainMessage(EVENT_REEVALUATE_UNSATISFIED_NETWORK_REQUESTS,
+                DataEvaluationReason.DATA_CONFIG_CHANGED));
+        sendMessage(obtainMessage(EVENT_REEVALUATE_EXISTING_DATA_NETWORKS,
+                DataEvaluationReason.DATA_CONFIG_CHANGED));
     }
 
     /**

@@ -140,3 +140,14 @@ flag {
     purpose: PURPOSE_BUGFIX
   }
 }
+
+# OWNER=jackyu TARGET=26Q1
+flag {
+  name: "unsupported_network_capabilities_per_carrier"
+  namespace: "telephony"
+  description: "Support unsupported network capabilities per carrier"
+  bug:"450708553"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}

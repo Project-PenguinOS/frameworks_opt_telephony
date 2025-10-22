@@ -566,6 +566,8 @@ public abstract class TelephonyTest {
         lenient().doReturn(true).when(mFeatureFlags).deleteCdma();
         lenient().doReturn(true).when(mFeatureFlags)
                 .notRecreateAgentWhenImmutableCapabilitiesChanged();
+        lenient().doReturn(true).when(mFeatureFlags)
+                .unsupportedNetworkCapabilitiesPerCarrier();
 
         WorkerThread.reset();
         TelephonyManager.disableServiceHandleCaching();

@@ -419,6 +419,9 @@ public class DataNetwork extends StateMachine {
     /** Data network tear down due to device shut down. */
     public static final int TEAR_DOWN_REASON_DEVICE_SHUT_DOWN = 33;
 
+    /** Data network tear down due to unsupported network capabilities. */
+    public static final int TEAR_DOWN_REASON_UNSUPPORTED_NETWORK_CAPABILITIES = 34;
+
     //********************************************************************************************//
     // WHENEVER ADD A NEW TEAR DOWN REASON, PLEASE UPDATE DataDeactivateReasonEnum in enums.proto //
     //********************************************************************************************//
@@ -4115,6 +4118,8 @@ public class DataNetwork extends StateMachine {
                     "TRANSPORT_NOT_ALLOWED";
             case TEAR_DOWN_REASON_DEVICE_SHUT_DOWN ->
                     "DEVICE_SHUT_DOWN";
+            case TEAR_DOWN_REASON_UNSUPPORTED_NETWORK_CAPABILITIES ->
+                    "UNSUPPORTED_NETWORK_CAPABILITIES";
             default -> "UNKNOWN(" + reason + ")";
         };
     }
