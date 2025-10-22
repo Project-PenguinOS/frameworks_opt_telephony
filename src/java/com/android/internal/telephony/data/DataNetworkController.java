@@ -3574,7 +3574,7 @@ public class DataNetworkController extends Handler {
      *
      * @param dataNetwork The data network.
      */
-    private void onDataNetworkValidationStatusChanged(@NonNull DataNetwork dataNetwork,
+    protected void onDataNetworkValidationStatusChanged(@NonNull DataNetwork dataNetwork,
             @ValidationStatus int status, @Nullable Uri redirectUri) {
         log("onDataNetworkValidationStatusChanged: " + dataNetwork + ", validation status="
                 + DataUtils.validationStatusToString(status)
