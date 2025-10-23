@@ -20,10 +20,15 @@ package com.android.internal.telephony;
 
 import static android.Manifest.permission.MODIFY_PHONE_STATE;
 import static android.Manifest.permission.READ_PRIVILEGED_PHONE_STATE;
+import static android.Manifest.permission.QUERY_NETWORK_IDENTIFIERS;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.annotation.PermissionManuallyEnforced;
 import android.app.AppOpsManager;
+import android.app.compat.CompatChanges;
+import android.compat.annotation.ChangeId;
+import android.compat.annotation.EnabledSince;
 import android.compat.annotation.UnsupportedAppUsage;
 import android.content.Context;
 import android.content.pm.PackageManager;
@@ -72,6 +77,15 @@ public class PhoneSubInfoController extends IPhoneSubInfo.Stub {
     private FeatureFlags mFeatureFlags;
     private PackageManager mPackageManager;
     private final int mVendorApiLevel;
+
+    // TODO(b/419394842) - Remove and use defined build version code when available.
+    private static final int BUILD_VERSION_CODE_C =
+            android.os.Build.VERSION_CODES.BAKLAVA + 1;
+
+    @ChangeId
+    @EnabledSince(targetSdkVersion = BUILD_VERSION_CODE_C)
+    static final long TELEPHONY_MANAGER_API_PERMISSION_ENABLED = 417788332;
+
 
     public PhoneSubInfoController(Context context) {
         this(context, new FeatureFlagsImpl());
@@ -189,8 +203,23 @@ public class PhoneSubInfoController extends IPhoneSubInfo.Stub {
                 callingFeatureId);
     }
 
+    /**
+     * Returns the subscriber ID (IMSI) for the given subscription.
+     *
+     * <p>Starting with targetSdkVersion 37, requires
+     * {@code android.permission.QUERY_NETWORK_IDENTIFIERS}.</p>
+     *
+     * @return The subscriber ID (IMSI), or {@code null} if unavailable or permission is denied.
+     */
+    @PermissionManuallyEnforced
     public String getSubscriberIdForSubscriber(int subId, String callingPackage,
             String callingFeatureId) {
+        if (mFeatureFlags.guardIdentifierAndNetworkCountryApis()
+                && CompatChanges.isChangeEnabled(TELEPHONY_MANAGER_API_PERMISSION_ENABLED)) {
+            mContext.enforceCallingOrSelfPermission(QUERY_NETWORK_IDENTIFIERS,
+                    "Requires QUERY_NETWORK_IDENTIFIERS to retrieve subscriber ID");
+        }
+
         String message = "getSubscriberIdForSubscriber";
         mAppOps.checkPackage(Binder.getCallingUid(), callingPackage);
 
