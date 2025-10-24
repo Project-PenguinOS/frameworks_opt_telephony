@@ -1902,7 +1902,7 @@ public class ImsPhoneConnection extends Connection implements
      * @param verificationStatus The {@link ImsCallProfile} verification status.
      * @return The telecom verification status.
      */
-    public static @android.telecom.Connection.VerificationStatus int toTelecomVerificationStatus(
+    public static @android.telecom.Annotation.VerificationStatus int toTelecomVerificationStatus(
             @ImsCallProfile.VerificationStatus int verificationStatus) {
         switch (verificationStatus) {
             case ImsCallProfile.VERIFICATION_STATUS_PASSED:
