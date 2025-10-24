@@ -22,28 +22,6 @@ flag {
     bug:"326610112"
 }
 
-# OWNER=melhuishj TARGET=25Q3
-flag {
-    name: "disable_carrier_network_change_on_carrier_app_lost"
-    namespace: "telephony"
-    description: "Set carrier network change status to false whenever the carrier app is lost"
-    bug:"333571417"
-    metadata {
-      purpose: PURPOSE_BUGFIX
-    }
-}
-
-# OWNER=melhuishj TARGET=25Q3
-flag {
-    name: "cleanup_carrier_network_change_by_phoneid"
-    namespace: "telephony"
-    description: "use phoneId to cleanup carrierNetworkChange status when carrier app is lost"
-    bug:"333571417"
-    metadata {
-      purpose: PURPOSE_BUGFIX
-    }
-}
-
 # OWNER=tgunn TARGET=26Q2
 flag {
     name: "log_calls_answered_elsewhere"

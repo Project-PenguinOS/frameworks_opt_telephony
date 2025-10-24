@@ -43,7 +43,7 @@ import java.util.Objects;
 /**
  * Mobile Country Code
  *
- * {@hide}
+ * @hide
  */
 public final class MccTable {
     static final String LOG_TAG = "MccTable";

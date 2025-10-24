@@ -153,7 +153,7 @@ import java.util.Set;
 import java.util.function.Consumer;
 
 /**
- * {@hide}
+ * @hide
  */
 public class GsmCdmaPhone extends Phone {
     // NOTE that LOG_TAG here is "GsmCdma", which means that log messages
@@ -3270,7 +3270,10 @@ public class GsmCdmaPhone extends Phone {
                 CellularIdentifierDisclosure disclosure = (CellularIdentifierDisclosure) ar.result;
                 if (mIdentifierDisclosureNotifier != null
                         && disclosure != null) {
-                    mIdentifierDisclosureNotifier.addDisclosure(mContext, getSubId(), disclosure);
+                    int subId = getSubId();
+                    if (SubscriptionManager.isValidSubscriptionId(subId)) {
+                        mIdentifierDisclosureNotifier.addDisclosure(mContext, subId, disclosure);
+                    }
                 }
                 if (mFeatureFlags.cellularIdentifierDisclosureIndications()
                         && mIdentifierDisclosureNotifier != null
@@ -3294,8 +3297,11 @@ public class GsmCdmaPhone extends Phone {
                 SecurityAlgorithmUpdate update = (SecurityAlgorithmUpdate) ar.result;
 
                 if (mNullCipherNotifier != null) {
-                    mNullCipherNotifier.onSecurityAlgorithmUpdate(mContext, getPhoneId(),
-                            getSubId(), update);
+                    int subId = getSubId();
+                    if (SubscriptionManager.isValidSubscriptionId(subId)) {
+                        mNullCipherNotifier.onSecurityAlgorithmUpdate(mContext, getPhoneId(), subId,
+                                update);
+                    }
                 }
                 if (mFeatureFlags.securityAlgorithmsUpdateIndications()
                         && mNullCipherNotifier != null) {

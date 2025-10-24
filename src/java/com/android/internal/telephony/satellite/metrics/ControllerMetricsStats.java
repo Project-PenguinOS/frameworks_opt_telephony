@@ -398,22 +398,26 @@ public class ControllerMetricsStats {
     }
 
     /** Capture the latest provisioned state for satellite service */
-    public void setIsProvisioned(int carrierId, boolean isProvisioned, boolean isNtnOnlyCarrier) {
+    public void setIsProvisioned(int carrierId, boolean isProvisioned, boolean isNtnOnlyCarrier,
+            int supportedConnectionMode) {
         logd("setIsProvisioned: carrierId=" + carrierId + ", isProvisioned=" + isProvisioned);
         mSatelliteStats.onSatelliteControllerMetrics(
                 new SatelliteStats.SatelliteControllerParams.Builder()
                         .setCarrierId(carrierId)
+                        .setSupportedConnectionMode(supportedConnectionMode)
                         .setIsProvisioned(isProvisioned)
                         .setIsNtnOnlyCarrier(isNtnOnlyCarrier)
                         .build());
     }
 
     /** Capture the NB-IoT NTN carrier ID */
-    public void setCarrierIdInfo(int carrierId, boolean isNtnOnlyCarrier) {
+    public void setCarrierIdInfo(int carrierId, boolean isNtnOnlyCarrier,
+            int supportedConnectionMode) {
         logd("setCarrierId:" + carrierId + ", isNtnOnlyCarrier:" + isNtnOnlyCarrier);
         mSatelliteStats.onSatelliteControllerMetrics(
                 new SatelliteStats.SatelliteControllerParams.Builder()
                         .setCarrierId(carrierId)
+                        .setSupportedConnectionMode(supportedConnectionMode)
                         .setIsNtnOnlyCarrier(isNtnOnlyCarrier)
                         .build());
     }
@@ -460,12 +464,14 @@ public class ControllerMetricsStats {
     /**
      * Report a current version of carrier roaming satellite config.
      */
-    public void reportCurrentVersionOfCarrierRoamingSatelliteConfig(int cid, int version) {
+    public void reportCurrentVersionOfCarrierRoamingSatelliteConfig(int cid, int version,
+            int supportedConnectionMode) {
         logd("reportCurrentVersionOfCarrierRoamingSatelliteConfig: cid=" + cid
                 + " version=" + version);
         mSatelliteStats.onSatelliteControllerMetrics(
                 new SatelliteStats.SatelliteControllerParams.Builder()
                         .setCarrierId(cid)
+                        .setSupportedConnectionMode(supportedConnectionMode)
                         .setCarrierRoamingSatelliteConfigVersion(version)
                         .build());
     }
@@ -473,12 +479,14 @@ public class ControllerMetricsStats {
     /**
      * Report a current max allowed data mode.
      */
-    public void reportCurrentMaxAllowedDataMode(int cid, int maxAllowedDataMode) {
+    public void reportCurrentMaxAllowedDataMode(int cid, int maxAllowedDataMode,
+            int supportedConnectionMode) {
         logd("reportCurrentMaxAllowedDataMode: cid=" + cid
                 + " maxAllowedDataMode=" + maxAllowedDataMode);
         mSatelliteStats.onSatelliteControllerMetrics(
                 new SatelliteStats.SatelliteControllerParams.Builder()
                         .setCarrierId(cid)
+                        .setSupportedConnectionMode(supportedConnectionMode)
                         .setMaxAllowedDataMode(maxAllowedDataMode)
                         .build());
     }

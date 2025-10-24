@@ -43,17 +43,6 @@ flag {
     bug: "315973270"
 }
 
-# OWNER=rambowang TARGET=25Q2
-flag {
-    name: "support_carrier_services_for_hsum"
-    namespace: "telephony"
-    description: "Support Carrier Services (APIs) for HSUM."
-    bug:"345522246"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
 # OWNER=jackyu TARGET=25Q2
 flag {
     name: "power_down_race_fix"
@@ -84,17 +73,6 @@ flag {
     bug:"381070025"
 }
 
-# OWNER=tjstuart TARGET=25Q3
-flag {
-    name: "immediately_process_do_not_show_again_broadcast"
-    namespace: "telephony"
-    description: "Ensure the Do Not Show Again broadcast is immediately processed by receiver"
-    bug:"368690328"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
 # OWNER=rmao TARGET=26Q1
 flag {
     name: "dynamic_modem_shutdown"
@@ -121,6 +99,17 @@ flag {
     namespace: "telephony"
     description: "Allow OEMs to collect logs from specified logs sources for e911 calls"
     bug:"412747188"
+}
+
+# OWNER=aleksandermj TARGET=26Q1
+flag {
+    name: "minimal_telephony_cdm_use_board_api_level"
+    namespace: "telephony"
+    description: "Use ro.board.api_level for call/data/messaging feature checks"
+    bug:"395087895"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
 }
 
 # OWNER=boullanger TARGET=26Q2

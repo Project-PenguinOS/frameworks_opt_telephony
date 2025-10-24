@@ -55,6 +55,7 @@ import static com.android.internal.telephony.subscription.SubscriptionDatabaseMa
 import static com.android.internal.telephony.subscription.SubscriptionDatabaseManagerTest.FAKE_SUBSCRIPTION_INFO1;
 import static com.android.internal.telephony.subscription.SubscriptionDatabaseManagerTest.FAKE_SUBSCRIPTION_INFO2;
 import static com.android.internal.telephony.subscription.SubscriptionDatabaseManagerTest.FAKE_UUID1;
+import static com.android.internal.telephony.util.TelephonyUtils.TELEPHONY_FEATURE_ENFORCEMENT_VENDOR_API_LEVEL;
 
 import static com.google.common.truth.Truth.assertThat;
 
@@ -482,10 +483,9 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
         // Grant carrier privilege
         setCarrierPrivilegesForSubId(true, 1);
 
-        // Replace field to set SDK version of vendor partition to Android V
-        int vendorApiLevel = Build.VERSION_CODES.VANILLA_ICE_CREAM;
+        // Replace field to set vendor API level to the one where the exceptions are enabled.
         replaceInstance(SubscriptionManagerService.class, "mVendorApiLevel",
-                mSubscriptionManagerServiceUT, vendorApiLevel);
+                mSubscriptionManagerServiceUT, TELEPHONY_FEATURE_ENFORCEMENT_VENDOR_API_LEVEL);
 
         // Enabled ENABLE_FEATURE_MAPPING, telephony features are defined
         doReturn(true).when(mPackageManager).hasSystemFeature(
@@ -3622,9 +3622,9 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
             throws Exception {
         doReturn(enableFeature).when(mPackageManager).hasSystemFeature(
                 eq(PackageManager.FEATURE_TELEPHONY_SUBSCRIPTION));
-        int vendorApiLevel = Build.VERSION_CODES.BAKLAVA;
+        // Replace field to set vendor API level to the one where the exceptions are enabled.
         replaceInstance(SubscriptionManagerService.class, "mVendorApiLevel",
-                mSubscriptionManagerServiceUT, vendorApiLevel);
+                mSubscriptionManagerServiceUT, TELEPHONY_FEATURE_ENFORCEMENT_VENDOR_API_LEVEL);
         doReturn(new String[]{CALLING_PACKAGE}).when(mPackageManager).getPackagesForUid(anyInt());
         mContextFixture.putBooleanResource(
                 com.android.internal.R.bool.config_force_phone_globals_creation, enableOverlay);

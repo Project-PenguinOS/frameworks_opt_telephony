@@ -2592,6 +2592,40 @@ public class GsmCdmaPhoneTest extends TelephonyTest {
     }
 
     @Test
+    public void testCellularIdentifierDisclosure_withInvalidSubscriptionID() {
+        int phoneId = 0;
+        int subId = -1;
+        when(mSubscriptionManagerService.getSubId(phoneId)).thenReturn(subId);
+
+        Phone phoneUT =
+                new GsmCdmaPhone(
+                        mContext,
+                        mMockCi,
+                        mNotifier,
+                        true,
+                        phoneId,
+                        PhoneConstants.PHONE_TYPE_GSM,
+                        mTelephonyComponentFactory,
+                        (c, p) -> mImsManager,
+                        mFeatureFlags);
+
+        CellularIdentifierDisclosure disclosure =
+                new CellularIdentifierDisclosure(
+                        CellularIdentifierDisclosure.NAS_PROTOCOL_MESSAGE_ATTACH_REQUEST,
+                        CellularIdentifierDisclosure.CELLULAR_IDENTIFIER_IMSI,
+                        "001001",
+                        false);
+        phoneUT.sendMessage(
+                mPhoneUT.obtainMessage(
+                        Phone.EVENT_CELL_IDENTIFIER_DISCLOSURE,
+                        new AsyncResult(null, disclosure, null)));
+        processAllMessages();
+
+        verify(mIdentifierDisclosureNotifier, never())
+                .addDisclosure(eq(mContext), eq(subId), any(CellularIdentifierDisclosure.class));
+    }
+
+    @Test
     public void testCellularIdentifierDisclosure_unsupportedByModemOnRadioAvailable() {
         GsmCdmaPhone phoneUT = makeNewPhoneUT();
         assertFalse(phoneUT.isIdentifierDisclosureTransparencySupported());
@@ -2652,6 +2686,29 @@ public class GsmCdmaPhoneTest extends TelephonyTest {
 
         verify(mNullCipherNotifier, times(1))
                 .onSecurityAlgorithmUpdate(eq(mContext), eq(0), eq(0), eq(update));
+    }
+
+    @Test
+    public void testSecurityAlgorithm_withInValidSubscriptionId() {
+        Phone phoneUT = makeNewPhoneUT();
+        int subId = -1;
+        int phoneId = 0;
+        when(mSubscriptionManagerService.getSubId(phoneId)).thenReturn(subId);
+        SecurityAlgorithmUpdate update =
+                new SecurityAlgorithmUpdate(
+                        SecurityAlgorithmUpdate.CONNECTION_EVENT_PS_SIGNALLING_3G,
+                        SecurityAlgorithmUpdate.SECURITY_ALGORITHM_UEA1,
+                        SecurityAlgorithmUpdate.SECURITY_ALGORITHM_AUTH_HMAC_SHA2_256_128,
+                        true);
+
+        phoneUT.sendMessage(
+                mPhoneUT.obtainMessage(
+                        Phone.EVENT_SECURITY_ALGORITHM_UPDATE,
+                        new AsyncResult(null, update, null)));
+        processAllMessages();
+
+        verify(mNullCipherNotifier, never())
+                .onSecurityAlgorithmUpdate(eq(mContext), eq(0), eq(subId), eq(update));
     }
 
     @Test

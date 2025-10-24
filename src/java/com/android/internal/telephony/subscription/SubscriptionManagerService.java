@@ -25,7 +25,6 @@
 package com.android.internal.telephony.subscription;
 
 import static android.content.pm.PackageManager.FEATURE_TELEPHONY_SUBSCRIPTION;
-import static android.telephony.TelephonyManager.ENABLE_FEATURE_MAPPING;
 
 import android.Manifest;
 import android.annotation.CallbackExecutor;
@@ -2419,7 +2418,8 @@ public class SubscriptionManagerService extends ISub.Stub {
             // Check if the record exists or not.
             if (subInfo == null) {
                 // Record does not exist.
-                if (mSlotIndexToSubId.containsKey(slotIndex)) {
+                if (subscriptionType == SubscriptionManager.SUBSCRIPTION_TYPE_LOCAL_SIM
+                        && mSlotIndexToSubId.containsKey(slotIndex)) {
                     loge("Already a subscription on slot " + slotIndex);
                     return -1;
                 }
@@ -3133,7 +3133,8 @@ public class SubscriptionManagerService extends ISub.Stub {
      *
      * @param slotIndex Logical SIM slot index.
      * @return The subscription id. {@link SubscriptionManager#INVALID_SUBSCRIPTION_ID} if SIM is
-     * absent.
+     * absent. If slotIndex is {@link SubscriptionManager#SLOT_INDEX_FOR_REMOTE_SIM_SUB}, the last
+     * inserted remote SIM subscription id will be returned.
      */
     @Override
     public int getSubId(int slotIndex) {
@@ -3472,7 +3473,7 @@ public class SubscriptionManagerService extends ISub.Stub {
      */
     @Override
     @RequiresPermission(Manifest.permission.READ_PRIVILEGED_PHONE_STATE)
-    public int[] getActiveSubIdList(boolean visibleOnly) {
+    @NonNull public int[] getActiveSubIdList(boolean visibleOnly) {
         enforcePermissions("getActiveSubIdList", Manifest.permission.READ_PRIVILEGED_PHONE_STATE);
 
         if (!mContext.getResources().getBoolean(
@@ -3491,9 +3492,10 @@ public class SubscriptionManagerService extends ISub.Stub {
      * @param visibleOnly {@code true} if only includes user visible subscription's sub id.
      * @param user If {@code null}, uses the calling user handle to judge which subscriptions are
      *             accessible to the caller.
-     * @return List of the active subscription id.
+     * @return Array of the active subscription id.
      */
-    private int[] getActiveSubIdListAsUser(boolean visibleOnly, @NonNull final UserHandle user) {
+    @NonNull private int[] getActiveSubIdListAsUser(
+            boolean visibleOnly, @NonNull final UserHandle user) {
         return mSlotIndexToSubId.values().stream()
                 .filter(subId -> {
                     SubscriptionInfoInternal subInfo = mSubscriptionDatabaseManager
@@ -4949,23 +4951,8 @@ public class SubscriptionManagerService extends ISub.Stub {
      */
     private void enforceTelephonyFeatureWithException(@Nullable String callingPackage,
             @NonNull String methodName) {
-        if (callingPackage == null || mPackageManager == null) {
-            return;
-        }
-
-        if (!CompatChanges.isChangeEnabled(ENABLE_FEATURE_MAPPING, callingPackage,
-                Binder.getCallingUserHandle())
-                || mVendorApiLevel < Build.VERSION_CODES.VANILLA_ICE_CREAM) {
-            // Skip to check associated telephony feature,
-            // if compatibility change is not enabled for the current process or
-            // the SDK version of vendor partition is less than Android V.
-            return;
-        }
-
-        if (!mPackageManager.hasSystemFeature(FEATURE_TELEPHONY_SUBSCRIPTION)) {
-            throw new UnsupportedOperationException(
-                    methodName + " is unsupported without " + FEATURE_TELEPHONY_SUBSCRIPTION);
-        }
+        TelephonyUtils.enforceTelephonyFeatureWithException(callingPackage, mPackageManager,
+                mVendorApiLevel, FEATURE_TELEPHONY_SUBSCRIPTION, methodName);
     }
 
     /**

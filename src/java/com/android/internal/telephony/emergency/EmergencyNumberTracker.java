@@ -21,7 +21,6 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.content.pm.PackageManager;
 import android.content.res.Resources;
 import android.os.AsyncResult;
 import android.os.Environment;
@@ -186,14 +185,11 @@ public class EmergencyNumberTracker extends Handler {
         mFeatureFlags = featureFlags;
         mResources = ctx.getResources();
 
-        if (TelephonyCapabilities.minimalTelephonyCdmCheck(mFeatureFlags)) {
-            if (!ctx.getPackageManager().hasSystemFeature(PackageManager.FEATURE_TELEPHONY_CALLING)
-                    && !ctx.getPackageManager()
-                            .hasSystemFeature(PackageManager.FEATURE_TELEPHONY_MESSAGING)) {
-                throw new UnsupportedOperationException(
-                        "EmergencyNumberTracker requires telephony calling or messaging feature to"
-                                + " be enabled");
-            }
+        if (!TelephonyCapabilities.supportsTelephonyCalling(mFeatureFlags, ctx)
+                && !TelephonyCapabilities.supportsTelephonyMessaging(mFeatureFlags, ctx)) {
+            throw new UnsupportedOperationException(
+                    "EmergencyNumberTracker requires telephony calling or messaging feature to"
+                            + " be enabled");
         }
 
         if (mPhone != null) {

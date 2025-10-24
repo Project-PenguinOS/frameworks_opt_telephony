@@ -2428,7 +2428,7 @@ public class DataNetwork extends StateMachine {
         mNetworkAgent.markConnected();
         // Update NetworkAgent in QosCallbackTracker so that QoS callbacks on the new network agent
         // properly reach to the callback tracker.
-        if (mFlags.qosUpdateNetworkAgent() && mQosCallbackTracker != null) {
+        if (mQosCallbackTracker != null) {
             mQosCallbackTracker.updateNetworkAgent(mNetworkAgent);
         }
         notifyPreciseDataConnectionState();
@@ -2526,6 +2526,7 @@ public class DataNetwork extends StateMachine {
                     case NetworkCapabilities.NET_CAPABILITY_PRIORITIZE_LATENCY:
                     case NetworkCapabilities.NET_CAPABILITY_PRIORITIZE_BANDWIDTH:
                     case NetworkCapabilities.NET_CAPABILITY_CBS:
+                    case DataUtils.NET_CAPABILITY_PRIORITIZE_UNIFIED_COMMUNICATIONS:
                         builder.addCapability(networkCapability);
                         break;
                     default:

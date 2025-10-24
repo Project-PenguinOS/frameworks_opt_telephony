@@ -106,6 +106,7 @@ import com.android.internal.telephony.subscription.SubscriptionInfoInternal;
 import com.android.internal.telephony.uicc.IccCardApplicationStatus;
 import com.android.internal.telephony.uicc.IccRecords;
 
+import java.util.Set;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Ignore;
@@ -3228,8 +3229,7 @@ public class ServiceStateTrackerTest extends TelephonyTest {
         CellIdentityGsm cellIdentity =
                 new CellIdentityGsm(0, 1, 900, 5, "101", "23", "test", "tst",
                         Collections.emptyList());
-        doReturn(Arrays.asList("10123")).when(mSatelliteController).getSatellitePlmnsForCarrier(
-                anyInt());
+        doReturn(Set.of("10123")).when(mSatelliteController).getAllPlmnSet();
         doReturn(satelliteSupportedServiceList).when(mSatelliteController)
                 .getSupportedSatelliteServicesForPlmn(sst.mSubId, "10123");
 

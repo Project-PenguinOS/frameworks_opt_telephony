@@ -16,6 +16,8 @@
 
 package com.android.internal.telephony;
 
+import static com.android.internal.telephony.util.TelephonyUtils.TELEPHONY_FEATURE_ENFORCEMENT_VENDOR_API_LEVEL;
+
 import static junit.framework.Assert.assertEquals;
 
 import static org.junit.Assert.assertFalse;
@@ -33,7 +35,6 @@ import static org.mockito.Mockito.verify;
 import android.compat.testing.PlatformCompatChangeRule;
 import android.content.pm.PackageManager;
 import android.os.Binder;
-import android.os.Build;
 import android.os.Process;
 import android.telephony.TelephonyManager;
 import android.testing.AndroidTestingRunner;
@@ -314,9 +315,9 @@ public class SmsControllerTest extends TelephonyTest {
         doReturn(true).when(mSubscriptionManager)
                 .isSubscriptionAssociatedWithUser(eq(subId), any());
 
-        // Replace field to set SDK version of vendor partition to Android V
-        int vendorApiLevel = Build.VERSION_CODES.VANILLA_ICE_CREAM;
-        replaceInstance(SmsController.class, "mVendorApiLevel", mSmsControllerUT, vendorApiLevel);
+        // Replace field to set vendor API level to the one where the exceptions are enabled.
+        replaceInstance(SmsController.class, "mVendorApiLevel", mSmsControllerUT,
+                TELEPHONY_FEATURE_ENFORCEMENT_VENDOR_API_LEVEL);
 
         // Feature enabled, device does not have required telephony feature.
         doReturn(false).when(mPackageManager).hasSystemFeature(

@@ -129,7 +129,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * RIL implementation of the CommandsInterface.
- * {@hide}
+ * @hide
  */
 public class RIL extends BaseCommands implements CommandsInterface {
     static final String RILJ_LOG_TAG = "RILJ";
@@ -3221,6 +3221,26 @@ public class RIL extends BaseCommands implements CommandsInterface {
 
     @Override
     public void acknowledgeLastIncomingCdmaSms(boolean success, int cause, Message result) {
+        //if (mFeatureFlags.cleanupCdma()) return;
+
+        RadioMessagingProxy messagingProxy = getRadioServiceProxy(RadioMessagingProxy.class);
+        if (!canMakeRequest("acknowledgeLastIncomingCdmaSms", messagingProxy, result,
+                RADIO_HAL_VERSION_1_4)) {
+            return;
+        }
+
+        RILRequest rr = obtainRequest(RIL_REQUEST_CDMA_SMS_ACKNOWLEDGE, result,
+                mRILDefaultWorkSource);
+
+        if (RILJ_LOGD) {
+            riljLog(rr.serialString() + "> " + RILUtils.requestToString(rr.mRequest)
+                    + " success = " + success + " cause = " + cause);
+        }
+
+        radioServiceInvokeHelper(HAL_SERVICE_MESSAGING, rr, "acknowledgeLastIncomingCdmaSms",
+                () -> {
+                    messagingProxy.acknowledgeLastIncomingCdmaSms(rr.mSerial, success, cause);
+                });
     }
 
     @Override

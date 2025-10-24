@@ -21,7 +21,6 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.content.pm.PackageManager;
 import android.os.AsyncResult;
 import android.os.Build;
 import android.os.Bundle;
@@ -55,7 +54,7 @@ import java.util.Iterator;
 import java.util.List;
 
 /**
- * {@hide}
+ * @hide
  */
 public class GsmCdmaCallTracker extends CallTracker {
     private static final String LOG_TAG = "GsmCdmaCallTracker";
@@ -158,9 +157,7 @@ public class GsmCdmaCallTracker extends CallTracker {
     public GsmCdmaCallTracker(GsmCdmaPhone phone, FeatureFlags featureFlags) {
         super(featureFlags);
 
-        if (TelephonyCapabilities.minimalTelephonyCdmCheck(mFeatureFlags)
-                && !phone.getContext().getPackageManager().hasSystemFeature(
-                    PackageManager.FEATURE_TELEPHONY_CALLING)) {
+        if (!TelephonyCapabilities.supportsTelephonyCalling(mFeatureFlags, phone.getContext())) {
             throw new UnsupportedOperationException("GsmCdmaCallTracker requires calling");
         }
 
