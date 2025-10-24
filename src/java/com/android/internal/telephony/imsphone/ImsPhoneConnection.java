@@ -1436,11 +1436,17 @@ public class ImsPhoneConnection extends Connection implements
             if (com.android.server.telecom.flags.Flags.businessCallComposer()) {
                 maybeInjectBusinessComposerExtras(mExtras);
             }
+
             if (com.android.server.telecom.flags.Flags.isUsingVideoRingback()) {
                 maybeInjectIsUsingVideoRingbackExtras(mExtras);
             }
+
             if (com.android.server.telecom.flags.Flags.isUsingUnidirectionalVideoService()) {
                 maybeInjectIsUsingUnidirectionalVideoServiceExtras(mExtras);
+            }
+
+            if (android.telecom.flags.Flags.isUsingCrs()) {
+                maybeInjectVideoCustomizedRingingSignalCallExtras(mExtras);
             }
             setConnectionExtras(mExtras);
         }
@@ -1496,6 +1502,10 @@ public class ImsPhoneConnection extends Connection implements
         if (extras == null) {
             return;
         }
+
+        if (!isVideoRingbackEnabledByConfig(mOwner.getPhone())) {
+            return;
+        }
         try {
             if (extras.containsKey(ImsCallProfile.EXTRA_IS_USING_VIDEO_RINGBACK)) {
                 boolean v = extras.getBoolean(ImsCallProfile.EXTRA_IS_USING_VIDEO_RINGBACK);
@@ -1526,13 +1536,45 @@ public class ImsPhoneConnection extends Connection implements
             if (extras.containsKey(ImsCallProfile.EXTRA_IS_USING_UNIDIRECTIONAL_VIDEO_SERVICE)) {
                 boolean v = extras.getBoolean(
                         ImsCallProfile.EXTRA_IS_USING_UNIDIRECTIONAL_VIDEO_SERVICE);
-                Rlog.i(LOG_TAG, String.format(
-                        "EXTRA_IS_USING_UNIDIRECTIONAL_VIDEO_SERVICE=[%s]", v));
-                extras.putBoolean(
-                        android.telecom.Call.EXTRA_IS_USING_UNIDIRECTIONAL_VIDEO_SERVICE, v);
+                Rlog.i(LOG_TAG,
+                        String.format("EXTRA_IS_USING_UNIDIRECTIONAL_VIDEO_SERVICE=[%s]", v));
+                extras.putBoolean(android.telecom.Call.EXTRA_IS_USING_UNIDIRECTIONAL_VIDEO_SERVICE,
+                        v);
             }
         } catch (Exception e) {
             Rlog.e(LOG_TAG, "maybeInjectIsUsingUVSExtras: Exception " + e);
+        }
+    }
+
+    /**
+     * The Ims Vendor is responsible for setting the ImsCallProfile Video Customized Ringing
+     * Signal values (ImsCallProfile.EXTRA_CRS_MEDIA_TYPE, ImsCallProfile.EXTRA_CRS_MODE).
+     * This helper notifies Telecom of the business video CRS values which will then be
+     * injected into the android.telecom.Call object.
+     */
+    @VisibleForTesting
+    public void maybeInjectVideoCustomizedRingingSignalCallExtras(Bundle extras) {
+        if (extras == null) {
+            return;
+        }
+        if (!isVideoCustomizedRingingSignalEnabledByConfig(mOwner.getPhone())) {
+            return;
+        }
+        try {
+            if (extras.containsKey(ImsCallProfile.EXTRA_CRS_MEDIA_TYPE)) {
+                int v = extras.getInt(ImsCallProfile.EXTRA_CRS_MEDIA_TYPE);
+                Rlog.i(LOG_TAG, String.format("mICRS: EXTRA_CRS_MEDIA_TYPE=[%s]", v));
+                extras.putInt(android.telecom.Call.EXTRA_CRS_MEDIA_TYPE, v);
+            }
+
+            if (extras.containsKey(ImsCallProfile.EXTRA_CRS_AUDIO_MODE)) {
+                int v = extras.getInt(ImsCallProfile.EXTRA_CRS_AUDIO_MODE);
+                Rlog.i(LOG_TAG, String.format("mICRS: EXTRA_CRS_MODE=[%s]", v));
+                extras.putInt(android.telecom.Call.EXTRA_CRS_AUDIO_MODE, v);
+            }
+        } catch (Exception e) {
+            Rlog.e(LOG_TAG,
+                    "mICRS: maybeInjectVideoCustomizedRingingSignalCallExtras: Exception " + e);
         }
     }
 
@@ -1577,6 +1619,14 @@ public class ImsPhoneConnection extends Connection implements
             // Return static default defined in CarrierConfigManager.
             return CarrierConfigManager.getDefaultConfig().getBoolean(carrierConfig);
         }
+    }
+
+    /**
+     * Checks if video ringback is enabled in the carrier configuration.
+     */
+    private boolean isVideoRingbackEnabledByConfig(Phone phone) {
+        return isCarrierEnabledByConfig(phone,
+                CarrierConfigManager.KEY_SUPPORTS_VIDEO_RINGBACK_BOOL);
     }
 
     /**
@@ -1938,5 +1988,19 @@ public class ImsPhoneConnection extends Connection implements
             return 1;
         }
         return 0;
+    }
+
+    private boolean isVideoCustomizedRingingSignalEnabledByConfig(Phone phone) {
+        CarrierConfigManager configMgr = phone.getContext().getSystemService(
+                CarrierConfigManager.class);
+        if (configMgr != null) {
+            PersistableBundle b = configMgr.getConfigForSubId(phone.getSubId());
+            if (b != null) {
+                return b.getBoolean(
+                        CarrierConfigManager.KEY_SUPPORTS_CUSTOMIZED_RINGING_SIGNAL_BOOL);
+            }
+        }
+        return CarrierConfigManager.getDefaultConfig().getBoolean(
+                CarrierConfigManager.KEY_SUPPORTS_CUSTOMIZED_RINGING_SIGNAL_BOOL);
     }
 }

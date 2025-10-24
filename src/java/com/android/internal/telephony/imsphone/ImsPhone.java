@@ -1045,8 +1045,14 @@ public class ImsPhone extends ImsPhoneBase {
 
 // QTI_BEGIN: 2025-01-28: Telephony: Revert "DSDA: Add support for MMI codes, adhoc conference"
         // handle in-call MMI first if applicable
-        if (!dialArgs.isEmergency && handleInCallMmiCommands(newDialString)) {
-            return null;
+        if (!dialArgs.isEmergency) {
+            if (mFeatureFlags.ignoreIncallMmiForEmergency() && mCT.isInEmergencyCall()) {
+                logd("dialInternal: ignore InCall MMI command during emergency call");
+                return null;
+            }
+            if (handleInCallMmiCommands(newDialString)) {
+                return null;
+            }
         }
 
 // QTI_END: 2025-01-28: Telephony: Revert "DSDA: Add support for MMI codes, adhoc conference"
