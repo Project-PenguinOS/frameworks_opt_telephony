@@ -93,3 +93,14 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+# OWNER=tgunn TARGET=26Q1
+flag {
+    name: "initialize_telecom_account_registry_async"
+    namespace: "telephony"
+    description: "Move setup of telecom account registry out of the onCreate."
+    bug:"454329792"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
