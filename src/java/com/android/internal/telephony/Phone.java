@@ -2815,8 +2815,7 @@ public abstract class Phone extends Handler implements PhoneInternalInterface {
     }
 
     /**
-     * Perform the radio modem reboot. The radio will be taken offline. Used for device
-     * configuration by some CDMA operators.
+     * Perform the radio modem reboot. The radio will be taken offline.
      *
      * @param response Callback message.
      */

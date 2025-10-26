@@ -1597,8 +1597,14 @@ public class GsmCdmaPhone extends Phone {
         String newDialString = PhoneNumberUtils.stripSeparators(dialString);
 
         // If not emergency number, handle in-call MMI first if applicable
-        if (!dialArgs.isEmergency && handleInCallMmiCommands(newDialString)) {
-            return null;
+        if (!dialArgs.isEmergency) {
+            if (mFeatureFlags.ignoreIncallMmiForEmergency() && isInEmergencyCall()) {
+                logd("dialInternal: ignore InCall MMI command during emergency call");
+                return null;
+            }
+            if (handleInCallMmiCommands(newDialString)) {
+                return null;
+            }
         }
 
         // Only look at the Network portion for mmi
