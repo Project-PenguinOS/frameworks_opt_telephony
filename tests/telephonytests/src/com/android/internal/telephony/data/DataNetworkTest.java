@@ -2954,20 +2954,9 @@ public class DataNetworkTest extends TelephonyTest {
         serviceStateChanged(TelephonyManager.NETWORK_TYPE_LTE,
                 NetworkRegistrationInfo.REGISTRATION_STATE_HOME, true/*isNtn*/);
 
-        // Make sure transport type for the data network is still Cellular
+        // Make sure transport type for the data network is not Cellular
         assertThat(mDataNetworkUT.getNetworkCapabilities()
-                .hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)).isTrue();
-        assertThat(mDataNetworkUT.getNetworkCapabilities()
-                .hasTransport(NetworkCapabilities.TRANSPORT_SATELLITE)).isFalse();
-
-        // Disconnect the Data call
-        mDataNetworkUT.sendMessage(19/*EVENT_DEACTIVATE_DATA_NETWORK_RESPONSE*/, 0/*Success*/);
-        processAllMessages();
-
-        // set up data network with transport type satellite + Internet
-        setupNonTerrestrialDataNetwork();
-
-        //Check now transport type for the data network is satellite
+                .hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)).isFalse();
         assertThat(mDataNetworkUT.getNetworkCapabilities()
                 .hasTransport(NetworkCapabilities.TRANSPORT_SATELLITE)).isTrue();
     }
@@ -2990,22 +2979,11 @@ public class DataNetworkTest extends TelephonyTest {
         serviceStateChanged(TelephonyManager.NETWORK_TYPE_LTE,
                 NetworkRegistrationInfo.REGISTRATION_STATE_HOME, false/*isNtn*/);
 
-        // Make sure transport type for the data network is still satellite
+        // Make sure transport type for the data network is not satellite
         assertThat(mDataNetworkUT.getNetworkCapabilities()
-                .hasTransport(NetworkCapabilities.TRANSPORT_SATELLITE)).isTrue();
+                .hasTransport(NetworkCapabilities.TRANSPORT_SATELLITE)).isFalse();
 
-        // Make sure transport type for the data network is not cellular
-        assertThat(mDataNetworkUT.getNetworkCapabilities()
-                .hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)).isFalse();
-
-        // Disconnect the Data call
-        mDataNetworkUT.sendMessage(19/*EVENT_DEACTIVATE_DATA_NETWORK_RESPONSE*/, 0/*Success*/);
-        processAllMessages();
-
-        // set up data network with transport type cellular + Internet
-        setupTerrestrialDataNetwork();
-
-        //Check now transport type for the data network is cellular
+        // Make sure transport type for the data network is cellular
         assertThat(mDataNetworkUT.getNetworkCapabilities()
                 .hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)).isTrue();
     }
