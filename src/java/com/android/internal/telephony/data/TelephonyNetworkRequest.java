@@ -34,6 +34,7 @@ import android.telephony.data.TrafficDescriptor.OsAppId;
 import com.android.internal.telephony.Phone;
 import com.android.internal.telephony.PhoneFactory;
 import com.android.internal.telephony.flags.FeatureFlags;
+import com.android.internal.telephony.flags.Flags;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -434,11 +435,16 @@ public class TelephonyNetworkRequest {
     }
 
     /**
-     * @return Get all the network capabilities that can lead to data setup.
+     * @return Get all the network capabilities that can lead to data setup. Note this does not
+     * take {@code CarrierConfigManager#KEY_TELEPHONY_UNSUPPORTED_NETWORK_CAPABILITY_STRING_ARRAY}
+     * or the resource overlay {@code config_unsupported_network_capabilities} into account.
      */
     @NonNull
     @NetCapability
     public static List<Integer> getAllSupportedNetworkCapabilities() {
+        if (Flags.unsupportedNetworkCapabilitiesPerCarrier()) {
+            return CAPABILITY_ATTRIBUTE_MAP.keySet().stream().toList();
+        }
         Set<Integer> unsupportedCaps = PhoneFactory.getDefaultPhone()
                 .getDataNetworkController().getDataConfigManager()
                 .getUnsupportedNetworkCapabilities();

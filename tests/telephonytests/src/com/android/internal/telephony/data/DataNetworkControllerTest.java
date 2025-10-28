@@ -384,18 +384,6 @@ public class DataNetworkControllerTest extends TelephonyTest {
             .setPreferred(false)
             .build();
 
-    private final DataProfile mEnterpriseDataProfile = new DataProfile.Builder()
-            .setTrafficDescriptor(new TrafficDescriptor(null,
-                    new TrafficDescriptor.OsAppId(TrafficDescriptor.OsAppId.ANDROID_OS_ID,
-                            "ENTERPRISE", 1).getBytes()))
-            .build();
-
-    private final DataProfile mLowLatencyDataProfile = new DataProfile.Builder()
-            .setTrafficDescriptor(new TrafficDescriptor(null,
-                    new TrafficDescriptor.OsAppId(TrafficDescriptor.OsAppId.ANDROID_OS_ID,
-                            "PRIORITIZE_LATENCY", 1).getBytes()))
-            .build();
-
     private final DataProfile mNtnDataProfile = new DataProfile.Builder()
             .setApnSetting(new ApnSetting.Builder()
                     .setEntryName("ntn")
@@ -543,9 +531,15 @@ public class DataNetworkControllerTest extends TelephonyTest {
     private void setSuccessfulSetupDataResponse(DataServiceManager dsm, int cid, long delay) {
         doAnswer(invocation -> {
             final Message msg = (Message) invocation.getArguments()[10];
+            final TrafficDescriptor td = (TrafficDescriptor) invocation.getArguments()[8];
+            DataCallResponse response;
+            if (td != null) {
+                List<TrafficDescriptor> tdList = List.of(td);
+                response = createDataCallResponse(cid, DataCallResponse.LINK_STATUS_ACTIVE, tdList);
+            } else {
+                response = createDataCallResponse(cid, DataCallResponse.LINK_STATUS_ACTIVE);
+            }
 
-            DataCallResponse response = createDataCallResponse(cid,
-                    DataCallResponse.LINK_STATUS_ACTIVE);
             int transport = AccessNetworkConstants.TRANSPORT_TYPE_INVALID;
             if (dsm == mMockedWwanDataServiceManager) {
                 transport = AccessNetworkConstants.TRANSPORT_TYPE_WWAN;
@@ -565,6 +559,7 @@ public class DataNetworkControllerTest extends TelephonyTest {
                                 t).values()), null));
 
             }, delay + 100);
+            logd("setup data call successful. cid=" + cid);
             return null;
         }).when(dsm).setupDataCall(anyInt(), any(DataProfile.class), anyBoolean(),
                 anyBoolean(), anyInt(), any(), anyInt(), any(), any(), anyBoolean(),
@@ -849,6 +844,8 @@ public class DataNetworkControllerTest extends TelephonyTest {
                 new String[] {"ims", "eims", "xcap"});
         mContextFixture.putIntResource(com.android.internal.R.integer
                 .config_reevaluate_bootstrap_sim_data_usage_millis, 60000);
+        mContextFixture.putStringArrayResource(com.android.internal.R.array
+                        .config_unsupported_network_capabilities, new String[0]);
     }
 
     @Before
@@ -998,8 +995,7 @@ public class DataNetworkControllerTest extends TelephonyTest {
         List<DataProfile> profiles = List.of(mGeneralPurposeDataProfile,
                 mGeneralPurposeDataProfileAlternative, mImsCellularDataProfile,
                 mImsIwlanDataProfile, mEmergencyDataProfile, mFotaDataProfile,
-                mTetheringDataProfile, mLowLatencyDataProfile,
-                mNtnDataProfile, mEsimBootstrapDataProfile,
+                mTetheringDataProfile, mNtnDataProfile, mEsimBootstrapDataProfile,
                 mEsimBootstrapImsProfile, mEsimBootstrapRcsInfraStructureProfile);
 
         doAnswer(invocation -> {
@@ -1030,28 +1026,49 @@ public class DataNetworkControllerTest extends TelephonyTest {
         doAnswer(invocation -> {
             TelephonyNetworkRequest networkRequest =
                     (TelephonyNetworkRequest) invocation.getArguments()[0];
+            logd("getDataProfileForNetworkRequest called for " + networkRequest);
             int networkType = (int) invocation.getArguments()[1];
             boolean isNtn = (boolean) invocation.getArguments()[2];
             boolean isEsimBootstrapProvisioning = (boolean) invocation.getArguments()[3];
             boolean ignorePermanentFailure = (boolean) invocation.getArguments()[4];
 
-            for (DataProfile dataProfile : profiles) {
-                ApnSetting apnSetting = dataProfile.getApnSetting();
-                if (apnSetting != null
-                        && dataProfile.canSatisfy(networkRequest.getCapabilities())
-                        && (apnSetting.getNetworkTypeBitmask() == 0
-                        || (apnSetting.getNetworkTypeBitmask()
-                        & ServiceState.getBitmaskForTech(networkType)) != 0)
-                        && (isEsimBootstrapProvisioning
-                        == apnSetting.isEsimBootstrapProvisioning())
-                        && ((isNtn && apnSetting.isForInfrastructure(
-                        ApnSetting.INFRASTRUCTURE_SATELLITE))
-                        || (!isNtn && apnSetting.isForInfrastructure(
-                        ApnSetting.INFRASTRUCTURE_CELLULAR)))
-                        && (ignorePermanentFailure || !apnSetting.getPermanentFailed())) {
-                    return dataProfile;
+            if (networkRequest.hasAttribute(TelephonyNetworkRequest
+                    .CAPABILITY_ATTRIBUTE_APN_SETTING)) {
+                for (DataProfile dataProfile : profiles) {
+                    ApnSetting apnSetting = dataProfile.getApnSetting();
+                    if (apnSetting != null
+                            && dataProfile.canSatisfy(networkRequest.getCapabilities())
+                            && (apnSetting.getNetworkTypeBitmask() == 0
+                            || (apnSetting.getNetworkTypeBitmask()
+                            & ServiceState.getBitmaskForTech(networkType)) != 0)
+                            && (isEsimBootstrapProvisioning
+                            == apnSetting.isEsimBootstrapProvisioning())
+                            && ((isNtn && apnSetting.isForInfrastructure(
+                            ApnSetting.INFRASTRUCTURE_SATELLITE))
+                            || (!isNtn && apnSetting.isForInfrastructure(
+                            ApnSetting.INFRASTRUCTURE_CELLULAR)))
+                            && (ignorePermanentFailure || !apnSetting.getPermanentFailed())) {
+                        logd("Found " + dataProfile);
+                        return dataProfile;
+                    }
                 }
             }
+
+            if (networkRequest.hasAttribute(TelephonyNetworkRequest
+                    .CAPABILITY_ATTRIBUTE_TRAFFIC_DESCRIPTOR_OS_APP_ID)) {
+                TrafficDescriptor.Builder trafficDescriptorBuilder =
+                        new TrafficDescriptor.Builder();
+                TrafficDescriptor.OsAppId osAppId = networkRequest.getOsAppId();
+                if (osAppId != null) {
+                    trafficDescriptorBuilder.setOsAppId(osAppId.getBytes());
+                }
+                DataProfile.Builder profileBuilder = new DataProfile.Builder();
+                DataProfile dp = profileBuilder.setTrafficDescriptor(
+                        trafficDescriptorBuilder.build()).build();
+                logd("Build the data profile " + dp);
+                return dp;
+            }
+
             logd("Cannot find data profile to satisfy " + networkRequest + ", network type="
                     + TelephonyManager.getNetworkTypeName(networkType) + ", ignorePermanentFailure="
                     + ignorePermanentFailure + ", isNtn=" + isNtn + ","
@@ -1427,16 +1444,6 @@ public class DataNetworkControllerTest extends TelephonyTest {
 
     @Test
     public void testSetupEnterpriseDataNetwork() throws Exception {
-        List<TrafficDescriptor> tdList = new ArrayList<>();
-        tdList.add(new TrafficDescriptor.Builder()
-                .setOsAppId(new OsAppId(OsAppId.ANDROID_OS_ID, "ENTERPRISE", 1).getBytes())
-                .build());
-        setSuccessfulSetupDataResponse(mMockedWwanDataServiceManager,
-                createDataCallResponse(1, DataCallResponse.LINK_STATUS_ACTIVE, tdList));
-        doReturn(mEnterpriseDataProfile).when(mDataProfileManager)
-                .getDataProfileForNetworkRequest(any(TelephonyNetworkRequest.class), anyInt(),
-                        anyBoolean(), anyBoolean(), anyBoolean());
-
         NetworkCapabilities netCaps = new NetworkCapabilities();
         netCaps.addCapability(NetworkCapabilities.NET_CAPABILITY_ENTERPRISE);
         netCaps.removeCapability(NetworkCapabilities.NET_CAPABILITY_NOT_RESTRICTED);
@@ -4304,17 +4311,6 @@ public class DataNetworkControllerTest extends TelephonyTest {
                 TelephonyManager.DATA_ENABLED_REASON_USER, false, mContext.getOpPackageName());
         processAllMessages();
 
-        // Request the restricted tethering network.
-        List<TrafficDescriptor> tdList = new ArrayList<>();
-        tdList.add(new TrafficDescriptor.Builder()
-                .setOsAppId(new OsAppId(OsAppId.ANDROID_OS_ID, "ENTERPRISE", 1).getBytes())
-                .build());
-        setSuccessfulSetupDataResponse(mMockedWwanDataServiceManager,
-                createDataCallResponse(1, DataCallResponse.LINK_STATUS_ACTIVE, tdList));
-        doReturn(mEnterpriseDataProfile).when(mDataProfileManager)
-                .getDataProfileForNetworkRequest(any(TelephonyNetworkRequest.class), anyInt(),
-                        anyBoolean(), anyBoolean(), anyBoolean());
-
         NetworkCapabilities netCaps = new NetworkCapabilities();
         netCaps.addCapability(NetworkCapabilities.NET_CAPABILITY_ENTERPRISE);
         netCaps.removeCapability(NetworkCapabilities.NET_CAPABILITY_NOT_RESTRICTED);
@@ -5656,9 +5652,6 @@ public class DataNetworkControllerTest extends TelephonyTest {
                 );
         setSuccessfulSetupDataResponse(mMockedWwanDataServiceManager,
                 createDataCallResponse(1, DataCallResponse.LINK_STATUS_ACTIVE, tdList));
-        doReturn(mEnterpriseDataProfile).when(mDataProfileManager)
-                .getDataProfileForNetworkRequest(any(TelephonyNetworkRequest.class), anyInt(),
-                        anyBoolean(), anyBoolean(), anyBoolean());
         mDataNetworkControllerUT.addNetworkRequest(new TelephonyNetworkRequest(
                 new NetworkRequest.Builder()
                         .addCapability(NetworkCapabilities.NET_CAPABILITY_ENTERPRISE)
@@ -5694,9 +5687,6 @@ public class DataNetworkControllerTest extends TelephonyTest {
                 .build());
         setSuccessfulSetupDataResponse(mMockedWwanDataServiceManager,
                 createDataCallResponse(2, DataCallResponse.LINK_STATUS_ACTIVE, tdList));
-        doReturn(mLowLatencyDataProfile).when(mDataProfileManager)
-                .getDataProfileForNetworkRequest(any(TelephonyNetworkRequest.class), anyInt(),
-                        anyBoolean(), anyBoolean(), anyBoolean());
         processAllFutureMessages();
 
         dataNetworkList = getDataNetworks();
@@ -6450,5 +6440,57 @@ public class DataNetworkControllerTest extends TelephonyTest {
 
         // Data disabled is a soft reason. Make sure it's clear if there are other hard reasons.
         assertThat(evaluation.contains(DataDisallowedReason.DATA_DISABLED)).isFalse();
+    }
+
+    @Test
+    public void testUnsupportedNetworkCapabilitiesBringUp() throws Exception {
+        mCarrierConfig.putStringArray(
+                CarrierConfigManager.KEY_TELEPHONY_UNSUPPORTED_NETWORK_CAPABILITY_STRING_ARRAY,
+                new String[]{"mms", "prioritize_latency"});
+        carrierConfigChanged();
+        processAllMessages();
+
+        mDataNetworkControllerUT.addNetworkRequest(new TelephonyNetworkRequest(
+                new NetworkRequest.Builder()
+                        .addCapability(NetworkCapabilities.NET_CAPABILITY_PRIORITIZE_LATENCY)
+                        .build(), mPhone, mFeatureFlags));
+
+        processAllFutureMessages();
+        // Make sure no low latency network was brought up.
+        verifyNoConnectedNetworkHasCapability(
+                NetworkCapabilities.NET_CAPABILITY_PRIORITIZE_LATENCY);
+
+        mDataNetworkControllerUT.addNetworkRequest(new TelephonyNetworkRequest(
+                new NetworkRequest.Builder()
+                        .addCapability(NetworkCapabilities.NET_CAPABILITY_MMS)
+                        .removeCapability(NetworkCapabilities.NET_CAPABILITY_NOT_RESTRICTED)
+                        .build(), mPhone, mFeatureFlags));
+        processAllFutureMessages();
+        // Make sure no mms network was brought up.
+        verifyNoConnectedNetworkHasCapability(NetworkCapabilities.NET_CAPABILITY_MMS);
+    }
+
+    @Test
+    public void testUnsupportedNetworkCapabilitiesTeardown() throws Exception {
+        // Bring up UFC network
+        mDataNetworkControllerUT.addNetworkRequest(new TelephonyNetworkRequest(
+                new NetworkRequest.Builder()
+                        .addCapability(NetworkCapabilities
+                                .NET_CAPABILITY_PRIORITIZE_UNIFIED_COMMUNICATIONS)
+                        .build(), mPhone, mFeatureFlags));
+        processAllFutureMessages();
+        verifyConnectedNetworkHasCapabilities(NetworkCapabilities
+                .NET_CAPABILITY_PRIORITIZE_UNIFIED_COMMUNICATIONS);
+
+        // Now add UFC capability to unsupported network capabilities.
+        mCarrierConfig.putStringArray(
+                CarrierConfigManager.KEY_TELEPHONY_UNSUPPORTED_NETWORK_CAPABILITY_STRING_ARRAY,
+                new String[]{"prioritize_unified_communications"});
+        carrierConfigChanged();
+        processAllMessages();
+
+        // Make sure UFC network was torn down.
+        verifyNoConnectedNetworkHasCapability(
+                NetworkCapabilities.NET_CAPABILITY_PRIORITIZE_UNIFIED_COMMUNICATIONS);
     }
 }
