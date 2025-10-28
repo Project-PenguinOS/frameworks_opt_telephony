@@ -2732,6 +2732,22 @@ public class DataNetworkController extends Handler {
     }
 
     /**
+     * Get data network by connection id.
+     *
+     * @param cid The network connection id.
+     * @return The data network if found.
+     */
+    @Nullable
+    public DataNetwork getDataNetworkByCid(int cid) {
+        return mDataNetworkList.stream()
+                .filter(dataNetwork -> !(dataNetwork.isDisconnecting()
+                        || dataNetwork.isDisconnected()))
+                .filter(dataNetwork -> dataNetwork.getId() == cid)
+                .findFirst()
+                .orElse(null);
+    }
+
+    /**
      * Check if the device is in eSIM bootstrap provisioning state.
      *
      * @return {@code true} if the device is under eSIM bootstrap provisioning.

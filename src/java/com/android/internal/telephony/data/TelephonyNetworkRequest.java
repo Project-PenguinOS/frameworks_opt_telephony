@@ -80,6 +80,7 @@ public class TelephonyNetworkRequest {
             CAPABILITY_ATTRIBUTE_APN_SETTING,
             CAPABILITY_ATTRIBUTE_TRAFFIC_DESCRIPTOR_DNN,
             CAPABILITY_ATTRIBUTE_TRAFFIC_DESCRIPTOR_OS_APP_ID,
+            CAPABILITY_ATTRIBUTE_TRAFFIC_DESCRIPTOR_CONNECTION_CAPABILITY,
     })
     @Retention(RetentionPolicy.SOURCE)
     public @interface NetCapabilityAttribute {}
@@ -99,47 +100,74 @@ public class TelephonyNetworkRequest {
     public static final int CAPABILITY_ATTRIBUTE_TRAFFIC_DESCRIPTOR_OS_APP_ID = 1 << 2;
 
     /**
+     * The network capability should result in filling Connection Capability in
+     * {@link TrafficDescriptor}.
+     **/
+    public static final int CAPABILITY_ATTRIBUTE_TRAFFIC_DESCRIPTOR_CONNECTION_CAPABILITY = 1 << 3;
+
+    /**
      * Describes the attributes of network capabilities. Different capabilities can be translated
      * to different fields in {@link DataProfile}, or might be expanded to support special actions
      * in telephony in the future.
      */
     private static final Map<Integer, Integer> CAPABILITY_ATTRIBUTE_MAP = Map.ofEntries(
             new SimpleImmutableEntry<>(NetworkCapabilities.NET_CAPABILITY_MMS,
-                    CAPABILITY_ATTRIBUTE_APN_SETTING | CAPABILITY_ATTRIBUTE_TRAFFIC_DESCRIPTOR_DNN),
+                    CAPABILITY_ATTRIBUTE_APN_SETTING
+                            | CAPABILITY_ATTRIBUTE_TRAFFIC_DESCRIPTOR_DNN
+                            | CAPABILITY_ATTRIBUTE_TRAFFIC_DESCRIPTOR_CONNECTION_CAPABILITY),
             new SimpleImmutableEntry<>(NetworkCapabilities.NET_CAPABILITY_SUPL,
-                    CAPABILITY_ATTRIBUTE_APN_SETTING | CAPABILITY_ATTRIBUTE_TRAFFIC_DESCRIPTOR_DNN),
+                    CAPABILITY_ATTRIBUTE_APN_SETTING
+                            | CAPABILITY_ATTRIBUTE_TRAFFIC_DESCRIPTOR_DNN
+                            | CAPABILITY_ATTRIBUTE_TRAFFIC_DESCRIPTOR_CONNECTION_CAPABILITY),
             new SimpleImmutableEntry<>(NetworkCapabilities.NET_CAPABILITY_DUN,
-                    CAPABILITY_ATTRIBUTE_APN_SETTING | CAPABILITY_ATTRIBUTE_TRAFFIC_DESCRIPTOR_DNN),
+                    CAPABILITY_ATTRIBUTE_APN_SETTING
+                            | CAPABILITY_ATTRIBUTE_TRAFFIC_DESCRIPTOR_DNN),
             new SimpleImmutableEntry<>(NetworkCapabilities.NET_CAPABILITY_FOTA,
-                    CAPABILITY_ATTRIBUTE_APN_SETTING | CAPABILITY_ATTRIBUTE_TRAFFIC_DESCRIPTOR_DNN),
+                    CAPABILITY_ATTRIBUTE_APN_SETTING
+                            | CAPABILITY_ATTRIBUTE_TRAFFIC_DESCRIPTOR_DNN),
             new SimpleImmutableEntry<>(NetworkCapabilities.NET_CAPABILITY_IMS,
-                    CAPABILITY_ATTRIBUTE_APN_SETTING | CAPABILITY_ATTRIBUTE_TRAFFIC_DESCRIPTOR_DNN),
+                    CAPABILITY_ATTRIBUTE_APN_SETTING
+                            | CAPABILITY_ATTRIBUTE_TRAFFIC_DESCRIPTOR_DNN
+                            | CAPABILITY_ATTRIBUTE_TRAFFIC_DESCRIPTOR_CONNECTION_CAPABILITY),
             new SimpleImmutableEntry<>(NetworkCapabilities.NET_CAPABILITY_CBS,
-                    CAPABILITY_ATTRIBUTE_APN_SETTING | CAPABILITY_ATTRIBUTE_TRAFFIC_DESCRIPTOR_DNN
+                    CAPABILITY_ATTRIBUTE_APN_SETTING
+                            | CAPABILITY_ATTRIBUTE_TRAFFIC_DESCRIPTOR_DNN
                             | CAPABILITY_ATTRIBUTE_TRAFFIC_DESCRIPTOR_OS_APP_ID),
             new SimpleImmutableEntry<>(NetworkCapabilities.NET_CAPABILITY_XCAP,
-                    CAPABILITY_ATTRIBUTE_APN_SETTING | CAPABILITY_ATTRIBUTE_TRAFFIC_DESCRIPTOR_DNN),
+                    CAPABILITY_ATTRIBUTE_APN_SETTING
+                            | CAPABILITY_ATTRIBUTE_TRAFFIC_DESCRIPTOR_DNN),
             new SimpleImmutableEntry<>(NetworkCapabilities.NET_CAPABILITY_EIMS,
-                    CAPABILITY_ATTRIBUTE_APN_SETTING | CAPABILITY_ATTRIBUTE_TRAFFIC_DESCRIPTOR_DNN),
+                    CAPABILITY_ATTRIBUTE_APN_SETTING
+                            | CAPABILITY_ATTRIBUTE_TRAFFIC_DESCRIPTOR_DNN),
             new SimpleImmutableEntry<>(NetworkCapabilities.NET_CAPABILITY_INTERNET,
-                    CAPABILITY_ATTRIBUTE_APN_SETTING | CAPABILITY_ATTRIBUTE_TRAFFIC_DESCRIPTOR_DNN),
+                    CAPABILITY_ATTRIBUTE_APN_SETTING
+                            | CAPABILITY_ATTRIBUTE_TRAFFIC_DESCRIPTOR_DNN
+                            | CAPABILITY_ATTRIBUTE_TRAFFIC_DESCRIPTOR_CONNECTION_CAPABILITY),
             new SimpleImmutableEntry<>(NetworkCapabilities.NET_CAPABILITY_MCX,
-                    CAPABILITY_ATTRIBUTE_APN_SETTING | CAPABILITY_ATTRIBUTE_TRAFFIC_DESCRIPTOR_DNN),
+                    CAPABILITY_ATTRIBUTE_APN_SETTING
+                            | CAPABILITY_ATTRIBUTE_TRAFFIC_DESCRIPTOR_DNN),
             new SimpleImmutableEntry<>(NetworkCapabilities.NET_CAPABILITY_ENTERPRISE,
-                    CAPABILITY_ATTRIBUTE_APN_SETTING | CAPABILITY_ATTRIBUTE_TRAFFIC_DESCRIPTOR_DNN
+                    CAPABILITY_ATTRIBUTE_APN_SETTING
+                            | CAPABILITY_ATTRIBUTE_TRAFFIC_DESCRIPTOR_DNN
                             | CAPABILITY_ATTRIBUTE_TRAFFIC_DESCRIPTOR_OS_APP_ID),
             new SimpleImmutableEntry<>(NetworkCapabilities.NET_CAPABILITY_VSIM,
-                    CAPABILITY_ATTRIBUTE_APN_SETTING | CAPABILITY_ATTRIBUTE_TRAFFIC_DESCRIPTOR_DNN),
+                    CAPABILITY_ATTRIBUTE_APN_SETTING
+                            | CAPABILITY_ATTRIBUTE_TRAFFIC_DESCRIPTOR_DNN),
             new SimpleImmutableEntry<>(NetworkCapabilities.NET_CAPABILITY_BIP,
-                    CAPABILITY_ATTRIBUTE_APN_SETTING | CAPABILITY_ATTRIBUTE_TRAFFIC_DESCRIPTOR_DNN),
+                    CAPABILITY_ATTRIBUTE_APN_SETTING
+                            | CAPABILITY_ATTRIBUTE_TRAFFIC_DESCRIPTOR_DNN),
             new SimpleImmutableEntry<>(NetworkCapabilities.NET_CAPABILITY_PRIORITIZE_LATENCY,
-                    CAPABILITY_ATTRIBUTE_TRAFFIC_DESCRIPTOR_OS_APP_ID),
+                    CAPABILITY_ATTRIBUTE_TRAFFIC_DESCRIPTOR_OS_APP_ID
+                            | CAPABILITY_ATTRIBUTE_TRAFFIC_DESCRIPTOR_CONNECTION_CAPABILITY),
             new SimpleImmutableEntry<>(NetworkCapabilities.NET_CAPABILITY_PRIORITIZE_BANDWIDTH,
-                    CAPABILITY_ATTRIBUTE_TRAFFIC_DESCRIPTOR_OS_APP_ID),
+                    CAPABILITY_ATTRIBUTE_TRAFFIC_DESCRIPTOR_OS_APP_ID
+                            | CAPABILITY_ATTRIBUTE_TRAFFIC_DESCRIPTOR_CONNECTION_CAPABILITY),
             new SimpleImmutableEntry<>(NetworkCapabilities.NET_CAPABILITY_RCS,
-                CAPABILITY_ATTRIBUTE_APN_SETTING | CAPABILITY_ATTRIBUTE_TRAFFIC_DESCRIPTOR_DNN),
+                    CAPABILITY_ATTRIBUTE_APN_SETTING
+                            | CAPABILITY_ATTRIBUTE_TRAFFIC_DESCRIPTOR_DNN),
             new SimpleImmutableEntry<>(DataUtils.NET_CAPABILITY_PRIORITIZE_UNIFIED_COMMUNICATIONS,
-                    CAPABILITY_ATTRIBUTE_TRAFFIC_DESCRIPTOR_OS_APP_ID)
+                    CAPABILITY_ATTRIBUTE_TRAFFIC_DESCRIPTOR_OS_APP_ID
+                            | CAPABILITY_ATTRIBUTE_TRAFFIC_DESCRIPTOR_CONNECTION_CAPABILITY)
     );
 
     /**
@@ -223,9 +251,18 @@ public class TelephonyNetworkRequest {
         mFeatureFlags = featureFlags;
 
         int capabilitiesAttributes = CAPABILITY_ATTRIBUTE_NONE;
-        for (int networkCapability : mNativeNetworkRequest.getCapabilities()) {
-            capabilitiesAttributes |= CAPABILITY_ATTRIBUTE_MAP.getOrDefault(
-                    networkCapability, CAPABILITY_ATTRIBUTE_NONE);
+        if (mFeatureFlags.enableTrafficDescriptorConnectionCapability()) {
+            for (int networkCapability : mNativeNetworkRequest.getCapabilities()) {
+                capabilitiesAttributes |= CAPABILITY_ATTRIBUTE_MAP.getOrDefault(
+                        networkCapability, CAPABILITY_ATTRIBUTE_NONE);
+            }
+        } else {
+            // Previous logic without CAPABILITY_ATTRIBUTE_TRAFFIC_DESCRIPTOR_CONNECTION_CAPABILITY
+            for (int networkCapability : mNativeNetworkRequest.getCapabilities()) {
+                capabilitiesAttributes |= (CAPABILITY_ATTRIBUTE_MAP.getOrDefault(
+                        networkCapability, CAPABILITY_ATTRIBUTE_NONE)
+                        & ~CAPABILITY_ATTRIBUTE_TRAFFIC_DESCRIPTOR_CONNECTION_CAPABILITY);
+            }
         }
         mCapabilitiesAttributes = capabilitiesAttributes;
 

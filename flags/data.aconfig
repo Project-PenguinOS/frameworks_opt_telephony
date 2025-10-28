@@ -151,3 +151,12 @@ flag {
     purpose: PURPOSE_BUGFIX
   }
 }
+
+# OWNER=sangyun TARGET=26Q2
+flag {
+  name: "enable_traffic_descriptor_connection_capability"
+  namespace: "telephony"
+  description: "Enables support for including Connection Capabilities in the TrafficDescriptor for URSP (UE Route Selection Policy) matching, as defined in 3GPP TS 24.526."
+  bug:"417753705"
+}
+
