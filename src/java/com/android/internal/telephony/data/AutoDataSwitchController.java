@@ -17,6 +17,12 @@
 package com.android.internal.telephony.data;
 
 import static android.net.NetworkCapabilities.TRANSPORT_CELLULAR;
+import static android.telephony.CarrierConfigManager.KEY_OPP_AUTO_DATA_SWITCH_AVAILABILITY_STABILITY_MILLIS_LONG;
+import static android.telephony.CarrierConfigManager.KEY_OPP_AUTO_DATA_SWITCH_AVAILABILITY_SWITCHBACK_MILLIS_LONG;
+import static android.telephony.CarrierConfigManager.KEY_OPP_AUTO_DATA_SWITCH_PERFORMANCE_STABILITY_MILLIS_LONG;
+import static android.telephony.CarrierConfigManager.KEY_OPP_AUTO_DATA_SWITCH_PING_BEFORE_SWITCH_BOOL;
+import static android.telephony.CarrierConfigManager.KEY_OPP_AUTO_DATA_SWITCH_POLICY_INT;
+import static android.telephony.CarrierConfigManager.KEY_OPP_AUTO_DATA_SWITCH_VALIDATION_MAX_RETRIES_INT;
 import static android.telephony.CarrierConfigManager.OPP_AUTO_DATA_SWITCH_POLICY_BITMASK_AVAILABILITY;
 import static android.telephony.CarrierConfigManager.OPP_AUTO_DATA_SWITCH_POLICY_BITMASK_PERFORMANCE;
 import static android.telephony.CarrierConfigManager.OPP_AUTO_DATA_SWITCH_POLICY_DISABLED;
@@ -42,6 +48,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
 import android.os.ParcelUuid;
+import android.os.PersistableBundle;
 import android.os.SystemClock;
 import android.provider.Settings;
 import android.telephony.AccessNetworkConstants;
@@ -180,6 +187,22 @@ public class AutoDataSwitchController extends Handler {
      */
     private static final long RETRY_LONG_DELAY_TIMER_THRESHOLD_MILLIS = TimeUnit
             .MINUTES.toMillis(1);
+
+    // TODO(b/453655423): Manage all carrier configs in a single class
+    /**
+     * The carrier config keys that are used by auto data switch controller.
+     * Note that this is not the complete list. For example,
+     * {@link CarrierConfigManager#KEY_AUTO_DATA_SWITCH_RAT_SIGNAL_SCORE_BUNDLE} is handled
+     * by DataConfigManager at present.
+     */
+    private static final String[] OPP_AUTO_DATA_SWITCH_CARRIER_CONFIG_KEYS = {
+            KEY_OPP_AUTO_DATA_SWITCH_POLICY_INT,
+            KEY_OPP_AUTO_DATA_SWITCH_AVAILABILITY_STABILITY_MILLIS_LONG,
+            KEY_OPP_AUTO_DATA_SWITCH_PERFORMANCE_STABILITY_MILLIS_LONG,
+            KEY_OPP_AUTO_DATA_SWITCH_AVAILABILITY_SWITCHBACK_MILLIS_LONG,
+            KEY_OPP_AUTO_DATA_SWITCH_PING_BEFORE_SWITCH_BOOL,
+            KEY_OPP_AUTO_DATA_SWITCH_VALIDATION_MAX_RETRIES_INT
+    };
 
     @NonNull
     private final LocalLog mLocalLog = new LocalLog(128);
@@ -408,7 +431,7 @@ public class AutoDataSwitchController extends Handler {
         mEventsToAlarmListener = new HashMap<>();
         mSubscriptionManagerService = SubscriptionManagerService.getInstance();
         mPhoneSwitcher = phoneSwitcher;
-        readDeviceResourceConfig();
+        readDeviceResourceAndCarrierConfigIfNeeded();
         int numActiveModems = PhoneFactory.getPhones().length;
         mPhonesSignalStatus = new PhoneSignalStatus[numActiveModems];
         // Listening on all slots on boot up to make sure nothing missed. Later the tracking is
@@ -578,6 +601,65 @@ public class AutoDataSwitchController extends Handler {
                         ? dataConfig.getAutoDataSwitchAvailabilitySwitchbackStabilityTimeThreshold()
                         : dataConfig.getAutoDataSwitchAvailabilityStabilityTimeThreshold());
         mAutoDataSwitchValidationMaxRetry = dataConfig.getAutoDataSwitchValidationMaxRetry();
+    }
+
+    /**
+     * Read carrier config and OVERRIDE device config when fulfill all the conditions below:
+     * - In a qualified OPPT switch context
+     * - Carrier config from primary sub is overridden with non-default value
+     */
+    private void readCarrierConfigIfNeeded() {
+        if (shouldExcludeOpportunisticForSwitch()) {
+            logl("OPPT switch excluded, ignore carrier config.");
+            return;
+        }
+
+        PersistableBundle primaryConfig = getCarrierConfigForPrimaryPhone();
+        mRequirePingTestBeforeSwitch =
+                primaryConfig.getBoolean(
+                        KEY_OPP_AUTO_DATA_SWITCH_PING_BEFORE_SWITCH_BOOL,
+                        mRequirePingTestBeforeSwitch);
+        STABILITY_CHECK_TIMER_MAP.put(
+                STABILITY_CHECK_AVAILABILITY_SWITCH,
+                primaryConfig.getLong(
+                        KEY_OPP_AUTO_DATA_SWITCH_AVAILABILITY_STABILITY_MILLIS_LONG,
+                        STABILITY_CHECK_TIMER_MAP.get(STABILITY_CHECK_AVAILABILITY_SWITCH)));
+        STABILITY_CHECK_TIMER_MAP.put(
+                STABILITY_CHECK_PERFORMANCE_SWITCH,
+                primaryConfig.getLong(
+                        KEY_OPP_AUTO_DATA_SWITCH_PERFORMANCE_STABILITY_MILLIS_LONG,
+                        STABILITY_CHECK_TIMER_MAP.get(STABILITY_CHECK_PERFORMANCE_SWITCH)));
+        STABILITY_CHECK_TIMER_MAP.put(
+                STABILITY_CHECK_AVAILABILITY_SWITCH_BACK,
+                primaryConfig.getLong(
+                        KEY_OPP_AUTO_DATA_SWITCH_AVAILABILITY_SWITCHBACK_MILLIS_LONG,
+                        STABILITY_CHECK_TIMER_MAP.get(STABILITY_CHECK_AVAILABILITY_SWITCH_BACK)));
+        mAutoDataSwitchValidationMaxRetry =
+                primaryConfig.getInt(
+                        KEY_OPP_AUTO_DATA_SWITCH_VALIDATION_MAX_RETRIES_INT,
+                        mAutoDataSwitchValidationMaxRetry);
+        logl(
+                "Parameters loaded after carrier config: PING_TEST_BEFORE_SWITCH="
+                        + mRequirePingTestBeforeSwitch
+                        + ", AVAILABILITY_STABILITY_TIME_THRESHOLD="
+                        + STABILITY_CHECK_TIMER_MAP.get(STABILITY_CHECK_AVAILABILITY_SWITCH)
+                        + ", PERFORMANCE_STABILITY_TIME_THRESHOLD="
+                        + STABILITY_CHECK_TIMER_MAP.get(STABILITY_CHECK_PERFORMANCE_SWITCH)
+                        + ", SWITCHBACK_STABILITY_TIME_THRESHOLD="
+                        + STABILITY_CHECK_TIMER_MAP.get(STABILITY_CHECK_AVAILABILITY_SWITCH_BACK)
+                        + ", SWITCH_VALIDATION_MAX_RETRY=" + mAutoDataSwitchValidationMaxRetry);
+    }
+
+    /**
+     * Read device config, then read carrier config for overridden if needed
+     */
+    private void readDeviceResourceAndCarrierConfigIfNeeded() {
+        // Always read device resource config which is used both for primary networks switch and
+        // OPPT networks switch.
+        readDeviceResourceConfig();
+        if (sFeatureFlags.exposeOpptAutoDataSwitchPolicies()) {
+            readCarrierConfigIfNeeded();
+        }
     }
 
     @Override
@@ -753,6 +835,8 @@ public class AutoDataSwitchController extends Handler {
      * @param reason The reason for the evaluation.
      */
     public void evaluateAutoDataSwitch(@AutoDataSwitchEvaluationReason int reason) {
+        // Always refresh parameters according to latest status
+        readDeviceResourceAndCarrierConfigIfNeeded();
         long delayMs = reason == EVALUATION_REASON_RETRY_VALIDATION
                 ? STABILITY_CHECK_TIMER_MAP.get(STABILITY_CHECK_AVAILABILITY_SWITCH)
                 << mAutoSwitchValidationFailedCount
@@ -1113,8 +1197,8 @@ public class AutoDataSwitchController extends Handler {
         mAlarmManager.cancel(listener);
         // Override with new extras.
         mScheduledEventsToExtras.put(event, extras);
-        // Reset timer.
-        if (delayMs <= RETRY_LONG_DELAY_TIMER_THRESHOLD_MILLIS) {
+        // Reset timer, longer than or equal to which we use alarm manager to schedule.
+        if (delayMs < RETRY_LONG_DELAY_TIMER_THRESHOLD_MILLIS) {
             // Use handler for short timer.
             sendEmptyMessageDelayed(event, delayMs);
         } else {
@@ -1351,30 +1435,45 @@ public class AutoDataSwitchController extends Handler {
     }
 
     /**
+     * Get carrier config bundle for the primary phone.
+     */
+    private PersistableBundle getCarrierConfigForPrimaryPhone() {
+        int[] activeSubs = mSubscriptionManagerService.getActiveSubIdList(true /*visibleOnly*/);
+        // TODO(b/453655423): improve logic when managing CC for primary network switch
+        if (mCarrierConfigManager == null || activeSubs.length != 1) {
+            return new PersistableBundle();
+        }
+        return CarrierConfigManager.getCarrierConfigSubset(
+                mContext, activeSubs[0], OPP_AUTO_DATA_SWITCH_CARRIER_CONFIG_KEYS);
+    }
+
+    /**
      * @return switch policy from carrier config for primary subscription.
      */
     @OpportunisticNetworkSwitchPolicy
     private int getOpptSwitchPolicyForPrimaryPhone() {
-        int[] activeSubs = mSubscriptionManagerService.getActiveSubIdList(true /*visibleOnly*/);
-        if (activeSubs.length != 1) {
-            return OPP_AUTO_DATA_SWITCH_POLICY_DISABLED;
-        }
+        return getCarrierConfigForPrimaryPhone()
+                .getInt(
+                        KEY_OPP_AUTO_DATA_SWITCH_POLICY_INT,
+                        OPP_AUTO_DATA_SWITCH_POLICY_DISABLED);
+    }
 
-        return mCarrierConfigManager == null ? OPP_AUTO_DATA_SWITCH_POLICY_DISABLED :
-                    mCarrierConfigManager.getCarrierConfigSubset(mContext, activeSubs[0],
-                            CarrierConfigManager.KEY_OPP_AUTO_DATA_SWITCH_POLICY_INT).getInt(
-                            CarrierConfigManager.KEY_OPP_AUTO_DATA_SWITCH_POLICY_INT,
-                            OPP_AUTO_DATA_SWITCH_POLICY_DISABLED);
+    /**
+     * @return {@code true} if the opportunistic network switch policy is enabled for the given
+     * bitmask.
+     */
+    private boolean isOpptSwitchPolicyEnabled(
+            @CarrierConfigManager.OpportunisticNetworkSwitchPolicyBitmask int policyBitmask) {
+        final int policy = getOpptSwitchPolicyForPrimaryPhone();
+        return (policy & policyBitmask) != 0;
     }
 
     private boolean isAvailabilityBasedSwitchEnabledForOppt() {
-        final int policy = getOpptSwitchPolicyForPrimaryPhone();
-        return (policy & OPP_AUTO_DATA_SWITCH_POLICY_BITMASK_AVAILABILITY) != 0;
+        return isOpptSwitchPolicyEnabled(OPP_AUTO_DATA_SWITCH_POLICY_BITMASK_AVAILABILITY);
     }
 
     private boolean isPerformanceBasedSwitchEnabledForOppt() {
-        final int policy = getOpptSwitchPolicyForPrimaryPhone();
-        return (policy & OPP_AUTO_DATA_SWITCH_POLICY_BITMASK_PERFORMANCE) != 0;
+        return isOpptSwitchPolicyEnabled(OPP_AUTO_DATA_SWITCH_POLICY_BITMASK_PERFORMANCE);
     }
 
     /**
