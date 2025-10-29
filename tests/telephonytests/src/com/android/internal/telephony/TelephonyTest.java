@@ -562,7 +562,6 @@ public abstract class TelephonyTest {
         lenient().doReturn(true).when(mFeatureFlags).dataServiceCheck();
         lenient().doReturn(true).when(mFeatureFlags).dataServiceNotifyImsDataNetwork();
         lenient().doReturn(true).when(mFeatureFlags).keepWfcOnApm();
-        lenient().doReturn(true).when(mFeatureFlags).allowMultiCountryMcc();
         lenient().doReturn(true).when(mFeatureFlags).deleteCdma();
         lenient().doReturn(true).when(mFeatureFlags)
                 .notRecreateAgentWhenImmutableCapabilitiesChanged();

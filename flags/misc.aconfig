@@ -96,16 +96,6 @@ flag {
     }
 }
 
-# OWNER=boullanger TARGET=26Q2
-flag {
-    name: "allow_multi_country_mcc"
-    namespace: "telephony"
-    description: "Allows MCC to map to multiple countries."
-    bug: "393349646"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
 
 # OWNER=jackyu TARGET=26Q2
 flag {
