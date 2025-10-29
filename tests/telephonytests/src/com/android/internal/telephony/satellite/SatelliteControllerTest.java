@@ -748,6 +748,8 @@ public class SatelliteControllerTest extends TelephonyTest {
                 .when(mMockSessionMetricsStats).setSessionConnectionMode(
                         intThat(lastArg -> VALID_SESSION_CONNECT_TYPES.contains(lastArg)));
         doReturn(mMockSessionMetricsStats)
+                .when(mMockSessionMetricsStats).setPlmn(anyString());
+        doReturn(mMockSessionMetricsStats)
                 .when(mMockSessionMetricsStats).setIsNtnOnlyCarrier(anyBoolean());
         doNothing().when(mMockSessionMetricsStats).reportSessionMetrics();
 

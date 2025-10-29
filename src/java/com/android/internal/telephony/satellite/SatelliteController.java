@@ -7337,18 +7337,20 @@ public class SatelliteController extends Handler {
             // Log satellite session start
             CarrierRoamingSatelliteSessionStats sessionStats =
                     CarrierRoamingSatelliteSessionStats.getInstance(subId);
+            String satellitePlmn = phone.getServiceState().getOperatorNumeric();
             int[] supported_satellite_services =
                     getSupportedSatelliteServicesOnSessionStart(
                             getSupportedSatelliteServicesForPlmn(subId,
-                                    phone.getServiceState().getOperatorNumeric()));
+                                    satellitePlmn));
             int dataPolicy = mapDataPolicyForMetrics(getSatelliteDataServicePolicyForPlmn(subId,
-                    phone.getServiceState().getOperatorNumeric()));
+                    satellitePlmn));
             satelliteApps = getSatelliteDataOptimizedApps(userId);
+
 
             sessionStats.onSessionStart(phone.getCarrierId(), phone,
                     supported_satellite_services, dataPolicy, satelliteApps,
                     getSupportedConnectTypeMetrics(subId), getSessionConnectTypeMetrics(subId),
-                    mFeatureFlags);
+                    satellitePlmn, mFeatureFlags);
             mCarrierRoamingSatelliteSessionStatsMap.put(subId, sessionStats);
             mCarrierRoamingSatelliteControllerStats.onSessionStart(subId);
         } else if (lastNotifiedNtnMode && !currNtnMode) {
@@ -9124,9 +9126,8 @@ public class SatelliteController extends Handler {
     }
 
     /** return satellite phone */
-    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
     @Nullable
-    protected Phone getSatellitePhone() {
+    public Phone getSatellitePhone() {
         synchronized (mSatellitePhoneLock) {
             return mSatellitePhone;
         }
