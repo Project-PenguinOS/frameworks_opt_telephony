@@ -227,7 +227,7 @@ public abstract class Connection {
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     protected String mAddress;     // MAY BE NULL!!!
     // The VERSTAT number verification status; defaults to not verified.
-    protected @android.telecom.Connection.VerificationStatus int mNumberVerificationStatus =
+    protected @android.telecom.Annotation.VerificationStatus int mNumberVerificationStatus =
             android.telecom.Connection.VERIFICATION_STATUS_NOT_VERIFIED;
 
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
@@ -1625,7 +1625,7 @@ public abstract class Connection {
     /**
      * @return The number verification status; only applicable for IMS calls.
      */
-    public @android.telecom.Connection.VerificationStatus int getNumberVerificationStatus() {
+    public @android.telecom.Annotation.VerificationStatus int getNumberVerificationStatus() {
         return mNumberVerificationStatus;
     }
 
@@ -1634,7 +1634,7 @@ public abstract class Connection {
      * @param verificationStatus The new verification status
      */
     public void setNumberVerificationStatus(
-            @android.telecom.Connection.VerificationStatus int verificationStatus) {
+            @android.telecom.Annotation.VerificationStatus int verificationStatus) {
         mNumberVerificationStatus = verificationStatus;
     }
 
