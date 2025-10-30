@@ -472,6 +472,9 @@ public class SatelliteStatsTest extends TelephonyTest {
                         .setCountOfOutgoingMms(14)
                         .setIsMultiSim(false)
                         .setIsNbIotNtn(false)
+                        .setIsWifiEnabled(false)
+                        .setIsWfcEnabled(false)
+                        .setIsWfcRegistered(false)
                         .build();
 
         mSatelliteStats.onCarrierRoamingSatelliteSessionMetrics(param);
@@ -502,6 +505,9 @@ public class SatelliteStatsTest extends TelephonyTest {
         assertEquals(param.getCountOfOutgoingMms(), stats.countOfOutgoingMms);
         assertEquals(param.isMultiSim(), stats.isMultiSim);
         assertEquals(param.isNbIotNtn(), stats.isNbIotNtn);
+        assertEquals(param.isWifiEnabled(), stats.isWifiEnabled);
+        assertEquals(param.isWfcEnabled(), stats.isWfcEnabled);
+        assertEquals(param.isWfcRegistered(), stats.isWfcRegistered);
 
         verifyNoMoreInteractions(mPersistAtomsStorage);
     }

@@ -1703,7 +1703,10 @@ public class MetricsCollector implements StatsManager.StatsPullAtomCallback {
                 stats.perAppSatelliteDataConsumedBytes,
                 stats.supportedConnectionMode,
                 stats.sessionConnectionMode,
-                stats.plmn);
+                stats.plmn,
+                stats.isWifiEnabled,
+                stats.isWfcEnabled,
+                stats.isWfcRegistered);
     }
 
     private static StatsEvent buildStatsEvent(CarrierRoamingSatelliteControllerStats stats) {
