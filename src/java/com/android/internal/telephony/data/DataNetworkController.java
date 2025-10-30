@@ -2225,16 +2225,6 @@ public class DataNetworkController extends Handler {
             }
         }
 
-        // If the network is satellite, then the network must be restricted.
-        // The IWLAN data network should remain intact even when satellite is connected.
-        if (dataNetwork.getTransport() != AccessNetworkConstants.TRANSPORT_TYPE_WLAN
-                && mServiceState.isUsingNonTerrestrialNetwork() != dataNetwork.isSatellite()) {
-            // Since we don't support satellite/cellular network handover, we should always
-            // tear down the network when transport changes.
-            evaluation.addDataDisallowedReason(
-                    DataDisallowedReason.DATA_NETWORK_TRANSPORT_NOT_ALLOWED);
-        }
-
         // Check whether data limit reached for bootstrap sim, else re-evaluate based on the timer
         // set.
         if (isEsimBootStrapProvisioningActivated()
@@ -2348,20 +2338,29 @@ public class DataNetworkController extends Handler {
             dataDisabled = !mDataSettingsManager.isDataEnabled(
                     DataUtils.networkCapabilityToApnType(
                             dataNetwork.getApnTypeNetworkCapability()));
-
+            ApnSetting apnSetting = dataProfile.getApnSetting();
             // Sometimes network temporarily OOS and network type becomes UNKNOWN. We don't
             // tear down network in that case.
             if (networkType != TelephonyManager.NETWORK_TYPE_UNKNOWN
-                    && !dataProfile.getApnSetting().canSupportLingeringNetworkType(networkType)) {
+                    && !apnSetting.canSupportLingeringNetworkType(networkType)) {
                 log("networkType=" + TelephonyManager.getNetworkTypeName(networkType)
                         + ", networkTypeBitmask="
                         + TelephonyManager.convertNetworkTypeBitmaskToString(
-                                dataProfile.getApnSetting().getNetworkTypeBitmask())
-                        + ", lingeringNetworkTypeBitmask="
+                        apnSetting.getNetworkTypeBitmask()) + ", lingeringNetworkTypeBitmask="
                         + TelephonyManager.convertNetworkTypeBitmaskToString(
-                                dataProfile.getApnSetting().getLingeringNetworkTypeBitmask()));
+                        apnSetting.getLingeringNetworkTypeBitmask()));
                 evaluation.addDataDisallowedReason(
                         DataDisallowedReason.DATA_NETWORK_TYPE_NOT_ALLOWED);
+            }
+
+            // Check if the APN can only be used on cellular, or only on satellite.
+            if (((apnSetting.getInfrastructureBitmask() & ApnSetting.INFRASTRUCTURE_CELLULAR) == 0
+                    && !mServiceState.isUsingNonTerrestrialNetwork())
+                    || ((apnSetting.getInfrastructureBitmask()
+                            & ApnSetting.INFRASTRUCTURE_SATELLITE) == 0
+                            && mServiceState.isUsingNonTerrestrialNetwork())) {
+                evaluation.addDataDisallowedReason(
+                        DataDisallowedReason.DATA_NETWORK_TRANSPORT_NOT_ALLOWED);
             }
         }
 

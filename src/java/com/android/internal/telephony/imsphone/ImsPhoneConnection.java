@@ -1441,7 +1441,7 @@ public class ImsPhoneConnection extends Connection implements
                 maybeInjectIsUsingVideoRingbackExtras(mExtras);
             }
 
-            if (com.android.server.telecom.flags.Flags.isUsingUnidirectionalVideoService()) {
+            if (android.telecom.flags.Flags.isUsingUnidirectionalVideoService()) {
                 maybeInjectIsUsingUnidirectionalVideoServiceExtras(mExtras);
             }
 
