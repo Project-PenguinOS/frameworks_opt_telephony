@@ -420,6 +420,9 @@ public class DataNetwork extends StateMachine {
     /** Data network tear down due to device shut down. */
     public static final int TEAR_DOWN_REASON_DEVICE_SHUT_DOWN = 33;
 
+    /** Data network tear down due to unsupported network capabilities. */
+    public static final int TEAR_DOWN_REASON_UNSUPPORTED_NETWORK_CAPABILITIES = 34;
+
     //********************************************************************************************//
     // WHENEVER ADD A NEW TEAR DOWN REASON, PLEASE UPDATE DataDeactivateReasonEnum in enums.proto //
     //********************************************************************************************//
@@ -848,6 +851,25 @@ public class DataNetwork extends StateMachine {
      */
     @NonNull
     private PhoneSwitcherCallback mPhoneSwitcherCallback;
+
+    /**
+     * Indicates that this {@link DataNetwork} is being torn down not due to a network failure, but
+     * because the network has intentionally reused a Connection ID (CID) that is already active.
+     *
+     * <p>This scenario can occur when a new network request (e.g., with a different
+     * {@link android.telephony.data.TrafficDescriptor.ConnectionCapability}) is satisfied by an
+     * existing PDU session, as determined by the network's URSP rules. The framework attempts to
+     * set up a new data call, but the modem responds with the CID of the existing session.
+     *
+     * <p>When this flag is {@code true}, the teardown of this temporary {@link DataNetwork} is
+     * treated as a successful reconciliation step. It ensures that:
+     * <ul>
+     * <li>The event is not logged as a failure in {@link DataCallSessionStats}.</li>
+     * <li>The attached network requests are released to be re-evaluated and satisfied by the
+     * pre-existing {@link DataNetwork}.</li>
+     * </ul>
+     */
+    private boolean mIsCidReuseTeardown = false;
 
     /**
      * The network bandwidth.
@@ -1680,10 +1702,14 @@ public class DataNetwork extends StateMachine {
                                 + " detected.", "62f66e7e-8d71-45de-a57b-dc5c78223fd5");
                     }
 
+                    if (mFlags.enableTrafficDescriptorConnectionCapability()
+                            && dataNetwork.getId() == response.getId()) {
+                        mIsCidReuseTeardown = true;
+                    }
                     // Do not actually invoke onTearDown, otherwise the existing data network will
                     // be torn down.
-                    mRetryDelayMillis = DataCallResponse.RETRY_DURATION_UNDEFINED;
                     mFailCause = DataFailCause.NO_RETRY_FAILURE;
+                    mRetryDelayMillis = DataCallResponse.RETRY_DURATION_UNDEFINED;
                     transitionTo(mDisconnectedState);
                     return;
                 }
@@ -1701,6 +1727,22 @@ public class DataNetwork extends StateMachine {
                 }
 
                 transitionTo(mConnectedState);
+            } else if (mFlags.enableTrafficDescriptorConnectionCapability()
+                    && mFailCause == DataFailCause.DUPLICATE_CID) {
+                int cid = response == null ? INVALID_CID : response.getId();
+                DataNetwork dataNetwork =
+                        cid == INVALID_CID ? null : mDataNetworkController.getDataNetworkByCid(cid);
+                if (dataNetwork != null
+                        && TextUtils.equals(dataNetwork.getLinkProperties().getInterfaceName(),
+                                response.getInterfaceName())) {
+                    logl("onSetupResponse: Intentional CID reuse for cid=" + cid
+                            + " on existing network " + dataNetwork.getName());
+                    mIsCidReuseTeardown = true;
+                    mFailCause = DataFailCause.NO_RETRY_FAILURE;  // Not a failure.
+                    mRetryDelayMillis = DataCallResponse.RETRY_DURATION_UNDEFINED;
+                    transitionTo(mDisconnectedState);
+                    return;
+                }
             } else {
                 // Setup data failed.
                 mRetryDelayMillis = response != null ? response.getRetryDurationMillis()
@@ -2075,7 +2117,13 @@ public class DataNetwork extends StateMachine {
             mNetworkAgent.unregister();
             mDataNetworkController.unregisterDataNetworkControllerCallback(
                     mDataNetworkControllerCallback);
-            mDataCallSessionStats.onDataCallDisconnected(mFailCause);
+
+            // Skip logging failure to DataCallSessionStats if it's a reconciliation teardown
+            if (mIsCidReuseTeardown) {
+                logl("Skipping Stats.onDataCallDisconnected for CID reuse.");
+            } else {
+                mDataCallSessionStats.onDataCallDisconnected(mFailCause);
+            }
 
             if (mTransport == AccessNetworkConstants.TRANSPORT_TYPE_WLAN
                     && mPduSessionId != DataCallResponse.PDU_SESSION_ID_NOT_SET) {
@@ -2474,6 +2522,16 @@ public class DataNetwork extends StateMachine {
         }
 
         // Extract network capabilities from the traffic descriptor.
+        if (mFlags.enableTrafficDescriptorConnectionCapability()) {
+            for (TrafficDescriptor trafficDescriptor : mTrafficDescriptors) {
+                int netCap = DataUtils.connectionCapabilityToNetworkCapability(
+                        trafficDescriptor.getConnectionCapability());
+                if (netCap != -1) {
+                    builder.addCapability(netCap);
+                }
+            }
+        }
+
         for (TrafficDescriptor trafficDescriptor : mTrafficDescriptors) {
             try {
                 if (trafficDescriptor.getOsAppId() == null) continue;
@@ -3013,6 +3071,7 @@ public class DataNetwork extends StateMachine {
         if (failCause == DataFailCause.NONE) {
             if (TextUtils.isEmpty(response.getInterfaceName())
                     || response.getAddresses().isEmpty()
+                    || response.getId() == INVALID_CID
                     // if out of range
                     || response.getLinkStatus() < DataCallResponse.LINK_STATUS_UNKNOWN
                     || response.getLinkStatus() > DataCallResponse.LINK_STATUS_ACTIVE
@@ -4112,6 +4171,8 @@ public class DataNetwork extends StateMachine {
                     "TRANSPORT_NOT_ALLOWED";
             case TEAR_DOWN_REASON_DEVICE_SHUT_DOWN ->
                     "DEVICE_SHUT_DOWN";
+            case TEAR_DOWN_REASON_UNSUPPORTED_NETWORK_CAPABILITIES ->
+                    "UNSUPPORTED_NETWORK_CAPABILITIES";
             default -> "UNKNOWN(" + reason + ")";
         };
     }

@@ -45,6 +45,7 @@ import android.app.NotificationManager;
 import android.content.Context;
 import android.net.NetworkCapabilities;
 import android.os.AsyncResult;
+import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
 import android.os.ParcelUuid;
@@ -1491,9 +1492,6 @@ public class AutoDataSwitchControllerTest extends TelephonyTest {
     }
 
     private void setupOpportunisticSwitchMode(int opportunisticPolicyOnPrimarySub) {
-        // Enable feature flag for opportunistic network switching logic
-        doReturn(true).when(mFeatureFlags).macroBasedOpportunisticNetworks();
-
         // Simulate one primary visible subscription (SUB_1 on PHONE_1)
         doReturn(new int[]{SUB_1}).when(mSubscriptionManagerService)
                 .getActiveSubIdList(true /*visibleOnly*/);
@@ -1557,5 +1555,157 @@ public class AutoDataSwitchControllerTest extends TelephonyTest {
             mEventsToAlarmListener.get(EVENT_EVALUATE_AUTO_SWITCH).onAlarm();
         }
         super.processAllFutureMessages();
+    }
+
+    @Test
+    public void testAvailabilitySwitch_usesCarrierConfigTimer() {
+        final long availabilityTimer = 5000L;
+        setupOpportunisticSwitchMode(
+                CarrierConfigManager.OPP_AUTO_DATA_SWITCH_POLICY_FOR_AVAILABILITY);
+        mPersistableBundle.putLong(
+                CarrierConfigManager
+                        .KEY_OPP_AUTO_DATA_SWITCH_AVAILABILITY_STABILITY_MILLIS_LONG,
+                availabilityTimer);
+        doReturn(mPersistableBundle).when(mCarrierConfigManager).getConfigForSubId(anyInt(),
+                any(String[].class));
+
+        setupStatePrimaryIsOos();
+        mAutoDataSwitchControllerUT.evaluateAutoDataSwitch(
+                EVALUATION_REASON_REGISTRATION_STATE_CHANGED);
+        processAllMessages();
+
+        assertThat(mAutoDataSwitchControllerUT.hasMessages(EVENT_STABILITY_CHECK_PASSED)).isTrue();
+
+        mTestableLooper.moveTimeForward(availabilityTimer - 100);
+        processAllMessages();
+        verify(mMockedPhoneSwitcherCallback, never()).onRequireValidation(anyInt(), anyBoolean());
+
+        mTestableLooper.moveTimeForward(110);
+        processAllMessages();
+        verify(mMockedPhoneSwitcherCallback).onRequireValidation(PHONE_2, true);
+    }
+
+    @Test
+    public void testPerformanceSwitch_usesCarrierConfigTimer() {
+        final long performanceTimer = 60000L;
+        setupOpportunisticSwitchMode(
+                CarrierConfigManager.OPP_AUTO_DATA_SWITCH_POLICY_FOR_PERFORMANCE);
+        mPersistableBundle.putLong(
+                CarrierConfigManager
+                        .KEY_OPP_AUTO_DATA_SWITCH_PERFORMANCE_STABILITY_MILLIS_LONG,
+                performanceTimer);
+        doReturn(mPersistableBundle).when(mCarrierConfigManager).getConfigForSubId(anyInt(),
+                any(String[].class));
+
+        // Both are HOME, but opportunistic is better.
+        serviceStateChanged(PHONE_1, NetworkRegistrationInfo.REGISTRATION_STATE_HOME);
+        displayInfoChanged(PHONE_1, mBadTelephonyDisplayInfo);
+        signalStrengthChanged(PHONE_1, SignalStrength.SIGNAL_STRENGTH_POOR);
+
+        serviceStateChanged(PHONE_2, NetworkRegistrationInfo.REGISTRATION_STATE_HOME);
+        displayInfoChanged(PHONE_2, mGoodTelephonyDisplayInfo);
+        signalStrengthChanged(PHONE_2, SignalStrength.SIGNAL_STRENGTH_GREAT);
+
+        doReturn(true).when(mPhone).isUserDataEnabled();
+        DataSettingsManager dsmPhone2 = mPhone2.getDataSettingsManager();
+        doReturn(true).when(dsmPhone2).isDataEnabled();
+        mDataEvaluation = new DataEvaluation(DataEvaluation.DataEvaluationReason.EXTERNAL_QUERY);
+
+        mAutoDataSwitchControllerUT.evaluateAutoDataSwitch(
+                EVALUATION_REASON_SIGNAL_STRENGTH_CHANGED);
+        processAllMessages();
+
+        ArgumentCaptor<AlarmManager.OnAlarmListener> listenerCaptor =
+                ArgumentCaptor.forClass(AlarmManager.OnAlarmListener.class);
+        verify(mMockedAlarmManager).setExact(anyInt(), anyLong(), anyString(),
+                listenerCaptor.capture(), any(Handler.class));
+
+        verify(mMockedPhoneSwitcherCallback, never()).onRequireValidation(anyInt(), anyBoolean());
+
+        // Manually trigger alarm
+        listenerCaptor.getValue().onAlarm();
+        processAllMessages();
+
+        verify(mMockedPhoneSwitcherCallback).onRequireValidation(PHONE_2, true);
+    }
+
+    @Test
+    public void testSwitchBack_usesCarrierConfigTimer() {
+        final long switchbackTimer = 7000L;
+        setupOpportunisticSwitchMode(
+                CarrierConfigManager.OPP_AUTO_DATA_SWITCH_POLICY_FOR_AVAILABILITY);
+        mPersistableBundle.putLong(
+                CarrierConfigManager
+                        .KEY_OPP_AUTO_DATA_SWITCH_AVAILABILITY_SWITCHBACK_MILLIS_LONG,
+                switchbackTimer);
+        doReturn(mPersistableBundle).when(mCarrierConfigManager).getConfigForSubId(anyInt(),
+                any(String[].class));
+
+        doReturn(PHONE_2).when(mPhoneSwitcher).getPreferredDataPhoneId();
+
+        // Both OOS
+        serviceStateChanged(PHONE_1,
+                NetworkRegistrationInfo.REGISTRATION_STATE_NOT_REGISTERED_OR_SEARCHING);
+        serviceStateChanged(PHONE_2,
+                NetworkRegistrationInfo.REGISTRATION_STATE_NOT_REGISTERED_OR_SEARCHING);
+        doReturn(true).when(mPhone).isUserDataEnabled();
+        mDataEvaluation = new DataEvaluation(DataEvaluation.DataEvaluationReason.EXTERNAL_QUERY);
+
+        mAutoDataSwitchControllerUT.evaluateAutoDataSwitch(
+                EVALUATION_REASON_REGISTRATION_STATE_CHANGED);
+        processAllMessages();
+
+        assertThat(mAutoDataSwitchControllerUT.hasMessages(EVENT_STABILITY_CHECK_PASSED)).isTrue();
+
+        mTestableLooper.moveTimeForward(switchbackTimer - 100);
+        processAllMessages();
+        verify(mMockedPhoneSwitcherCallback, never()).onRequireValidation(anyInt(), anyBoolean());
+
+        mTestableLooper.moveTimeForward(110);
+        processAllMessages();
+        verify(mMockedPhoneSwitcherCallback).onRequireValidation(DEFAULT_PHONE_INDEX, false);
+    }
+
+    @Test
+    public void testPingTestBeforeSwitch_carrierConfigFalse() {
+        setupOpportunisticSwitchMode(
+                CarrierConfigManager.OPP_AUTO_DATA_SWITCH_POLICY_FOR_AVAILABILITY);
+        mPersistableBundle.putBoolean(
+                CarrierConfigManager.KEY_OPP_AUTO_DATA_SWITCH_PING_BEFORE_SWITCH_BOOL,
+                false);
+        doReturn(mPersistableBundle).when(mCarrierConfigManager).getConfigForSubId(anyInt(),
+                any(String[].class));
+
+        setupStatePrimaryIsOos();
+        mAutoDataSwitchControllerUT.evaluateAutoDataSwitch(
+                EVALUATION_REASON_REGISTRATION_STATE_CHANGED);
+        processAllFutureMessages();
+
+        verify(mMockedPhoneSwitcherCallback)
+                .onRequireValidation(PHONE_2, /* needValidation= */ false);
+    }
+
+    @Test
+    public void testValidationFailedRetry_usesCarrierConfigMaxRetry() {
+        final int maxRetryFromCarrierConfig = 3;
+        setupOpportunisticSwitchMode(
+                CarrierConfigManager.OPP_AUTO_DATA_SWITCH_POLICY_FOR_AVAILABILITY);
+        mPersistableBundle.putInt(
+                CarrierConfigManager.KEY_OPP_AUTO_DATA_SWITCH_VALIDATION_MAX_RETRIES_INT,
+                maxRetryFromCarrierConfig);
+        doReturn(mPersistableBundle).when(mCarrierConfigManager).getConfigForSubId(anyInt(),
+                any(String[].class));
+
+        prepareIdealUsesNonDdsCondition();
+
+        clearInvocations(mMockedPhoneSwitcherCallback);
+        // Tries more than maxRetryFromCarrierConfig
+        for (int i = 0; i < maxRetryFromCarrierConfig + 1; i++) {
+            mAutoDataSwitchControllerUT.evaluateRetryOnValidationFailed();
+            processAllFutureMessages();
+        }
+
+        verify(mMockedPhoneSwitcherCallback, times(maxRetryFromCarrierConfig))
+                .onRequireValidation(PHONE_2, /* needValidation= */ true);
     }
 }

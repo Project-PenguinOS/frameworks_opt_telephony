@@ -1285,13 +1285,28 @@ public class DataConfigManager extends Handler {
     }
 
     /**
-     * @return The unsupported network capabilities. The unsupported capabilities will be removed
-     * from the default network capabilities that {@link TelephonyNetworkProvider} use to inform
-     * connectivity service what network capabilities are supported by telephony.
+     * Returns the set of network capabilities that are not supported by the carrier. The values
+     * are from either carrier config
+     * {@link CarrierConfigManager#KEY_TELEPHONY_UNSUPPORTED_NETWORK_CAPABILITY_STRING_ARRAY} or
+     * resource overlay {@code config_unsupported_network_capabilities}. Carrier config takes
+     * precedence over the resource overlay.
+     *
+     * @return The set of unsupported network capabilities.
      */
     @NonNull
     @NetCapability
     public Set<Integer> getUnsupportedNetworkCapabilities() {
+        if (mFeatureFlags.unsupportedNetworkCapabilitiesPerCarrier()) {
+            // Carrier config should take precedence over resource overlay.
+            String[] unsupportedCapStringArray = mCarrierConfig.getStringArray(
+                    CarrierConfigManager.KEY_TELEPHONY_UNSUPPORTED_NETWORK_CAPABILITY_STRING_ARRAY);
+            if (unsupportedCapStringArray != null) {
+                return Arrays.stream(unsupportedCapStringArray)
+                        .map(DataUtils::getNetworkCapabilityFromString)
+                        .collect(Collectors.toSet());
+            }
+        }
+
         return Arrays.stream(mResources.getStringArray(com.android.internal.R.array
                         .config_unsupported_network_capabilities))
                 .map(DataUtils::getNetworkCapabilityFromString)
@@ -1649,6 +1664,9 @@ public class DataConfigManager extends Handler {
                 + isTetheringProfileDisabledForRoaming());
         pw.println("allowClearInitialAttachDataProfile=" + allowClearInitialAttachDataProfile());
         pw.println("forcedCellularTransportCapabilities=" + getForcedCellularTransportCapabilities()
+                .stream().map(DataUtils::networkCapabilityToString)
+                .collect(Collectors.joining(",")));
+        pw.println("getUnsupportedNetworkCapabilities=" + getUnsupportedNetworkCapabilities()
                 .stream().map(DataUtils::networkCapabilityToString)
                 .collect(Collectors.joining(",")));
         pw.decreaseIndent();

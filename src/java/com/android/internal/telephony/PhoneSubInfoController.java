@@ -505,13 +505,15 @@ public class PhoneSubInfoController extends IPhoneSubInfo.Stub {
         IsimRecords isimRecords = phone.getIsimRecords();
         if (isimRecords != null) {
             String[] impus = isimRecords.getIsimImpu();
-            List<Uri> impuList = new ArrayList<>();
-            for (String impu : impus) {
-                if (impu != null && impu.trim().length() > 0) {
-                    impuList.add(Uri.parse(impu));
+            if (impus != null) {
+                List<Uri> impuList = new ArrayList<>();
+                for (String impu : impus) {
+                    if (impu != null && impu.trim().length() > 0) {
+                        impuList.add(Uri.parse(impu));
+                    }
                 }
+                return impuList;
             }
-            return impuList;
         }
         throw new IllegalStateException("ISIM is not loaded");
     }
@@ -578,12 +580,14 @@ public class PhoneSubInfoController extends IPhoneSubInfo.Stub {
         IsimRecords isimRecords = phone.getIsimRecords();
         if (isimRecords != null) {
             String[] pcscfs = isimRecords.getIsimPcscf();
-            List<String> pcscfList = Arrays.stream(pcscfs)
-                    .filter(u -> u != null)
-                    .map(u -> u.trim())
-                    .filter(u -> u.length() > 0)
-                    .collect(Collectors.toList());
-            return pcscfList;
+            if (pcscfs != null) {
+                List<String> pcscfList = Arrays.stream(pcscfs)
+                        .filter(u -> u != null)
+                        .map(u -> u.trim())
+                        .filter(u -> u.length() > 0)
+                        .collect(Collectors.toList());
+                return pcscfList;
+            }
         }
         throw new IllegalStateException("ISIM is not loaded");
     }
