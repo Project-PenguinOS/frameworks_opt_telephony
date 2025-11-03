@@ -562,9 +562,6 @@ public class PhoneSubInfoController extends IPhoneSubInfo.Stub {
      * @throws SecurityException if the caller does not have the required permission
      */
     public List<String> getImsPcscfAddresses(int subId, String callingPackage) {
-        if (!mFeatureFlags.supportIsimRecord()) {
-            return new ArrayList<>();
-        }
         if (!SubscriptionManager.isValidSubscriptionId(subId)) {
             throw new IllegalArgumentException("Invalid subscription: " + subId);
         }
