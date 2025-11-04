@@ -51,6 +51,8 @@ import android.os.AsyncResult;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
+import android.platform.test.annotations.EnableFlags;
+import android.platform.test.flag.junit.SetFlagsRule;
 import android.telephony.AccessNetworkConstants;
 import android.telephony.AccessNetworkConstants.AccessNetworkType;
 import android.telephony.AccessNetworkConstants.TransportType;
@@ -92,10 +94,12 @@ import com.android.internal.telephony.data.DataNetworkController.NetworkRequestL
 import com.android.internal.telephony.data.DataSettingsManager.DataSettingsManagerCallback;
 import com.android.internal.telephony.data.LinkBandwidthEstimator.LinkBandwidthEstimatorCallback;
 import com.android.internal.telephony.data.PhoneSwitcher.PhoneSwitcherCallback;
+import com.android.internal.telephony.flags.Flags;
 import com.android.internal.telephony.metrics.DataCallSessionStats;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
@@ -110,6 +114,9 @@ import java.util.concurrent.Executor;
 @RunWith(AndroidTestingRunner.class)
 @TestableLooper.RunWithLooper
 public class DataNetworkTest extends TelephonyTest {
+    @Rule
+    public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
+
     private static final String IPV4_ADDRESS = "10.0.2.15";
     private static final String IPV4_ADDRESS1 = "10.0.2.16";
     private static final String IPV6_ADDRESS = "2607:fb90:a620:651d:eabe:f8da:c107:44be";
@@ -3017,5 +3024,37 @@ public class DataNetworkTest extends TelephonyTest {
 
         verify(mockNetworkAgent).sendNetworkScore(networkScoreCaptor.capture());
         assertThat(networkScoreCaptor.getValue().isTransportPrimary()).isTrue();
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_ENABLE_TRAFFIC_DESCRIPTOR_CONNECTION_CAPABILITY)
+    public void testUpdateNetworkCapabilities_withConnectionCapability() throws Exception {
+        // Create a TrafficDescriptor with a specific ConnectionCapability (IMS).
+        TrafficDescriptor td = new TrafficDescriptor.Builder()
+                .setConnectionCapability(TrafficDescriptor.CONNECTION_CAPABILITY_IMS)
+                .build();
+
+        // Create a DataProfile containing this TrafficDescriptor.
+        DataProfile dp = new DataProfile.Builder()
+                .setTrafficDescriptor(td)
+                .build();
+
+        // Create a network request that would be satisfied by this profile.
+        NetworkRequest nr = new NetworkRequest.Builder()
+                .addCapability(NetworkCapabilities.NET_CAPABILITY_IMS).build();
+        TelephonyNetworkRequest telephonyNetworkRequest =
+                new TelephonyNetworkRequest(nr, mPhone, mFeatureFlags);
+        NetworkRequestList requestList = new NetworkRequestList(telephonyNetworkRequest);
+
+        // Create the DataNetwork instance. Its constructor will call updateNetworkCapabilities
+        DataNetwork dataNetwork = new DataNetwork(mPhone, mFeatureFlags,
+                Looper.myLooper(), mDataServiceManagers, dp, requestList,
+                AccessNetworkConstants.TRANSPORT_TYPE_WWAN,
+                DataEvaluation.DataAllowedReason.NORMAL, mDataNetworkCallback);
+        processAllMessages(); // Allow the state machine to initialize.
+
+        // Verify that the resulting NetworkCapabilities contain the correct capability.
+        NetworkCapabilities caps = dataNetwork.getNetworkCapabilities();
+        assertThat(caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_IMS)).isTrue();
     }
 }

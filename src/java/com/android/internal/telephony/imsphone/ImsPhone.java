@@ -2820,7 +2820,6 @@ public class ImsPhone extends ImsPhoneBase {
             mSubscriptionManagerService.clearImsNumberUpdateStatus(getSubId());
         }
 
-        String phoneNumber = extractPhoneNumberFromAssociatedUris(uris, /*isGlobalFormat*/true);
 // QTI_BEGIN: 2023-11-10: Telephony: Remove legacy subscription code
 
         SubscriptionInfoInternal subInfo = mSubscriptionManagerService
@@ -2851,50 +2850,43 @@ public class ImsPhone extends ImsPhoneBase {
                     } else {
                         loge("setPhoneNumberForSourceIms: PhoneNumberManager return error "
                                 + result.getErrorCode());
-                        // try to run existing implementation.
                     }
                 } catch (IllegalArgumentException e) {
                     loge("setPhoneNumberForSourceIms: failed to parse phone number, " + e);
-                    // Fall through to the existing implementation
                 }
             } else {
                 logi("setPhoneNumberForSourceIms: can't access PhoneNumberManager");
             }
-        }
-
-        // When flag enablePhoneNumberParsingApi is not enabled, PhoneNumberManager is unavailable
-        // or parsePhoneNumber() return error, existing implementation is performed.
-        if (phoneNumber != null) {
-            phoneNumber = PhoneNumberUtils.formatNumberToE164(phoneNumber,
-                    subInfo.getCountryIso());
-            if (phoneNumber == null) {
-// QTI_END: 2023-11-10: Telephony: Remove legacy subscription code
-                return;
-            }
-// QTI_BEGIN: 2023-11-10: Telephony: Remove legacy subscription code
-            mSubscriptionManagerService.setNumberFromIms(subId, phoneNumber);
-            if (mFeatureFlags.lastKnownPhoneNumber()) {
-                mSubscriptionManagerService.setImsNumberUpdateStatus(subId, true);
-            }
-        } else if (isAllowNonGlobalNumberFormat()) {
-            // If carrier config has true for KEY_IGNORE_GLOBAL_PHONE_NUMBER_FORMAT_BOOL and
-            // P-Associated-Uri does not have global number,
-            // try to find phone number excluding '+' one more time.
-            phoneNumber = extractPhoneNumberFromAssociatedUris(uris, /*isGlobalFormat*/false);
-// QTI_END: 2023-11-10: Telephony: Remove legacy subscription code
-            if (phoneNumber == null) {
-// QTI_BEGIN: 2023-11-10: Telephony: Remove legacy subscription code
-                loge("extract phone number without '+' failed");
-// QTI_END: 2023-11-10: Telephony: Remove legacy subscription code
-                return;
-            }
-// QTI_BEGIN: 2023-11-10: Telephony: Remove legacy subscription code
-            mSubscriptionManagerService.setNumberFromIms(subId, phoneNumber);
-            if (mFeatureFlags.lastKnownPhoneNumber()) {
-                mSubscriptionManagerService.setImsNumberUpdateStatus(subId, true);
-            }
         } else {
-            logd("extract phone number failed");
+            // When flag enablePhoneNumberParsingApi is not enabled,
+            // existing implementation is performed.
+            String phoneNumber = extractPhoneNumberFromAssociatedUris(uris, /*isGlobalFormat*/true);
+            if (phoneNumber != null) {
+                phoneNumber = PhoneNumberUtils.formatNumberToE164(phoneNumber, subCountryIso);
+                if (phoneNumber == null) {
+                    loge("format to E164 failed");
+                    return;
+                }
+                mSubscriptionManagerService.setNumberFromIms(subId, phoneNumber);
+                if (mFeatureFlags.lastKnownPhoneNumber()) {
+                    mSubscriptionManagerService.setImsNumberUpdateStatus(subId, true);
+                }
+            } else if (isAllowNonGlobalNumberFormat()) {
+                // If carrier config has true for KEY_IGNORE_GLOBAL_PHONE_NUMBER_FORMAT_BOOL and
+                // P-Associated-Uri does not have global number,
+                // try to find phone number excluding '+' one more time.
+                phoneNumber = extractPhoneNumberFromAssociatedUris(uris, /*isGlobalFormat*/false);
+                if (phoneNumber == null) {
+                    loge("extract phone number without '+' failed");
+                    return;
+                }
+                mSubscriptionManagerService.setNumberFromIms(subId, phoneNumber);
+                if (mFeatureFlags.lastKnownPhoneNumber()) {
+                    mSubscriptionManagerService.setImsNumberUpdateStatus(subId, true);
+                }
+            } else {
+                logd("extract phone number failed");
+            }
 // QTI_END: 2023-11-10: Telephony: Remove legacy subscription code
         }
     }

@@ -2927,8 +2927,8 @@ public class GsmCdmaPhone extends Phone {
                         getContext().getSystemService(Context.CARRIER_CONFIG_SERVICE);
                 PersistableBundle b = configMgr.getConfigForSubId(getSubId());
                 if (b != null) {
+                    updateNrSettingsAfterCarrierConfigChanged(b);
                     if (hasCalling()) {
-                        updateNrSettingsAfterCarrierConfigChanged(b);
                         updateVoNrSettings(b);
                     }
                     updateCarrierN1ModeSupported(b);

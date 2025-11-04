@@ -381,7 +381,9 @@ public class DataEvaluation {
         /** BootStrap sim data limit reached. */
         DATA_LIMIT_REACHED(true),
         /** Data network connectivity transport not allowed. */
-        DATA_NETWORK_TRANSPORT_NOT_ALLOWED(true);
+        DATA_NETWORK_TRANSPORT_NOT_ALLOWED(true),
+        /** Capabilities are not supported. */
+        UNSUPPORTED_NETWORK_CAPABILITIES(true);
 
         private final boolean mIsHardReason;
 
