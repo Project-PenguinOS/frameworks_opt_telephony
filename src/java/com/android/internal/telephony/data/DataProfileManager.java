@@ -719,6 +719,22 @@ public class DataProfileManager extends Handler {
             }
         }
 
+        if (mFeatureFlags.enableTrafficDescriptorConnectionCapability()) {
+            if (networkRequest.hasAttribute(
+                    TelephonyNetworkRequest
+                            .CAPABILITY_ATTRIBUTE_TRAFFIC_DESCRIPTOR_CONNECTION_CAPABILITY)) {
+                // Get the highest priority capability from the request.
+                int highestPriorityCapability =
+                        networkRequest.getHighestPrioritySupportedNetworkCapability();
+                // Convert it to ConnectionCapability using the utility method.
+                int connectionCapability = DataUtils.networkCapabilityToConnectionCapability(
+                        highestPriorityCapability);
+                if (connectionCapability != TrafficDescriptor.CONNECTION_CAPABILITY_UNKNOWN) {
+                    trafficDescriptorBuilder.setConnectionCapability(connectionCapability);
+                }
+            }
+        }
+
         TrafficDescriptor trafficDescriptor;
         try {
             trafficDescriptor = trafficDescriptorBuilder.build();
