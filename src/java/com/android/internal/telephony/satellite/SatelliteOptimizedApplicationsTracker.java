@@ -111,7 +111,7 @@ public class SatelliteOptimizedApplicationsTracker {
             new BroadcastReceiver() {
                 @Override
                 public void onReceive(Context context, Intent intent) {
-                    loge("new user added");
+                    logd("new user added");
                     // Recalculate all cached services to pick up ones that have just been enabled
                     // since new user is added
                     mCurrentHandler.obtainMessage(ACTION_USER_ADDED, null).sendToTarget();
@@ -125,7 +125,7 @@ public class SatelliteOptimizedApplicationsTracker {
             PackageInfo packageInfo =
                     mPackageManager.getPackageInfo(packageName, flags);
             if (packageInfo == null) {
-                loge("packageInfo is NULL");
+                logd("packageInfo is NULL");
                 return null;
             }
             return packageInfo;
@@ -201,13 +201,11 @@ public class SatelliteOptimizedApplicationsTracker {
         Bundle metadata = serviceInfo.metaData;
         if (metadata != null) {
             try {
-                final Object value = metadata.get(APP_PROPERTY);
-                loge(String.format("service: %s, value: %s",
-                        serviceInfo.name,
-                        (value == null ? null : value.toString())));
+                String value = metadata.getString(APP_PROPERTY);
+                logd("service: " + serviceInfo.name + ", value: "
+                        + (value == null ? "null" : value));
                 if (value == null) return false;
-                return value instanceof String
-                        && TextUtils.equals((String) value, serviceInfo.packageName);
+                return TextUtils.equals(value, serviceInfo.packageName);
             } catch (Exception e) {
                 loge("Exception while reading service metadata for "
                         + serviceInfo.name
@@ -269,15 +267,13 @@ public class SatelliteOptimizedApplicationsTracker {
         Bundle metadata = applicationInfo.metaData;
         if (metadata != null) {
             try {
-                final Object value = metadata.get(APP_PROPERTY);
-                loge(String.format("packageName: %s, value: %s",
-                        packageName,
-                        (value == null ? null : value.toString())));
+                String value = metadata.getString(APP_PROPERTY);
+                logd("packageName: " + packageName + ", value: "
+                        + ((value == null) ? "null" : value));
                 if (value == null) return false; // No expected meta-data.
 
                 // Check if the retrieved object is a matched String.
-                return value instanceof String
-                        && TextUtils.equals((String) value, packageName);
+                return TextUtils.equals(value, packageName);
             } catch (Exception e) {
                 loge("Exception while reading metadata [ "
                         + packageName
@@ -348,5 +344,9 @@ public class SatelliteOptimizedApplicationsTracker {
 
     private void loge(String str) {
         Log.e(TAG, str);
+    }
+
+    private void logd(String str) {
+        Log.d(TAG, str);
     }
 }
