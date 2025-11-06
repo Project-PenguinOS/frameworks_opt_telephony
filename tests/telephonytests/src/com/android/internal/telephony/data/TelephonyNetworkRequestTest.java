@@ -18,27 +18,29 @@ package com.android.internal.telephony.data;
 
 import static com.google.common.truth.Truth.assertThat;
 
-import static org.mockito.Mockito.doReturn;
-
 import android.net.ConnectivityManager;
 import android.net.NetworkCapabilities;
 import android.net.NetworkRequest;
 import android.net.TelephonyNetworkSpecifier;
+import android.platform.test.annotations.EnableFlags;
+import android.platform.test.flag.junit.SetFlagsRule;
 import android.telephony.data.ApnSetting;
 import android.telephony.data.DataProfile;
 import android.telephony.data.TrafficDescriptor;
 
 import com.android.internal.telephony.TelephonyTest;
+import com.android.internal.telephony.flags.Flags;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 
 import java.util.List;
-import java.util.Set;
 
 public class TelephonyNetworkRequestTest extends TelephonyTest {
 
+    @Rule public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
     private static final ApnSetting INTERNET_APN_SETTING = new ApnSetting.Builder()
             .setId(2163)
             .setOperatorNumeric("12345")
@@ -489,23 +491,25 @@ public class TelephonyNetworkRequestTest extends TelephonyTest {
     }
 
     @Test
+    @EnableFlags(Flags.FLAG_UNSUPPORTED_NETWORK_CAPABILITIES_PER_CARRIER)
     public void testGetAllSupportedNetworkCapabilities() {
-        doReturn(Set.of(NetworkCapabilities.NET_CAPABILITY_PRIORITIZE_BANDWIDTH,
-                NetworkCapabilities.NET_CAPABILITY_PRIORITIZE_LATENCY,
-                NetworkCapabilities.NET_CAPABILITY_VSIM, NetworkCapabilities.NET_CAPABILITY_MMS,
-                NetworkCapabilities.NET_CAPABILITY_XCAP)).when(mDataConfigManager)
-                .getUnsupportedNetworkCapabilities();
-
         List<Integer> caps = TelephonyNetworkRequest.getAllSupportedNetworkCapabilities();
-        assertThat(caps).contains(NetworkCapabilities.NET_CAPABILITY_INTERNET);
-        assertThat(caps).contains(NetworkCapabilities.NET_CAPABILITY_FOTA);
+        assertThat(caps).contains(NetworkCapabilities.NET_CAPABILITY_MMS);
         assertThat(caps).contains(NetworkCapabilities.NET_CAPABILITY_SUPL);
+        assertThat(caps).contains(NetworkCapabilities.NET_CAPABILITY_DUN);
+        assertThat(caps).contains(NetworkCapabilities.NET_CAPABILITY_FOTA);
+        assertThat(caps).contains(NetworkCapabilities.NET_CAPABILITY_IMS);
         assertThat(caps).contains(NetworkCapabilities.NET_CAPABILITY_CBS);
+        assertThat(caps).contains(NetworkCapabilities.NET_CAPABILITY_XCAP);
+        assertThat(caps).contains(NetworkCapabilities.NET_CAPABILITY_EIMS);
+        assertThat(caps).contains(NetworkCapabilities.NET_CAPABILITY_INTERNET);
+        assertThat(caps).contains(NetworkCapabilities.NET_CAPABILITY_MCX);
+        assertThat(caps).contains(NetworkCapabilities.NET_CAPABILITY_ENTERPRISE);
+        assertThat(caps).contains(NetworkCapabilities.NET_CAPABILITY_VSIM);
+        assertThat(caps).contains(NetworkCapabilities.NET_CAPABILITY_BIP);
+        assertThat(caps).contains(NetworkCapabilities.NET_CAPABILITY_PRIORITIZE_LATENCY);
+        assertThat(caps).contains(NetworkCapabilities.NET_CAPABILITY_PRIORITIZE_BANDWIDTH);
         assertThat(caps).contains(NetworkCapabilities.NET_CAPABILITY_RCS);
-        assertThat(caps).doesNotContain(NetworkCapabilities.NET_CAPABILITY_PRIORITIZE_BANDWIDTH);
-        assertThat(caps).doesNotContain(NetworkCapabilities.NET_CAPABILITY_PRIORITIZE_LATENCY);
-        assertThat(caps).doesNotContain(NetworkCapabilities.NET_CAPABILITY_VSIM);
-        assertThat(caps).doesNotContain(NetworkCapabilities.NET_CAPABILITY_MMS);
-        assertThat(caps).doesNotContain(NetworkCapabilities.NET_CAPABILITY_XCAP);
+        assertThat(caps).contains(DataUtils.NET_CAPABILITY_PRIORITIZE_UNIFIED_COMMUNICATIONS);
     }
 }

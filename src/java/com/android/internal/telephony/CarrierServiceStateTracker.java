@@ -721,6 +721,12 @@ public class CarrierServiceStateTracker extends Handler {
             Intent broadcastIntent = new Intent(ACTION_NEVER_ASK_AGAIN);
             // Ensure immediate delivery of the broadcast to the receiver!
             broadcastIntent.addFlags(Intent.FLAG_RECEIVER_FOREGROUND);
+            // Make the intent explicit to ensure delivery to our context-registered
+            // NotificationActionReceiver, as implicit broadcasts are not reliable.
+            if (mPhone != null && mPhone.getContext() != null
+                    && !mPhone.getContext().getPackageName().isEmpty()) {
+                broadcastIntent.setPackage(mPhone.getContext().getPackageName());
+            }
             final PendingIntent pendingIntent = PendingIntent.getBroadcast(
                     c,
                     0,
