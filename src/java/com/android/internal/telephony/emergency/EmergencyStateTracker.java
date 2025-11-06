@@ -2319,7 +2319,7 @@ public class EmergencyStateTracker {
      * @param state the new call state
      */
     public void onNormalRoutingEmergencyCallStateChanged(android.telecom.Connection c,
-            @android.telecom.Connection.ConnectionState int state) {
+            /*@android.telecom.Connection.ConnectionState*/ int state) {
         if (c != mNormalRoutingEmergencyConnection) return;
 
         // If the call is connected, we don't need to monitor incoming call any more.

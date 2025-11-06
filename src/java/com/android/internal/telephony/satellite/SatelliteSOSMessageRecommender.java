@@ -251,7 +251,7 @@ public class SatelliteSOSMessageRecommender extends Handler {
      * @param state The connection state of the emergency call.
      */
     public void onEmergencyCallConnectionStateChanged(
-            String callId, @Connection.ConnectionState int state) {
+            String callId, /*@Connection.ConnectionState*/ int state) {
         plogd("callId=" + callId + ", state=" + state);
         if (!isSatelliteSupported()) {
             plogd("onEmergencyCallConnectionStateChanged: satellite is not supported");
