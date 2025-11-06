@@ -569,6 +569,7 @@ public abstract class TelephonyTest {
                 .unsupportedNetworkCapabilitiesPerCarrier();
         lenient().doReturn(true).when(mFeatureFlags).macroBasedOpportunisticNetworks();
         lenient().doReturn(true).when(mFeatureFlags).exposeOpptAutoDataSwitchPolicies();
+        lenient().doReturn(true).when(mFeatureFlags).publishTelephonyServicesAfterConstruction();
         lenient().doReturn(true).when(mFeatureFlags)
                 .enableTrafficDescriptorConnectionCapability();
         lenient().doReturn(true).when(mFeatureFlags).supportPsimToEsimConversion();

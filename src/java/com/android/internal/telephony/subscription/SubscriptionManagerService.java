@@ -87,6 +87,7 @@ import android.util.Base64;
 import android.util.EventLog;
 import android.util.IndentingPrintWriter;
 import android.util.LocalLog;
+import android.util.Log;
 
 import com.android.internal.R;
 import com.android.internal.annotations.VisibleForTesting;
@@ -495,6 +496,25 @@ public class SubscriptionManagerService extends ISub.Stub {
         public void onDefaultDataSubscriptionChanged(int subId) {}
     }
 
+    /** Initialize the singleton instance and register to TelephonyServiceManager */
+    public static SubscriptionManagerService init(@NonNull Context context, @NonNull Looper looper,
+            @NonNull FeatureFlags featureFlags) {
+        synchronized (SubscriptionManagerService.class) {
+            if (sInstance == null) {
+                sInstance = new SubscriptionManagerService(context, looper, featureFlags);
+                TelephonyServiceManager.ServiceRegisterer serviceRegisterer =
+                        TelephonyFrameworkInitializer.getTelephonyServiceManager()
+                                .getSubscriptionServiceRegisterer();
+                if (serviceRegisterer.get() == null) {
+                    serviceRegisterer.register(sInstance);
+                }
+            } else {
+                Log.wtf(LOG_TAG, "SubscriptionManagerService is already initialized.");
+            }
+        }
+        return sInstance;
+    }
+
     /**
      * The constructor
      *
@@ -645,12 +665,14 @@ public class SubscriptionManagerService extends ISub.Stub {
                 getDefaultSmsSubId());
         updateDefaultSubId();
 
-        TelephonyServiceManager.ServiceRegisterer subscriptionServiceRegisterer =
-                TelephonyFrameworkInitializer
-                        .getTelephonyServiceManager()
-                        .getSubscriptionServiceRegisterer();
-        if (subscriptionServiceRegisterer.get() == null) {
-            subscriptionServiceRegisterer.register(this);
+        if (!mFeatureFlags.publishTelephonyServicesAfterConstruction()) {
+            TelephonyServiceManager.ServiceRegisterer subscriptionServiceRegisterer =
+                    TelephonyFrameworkInitializer
+                            .getTelephonyServiceManager()
+                            .getSubscriptionServiceRegisterer();
+            if (subscriptionServiceRegisterer.get() == null) {
+                subscriptionServiceRegisterer.register(this);
+            }
         }
 
         mHandler.post(() -> {

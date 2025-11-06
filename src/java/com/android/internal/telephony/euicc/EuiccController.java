@@ -139,6 +139,12 @@ public class EuiccController extends IEuiccController.Stub {
         synchronized (EuiccController.class) {
             if (sInstance == null) {
                 sInstance = new EuiccController(context, featureFlags);
+                if (featureFlags.publishTelephonyServicesAfterConstruction()) {
+                    TelephonyFrameworkInitializer
+                            .getTelephonyServiceManager()
+                            .getEuiccControllerService()
+                            .register(sInstance);
+                }
             } else {
                 Log.wtf(TAG, "init() called multiple times! sInstance = " + sInstance);
             }
@@ -160,8 +166,10 @@ public class EuiccController extends IEuiccController.Stub {
 
     private EuiccController(Context context, FeatureFlags featureFlags) {
         this(context, new EuiccConnector(context), featureFlags);
-        TelephonyFrameworkInitializer
-                .getTelephonyServiceManager().getEuiccControllerService().register(this);
+        if (!mFeatureFlags.publishTelephonyServicesAfterConstruction()) {
+            TelephonyFrameworkInitializer
+                    .getTelephonyServiceManager().getEuiccControllerService().register(this);
+        }
     }
 
     @VisibleForTesting

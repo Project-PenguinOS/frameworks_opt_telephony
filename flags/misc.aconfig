@@ -96,6 +96,17 @@ flag {
     }
 }
 
+# OWNER=rambowang TARGET=26Q2
+flag {
+    name: "publish_telephony_services_after_construction"
+    namespace: "telephony"
+    description: "All telephony services are published after construction"
+    bug:"458134449"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
 
 # OWNER=jackyu TARGET=26Q2
 flag {
