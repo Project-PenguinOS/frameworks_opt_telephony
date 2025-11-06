@@ -6348,8 +6348,7 @@ public class SatelliteController extends Handler {
                 config.getPersistableBundle(KEY_REGIONAL_SATELLITE_EARFCN_BUNDLE));
     }
 
-    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PRIVATE)
-    @NonNull protected PersistableBundle getConfigForSubId(int subId) {
+    @NonNull private PersistableBundle getConfigForSubId(int subId) {
         PersistableBundle config = null;
         if (mCarrierConfigManager != null) {
             try {
@@ -7281,14 +7280,6 @@ public class SatelliteController extends Handler {
             logCarrierRoamingSatelliteSessionStats(phone, lastNotifiedNtnMode, currNtnMode);
             if (mIsNotificationShowing.get() && !currNtnMode) {
                 dismissSatelliteNotification();
-            }
-            // When any phone is in NTN mode, satellite phone will not be eligible for carrier
-            // roaming NTN. Thus, we need to update the eligibility of the satellite phone when any
-            // phone exit NTN mode and notify listeners accordingly. Note that messaging app will
-            // not show connect button to users when device is in NTN mode.
-            if (!currNtnMode) {
-                boolean eligible = isCarrierRoamingNtnEligible(getSatellitePhone());
-                updateLastNotifiedNtnEligibilityAndNotify(eligible);
             }
         }
     }
@@ -9244,14 +9235,11 @@ public class SatelliteController extends Handler {
             return true;
         }
 
-        if (SatelliteServiceUtils.isCellularOrNtnAvailable()) {
+        if (SatelliteServiceUtils.isCellularAvailable()) {
             plogd("isCarrierRoamingNtnEligible[phoneId=" + phone.getPhoneId()
-                    + "]: cellular or NTN is available");
+                    + "]: cellular is available");
             return false;
         }
-
-        // When device is in satellite mode for carrier roaming, messaging app will not show the
-        // connect button to users. Thus, we don't need to check this condition in Telephony.
 
         if (mIsWifiConnected.get()) {
             plogd("isCarrierRoamingNtnEligible[phoneId=" + phone.getPhoneId()
