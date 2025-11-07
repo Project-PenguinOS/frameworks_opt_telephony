@@ -1265,6 +1265,12 @@ public class GsmCdmaPhone extends Phone {
     private boolean useImsForPsAttachedCall() {
 // QTI_END: 2023-12-06: Telephony: Allow IMS dial when UE is PS attached
 // QTI_BEGIN: 2021-02-03: Telephony: IMS: Allow dial when UE is PS only attached
+         if (DBG) logd("isImsUseEnabled=" + isImsUseEnabled() +
+                 ", isOutgoingImsVoiceAllowed=" + isOutgoingImsVoiceAllowed() +
+                 ", enable_allow_PS_attached_dial=" + (Settings.Global.getInt(
+                 mContext.getContentResolver(), "enable_allow_PS_attached_dial", 1) == 1) +
+                 ", serviceState=" + (mImsPhone.getServiceState().getState() ==
+                 ServiceState.STATE_OUT_OF_SERVICE));
         return isImsUseEnabled()
                 && mImsPhone != null
                 && isOutgoingImsVoiceAllowed()
