@@ -130,7 +130,7 @@ public class Communicator implements TransportProtocol.Callback {
      * @param id The call in question.
      * @param state The new state.
      */
-    public void onStateChanged(String id, @Connection.ConnectionState int state) {
+    public void onStateChanged(String id, /*@Connection.ConnectionState*/ int state) {
         Log.i(this, "onStateChanged: id=%s, newState=%d", id, state);
         if (state == Connection.STATE_ACTIVE) {
             // Protocol negotiation can start as we are active

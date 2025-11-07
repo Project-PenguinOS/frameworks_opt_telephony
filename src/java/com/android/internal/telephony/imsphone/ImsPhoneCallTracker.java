@@ -2825,7 +2825,7 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
         hangup(call, android.telecom.Call.REJECT_REASON_DECLINED);
     }
 
-    public void hangup (ImsPhoneCall call, @android.telecom.Call.RejectReason int rejectReason)
+    public void hangup (ImsPhoneCall call, /*@android.telecom.Call.RejectReason*/ int rejectReason)
             throws CallStateException {
         if (DBG) log("hangup call - reason=" + rejectReason);
 
