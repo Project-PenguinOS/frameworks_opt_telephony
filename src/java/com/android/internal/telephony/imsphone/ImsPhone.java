@@ -2643,33 +2643,13 @@ public class ImsPhone extends ImsPhoneBase {
                 }
                 mRegLocalLog.log("handleImsUnregistered: onImsMmTelDisconnected imsRadioTech="
                         + imsReasonInfo);
-    // QTI_BEGIN: 2022-02-01: Telephony: IMS: Fix if outgoing Ims voice call is allowed
-                int extraCode = imsReasonInfo.getExtraCode();
                 /*
                 * If lower layer passes extraCode with information that UE is
-    // QTI_END: 2022-02-01: Telephony: IMS: Fix if outgoing Ims voice call is allowed
-    // QTI_BEGIN: 2023-12-06: Telephony: Allow IMS dial when UE is PS attached
                 * PS attached or not, we update mIsOutgoingImsVoiceAllowed
-    // QTI_END: 2023-12-06: Telephony: Allow IMS dial when UE is PS attached
-    // QTI_BEGIN: 2022-02-01: Telephony: IMS: Fix if outgoing Ims voice call is allowed
                 * and return as we expect lower layer to invoke this function
                 * again with updated ImsReasonInfo.
                 */
-    // QTI_END: 2022-02-01: Telephony: IMS: Fix if outgoing Ims voice call is allowed
-    // QTI_BEGIN: 2023-12-06: Telephony: Allow IMS dial when UE is PS attached
-                if (extraCode == QtiImsUtils.CODE_IS_PS_ATTACHED ||
-                    extraCode == QtiImsUtils.CODE_IS_NOT_PS_ATTACHED) {
-    // QTI_END: 2023-12-06: Telephony: Allow IMS dial when UE is PS attached
-    // QTI_BEGIN: 2022-02-01: Telephony: IMS: Fix if outgoing Ims voice call is allowed
-                    mIsOutgoingImsVoiceAllowed =
-    // QTI_END: 2022-02-01: Telephony: IMS: Fix if outgoing Ims voice call is allowed
-    // QTI_BEGIN: 2023-12-06: Telephony: Allow IMS dial when UE is PS attached
-                            extraCode == QtiImsUtils.CODE_IS_PS_ATTACHED;
-    // QTI_END: 2023-12-06: Telephony: Allow IMS dial when UE is PS attached
-    // QTI_BEGIN: 2022-02-01: Telephony: IMS: Fix if outgoing Ims voice call is allowed
-                    return;
-                }
-    // QTI_END: 2022-02-01: Telephony: IMS: Fix if outgoing Ims voice call is allowed
+                if (setIsOutgoingImsVoiceAllowed(imsReasonInfo)) return;
                 setServiceState(ServiceState.STATE_OUT_OF_SERVICE);
                 processDisconnectReason(imsReasonInfo);
                 getDefaultPhone().setImsRegistrationState(false);
@@ -2750,6 +2730,7 @@ public class ImsPhone extends ImsPhoneBase {
         }
         mRegLocalLog.log("handleImsUnregistered: onImsMmTelDisconnected imsRadioTech="
                 + imsReasonInfo);
+        if (setIsOutgoingImsVoiceAllowed(imsReasonInfo)) return;
         setServiceState(ServiceState.STATE_OUT_OF_SERVICE);
         processDisconnectReason(imsReasonInfo);
         getDefaultPhone().setImsRegistrationState(false);
@@ -2788,6 +2769,19 @@ public class ImsPhone extends ImsPhoneBase {
                 REGISTRATION_TECH_NONE, REGISTRATION_STATE_NOT_REGISTERED),
                 null);
         mImsRegistrationUpdateRegistrants.notifyRegistrants(ar);
+    }
+
+    /** Helper function to set mIsOutgoingImsVoiceAllowed based on imsReasonInfo extra code */
+    private boolean setIsOutgoingImsVoiceAllowed(ImsReasonInfo imsReasonInfo) {
+        int extraCode = imsReasonInfo.getExtraCode();
+        if (extraCode == QtiImsUtils.CODE_IS_PS_ATTACHED ||
+            extraCode == QtiImsUtils.CODE_IS_NOT_PS_ATTACHED) {
+            mIsOutgoingImsVoiceAllowed =
+                    extraCode == QtiImsUtils.CODE_IS_PS_ATTACHED;
+            logi("mIsOutgoingImsVoiceAllowed= " + mIsOutgoingImsVoiceAllowed);
+            return true;
+        }
+        return false;
     }
 
     /** Clear the IMS phone number from IMS associated Uris when IMS registration is lost. */
