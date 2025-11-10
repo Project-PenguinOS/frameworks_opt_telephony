@@ -160,3 +160,14 @@ flag {
   bug:"417753705"
 }
 
+# OWNER=navaldubey TARGET=26Q2
+flag {
+    name: "enable_carrier_config_apn_string_restriction"
+    is_exported: true
+    namespace: "telephony"
+    description: "If the APN contains a specific string that the carrier does not allow, show error message and prevents saving."
+    bug: "192926118"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}

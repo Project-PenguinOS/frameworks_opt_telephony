@@ -184,61 +184,6 @@ public class PhoneConfigurationManagerTest extends TelephonyTest {
         assertEquals(2, mPcm.getStaticPhoneCapability().getMaxActiveVoiceSubscriptions());
     }
 
-    @Test
-    @SmallTest
-    public void testUpdateSimultaneousCallingSupport() throws Exception {
-        doReturn(false).when(mFeatureFlags).simultaneousCallingIndications();
-        init(2);
-        mPcm.updateSimultaneousCallingSupport();
-
-        List<Integer> enabledLogicalSlots = Arrays.asList(0, 1);
-        ArgumentCaptor<Message> captor = ArgumentCaptor.forClass(Message.class);
-        verify(mMockRadioConfig).updateSimultaneousCallingSupport(captor.capture());
-        Message msg = captor.getValue();
-        AsyncResult.forMessage(msg, enabledLogicalSlots, null);
-        msg.sendToTarget();
-        processAllMessages();
-
-        HashSet<Integer> expectedSlots = new HashSet<>();
-        for (int i : enabledLogicalSlots) { expectedSlots.add(i); }
-        assertEquals(expectedSlots, mPcm.getSlotsSupportingSimultaneousCellularCalls());
-    }
-    @Test
-    @SmallTest
-    public void testUpdateSimultaneousCallingSupportBothInvalidSlotIds() throws Exception {
-        // Test case where both slot IDs are invalid (-1 and 5).
-        testUpdateSimultaneousCallingSupportWithInvalidSlots(Arrays.asList(-1, 5));
-    }
-
-    @Test
-    @SmallTest
-    public void testUpdateSimultaneousCallingSupportOneInvalidSlotId() throws Exception {
-        // Test case where one slot ID is valid (1) and the other is invalid (2).
-        testUpdateSimultaneousCallingSupportWithInvalidSlots(Arrays.asList(1, 2));
-    }
-
-    @Test
-    @SmallTest
-    public void testUpdateSimultaneousCallingSupportInvalidExtraSlotId() throws Exception {
-        // Test case where the number of slot IDs exceeds the phone count (2) and one slot ID is
-        // invalid (2).
-        testUpdateSimultaneousCallingSupportWithInvalidSlots(Arrays.asList(0, 1, 2));
-    }
-
-    @Test
-    @SmallTest
-    public void testUpdateSimultaneousCallingSupportInvalidSingularSlotId() throws Exception {
-        // Test case where only a single, invalid slot ID (0) is provided.
-        testUpdateSimultaneousCallingSupportWithInvalidSlots(List.of(0));
-    }
-
-    @Test
-    @SmallTest
-    public void testUpdateSimultaneousCallingSupportInvalidEmptySlotIds() throws Exception {
-        // Test case where an empty list of slot IDs is provided.
-        testUpdateSimultaneousCallingSupportWithInvalidSlots(List.of());
-    }
-
     /**
      * If the device uses the older "dsda" multi_sim_config setting, ensure that DSDA is set
      * statically for that device and subId updates work.
@@ -246,7 +191,6 @@ public class PhoneConfigurationManagerTest extends TelephonyTest {
     @Test
     @SmallTest
     public void testBkwdsCompatSimultaneousCallingDsda() throws Exception {
-        doReturn(true).when(mFeatureFlags).simultaneousCallingIndications();
         doReturn(RIL.RADIO_HAL_VERSION_2_1).when(mMockRadioConfigProxy).getVersion();
         doReturn(Optional.of("dsda")).when(mMi).getMultiSimProperty();
         final int phone0SubId = 2;
@@ -298,7 +242,6 @@ public class PhoneConfigurationManagerTest extends TelephonyTest {
     @SmallTest
     public void testUpdateSimultaneousCallingSupportNotifications() throws Exception {
         // retry simultaneous calling tests, but with notifications enabled this time
-        doReturn(true).when(mFeatureFlags).simultaneousCallingIndications();
 
         final int phone0SubId = 2;
         final int phone1SubId = 3;
@@ -352,7 +295,6 @@ public class PhoneConfigurationManagerTest extends TelephonyTest {
     @Test
     @SmallTest
     public void testSimultaneousCallingSubIdMappingChanges() throws Exception {
-        doReturn(true).when(mFeatureFlags).simultaneousCallingIndications();
         final int phone0SubId = 2;
         final int phone1SubId = 3;
         mPhones = new Phone[]{mPhone, mPhone1};
@@ -589,18 +531,6 @@ public class PhoneConfigurationManagerTest extends TelephonyTest {
         processAllMessages();
 
         assertEquals(capability, mPcm.getStaticPhoneCapability());
-    }
-
-    private void testUpdateSimultaneousCallingSupportWithInvalidSlots(List<Integer> invalidSlots)
-            throws Exception {
-        doReturn(false).when(mFeatureFlags).simultaneousCallingIndications();
-        init(2);
-        mPcm.updateSimultaneousCallingSupport();
-
-        sendInvalidSlotsToModem(invalidSlots);
-        processAllMessages();
-
-        assertDsdaDisabledAndSlotsCleared();
     }
 
     private void sendInvalidSlotsToModem(List<Integer> invalidSlots) {

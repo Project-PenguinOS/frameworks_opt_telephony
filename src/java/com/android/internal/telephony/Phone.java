@@ -4339,7 +4339,6 @@ public abstract class Phone extends Handler implements PhoneInternalInterface {
     }
 
     public boolean isImsServiceSimultaneousCallingSupportCapable(Context context) {
-        if (!mFeatureFlags.simultaneousCallingIndications()) return false;
         boolean capable = false;
         ImsManager imsManager = ImsManager.getInstance(context, mPhoneId);
         if (imsManager != null) {

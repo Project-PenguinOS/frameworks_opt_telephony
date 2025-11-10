@@ -78,18 +78,20 @@ public class PhoneSubInfoController extends IPhoneSubInfo.Stub {
     }
 
     public PhoneSubInfoController(Context context, FeatureFlags featureFlags) {
-        ServiceRegisterer phoneSubServiceRegisterer = TelephonyFrameworkInitializer
-                .getTelephonyServiceManager()
-                .getPhoneSubServiceRegisterer();
-        if (phoneSubServiceRegisterer.get() == null) {
-            phoneSubServiceRegisterer.register(this);
-        }
         mAppOps = context.getSystemService(AppOpsManager.class);
         mContext = context;
         mPackageManager = context.getPackageManager();
         mFeatureFlags = featureFlags;
         mVendorApiLevel = SystemProperties.getInt(
                 "ro.vendor.api_level", Build.VERSION.DEVICE_INITIAL_SDK_INT);
+        ServiceRegisterer phoneSubServiceRegisterer = TelephonyFrameworkInitializer
+                .getTelephonyServiceManager()
+                .getPhoneSubServiceRegisterer();
+        // b/458134449 This registration needs to happen last, but ideally it should happen
+        // outside the constructor.
+        if (phoneSubServiceRegisterer.get() == null) {
+            phoneSubServiceRegisterer.register(this);
+        }
     }
 
     @Deprecated
@@ -562,9 +564,6 @@ public class PhoneSubInfoController extends IPhoneSubInfo.Stub {
      * @throws SecurityException if the caller does not have the required permission
      */
     public List<String> getImsPcscfAddresses(int subId, String callingPackage) {
-        if (!mFeatureFlags.supportIsimRecord()) {
-            return new ArrayList<>();
-        }
         if (!SubscriptionManager.isValidSubscriptionId(subId)) {
             throw new IllegalArgumentException("Invalid subscription: " + subId);
         }
