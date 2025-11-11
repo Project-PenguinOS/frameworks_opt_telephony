@@ -136,6 +136,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.LinkedList;
+import java.util.Objects;
 import java.util.Queue;
 import java.util.concurrent.TimeUnit;
 
@@ -1237,6 +1238,7 @@ public class PersistAtomsStorageTest extends TelephonyTest {
         mSatelliteSession1.carrierId = 2;
         mSatelliteSession1.supportedConnectionMode = 0;
         mSatelliteSession1.sessionConnectionMode = 0;
+        mSatelliteSession1.plmn = "123456";
         mSatelliteSession1.countOfSatelliteNotificationDisplayed = 4;
         mSatelliteSession1.countOfAutoExitDueToScreenOff = 6;
         mSatelliteSession1.countOfAutoExitDueToTnNetwork = 7;
@@ -1263,6 +1265,7 @@ public class PersistAtomsStorageTest extends TelephonyTest {
         mSatelliteSession2.carrierId = 20;
         mSatelliteSession2.supportedConnectionMode = 0;
         mSatelliteSession2.sessionConnectionMode = 0;
+        mSatelliteSession2.plmn = "123456";
         mSatelliteSession2.countOfSatelliteNotificationDisplayed = 40;
         mSatelliteSession2.countOfAutoExitDueToScreenOff = 60;
         mSatelliteSession2.countOfAutoExitDueToTnNetwork = 70;
@@ -1282,6 +1285,7 @@ public class PersistAtomsStorageTest extends TelephonyTest {
         mSatelliteIncomingDatagram1.carrierId = 1;
         mSatelliteIncomingDatagram1.supportedConnectionMode = 0;
         mSatelliteIncomingDatagram1.sessionConnectionMode = 0;
+        mSatelliteIncomingDatagram1.plmn = "123456";
 
         mSatelliteIncomingDatagram2 = new SatelliteIncomingDatagram();
         mSatelliteIncomingDatagram2.resultCode = SatelliteProtoEnums.SATELLITE_RESULT_MODEM_ERROR;
@@ -1291,6 +1295,7 @@ public class PersistAtomsStorageTest extends TelephonyTest {
         mSatelliteIncomingDatagram2.carrierId = 10;
         mSatelliteIncomingDatagram2.supportedConnectionMode = 0;
         mSatelliteIncomingDatagram2.sessionConnectionMode = 0;
+        mSatelliteIncomingDatagram2.plmn = "123456";
 
         mSatelliteIncomingDatagrams =
                 new SatelliteIncomingDatagram[] {
@@ -1307,6 +1312,7 @@ public class PersistAtomsStorageTest extends TelephonyTest {
         mSatelliteOutgoingDatagram1.carrierId = 1;
         mSatelliteOutgoingDatagram1.supportedConnectionMode = 0;
         mSatelliteOutgoingDatagram1.sessionConnectionMode = 0;
+        mSatelliteOutgoingDatagram1.plmn = "123456";
 
         mSatelliteOutgoingDatagram2 = new SatelliteOutgoingDatagram();
         mSatelliteOutgoingDatagram2.datagramType =
@@ -1318,6 +1324,7 @@ public class PersistAtomsStorageTest extends TelephonyTest {
         mSatelliteOutgoingDatagram2.carrierId = 10;
         mSatelliteOutgoingDatagram2.supportedConnectionMode = 0;
         mSatelliteOutgoingDatagram2.sessionConnectionMode = 0;
+        mSatelliteOutgoingDatagram2.plmn = "123456";
 
         mSatelliteOutgoingDatagrams =
                 new SatelliteOutgoingDatagram[] {
@@ -1360,6 +1367,7 @@ public class PersistAtomsStorageTest extends TelephonyTest {
         mSatelliteSosMessageRecommender1.supportedConnectionMode = 0;
         mSatelliteSosMessageRecommender1.sessionConnectionMode = 0;
         mSatelliteSosMessageRecommender1.count = 1;
+        mSatelliteSosMessageRecommender1.plmn = "123456";
 
         mSatelliteSosMessageRecommender2 = new SatelliteSosMessageRecommender();
         mSatelliteSosMessageRecommender2.isDisplaySosMessageSent = false;
@@ -1374,6 +1382,7 @@ public class PersistAtomsStorageTest extends TelephonyTest {
         mSatelliteSosMessageRecommender2.carrierId = 2;
         mSatelliteSosMessageRecommender2.supportedConnectionMode = 0;
         mSatelliteSosMessageRecommender2.sessionConnectionMode = 0;
+        mSatelliteSosMessageRecommender2.plmn = "123456";
 
         mSatelliteSosMessageRecommender2.count = 1;
 
@@ -1386,6 +1395,7 @@ public class PersistAtomsStorageTest extends TelephonyTest {
         mCarrierRoamingSatelliteSession1.carrierId = 1;
         mCarrierRoamingSatelliteSession1.supportedConnectionMode = 0;
         mCarrierRoamingSatelliteSession1.sessionConnectionMode = 0;
+        mCarrierRoamingSatelliteSession1.plmn = "123456";
         mCarrierRoamingSatelliteSession1.isNtnRoamingInHomeCountry = false;
         mCarrierRoamingSatelliteSession1.totalSatelliteModeTimeSec = 60;
         mCarrierRoamingSatelliteSession1.numberOfSatelliteConnections = 3;
@@ -1407,6 +1417,7 @@ public class PersistAtomsStorageTest extends TelephonyTest {
         mCarrierRoamingSatelliteSession2 = new CarrierRoamingSatelliteSession();
         mCarrierRoamingSatelliteSession2.carrierId = 2;
         mCarrierRoamingSatelliteSession2.supportedConnectionMode = 0;
+        mCarrierRoamingSatelliteSession2.plmn = "123456";
         mCarrierRoamingSatelliteSession2.sessionConnectionMode = 0;
         mCarrierRoamingSatelliteSession2.isNtnRoamingInHomeCountry = true;
         mCarrierRoamingSatelliteSession2.totalSatelliteModeTimeSec = 120;
@@ -4540,7 +4551,6 @@ public class PersistAtomsStorageTest extends TelephonyTest {
                 mSatelliteController1.carrierRoamingSatelliteConfigVersion;
         expected.maxAllowedDataMode = mSatelliteController1.maxAllowedDataMode;
         expected.supportedConnectionMode = mSatelliteController1.supportedConnectionMode;
-
         // Service state and service switch should be added successfully
         verifyCurrentStateSavedToFileOnce();
         SatelliteController[] output =
@@ -4716,7 +4726,6 @@ public class PersistAtomsStorageTest extends TelephonyTest {
                 mSatelliteController2.carrierRoamingSatelliteConfigVersion;
         expected.maxAllowedDataMode = mSatelliteController2.maxAllowedDataMode;
         expected.supportedConnectionMode = mSatelliteController2.supportedConnectionMode;
-
         // Service state and service switch should be added successfully
         verifyCurrentStateSavedToFileOnce();
         SatelliteController[] output =
@@ -6386,7 +6395,8 @@ public class PersistAtomsStorageTest extends TelephonyTest {
                     && stats.isEmergency == expectedStats.isEmergency
                     && stats.maxInactivityDurationSec == expectedStats.maxInactivityDurationSec
                     && stats.supportedConnectionMode == expectedStats.supportedConnectionMode
-                    && stats.sessionConnectionMode == expectedStats.sessionConnectionMode) {
+                    && stats.sessionConnectionMode == expectedStats.sessionConnectionMode
+                    && Objects.equals(stats.plmn, expectedStats.plmn)) {
                 actualCount = stats.count;
             }
         }
@@ -6406,7 +6416,8 @@ public class PersistAtomsStorageTest extends TelephonyTest {
                     && stats.isDemoMode == expectedStats.isDemoMode
                     && stats.carrierId == expectedStats.carrierId
                     && stats.supportedConnectionMode == expectedStats.supportedConnectionMode
-                    && stats.sessionConnectionMode == expectedStats.sessionConnectionMode) {
+                    && stats.sessionConnectionMode == expectedStats.sessionConnectionMode
+                    && Objects.equals(stats.plmn, expectedStats.plmn)) {
                 actualCount++;
             }
         }
@@ -6427,7 +6438,8 @@ public class PersistAtomsStorageTest extends TelephonyTest {
                     && stats.isDemoMode == expectedStats.isDemoMode
                     && stats.carrierId == expectedStats.carrierId
                     && stats.supportedConnectionMode == expectedStats.supportedConnectionMode
-                    && stats.sessionConnectionMode == expectedStats.sessionConnectionMode) {
+                    && stats.sessionConnectionMode == expectedStats.sessionConnectionMode
+                    && Objects.equals(stats.plmn, expectedStats.plmn)) {
                 actualCount++;
             }
         }
@@ -6470,7 +6482,8 @@ public class PersistAtomsStorageTest extends TelephonyTest {
                     && stats.isWifiConnected == expectedStats.isWifiConnected
                     && stats.carrierId == expectedStats.carrierId
                     && stats.supportedConnectionMode == expectedStats.supportedConnectionMode
-                    && stats.sessionConnectionMode == expectedStats.sessionConnectionMode) {
+                    && stats.sessionConnectionMode == expectedStats.sessionConnectionMode
+                    && Objects.equals(stats.plmn, expectedStats.plmn)) {
                 actualCount = stats.count;
             }
         }
@@ -6739,7 +6752,8 @@ public class PersistAtomsStorageTest extends TelephonyTest {
                     && stats.isMultiSim == expectedStats.isMultiSim
                     && stats.isNbIotNtn == expectedStats.isNbIotNtn
                     && stats.supportedConnectionMode == expectedStats.supportedConnectionMode
-                    && stats.sessionConnectionMode == expectedStats.sessionConnectionMode) {
+                    && stats.sessionConnectionMode == expectedStats.sessionConnectionMode
+                    && Objects.equals(stats.plmn, expectedStats.plmn)) {
                 actualCount++;
             }
         }

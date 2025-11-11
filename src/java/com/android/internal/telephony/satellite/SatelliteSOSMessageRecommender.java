@@ -444,6 +444,7 @@ public class SatelliteSOSMessageRecommender extends Handler {
                                 .getSupportedConnectTypeMetrics())
                         .setSessionConnectionMode(mSatelliteController
                                 .getSessionConnectTypeMetrics())
+                        .setPlmn(mSatelliteController.getSatellitePhone().getOperatorNumeric())
                         .setIsNtnOnlyCarrier(mSatelliteController.isNtnOnlyCarrier()).build());
     }
 

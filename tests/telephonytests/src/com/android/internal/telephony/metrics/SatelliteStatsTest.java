@@ -286,6 +286,7 @@ public class SatelliteStatsTest extends TelephonyTest {
                                 SatelliteConstants.GLOBAL_NTN_CONNECT_TYPE_UNKNOWN)
                         .setSessionConnectionMode(
                                 SatelliteConstants.SESSION_NTN_CONNECT_TYPE_UNKNOWN)
+                        .setPlmn("")
                         .setCountOfSatelliteNotificationDisplayed(5)
                         .setCountOfAutoExitDueToScreenOff(7)
                         .setCountOfAutoExitDueToTnNetwork(3)
@@ -316,6 +317,7 @@ public class SatelliteStatsTest extends TelephonyTest {
         assertEquals(param.getMaxNtnSignalStrengthLevel(), stats.maxNtnSignalStrengthLevel);
         assertEquals(param.getCarrierId(), stats.carrierId);
         assertEquals(param.getSupportedConnectionMode(), stats.supportedConnectionMode);
+        assertEquals(param.getPlmn(), stats.plmn);
         assertEquals(param.getSessionConnectionMode(), stats.sessionConnectionMode);
         assertEquals(param.getCountOfSatelliteNotificationDisplayed(),
                 stats.countOfSatelliteNotificationDisplayed);
@@ -417,6 +419,7 @@ public class SatelliteStatsTest extends TelephonyTest {
                                 SatelliteConstants.GLOBAL_NTN_CONNECT_TYPE_UNKNOWN)
                         .setSessionConnectionMode(
                                 SatelliteConstants.SESSION_NTN_CONNECT_TYPE_UNKNOWN)
+                        .setPlmn("")
                         .build();
 
         mSatelliteStats.onSatelliteSosMessageRecommender(param);
@@ -438,6 +441,7 @@ public class SatelliteStatsTest extends TelephonyTest {
         assertEquals(param.getCarrierId(), stats.carrierId);
         assertEquals(param.getSupportedConnectionMode(), stats.supportedConnectionMode);
         assertEquals(param.getSessionConnectionMode(), stats.sessionConnectionMode);
+        assertEquals(param.getPlmn(), stats.plmn);
         verifyNoMoreInteractions(mPersistAtomsStorage);
     }
 
@@ -450,6 +454,7 @@ public class SatelliteStatsTest extends TelephonyTest {
                                 SatelliteConstants.GLOBAL_NTN_CONNECT_TYPE_UNKNOWN)
                         .setSessionConnectionMode(
                                 SatelliteConstants.SESSION_NTN_CONNECT_TYPE_UNKNOWN)
+                        .setPlmn("")
                         .setIsNtnRoamingInHomeCountry(true)
                         .setTotalSatelliteModeTimeSec(10 * 60)
                         .setNumberOfSatelliteConnections(5)
@@ -478,6 +483,7 @@ public class SatelliteStatsTest extends TelephonyTest {
         assertEquals(param.getCarrierId(), stats.carrierId);
         assertEquals(param.getSupportedConnectionMode(), stats.supportedConnectionMode);
         assertEquals(param.getSessionConnectionMode(), stats.sessionConnectionMode);
+        assertEquals(param.getPlmn(), stats.plmn);
         assertEquals(param.getIsNtnRoamingInHomeCountry(), stats.isNtnRoamingInHomeCountry);
         assertEquals(param.getTotalSatelliteModeTimeSec(), stats.totalSatelliteModeTimeSec);
         assertEquals(param.getNumberOfSatelliteConnections(), stats.numberOfSatelliteConnections);

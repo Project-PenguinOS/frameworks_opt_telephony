@@ -124,6 +124,7 @@ public class CarrierRoamingSatelliteSessionStats {
     private int[] mSatelliteAppsUidArray = new int[MAX_SATELLITE_TOP_APPS_TRACKED];
     private @SatelliteConstants.SatelliteGlobalConnectType int mSupportedConnectionMode;
     private @SatelliteConstants.SatelliteSessionConnectType int mSessionConnectionMode;
+    private String mPlmn;
 
     private final ConnectivityManager.NetworkCallback mNetworkCallback =
             new ConnectivityManager.NetworkCallback() {
@@ -307,7 +308,7 @@ public class CarrierRoamingSatelliteSessionStats {
     public void onSessionStart(
             int carrierId, Phone phone, int[] supportedServices, int serviceDataPolicy,
             List<String> satelliteApps, int supportedConnectionMode, int sessionConnectionMode,
-            @NonNull FeatureFlags featureFlags) {
+            String plmn, @NonNull FeatureFlags featureFlags) {
         mPhone = phone;
         mContext = mPhone.getContext();
         mCarrierId = carrierId;
@@ -319,6 +320,7 @@ public class CarrierRoamingSatelliteSessionStats {
         mDataUsageOnSessionStartBytes = getDataUsage();
         logd("current data consumed: " + mDataUsageOnSessionStartBytes);
         mSupportedConnectionMode = supportedConnectionMode;
+        mPlmn = plmn;
         mSessionConnectionMode = sessionConnectionMode;
         mFeatureFlags = featureFlags;
         registerForSatelliteDataNetworkCallback();
@@ -818,6 +820,7 @@ public class CarrierRoamingSatelliteSessionStats {
                 new SatelliteStats.CarrierRoamingSatelliteSessionParams.Builder()
                         .setCarrierId(mCarrierId)
                         .setSupportedConnectionMode(mSupportedConnectionMode)
+                        .setPlmn(mPlmn)
                         .setSessionConnectionMode(mSessionConnectionMode)
                         .setIsNtnRoamingInHomeCountry(mIsNtnRoamingInHomeCountry)
                         .setTotalSatelliteModeTimeSec(totalSatelliteModeTimeSec)
@@ -865,6 +868,7 @@ public class CarrierRoamingSatelliteSessionStats {
         mCarrierId = TelephonyManager.UNKNOWN_CARRIER_ID;
         mSupportedConnectionMode = SatelliteConstants.GLOBAL_NTN_CONNECT_TYPE_UNKNOWN;
         mSessionConnectionMode = SatelliteConstants.SESSION_NTN_CONNECT_TYPE_UNKNOWN;
+        mPlmn = SatelliteConstants.DEFAULT_PLMN;
         mIsNtnRoamingInHomeCountry = false;
         mCountOfIncomingSms = 0;
         mCountOfOutgoingSms = 0;

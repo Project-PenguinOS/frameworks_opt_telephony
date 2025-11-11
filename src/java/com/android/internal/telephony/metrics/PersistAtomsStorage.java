@@ -80,6 +80,7 @@ import java.nio.file.NoSuchFileException;
 import java.security.SecureRandom;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.Objects;
 import java.util.stream.IntStream;
 
 /**
@@ -899,7 +900,7 @@ public class PersistAtomsStorage {
             existingStats.isMultiSim = stats.isMultiSim;
             existingStats.countOfSatelliteSessions += stats.countOfSatelliteSessions;
             existingStats.isNbIotNtn = stats.isNbIotNtn;
-            // Does not update supportedConnectionMode as it is dimension field
+            // Does not update supportedConnectionMode and plmn as they are dimension field
             existingStats.countOfSessionConnectionModeAutomatic +=
                     stats.countOfSessionConnectionModeAutomatic;
             existingStats.countOfSessionConnectionModeManual +=
@@ -2460,7 +2461,8 @@ public class PersistAtomsStorage {
                     && stats.isEmergency == key.isEmergency
                     && stats.maxInactivityDurationSec == key.maxInactivityDurationSec
                     && stats.supportedConnectionMode == key.supportedConnectionMode
-                    && stats.sessionConnectionMode == key.sessionConnectionMode) {
+                    && stats.sessionConnectionMode == key.sessionConnectionMode
+                    && Objects.equals(stats.plmn, key.plmn)) {
                 return stats;
             }
         }
@@ -2485,7 +2487,8 @@ public class PersistAtomsStorage {
                     && stats.isWifiConnected == key.isWifiConnected
                     && stats.carrierId == key.carrierId
                     && stats.supportedConnectionMode == key.supportedConnectionMode
-                    && stats.sessionConnectionMode == key.sessionConnectionMode) {
+                    && stats.sessionConnectionMode == key.sessionConnectionMode
+                    && Objects.equals(stats.plmn, key.plmn)) {
                 return stats;
             }
         }
