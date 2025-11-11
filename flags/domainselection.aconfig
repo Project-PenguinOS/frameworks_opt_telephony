@@ -66,3 +66,14 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+#OWNER=jdyou TARGET=26Q2
+flag {
+    name: "use_emergency_routing_cause"
+    namespace: "telephony"
+    description: "Enables the use of emergency routing cause to determine accurate source modification."
+    bug:"411366306"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}

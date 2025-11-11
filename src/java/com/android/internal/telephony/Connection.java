@@ -35,6 +35,7 @@ import com.android.ims.internal.ConferenceParticipant;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.telephony.domainselection.DomainSelectionResolver;
 import com.android.internal.telephony.emergency.EmergencyNumberTracker;
+import com.android.internal.telephony.flags.Flags;
 import com.android.internal.telephony.util.TelephonyUtils;
 import com.android.telephony.Rlog;
 
@@ -681,9 +682,21 @@ public abstract class Connection {
 
         if (DomainSelectionResolver.getInstance().isDomainSelectionSupported()) {
             // Updates EmergencyNumber information for the emergency routing ECCs.
-            if (dialArgs != null && dialArgs.intentExtras != null
-                    && dialArgs.intentExtras.getBoolean(
+            int emergencyRoutingUpdateCause =
+                    PhoneConstants.EMERGENCY_ROUTING_UPDATE_CAUSE_UNSPECIFIED;
+            if (dialArgs != null && dialArgs.intentExtras != null) {
+                if (Flags.useEmergencyRoutingCause()) {
+                    emergencyRoutingUpdateCause = dialArgs.intentExtras.getInt(
+                            PhoneConstants.EXTRA_EMERGENCY_ROUTING_UPDATE_CAUSE,
+                            PhoneConstants.EMERGENCY_ROUTING_UPDATE_CAUSE_UNSPECIFIED);
+                } else if (dialArgs.intentExtras.getBoolean(
                             PhoneConstants.EXTRA_USE_EMERGENCY_ROUTING, false)) {
+                    emergencyRoutingUpdateCause =
+                            PhoneConstants.EMERGENCY_ROUTING_UPDATE_CAUSE_ALTERNATE_SERVICE;
+                }
+            }
+            if (emergencyRoutingUpdateCause
+                    != PhoneConstants.EMERGENCY_ROUTING_UPDATE_CAUSE_UNSPECIFIED) {
                 if (mEmergencyNumberInfo == null) {
                     Rlog.d(TAG, "setEmergencyCallInfo: create EmergencyNumber");
                     setNonDetectableEmergencyCallInfo(dialArgs.eccCategory,
@@ -716,7 +729,10 @@ public abstract class Connection {
                             mEmergencyNumberInfo.getMnc(),
                             eccCategory,
                             emergencyUrns,
-                            getEmergencyNumberSourceForEmergencyRouting(),
+                            emergencyRoutingUpdateCause == PhoneConstants
+                                    .EMERGENCY_ROUTING_UPDATE_CAUSE_ALTERNATE_SERVICE
+                                    ? getEmergencyNumberSourceForEmergencyRouting()
+                                    : mEmergencyNumberInfo.getEmergencyNumberSourceBitmask(),
                             EmergencyNumber.EMERGENCY_CALL_ROUTING_EMERGENCY);
                 }
             }
