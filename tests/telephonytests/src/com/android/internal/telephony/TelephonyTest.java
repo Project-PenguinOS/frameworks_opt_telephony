@@ -571,6 +571,8 @@ public abstract class TelephonyTest {
         lenient().doReturn(true).when(mFeatureFlags).exposeOpptAutoDataSwitchPolicies();
         lenient().doReturn(true).when(mFeatureFlags)
                 .enableTrafficDescriptorConnectionCapability();
+        lenient().doReturn(true).when(mFeatureFlags).supportPsimToEsimConversion();
+        lenient().doReturn(true).when(mFeatureFlags).getPhoneNumberTs43Api();
 
         WorkerThread.reset();
         TelephonyManager.disableServiceHandleCaching();
