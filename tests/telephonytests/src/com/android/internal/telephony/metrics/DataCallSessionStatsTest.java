@@ -40,6 +40,7 @@ import androidx.test.filters.SmallTest;
 import com.android.internal.telephony.Phone;
 import com.android.internal.telephony.TelephonyTest;
 import com.android.internal.telephony.nano.PersistAtomsProto.DataCallSession;
+import com.android.internal.telephony.satellite.SatelliteConstants;
 import com.android.internal.telephony.subscription.SubscriptionInfoInternal;
 
 import org.junit.After;
@@ -467,5 +468,56 @@ public class DataCallSessionStatsTest extends TelephonyTest {
         stats = callCaptor.getValue();
 
         assertFalse(stats.isNbIotNtn);
+    }
+
+    @Test
+    public void testSatellitePlmn() {
+        when(mSatelliteController.isInSatelliteModeForCarrierRoaming(any())).thenReturn(true);
+        when(mSatelliteController.isInCarrierRoamingNbIotNtn(any())).thenReturn(true);
+        when(mSatelliteController.getSatellitePlmnForMetrics(any())).thenReturn("");
+
+        mDataCallSessionStats.onSetupDataCall(ApnSetting.TYPE_IMS, false,
+                0 /*sliceCapability*/);
+        mDataCallSessionStats.onSetupDataCallResponse(
+                mDefaultImsResponse,
+                TelephonyManager.NETWORK_TYPE_LTE,
+                ApnSetting.TYPE_IMS,
+                ApnSetting.PROTOCOL_IP,
+                DataFailCause.NONE);
+
+        mDataCallSessionStats.setTimeMillis(60000L);
+        mDataCallSessionStats.conclude();
+
+        ArgumentCaptor<DataCallSession> callCaptor =
+                ArgumentCaptor.forClass(DataCallSession.class);
+        verify(mPersistAtomsStorage).addDataCallSession(callCaptor.capture());
+        DataCallSession stats = callCaptor.getValue();
+
+        assertEquals("", stats.plmn);
+
+        reset(mPersistAtomsStorage);
+
+        when(mSatelliteController.isInSatelliteModeForCarrierRoaming(any())).thenReturn(false);
+        when(mSatelliteController.isInCarrierRoamingNbIotNtn(any())).thenReturn(false);
+        when(mSatelliteController.getSatellitePlmnForMetrics(any()))
+                .thenReturn(SatelliteConstants.DEFAULT_PLMN);
+
+        mDataCallSessionStats.onSetupDataCall(ApnSetting.TYPE_IMS, false,
+                0 /*sliceCapability*/);
+        mDataCallSessionStats.onSetupDataCallResponse(
+                mDefaultImsResponse,
+                TelephonyManager.NETWORK_TYPE_LTE,
+                ApnSetting.TYPE_IMS,
+                ApnSetting.PROTOCOL_IP,
+                DataFailCause.NONE);
+
+        mDataCallSessionStats.setTimeMillis(60000L);
+        mDataCallSessionStats.conclude();
+
+
+        verify(mPersistAtomsStorage).addDataCallSession(callCaptor.capture());
+        stats = callCaptor.getValue();
+
+        assertEquals(SatelliteConstants.DEFAULT_PLMN, stats.plmn);
     }
 }

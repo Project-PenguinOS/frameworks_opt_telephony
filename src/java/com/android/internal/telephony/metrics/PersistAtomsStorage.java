@@ -2110,7 +2110,8 @@ public class PersistAtomsStorage {
                     && state.isIwlanCrossSim == key.isIwlanCrossSim
                     && state.isNtn == key.isNtn
                     && state.isNbIotNtn == key.isNbIotNtn
-                    && state.isOpportunistic == key.isOpportunistic) {
+                    && state.isOpportunistic == key.isOpportunistic
+                    && Objects.equals(state.plmn, key.plmn)) {
                 return state;
             }
         }

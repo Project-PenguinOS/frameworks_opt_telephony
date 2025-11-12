@@ -65,11 +65,13 @@ import com.android.internal.telephony.ServiceStateTracker;
 import com.android.internal.telephony.nano.PersistAtomsProto.IncomingSms;
 import com.android.internal.telephony.nano.PersistAtomsProto.OutgoingShortCodeSms;
 import com.android.internal.telephony.nano.PersistAtomsProto.OutgoingSms;
+import com.android.internal.telephony.satellite.SatelliteConstants;
 import com.android.internal.telephony.satellite.SatelliteController;
 import com.android.internal.telephony.satellite.metrics.CarrierRoamingSatelliteSessionStats;
 import com.android.telephony.Rlog;
 
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Random;
 import java.util.UUID;
 
@@ -263,6 +265,7 @@ public class SmsStats {
         proto.isEmergency = isEmergency;
         proto.isNbIotNtn = isNbIotNtn(mPhone);
         proto.pduLength = pduLength;
+        proto.plmn = getPlmn(mPhone);
         return proto;
     }
 
@@ -295,6 +298,7 @@ public class SmsStats {
         proto.isMtSmsPolling = isMtSmsPolling;
         proto.isNbIotNtn = isNbIotNtn(mPhone);
         proto.pduLength = pduLength;
+        proto.plmn = getPlmn(mPhone);
         // package name will be reported only when the sms is sent via non-terrestrial network.
         proto.callingPackageName = (isInSatelliteModeForCarrierRoaming(mPhone)
                 && callingPackageName != null) ? callingPackageName : "";
@@ -373,7 +377,7 @@ public class SmsStats {
         return Objects.hash(sms.smsFormat, sms.smsTech, sms.rat, sms.sendResult, sms.errorCode,
                 sms.isRoaming, sms.isFromDefaultApp, sms.simSlotIndex, sms.isMultiSim, sms.isEsim,
                 sms.carrierId, sms.isEmergency, sms.isNtn, sms.isMtSmsPolling, sms.isNbIotNtn,
-                sms.pduLength, sms.callingPackageName, sms.appUid);
+                sms.pduLength, sms.callingPackageName, sms.appUid, sms.plmn);
     }
 
     /**
@@ -384,7 +388,7 @@ public class SmsStats {
         return Objects.hash(sms.smsFormat, sms.smsTech, sms.rat, sms.smsType,
             sms.totalParts, sms.receivedParts, sms.blocked, sms.error,
                 sms.isRoaming, sms.simSlotIndex, sms.isMultiSim, sms.isEsim, sms.carrierId,
-                sms.isNtn, sms.isNbIotNtn, sms.pduLength);
+                sms.isNtn, sms.isNbIotNtn, sms.pduLength, sms.plmn);
     }
 
     private int getPhoneId() {
@@ -483,6 +487,14 @@ public class SmsStats {
 
     private boolean isInSatelliteModeForCarrierRoaming(Phone phone) {
         return SatelliteController.getInstance().isInSatelliteModeForCarrierRoaming(phone);
+    }
+
+    private String getPlmn(Phone phone) {
+        String plmn = Optional.ofNullable(phone)
+                .map(Phone::getServiceState)
+                .map(ServiceState::getOperatorNumeric)
+                .orElse(SatelliteConstants.DEFAULT_PLMN);
+        return plmn;
     }
 
     private void loge(String format, Object... args) {
