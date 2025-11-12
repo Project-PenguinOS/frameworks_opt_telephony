@@ -1413,6 +1413,9 @@ public class PersistAtomsStorageTest extends TelephonyTest {
         mCarrierRoamingSatelliteSession1.countOfOutgoingMms = 1;
         mCarrierRoamingSatelliteSession1.isMultiSim = false;
         mCarrierRoamingSatelliteSession1.isNbIotNtn = false;
+        mCarrierRoamingSatelliteSession1.isWifiEnabled = false;
+        mCarrierRoamingSatelliteSession1.isWfcEnabled = false;
+        mCarrierRoamingSatelliteSession1.isWfcRegistered = false;
 
         mCarrierRoamingSatelliteSession2 = new CarrierRoamingSatelliteSession();
         mCarrierRoamingSatelliteSession2.carrierId = 2;
@@ -1436,6 +1439,9 @@ public class PersistAtomsStorageTest extends TelephonyTest {
         mCarrierRoamingSatelliteSession2.countOfOutgoingMms = 1;
         mCarrierRoamingSatelliteSession2.isMultiSim = true;
         mCarrierRoamingSatelliteSession2.isNbIotNtn = true;
+        mCarrierRoamingSatelliteSession2.isWifiEnabled = true;
+        mCarrierRoamingSatelliteSession2.isWfcEnabled = true;
+        mCarrierRoamingSatelliteSession2.isWfcRegistered = true;
 
         mCarrierRoamingSatelliteSessions = new CarrierRoamingSatelliteSession[] {
                 mCarrierRoamingSatelliteSession1, mCarrierRoamingSatelliteSession2};
@@ -6751,6 +6757,9 @@ public class PersistAtomsStorageTest extends TelephonyTest {
                     && stats.countOfOutgoingMms == expectedStats.countOfOutgoingMms
                     && stats.isMultiSim == expectedStats.isMultiSim
                     && stats.isNbIotNtn == expectedStats.isNbIotNtn
+                    && stats.isWifiEnabled == expectedStats.isWifiEnabled
+                    && stats.isWfcEnabled == expectedStats.isWfcEnabled
+                    && stats.isWfcRegistered == expectedStats.isWfcRegistered
                     && stats.supportedConnectionMode == expectedStats.supportedConnectionMode
                     && stats.sessionConnectionMode == expectedStats.sessionConnectionMode
                     && Objects.equals(stats.plmn, expectedStats.plmn)) {
