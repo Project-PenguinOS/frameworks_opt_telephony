@@ -1237,6 +1237,14 @@ public class DataConfigManager extends Handler {
     }
 
     /**
+     * @return {@code true} if a successful APN database match is mandatory to proceed with a data
+     * call setup.
+     */
+    public boolean isApnMatchedRequired() {
+        return mCarrierConfig.getBoolean(CarrierConfigManager.KEY_APN_MATCHED_REQUIRED);
+    }
+
+    /**
      * @return The bandwidth estimation source.
      */
     @DataNetwork.BandwidthEstimationSource
