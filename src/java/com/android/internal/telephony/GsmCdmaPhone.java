@@ -1477,10 +1477,9 @@ public class GsmCdmaPhone extends Phone {
                 || useImsForEmergency
 // QTI_END: 2021-02-03: Telephony: IMS: Allow dial when UE is PS only attached
 // QTI_BEGIN: 2023-12-06: Telephony: Allow IMS dial when UE is PS attached
-                || (useImsForPsAttachedCall && !isMmiCode && !isPotentialUssdCode
+                || (useImsForPsAttachedCall && !isMmiCode && !isPotentialUssdCode)) {
 // QTI_END: 2023-12-06: Telephony: Allow IMS dial when UE is PS attached
 // QTI_BEGIN: 2021-02-03: Telephony: IMS: Allow dial when UE is PS only attached
-                           && !VideoProfile.isVideo(dialArgs.videoState))) {
 // QTI_END: 2021-02-03: Telephony: IMS: Allow dial when UE is PS only attached
             try {
                 if (DBG) logd("Trying IMS PS call");
