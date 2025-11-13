@@ -89,6 +89,7 @@ import com.android.internal.telephony.SmsConstants.MessageClass;
 import com.android.internal.telephony.analytics.TelephonyAnalytics;
 import com.android.internal.telephony.analytics.TelephonyAnalytics.SmsMmsAnalytics;
 import com.android.internal.telephony.flags.FeatureFlags;
+import com.android.internal.telephony.flags.Flags;
 import com.android.internal.telephony.metrics.PersistAtomsStorage;
 import com.android.internal.telephony.nano.PersistAtomsProto;
 import com.android.internal.telephony.satellite.SatelliteController;
@@ -307,7 +308,7 @@ public abstract class InboundSmsHandler extends StateMachine {
 
     private static final TextClassifier.EntityConfig TC_REQUEST_CONFIG =
             new TextClassifier.EntityConfig.Builder()
-                    .setIncludedTypes(List.of(TextClassifier.TYPE_SMS_RETRIEVER_OTP))
+                    .setIncludedTypes(getIncludedTextClassifierTypes())
                     .includeTypesFromTextClassifier(false)
                     .build();
 
@@ -329,6 +330,17 @@ public abstract class InboundSmsHandler extends StateMachine {
     private List<SmsFilter> mSmsFilters;
 
     protected final @NonNull FeatureFlags mFeatureFlags;
+
+    private static List<String> getIncludedTextClassifierTypes() {
+      List<String> includedTypes = List.of(TextClassifier.TYPE_SMS_RETRIEVER_OTP);
+      if (Flags.redactWebotpSms()) {
+          includedTypes.add(TextClassifier.TYPE_SMS_WEB_OTP);
+      }
+      if (Flags.redactGenericOtpSms()) {
+          includedTypes.add(TextClassifier.TYPE_OTP);
+      }
+      return includedTypes;
+    }
 
     /**
      * Create a new SMS broadcast helper.
@@ -1609,7 +1621,11 @@ public abstract class InboundSmsHandler extends StateMachine {
     private boolean containsOtp(Collection<TextLinks.TextLink> links) {
         for (TextLinks.TextLink link : links) {
             for (int i = 0; i < link.getEntityCount(); i++) {
-                if (link.getEntity(i).equals(TextClassifier.TYPE_SMS_RETRIEVER_OTP)) {
+                if (link.getEntity(i).equals(TextClassifier.TYPE_SMS_RETRIEVER_OTP)
+                    || (Flags.redactWebotpSms()
+                           && link.getEntity(i).equals(TextClassifier.TYPE_SMS_WEB_OTP))
+                    || (Flags.redactGenericOtpSms()
+                           && link.getEntity(i).equals(TextClassifier.TYPE_OTP))) {
                     return true;
                 }
             }
