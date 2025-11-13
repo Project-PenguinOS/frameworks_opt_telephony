@@ -218,3 +218,14 @@ flag {
     purpose: PURPOSE_BUGFIX
   }
 }
+
+# OWNER=karthickmj TARGET=26Q2
+flag {
+  name: "satellite_upsell"
+  namespace: "telephony"
+  description: "Introduce Satellite Upsell capabilities"
+  bug: "460027582"
+  metadata {
+    purpose: PURPOSE_FEATURE
+  }
+}
