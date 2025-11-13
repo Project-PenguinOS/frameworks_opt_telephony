@@ -1170,7 +1170,7 @@ public class UiccController extends Handler {
                 log("Creating mUiccSlots[" + slotId + "]; mUiccSlots.length = "
                         + mUiccSlots.length);
             }
-            setUiccSlot(slotId, new UiccSlot(mContext, true));
+            setUiccSlot(slotId, new UiccSlot(mContext, true, mFeatureFlags));
         }
 
         mUiccSlots[slotId].update(mCis[index], status, index, slotId);
@@ -1451,7 +1451,7 @@ public class UiccController extends Handler {
                 if (VDBG) {
                     log("Creating mUiccSlot[" + i + "]; mUiccSlots.length = " + mUiccSlots.length);
                 }
-                setUiccSlot(i, new UiccSlot(mContext, isActive));
+                setUiccSlot(i, new UiccSlot(mContext, isActive, mFeatureFlags));
             }
 
             if (isActive) { // check isActive flag so that we don't have to iterate through all
