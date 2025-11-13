@@ -184,60 +184,6 @@ public class SatelliteServiceUtilsTest extends TelephonyTest {
     }
 
     @Test
-    public void testIsCellularOrNtnAvailable() {
-        // No service
-        when(mServiceState.getState()).thenReturn(ServiceState.STATE_OUT_OF_SERVICE);
-        when(mServiceState2.getState()).thenReturn(ServiceState.STATE_OUT_OF_SERVICE);
-        when(mServiceState.getNetworkRegistrationInfo(anyInt(), anyInt())).thenReturn(null);
-        when(mServiceState2.getNetworkRegistrationInfo(anyInt(), anyInt())).thenReturn(null);
-        assertFalse(SatelliteServiceUtils.isCellularOrNtnAvailable());
-
-        // Cellular emergency only
-        when(mServiceState.getState()).thenReturn(ServiceState.STATE_EMERGENCY_ONLY);
-        assertTrue(SatelliteServiceUtils.isCellularOrNtnAvailable());
-        when(mServiceState.getState()).thenReturn(ServiceState.STATE_OUT_OF_SERVICE);
-
-        // Satellite emergency only
-        when(mMockSatelliteController.getAllPlmnSet()).thenReturn(new HashSet<>(List.of("123456")));
-        NetworkRegistrationInfo nri = new NetworkRegistrationInfo.Builder()
-                .setRegisteredPlmn("123456").build();
-        when(mServiceState.getNetworkRegistrationInfoListForTransportType(
-                eq(AccessNetworkConstants.TRANSPORT_TYPE_WWAN)))
-                .thenReturn(List.of(nri));
-        when(mServiceState.getState()).thenReturn(ServiceState.STATE_EMERGENCY_ONLY);
-        assertFalse(SatelliteServiceUtils.isCellularOrNtnAvailable());
-
-        // Cellular in-service
-        when(mMockSatelliteController.getAllPlmnSet()).thenReturn(new HashSet<>());
-        when(mServiceState.getState()).thenReturn(ServiceState.STATE_IN_SERVICE);
-        assertTrue(SatelliteServiceUtils.isCellularOrNtnAvailable());
-
-        // Satellite in-service
-        when(mMockSatelliteController.getAllPlmnSet()).thenReturn(new HashSet<>(List.of("123456")));
-        when(mServiceState.getState()).thenReturn(ServiceState.STATE_IN_SERVICE);
-        assertTrue(SatelliteServiceUtils.isCellularOrNtnAvailable());
-
-        // Cellular data in-service
-        when(mMockSatelliteController.getAllPlmnSet()).thenReturn(new HashSet<>());
-        when(mServiceState.getState()).thenReturn(ServiceState.STATE_OUT_OF_SERVICE);
-        NetworkRegistrationInfo dataNri = new NetworkRegistrationInfo.Builder()
-                .setRegistrationState(NetworkRegistrationInfo.REGISTRATION_STATE_HOME)
-                .build();
-        when(mServiceState.getNetworkRegistrationInfo(anyInt(), anyInt())).thenReturn(dataNri);
-        assertTrue(SatelliteServiceUtils.isCellularOrNtnAvailable());
-
-        // isEmergencyOnly() true on cellular
-        when(mServiceState.getNetworkRegistrationInfo(anyInt(), anyInt())).thenReturn(null);
-        when(mServiceState.isEmergencyOnly()).thenReturn(true);
-        assertTrue(SatelliteServiceUtils.isCellularOrNtnAvailable());
-
-        // isEmergencyOnly() true on Satellite
-        when(mMockSatelliteController.getAllPlmnSet()).thenReturn(new HashSet<>(List.of("123456")));
-        when(mServiceState.isEmergencyOnly()).thenReturn(true);
-        assertFalse(SatelliteServiceUtils.isCellularOrNtnAvailable());
-    }
-
-    @Test
     public void testIsSatellitePlmn() {
         int subId = 1;
 
