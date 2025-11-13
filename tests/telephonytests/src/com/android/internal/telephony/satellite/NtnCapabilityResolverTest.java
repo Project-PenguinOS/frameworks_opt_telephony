@@ -19,16 +19,18 @@ package com.android.internal.telephony.satellite;
 import static android.telephony.AccessNetworkConstants.TRANSPORT_TYPE_WWAN;
 import static android.telephony.NetworkRegistrationInfo.DOMAIN_PS;
 import static android.telephony.NetworkRegistrationInfo.REGISTRATION_STATE_ROAMING;
+import static android.telephony.NetworkRegistrationInfo.REGISTRATION_STATE_UNKNOWN;
 import static android.telephony.NetworkRegistrationInfo.SERVICE_TYPE_DATA;
 import static android.telephony.NetworkRegistrationInfo.SERVICE_TYPE_EMERGENCY;
 import static android.telephony.NetworkRegistrationInfo.SERVICE_TYPE_SMS;
 import static android.telephony.TelephonyManager.NETWORK_TYPE_LTE;
+import static android.telephony.TelephonyManager.NETWORK_TYPE_NR;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -43,7 +45,6 @@ import android.util.ArraySet;
 
 import com.android.internal.telephony.TelephonyTest;
 
-import java.util.Set;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -54,6 +55,7 @@ import org.mockito.MockitoAnnotations;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @RunWith(AndroidTestingRunner.class)
@@ -63,11 +65,13 @@ public class NtnCapabilityResolverTest extends TelephonyTest {
     private static final int SUB_ID = 0;
     private static final String VISITING_PLMN = "00102";
     private static final String SATELLITE_PLMN = "00103";
+    private static final String EMPTY_PLMN = "";
     private static final Set<String> SATELLITE_PLMN_SET = Set.of(SATELLITE_PLMN);
 
     private final int[] mSatelliteSupportedServices = {SERVICE_TYPE_SMS, SERVICE_TYPE_EMERGENCY};
     private final List<Integer> mSatelliteSupportedServiceList =
             Arrays.stream(mSatelliteSupportedServices).boxed().collect(Collectors.toList());
+
     @Mock private SatelliteController mMockSatelliteController;
 
     @Before
@@ -92,7 +96,7 @@ public class NtnCapabilityResolverTest extends TelephonyTest {
 
     @Test
     public void testResolveNTNCapability() {
-        // Test resolving a satellite NetworkRegistrationInfo.
+        logd("Test resolving a satellite NetworkRegistrationInfo");
         NetworkRegistrationInfo satelliteNri = createNetworkRegistrationInfo(SATELLITE_PLMN);
         NetworkRegistrationInfo originalNri = new NetworkRegistrationInfo(satelliteNri);
 
@@ -111,7 +115,7 @@ public class NtnCapabilityResolverTest extends TelephonyTest {
                         .mapToInt(Integer::intValue)
                         .toArray()));
 
-        // Test resolving a non-satellite NetworkRegistrationInfo.
+        logd("Test resolving a non-satellite NetworkRegistrationInfo.");
         NetworkRegistrationInfo cellularNri = createNetworkRegistrationInfo(VISITING_PLMN);
         originalNri = new NetworkRegistrationInfo(cellularNri);
 
@@ -130,8 +134,9 @@ public class NtnCapabilityResolverTest extends TelephonyTest {
                         .mapToInt(Integer::intValue)
                         .toArray()));
 
-        // Test resolving an empty-PLMN NetworkRegistrationInfo.
-        NetworkRegistrationInfo emptyPlmnNri = createNetworkRegistrationInfo("");
+        logd("Test resolving an empty-PLMN NetworkRegistrationInfo.");
+        NetworkRegistrationInfo emptyPlmnNri =
+                createNetworkRegistrationInfo(EMPTY_PLMN);
         originalNri = new NetworkRegistrationInfo(emptyPlmnNri);
 
         assertEquals(emptyPlmnNri, originalNri);
@@ -150,13 +155,108 @@ public class NtnCapabilityResolverTest extends TelephonyTest {
                         .toArray()));
     }
 
+    @Test
+    public void testResolveNTNCapability_isNtnEnabled() {
+        logd("Test resolving a satellite NetworkRegistrationInfo");
+        NetworkRegistrationInfo satelliteNri =
+                createNetworkRegistrationInfo(SATELLITE_PLMN, true, true);
+        NetworkRegistrationInfo originalNri = new NetworkRegistrationInfo(satelliteNri);
+
+        assertEquals(satelliteNri, originalNri);
+        assertTrue(satelliteNri.isNonTerrestrialNetwork());
+        assertTrue(satelliteNri.isInService());
+        assertFalse(Arrays.equals(mSatelliteSupportedServices,
+                satelliteNri.getAvailableServices().stream()
+                        .mapToInt(Integer::intValue)
+                        .toArray()));
+        NtnCapabilityResolver.resolveNtnCapability(satelliteNri, SUB_ID);
+        verify(mMockSatelliteController).getAllPlmnSet();
+        assertNotEquals(satelliteNri, originalNri);
+        assertTrue(satelliteNri.isNonTerrestrialNetwork());
+        assertArrayEquals(mSatelliteSupportedServices,
+                satelliteNri.getAvailableServices().stream()
+                        .mapToInt(Integer::intValue)
+                        .toArray());
+
+        logd("Test resolving a satellite plmn with NetworkRegistrationInfo and not in service");
+        satelliteNri = createNetworkRegistrationInfo(SATELLITE_PLMN, true, false);
+        originalNri = new NetworkRegistrationInfo(satelliteNri);
+
+        assertEquals(satelliteNri, originalNri);
+        assertTrue(satelliteNri.isNonTerrestrialNetwork());
+        assertFalse(satelliteNri.isInService());
+        assertFalse(Arrays.equals(mSatelliteSupportedServices,
+                satelliteNri.getAvailableServices().stream()
+                        .mapToInt(Integer::intValue)
+                        .toArray()));
+        NtnCapabilityResolver.resolveNtnCapability(satelliteNri, SUB_ID);
+        verify(mMockSatelliteController, times(2)).getAllPlmnSet();
+        assertNotEquals(satelliteNri, originalNri);
+        assertTrue(satelliteNri.isNonTerrestrialNetwork());
+        assertArrayEquals(mSatelliteSupportedServices,
+                satelliteNri.getAvailableServices().stream()
+                        .mapToInt(Integer::intValue)
+                        .toArray());
+
+        logd("Test resolving a unknown satellite plmn NetworkRegistrationInfo.");
+        NetworkRegistrationInfo unknownSatelliteNri =
+                createNetworkRegistrationInfo(VISITING_PLMN, true, true);
+        originalNri = new NetworkRegistrationInfo(unknownSatelliteNri);
+
+        assertEquals(unknownSatelliteNri, originalNri);
+        assertTrue(unknownSatelliteNri.isNonTerrestrialNetwork());
+        assertNotEquals(mSatelliteSupportedServices,
+                unknownSatelliteNri.getAvailableServices().stream()
+                        .mapToInt(Integer::intValue)
+                        .toArray());
+        NtnCapabilityResolver.resolveNtnCapability(unknownSatelliteNri, SUB_ID);
+        verify(mMockSatelliteController, times(3)).getAllPlmnSet();
+        assertNotEquals(unknownSatelliteNri, originalNri);
+        assertTrue(unknownSatelliteNri.isNonTerrestrialNetwork());
+        assertNotEquals(mSatelliteSupportedServices,
+                unknownSatelliteNri.getAvailableServices().stream()
+                        .mapToInt(Integer::intValue)
+                        .toArray());
+
+        logd("Test resolving an empty plmn NetworkRegistrationInfo.");
+        NetworkRegistrationInfo emptyPlmnNri =
+                createNetworkRegistrationInfo(EMPTY_PLMN, true, true);
+        originalNri = new NetworkRegistrationInfo(emptyPlmnNri);
+        assertEquals(emptyPlmnNri, originalNri);
+        assertTrue(emptyPlmnNri.isNonTerrestrialNetwork());
+
+        NtnCapabilityResolver.resolveNtnCapability(emptyPlmnNri, SUB_ID);
+        verify(mMockSatelliteController, times(3)).getAllPlmnSet();
+        assertEquals(emptyPlmnNri, originalNri);
+        assertTrue(emptyPlmnNri.isNonTerrestrialNetwork());
+        assertNotEquals(mSatelliteSupportedServices,
+                emptyPlmnNri.getAvailableServices().stream()
+                        .mapToInt(Integer::intValue)
+                        .toArray());
+    }
+
     private NetworkRegistrationInfo createNetworkRegistrationInfo(@NonNull String registeredPlmn) {
+        return createNetworkRegistrationInfo(registeredPlmn, false, true);
+    }
+
+    private NetworkRegistrationInfo createNetworkRegistrationInfo(
+            @NonNull String registeredPlmn, boolean isNtn, boolean isInService) {
         List<Integer> availableServices = new ArrayList<>();
         availableServices.add(SERVICE_TYPE_DATA);
-        CellIdentity cellIdentity = new CellIdentityGsm(0, 0, 0,
-                0, "mcc", "mnc", "", "", new ArraySet<>());
-        return new NetworkRegistrationInfo(DOMAIN_PS, TRANSPORT_TYPE_WWAN,
-                REGISTRATION_STATE_ROAMING, NETWORK_TYPE_LTE, 0, false, availableServices,
-                cellIdentity, registeredPlmn, false, 0, 0, 0);
+        CellIdentity cellIdentity = new CellIdentityGsm(
+                0, 0, 0, 0, "mcc", "mnc", "", "", new ArraySet<>());
+        return new NetworkRegistrationInfo.Builder()
+                .setDomain(DOMAIN_PS)
+                .setTransportType(TRANSPORT_TYPE_WWAN)
+                .setRegistrationState(
+                        isInService ? REGISTRATION_STATE_ROAMING : REGISTRATION_STATE_UNKNOWN)
+                .setAccessNetworkTechnology(isNtn ? NETWORK_TYPE_NR : NETWORK_TYPE_LTE)
+                .setRejectCause(0)
+                .setEmergencyOnly(false)
+                .setAvailableServices(availableServices)
+                .setCellIdentity(cellIdentity)
+                .setRegisteredPlmn(registeredPlmn)
+                .setIsNonTerrestrialNetwork(isNtn)
+                .build();
     }
 }
