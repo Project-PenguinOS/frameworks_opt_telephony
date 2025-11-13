@@ -272,10 +272,8 @@ public class PhoneFactory {
                 }
 
                 sPhoneConfigurationManager = PhoneConfigurationManager.init(sContext, featureFlags);
-                if (featureFlags.simultaneousCallingIndications()) {
-                    sSimultaneousCallingTracker =
-                            SimultaneousCallingTracker.init(sContext, featureFlags);
-                }
+                sSimultaneousCallingTracker =
+                    SimultaneousCallingTracker.init(sContext);
 
                 sCellularNetworkValidator = CellularNetworkValidator.make(sContext, sFeatureFlags);
 

@@ -588,7 +588,7 @@ public class CarrierPrivilegesTracker extends Handler {
                     INSTALLED_PACKAGES_QUERY_FLAGS,
                     ActivityManager.getCurrentUser());
         } catch (NameNotFoundException e) {
-            Rlog.e(TAG, "Error getting installed package: " + pkgName, e);
+            Rlog.w(TAG, "Error getting installed package: " + pkgName, e);
             return null;
         }
     }
