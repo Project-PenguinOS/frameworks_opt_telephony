@@ -269,7 +269,6 @@ public class PhoneConfigurationManager {
      * associated sub IDs as well as notifies listeners.
      */
     private void updateSimultaneousSubIdsFromPhoneIdMappingAndNotify() {
-        if (!mFeatureFlags.simultaneousCallingIndications()) return;
         Set<Integer> slotCandidates = mSlotsSupportingSimultaneousCellularCalls.stream()
                 .map(i -> mPhones[i].getSubId())
                 .filter(i ->i > SubscriptionManager.INVALID_SUBSCRIPTION_ID)
@@ -313,8 +312,7 @@ public class PhoneConfigurationManager {
             final PhoneCapability staticCapability) {
         boolean isVDsdaEnabled = staticCapability.getLogicalModemList().size() > 1
                 && mVirtualDsdaEnabled;
-        boolean isBkwdCompatDsdaEnabled = mFeatureFlags.simultaneousCallingIndications()
-                && mMi.getMultiSimProperty().orElse(SSSS).equals(DSDA);
+        boolean isBkwdCompatDsdaEnabled = mMi.getMultiSimProperty().orElse(SSSS).equals(DSDA);
         if (isVDsdaEnabled || isBkwdCompatDsdaEnabled) {
             // Since we already initialized maxActiveVoiceSubscriptions to the count the
             // modem is capable of, we are only able to increase that count via this method. We do
@@ -330,8 +328,7 @@ public class PhoneConfigurationManager {
     }
 
     private void maybeEnableCellularDSDASupport() {
-        boolean bkwdsCompatDsda = mFeatureFlags.simultaneousCallingIndications()
-                && getPhoneCount() > 1
+        boolean bkwdsCompatDsda = getPhoneCount() > 1
                 && mMi.getMultiSimProperty().orElse(SSSS).equals(DSDA);
         boolean halSupportSimulCalling = mRadioConfig != null
                 && mRadioConfig.getRadioConfigProxy(null).getVersion().greaterOrEqual(
@@ -354,8 +351,7 @@ public class PhoneConfigurationManager {
             notifySimultaneousCellularCallingSlotsChanged();
         }
         // Register for subId updates to notify listeners when simultaneous calling is configured
-        if (mFeatureFlags.simultaneousCallingIndications()
-                && (bkwdsCompatDsda || halSupportSimulCalling)) {
+        if (bkwdsCompatDsda || halSupportSimulCalling) {
             Log.d(LOG_TAG, "maybeEnableCellularDSDASupport: registering "
                             + "mSubscriptionsChangedListener");
             mContext.getSystemService(TelephonyRegistryManager.class)
@@ -504,10 +500,8 @@ public class PhoneConfigurationManager {
                                 + "simultaneous calling." + ar.exception);
                         mSlotsSupportingSimultaneousCellularCalls.clear();
                     }
-                    if (mFeatureFlags.simultaneousCallingIndications()) {
-                        updateSimultaneousSubIdsFromPhoneIdMappingAndNotify();
-                        notifySimultaneousCellularCallingSlotsChanged();
-                    }
+                    updateSimultaneousSubIdsFromPhoneIdMappingAndNotify();
+                    notifySimultaneousCellularCallingSlotsChanged();
                     break;
                 default:
                     log("Unknown event: " + msg.what);
@@ -803,10 +797,8 @@ public class PhoneConfigurationManager {
             } else {
                 // The number of active modems is 0 or 1, disable cellular DSDA:
                 mSlotsSupportingSimultaneousCellularCalls.clear();
-                if (mFeatureFlags.simultaneousCallingIndications()) {
-                    updateSimultaneousSubIdsFromPhoneIdMappingAndNotify();
-                    notifySimultaneousCellularCallingSlotsChanged();
-                }
+                updateSimultaneousSubIdsFromPhoneIdMappingAndNotify();
+                notifySimultaneousCellularCallingSlotsChanged();
             }
 
             // When the user enables DSDS mode, the default VOICE and SMS subId should be switched

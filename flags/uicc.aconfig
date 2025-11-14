@@ -112,3 +112,14 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+# OWNER=muralidharm TARGET=26Q1
+flag {
+    name: "slot_port_switch_failure_fix"
+    namespace: "telephony"
+    description: "This flag is to control the slot port switch failure fix during switching between different MEP modes."
+    bug:"394709785"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}

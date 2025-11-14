@@ -3368,10 +3368,17 @@ public class SatelliteController extends Handler {
             @NonNull IIntegerConsumer errorCallback,
             @NonNull ISatelliteTransmissionUpdateCallback callback) {
         plogd("handleRequestStopSatelliteTransmissionUpdates");
-        Consumer<Integer> result = FunctionalUtils.ignoreRemoteException(errorCallback::accept);
+        Consumer<Integer> internalResult = new Consumer<Integer>() {
+            @Override
+            public void accept(Integer result) {
+                plogd("handleRequestStopSatelliteTransmissionUpdates: "
+                        + "unregisterForSatelliteTransmissionUpdates result=" + result);
+            }
+        };
         mPointingAppController.unregisterForSatelliteTransmissionUpdates(
-                getSelectedSatelliteSubId(), result, callback);
+                getSelectedSatelliteSubId(), internalResult, callback);
 
+        Consumer<Integer> result = FunctionalUtils.ignoreRemoteException(errorCallback::accept);
         // Even if handler is null - which means there are no listeners, the modem command to stop
         // satellite transmission updates might have failed. The callers might want to retry
         // sending the command. Thus, we always need to send this command to the modem.
@@ -5264,8 +5271,15 @@ public class SatelliteController extends Handler {
             mPointingAppController.setStartedSatelliteTransmissionUpdates(false);
             // We need to remove the callback from our listener list since the caller might not call
             // stopSatelliteTransmissionUpdates to unregister the callback in case of failure.
+            Consumer<Integer> internalResult = new Consumer<Integer>() {
+                @Override
+                public void accept(Integer result) {
+                    plogd("handleStartSatelliteTransmissionUpdatesDone: "
+                            + "unregisterForSatelliteTransmissionUpdates result=" + result);
+                }
+            };
             mPointingAppController.unregisterForSatelliteTransmissionUpdates(arg.subId,
-                    arg.errorCallback, arg.callback);
+                    internalResult, arg.callback);
         } else {
             mPointingAppController.setStartedSatelliteTransmissionUpdates(true);
         }
@@ -6354,8 +6368,7 @@ public class SatelliteController extends Handler {
                 config.getPersistableBundle(KEY_REGIONAL_SATELLITE_EARFCN_BUNDLE));
     }
 
-    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PRIVATE)
-    @NonNull protected PersistableBundle getConfigForSubId(int subId) {
+    @NonNull private PersistableBundle getConfigForSubId(int subId) {
         PersistableBundle config = null;
         if (mCarrierConfigManager != null) {
             try {
@@ -7290,14 +7303,6 @@ public class SatelliteController extends Handler {
             logCarrierRoamingSatelliteSessionStats(phone, lastNotifiedNtnMode, currNtnMode);
             if (mIsNotificationShowing.get() && !currNtnMode) {
                 dismissSatelliteNotification();
-            }
-            // When any phone is in NTN mode, satellite phone will not be eligible for carrier
-            // roaming NTN. Thus, we need to update the eligibility of the satellite phone when any
-            // phone exit NTN mode and notify listeners accordingly. Note that messaging app will
-            // not show connect button to users when device is in NTN mode.
-            if (!currNtnMode) {
-                boolean eligible = isCarrierRoamingNtnEligible(getSatellitePhone());
-                updateLastNotifiedNtnEligibilityAndNotify(eligible);
             }
         }
     }
@@ -9253,14 +9258,11 @@ public class SatelliteController extends Handler {
             return true;
         }
 
-        if (SatelliteServiceUtils.isCellularOrNtnAvailable()) {
+        if (SatelliteServiceUtils.isCellularAvailable()) {
             plogd("isCarrierRoamingNtnEligible[phoneId=" + phone.getPhoneId()
-                    + "]: cellular or NTN is available");
+                    + "]: cellular is available");
             return false;
         }
-
-        // When device is in satellite mode for carrier roaming, messaging app will not show the
-        // connect button to users. Thus, we don't need to check this condition in Telephony.
 
         if (mIsWifiConnected.get()) {
             plogd("isCarrierRoamingNtnEligible[phoneId=" + phone.getPhoneId()

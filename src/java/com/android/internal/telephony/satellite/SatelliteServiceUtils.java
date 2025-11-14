@@ -600,42 +600,6 @@ public class SatelliteServiceUtils {
         return false;
     }
 
-    /**
-     * Return {@code true} if device has full or limited cellular coverage or full NTN coverage,
-     * else return {@code false}.
-     */
-    public static boolean isCellularOrNtnAvailable() {
-        for (Phone phone : PhoneFactory.getPhones()) {
-            ServiceState serviceState = phone.getServiceState();
-            if (serviceState != null) {
-                int state = serviceState.getState();
-                NetworkRegistrationInfo dataNri = serviceState.getNetworkRegistrationInfo(
-                        NetworkRegistrationInfo.DOMAIN_PS,
-                        AccessNetworkConstants.TRANSPORT_TYPE_WWAN);
-                boolean isDataInService = dataNri != null && dataNri.isInService();
-                logd("isCellularOrNtnAvailable: phoneId=" + phone.getPhoneId() + " state=" + state
-                        + " isEmergencyOnly=" + serviceState.isEmergencyOnly()
-                        + " isDataInService=" + isDataInService);
-
-                // Return true if phone is in service or data is in service no matter it is
-                // cellular or NTN.
-                if (state == STATE_IN_SERVICE || isDataInService) {
-                    logd("isCellularOrNtnAvailable true");
-                    return true;
-                }
-                // If phone is in emergency only state, return true only if phone is registered to
-                // a cellular network.
-                if ((serviceState.isEmergencyOnly() || state == STATE_EMERGENCY_ONLY)
-                        && !isSatellitePlmn(phone.getSubId(), serviceState)) {
-                    logd("isCellularOrNtnAvailable true");
-                    return true;
-                }
-            }
-        }
-        logd("isCellularOrNtnAvailable false");
-        return false;
-    }
-
     /** Check whether device is connected to satellite PLMN */
     public static boolean isSatellitePlmn(int subId, @NonNull ServiceState serviceState) {
         List<String> satellitePlmnList = new ArrayList<>(
