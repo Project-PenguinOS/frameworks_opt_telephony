@@ -834,6 +834,7 @@ public class DataNetworkControllerTest extends TelephonyTest {
         mCarrierConfig.putBooleanArray(
                 CarrierConfigManager.KEY_DATA_STALL_RECOVERY_SHOULD_SKIP_BOOL_ARRAY,
                 new boolean[] {false, false, true, false, false});
+        mCarrierConfig.putBoolean(CarrierConfigManager.KEY_APN_MATCHED_REQUIRED, true);
 
         mContextFixture.putResource(com.android.internal.R.string.config_bandwidthEstimateSource,
                 "bandwidth_estimator");
@@ -1082,9 +1083,19 @@ public class DataNetworkControllerTest extends TelephonyTest {
                             DataUtils.networkCapabilityToConnectionCapability(
                                     networkRequest.getHighestPrioritySupportedNetworkCapability()));
                 }
+
+                TrafficDescriptor trafficDescriptor = trafficDescriptorBuilder.build();
+                if (mDataConfigManager.isApnMatchedRequired()) {
+                    if (trafficDescriptor.getDataNetworkName() == null
+                            && trafficDescriptor.getOsAppId() == null
+                            && trafficDescriptor.getConnectionCapability()
+                            != TrafficDescriptor.CONNECTION_CAPABILITY_UNKNOWN) {
+                        return null;
+                    }
+                }
+
                 DataProfile.Builder profileBuilder = new DataProfile.Builder();
-                DataProfile dp = profileBuilder.setTrafficDescriptor(
-                        trafficDescriptorBuilder.build()).build();
+                DataProfile dp = profileBuilder.setTrafficDescriptor(trafficDescriptor).build();
                 logd("Build the data profile " + dp);
                 return dp;
             }

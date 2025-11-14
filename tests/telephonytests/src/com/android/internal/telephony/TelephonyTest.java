@@ -916,6 +916,7 @@ public abstract class TelephonyTest {
                 .when(mDataConfigManager).getAnomalyImsReleaseRequestThreshold();
         lenient().doReturn(new DataConfigManager.EventFrequency(300000, 12))
                 .when(mDataConfigManager).getAnomalyNetworkUnwantedThreshold();
+        lenient().doReturn(true).when(mDataConfigManager).isApnMatchedRequired();
 
         // CellularNetworkValidator
         lenient().doReturn(SubscriptionManager.INVALID_PHONE_INDEX)

@@ -1120,7 +1120,14 @@ public class DataNetwork extends StateMachine {
         mLastKnownRoamingState = mPhone.getServiceState().getDataRoamingFromRegistration();
         mSatellite = isSatellite;
         mDataAllowedReason = dataAllowedReason;
-        dataProfile.setLastSetupTimestamp(SystemClock.elapsedRealtime());
+
+        if (mFlags.enableTrafficDescriptorConnectionCapability()) {
+            mDataNetworkController.getDataProfileManager().setDataProfileUsedTime(dataProfile,
+                    SystemClock.elapsedRealtime());
+        } else {
+            dataProfile.setLastSetupTimestamp(SystemClock.elapsedRealtime());
+        }
+
         for (int transportType : mAccessNetworksManager.getAvailableTransports()) {
             mCid.put(transportType, INVALID_CID);
         }
