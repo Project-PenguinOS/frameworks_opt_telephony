@@ -23,6 +23,7 @@ import android.telephony.SubscriptionInfo;
 import android.telephony.SubscriptionManager;
 import android.telephony.UiccAccessRule;
 import android.telephony.ims.ImsMmTelManager;
+
 import com.android.internal.telephony.flags.Flags;
 
 import org.junit.Rule;
@@ -143,6 +144,10 @@ public class SubscriptionInfoInternalTest {
                                     .FAKE_SATELLITE_ENTITLEMENT_VOICE_SERVICE_POLICY1)
                     .setIsPrivateNetwork(SubscriptionDatabaseManagerTest
                             .FAKE_IS_PRIVATE_NETWORK_ENABLED)
+                    .setStreamingAppMaxDownlinkKbps(SubscriptionDatabaseManagerTest
+                            .FAKE_STREAMING_DOWNLINK1)
+                    .setStreamingAppMaxUplinkKbps(SubscriptionDatabaseManagerTest
+                            .FAKE_STREAMING_UPLINK1)
                     .build();
 
     private final SubscriptionInfoInternal mSubInfoNull =
@@ -296,6 +301,10 @@ public class SubscriptionInfoInternalTest {
                         .FAKE_SATELLITE_ENTITLEMENT_VOICE_SERVICE_POLICY1);
         assertThat(mSubInfo.getIsPrivateNetwork())
                 .isEqualTo(SubscriptionDatabaseManagerTest.FAKE_IS_PRIVATE_NETWORK_ENABLED);
+        assertThat(mSubInfo.getStreamingAppMaxDownlinkKbps())
+                .isEqualTo(SubscriptionDatabaseManagerTest.FAKE_STREAMING_DOWNLINK1);
+        assertThat(mSubInfo.getStreamingAppMaxUplinkKbps())
+                .isEqualTo(SubscriptionDatabaseManagerTest.FAKE_STREAMING_UPLINK1);
     }
 
     @Test

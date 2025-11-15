@@ -152,6 +152,14 @@ public class SubscriptionDatabaseManagerTest extends TelephonyTest {
     static final String FAKE_MAC_ADDRESS1 = "DC:E5:5B:38:7D:40";
     static final String FAKE_MAC_ADDRESS2 = "DC:B5:4F:47:F3:4C";
 
+    static final int FAKE_STREAMING_DOWNLINK1 = 1234567;
+
+    static final int FAKE_STREAMING_DOWNLINK2 = 7654321;
+
+    static final int FAKE_STREAMING_UPLINK1 = 1234;
+
+    static final int FAKE_STREAMING_UPLINK2 = 5678;
+
     static final int FAKE_TRANSFER_STATUS_TRANSFERRED_OUT = 1;
     static final int FAKE_TRANSFER_STATUS_CONVERTED = 2;
 
@@ -237,6 +245,8 @@ public class SubscriptionDatabaseManagerTest extends TelephonyTest {
                     .setSatelliteEntitlementPlmns(FAKE_SATELLITE_ENTITLEMENT_PLMNS2)
                     .setSatelliteESOSSupported(FAKE_SATELLITE_ESOS_SUPPORTED_DISABLED)
                     .setIsPrivateNetwork(FAKE_IS_PRIVATE_NETWORK_DISABLED)
+                    .setStreamingAppMaxDownlinkKbps(FAKE_STREAMING_DOWNLINK1)
+                    .setStreamingAppMaxUplinkKbps(FAKE_STREAMING_UPLINK1)
                     .build();
 
     static final SubscriptionInfoInternal FAKE_SUBSCRIPTION_INFO2 =
