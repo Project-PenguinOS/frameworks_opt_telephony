@@ -69,6 +69,8 @@ public class SatelliteConfigParserTest extends TelephonyTest {
     private static final String PLMN_310220 = "310220";
     private static final String PLMN_310260 = "310260";
     private static final String PLMN_45005  = "45060";
+    private static final String PLMN_310210  = "310210";
+    private static final String PLMN_310211  = "310211";
 
     private static final String COUNTRY_US = "US";
     private static final String COUNTRY_IN = "IN";
@@ -102,6 +104,9 @@ public class SatelliteConfigParserTest extends TelephonyTest {
                 SatelliteConfigData.CarrierRoamingConfigProto.newBuilder();
         carrierRoamingConfigBuilder.setMaxAllowedDataMode(
                 SATELLITE_DATA_SUPPORT_BANDWIDTH_CONSTRAINED);
+        carrierRoamingConfigBuilder.addDeviceSatellitePlmn(PLMN_310160);
+        carrierRoamingConfigBuilder.addDeviceSatellitePlmn(PLMN_310210);
+        carrierRoamingConfigBuilder.addDeviceSatellitePlmn(PLMN_310220);
         satelliteConfigBuilder.setCarrierRoamingConfig(carrierRoamingConfigBuilder);
         carrierRoamingConfigBuilder.clear();
 
@@ -148,6 +153,39 @@ public class SatelliteConfigParserTest extends TelephonyTest {
     public void tearDown() throws Exception {
         logd(TAG + " tearDown");
         super.tearDown();
+    }
+
+    @Test
+    public void testGetAllSatellitePlmnsFromDevice() {
+        List<String> matchedList = new ArrayList<>();
+        matchedList.add(PLMN_310160);
+        matchedList.add(PLMN_310210);
+        matchedList.add(PLMN_310220);
+
+        List<String> unmatchedList = new ArrayList<>();
+        unmatchedList.add(PLMN_310160);
+        unmatchedList.add(PLMN_310210);
+        unmatchedList.add(PLMN_45005);
+
+        SatelliteConfigParser satelliteConfigParserNull = new SatelliteConfigParser((byte[]) null);
+        assertNotNull(satelliteConfigParserNull);
+        assertNull(satelliteConfigParserNull.getConfig());
+
+        SatelliteConfigParser satelliteConfigParserPlaceHolder =
+                new SatelliteConfigParser((byte[]) null);
+        assertNotNull(satelliteConfigParserPlaceHolder);
+        assertNull(satelliteConfigParserPlaceHolder.getConfig());
+
+        SatelliteConfigParser satelliteConfigParser = new SatelliteConfigParser(mBytesProtoBuffer);
+
+        List<String> parsedList1 =
+                new ArrayList<>(satelliteConfigParser.getConfig().getDeviceSatelliteProviderList());
+        Collections.sort(parsedList1);
+        Collections.sort(matchedList);
+        Collections.sort(unmatchedList);
+
+        assertEquals(matchedList, parsedList1);
+        assertNotEquals(unmatchedList, parsedList1);
     }
 
     @Test
@@ -621,8 +659,13 @@ public class SatelliteConfigParserTest extends TelephonyTest {
                     SatelliteConfigData.CarrierRoamingConfigProto.newBuilder();
             carrierRoamingConfigBuilder.setMaxAllowedDataMode(
                     SATELLITE_DATA_SUPPORT_BANDWIDTH_CONSTRAINED);
+
+            carrierRoamingConfigBuilder.addDeviceSatellitePlmn(PLMN_310210);
+            carrierRoamingConfigBuilder.addDeviceSatellitePlmn(PLMN_310211);
+
             satelliteConfigBuilder.setCarrierRoamingConfig(carrierRoamingConfigBuilder);
             carrierRoamingConfigBuilder.clear();
+
         }
 
         if (satelliteRegion) {
@@ -674,6 +717,7 @@ public class SatelliteConfigParserTest extends TelephonyTest {
         assertNotNull(satelliteConfigParser);
         assertNotNull(satelliteConfigParser.getConfig());
         assertNotNull(satelliteConfigParser.getConfig().getSatelliteMaxAllowedDataMode());
+        assertNotNull(satelliteConfigParser.getConfig().getDeviceSatelliteProviderList());
 
         // When carrierSupportedSatelliteServices null and carrierRoamingConfigs null
         // Verify satelliteRegion child items are not null

@@ -32,6 +32,7 @@ message SatelliteConfigProto {
 
 message CarrierRoamingConfigProto {
   optional int32 max_allowed_data_mode = 1;
+  repeated string device_satellite_plmn = 2;
 }
 
 message CarrierSupportedSatelliteServicesProto {
