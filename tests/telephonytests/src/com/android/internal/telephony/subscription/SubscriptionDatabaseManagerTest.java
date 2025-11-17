@@ -28,7 +28,6 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -50,7 +49,6 @@ import android.testing.AndroidTestingRunner;
 import android.testing.TestableLooper;
 
 import com.android.internal.telephony.TelephonyTest;
-import com.android.internal.telephony.flags.FeatureFlags;
 import com.android.internal.telephony.subscription.SubscriptionDatabaseManager.SubscriptionDatabaseManagerCallback;
 
 import org.junit.After;
@@ -153,8 +151,6 @@ public class SubscriptionDatabaseManagerTest extends TelephonyTest {
     static final String FAKE_MAC_ADDRESS1 = "DC:E5:5B:38:7D:40";
     static final String FAKE_MAC_ADDRESS2 = "DC:B5:4F:47:F3:4C";
 
-    private FeatureFlags mFeatureFlags;
-
     static final int FAKE_TRANSFER_STATUS_TRANSFERRED_OUT = 1;
     static final int FAKE_TRANSFER_STATUS_CONVERTED = 2;
 
@@ -221,6 +217,7 @@ public class SubscriptionDatabaseManagerTest extends TelephonyTest {
                     .setNrAdvancedCallingEnabled(1)
                     .setNumberFromCarrier(FAKE_PHONE_NUMBER1)
                     .setNumberFromIms(FAKE_PHONE_NUMBER1)
+                    .setNumberFromTs43(FAKE_PHONE_NUMBER1)
                     .setPortIndex(0)
                     .setUsageSetting(SubscriptionManager.USAGE_SETTING_DEFAULT)
                     .setLastUsedTPMessageReference(FAKE_TP_MESSAGE_REFERENCE1)
@@ -297,6 +294,7 @@ public class SubscriptionDatabaseManagerTest extends TelephonyTest {
                     .setDeviceToDeviceStatusSharingContacts(FAKE_CONTACT2)
                     .setNrAdvancedCallingEnabled(0)
                     .setNumberFromCarrier(FAKE_PHONE_NUMBER2)
+                    .setNumberFromTs43(FAKE_PHONE_NUMBER2)
                     .setNumberFromIms(FAKE_PHONE_NUMBER2)
                     .setPortIndex(1)
                     .setUsageSetting(SubscriptionManager.USAGE_SETTING_DATA_CENTRIC)
@@ -474,14 +472,12 @@ public class SubscriptionDatabaseManagerTest extends TelephonyTest {
             ((Runnable) invocation.getArguments()[0]).run();
             return null;
         }).when(mSubscriptionDatabaseManagerCallback).invokeFromExecutor(any(Runnable.class));
-        mFeatureFlags = Mockito.mock(FeatureFlags.class);
 
         ((MockContentResolver) mContext.getContentResolver()).addProvider(
                 Telephony.Carriers.CONTENT_URI.getAuthority(), mSubscriptionProvider);
 
         doReturn(1).when(mUiccController).convertToPublicCardId(eq(FAKE_ICCID1));
         doReturn(2).when(mUiccController).convertToPublicCardId(eq(FAKE_ICCID2));
-        when(mFeatureFlags.supportPsimToEsimConversion()).thenReturn(true);
         mDatabaseManagerUT = new SubscriptionDatabaseManager(mContext, Looper.myLooper(),
                 mFeatureFlags, mSubscriptionDatabaseManagerCallback);
         logd("SubscriptionDatabaseManagerTest -Setup!");
@@ -1879,6 +1875,29 @@ public class SubscriptionDatabaseManagerTest extends TelephonyTest {
                 1, SimInfo.COLUMN_PHONE_NUMBER_SOURCE_IMS, FAKE_PHONE_NUMBER1);
         assertThat(mDatabaseManagerUT.getSubscriptionInfoInternal(1)
                 .getNumberFromIms()).isEqualTo(FAKE_PHONE_NUMBER1);
+    }
+
+    @Test
+    public void testUpdateNumberFromTs43() throws Exception {
+        // exception is expected if there is nothing in the database.
+        assertThrows(IllegalArgumentException.class,
+                () -> mDatabaseManagerUT.setNumberFromTs43(1, FAKE_PHONE_NUMBER2));
+
+        SubscriptionInfoInternal subInfo = insertSubscriptionAndVerify(FAKE_SUBSCRIPTION_INFO1);
+        mDatabaseManagerUT.setNumberFromTs43(subInfo.getSubscriptionId(), FAKE_PHONE_NUMBER2);
+        processAllMessages();
+
+        subInfo = new SubscriptionInfoInternal.Builder(subInfo)
+                .setNumberFromTs43(FAKE_PHONE_NUMBER2).build();
+        verifySubscription(subInfo);
+        verify(mSubscriptionDatabaseManagerCallback, times(2)).onSubscriptionChanged(eq(1));
+
+        assertThat(mDatabaseManagerUT.getSubscriptionProperty(
+                1, SimInfo.COLUMN_PHONE_NUMBER_SOURCE_TS43)).isEqualTo(FAKE_PHONE_NUMBER2);
+        mDatabaseManagerUT.setSubscriptionProperty(
+                1, SimInfo.COLUMN_PHONE_NUMBER_SOURCE_TS43, FAKE_PHONE_NUMBER1);
+        assertThat(mDatabaseManagerUT.getSubscriptionInfoInternal(1)
+                .getNumberFromTs43()).isEqualTo(FAKE_PHONE_NUMBER1);
     }
 
     @Test

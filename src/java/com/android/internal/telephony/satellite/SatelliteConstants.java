@@ -174,4 +174,6 @@ public class SatelliteConstants {
     })
     @Retention(RetentionPolicy.SOURCE)
     public @interface SatelliteSessionConnectType {}
+
+    public static final String DEFAULT_PLMN = "UNKNOWN";
 }

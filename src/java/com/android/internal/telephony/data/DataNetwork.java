@@ -86,7 +86,6 @@ import android.util.LocalLog;
 import android.util.SparseArray;
 import android.util.SparseIntArray;
 
-import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.telephony.CarrierSignalAgent;
 import com.android.internal.telephony.CommandsInterface;
 import com.android.internal.telephony.Phone;
@@ -772,6 +771,11 @@ public class DataNetwork extends StateMachine {
      */
     private boolean mLastKnownRoamingState;
 
+    /**
+     * {@code true} if the network is on satellite.
+     */
+    private boolean mSatellite;
+
     /** The reason that why setting up this data network is allowed. */
     @NonNull
     private final DataAllowedReason mDataAllowedReason;
@@ -1059,6 +1063,7 @@ public class DataNetwork extends StateMachine {
      * @param dataProfile The data profile for establishing the data network.
      * @param networkRequestList The initial network requests attached to this data network.
      * @param transport The initial transport of the data network.
+     * @param isSatellite {@code true} if the network is initially setup on satellite.
      * @param dataAllowedReason The reason that why setting up this data network is allowed.
      * @param callback The callback to receives data network state update.
      */
@@ -1067,6 +1072,7 @@ public class DataNetwork extends StateMachine {
             @NonNull DataProfile dataProfile,
             @NonNull NetworkRequestList networkRequestList,
             @TransportType int transport,
+            boolean isSatellite,
             @NonNull DataAllowedReason dataAllowedReason,
             @NonNull DataNetworkCallback callback) {
         super("DataNetwork", looper);
@@ -1112,8 +1118,16 @@ public class DataNetwork extends StateMachine {
         }
         mLastKnownDataNetworkType = getDataNetworkType();
         mLastKnownRoamingState = mPhone.getServiceState().getDataRoamingFromRegistration();
+        mSatellite = isSatellite;
         mDataAllowedReason = dataAllowedReason;
-        dataProfile.setLastSetupTimestamp(SystemClock.elapsedRealtime());
+
+        if (mFlags.enableTrafficDescriptorConnectionCapability()) {
+            mDataNetworkController.getDataProfileManager().setDataProfileUsedTime(dataProfile,
+                    SystemClock.elapsedRealtime());
+        } else {
+            dataProfile.setLastSetupTimestamp(SystemClock.elapsedRealtime());
+        }
+
         for (int transportType : mAccessNetworksManager.getAvailableTransports()) {
             mCid.put(transportType, INVALID_CID);
         }
@@ -1408,6 +1422,7 @@ public class DataNetwork extends StateMachine {
                     onCarrierConfigUpdated();
                     break;
                 case EVENT_SERVICE_STATE_CHANGED: {
+                    log("Service state changed. " + getNetworkRegistrationInfo());
                     int networkType = getDataNetworkType();
                     mDataCallSessionStats.onDrsOrRatChanged(networkType);
                     if (networkType != TelephonyManager.NETWORK_TYPE_UNKNOWN) {
@@ -1422,6 +1437,18 @@ public class DataNetwork extends StateMachine {
                         mLastKnownRoamingState = nri.getNetworkRegistrationState()
                                 == NetworkRegistrationInfo.REGISTRATION_STATE_ROAMING;
                     }
+
+                    if (nri != null && (nri.isInService() || nri.getRegistrationState()
+                            == NetworkRegistrationInfo.REGISTRATION_STATE_EMERGENCY)) {
+                        boolean isSatellite = (mTransport
+                                == AccessNetworkConstants.TRANSPORT_TYPE_WWAN)
+                                && nri.isNonTerrestrialNetwork();
+                        if (mSatellite != isSatellite) {
+                            mSatellite = isSatellite;
+                            logl("Switched to " + (mSatellite ? "Satellite" : "Cellular") + ".");
+                        }
+                    }
+
                     updateSuspendState();
                     updateNetworkCapabilities();
                     int accessNetwork = DataUtils.networkTypeToAccessNetworkType(networkType);
@@ -1668,12 +1695,12 @@ public class DataNetwork extends StateMachine {
 
             int apnTypeBitmask = mDataProfile.getApnSetting() != null
                     ? mDataProfile.getApnSetting().getApnTypeBitmask() : ApnSetting.TYPE_NONE;
-            mDataCallSessionStats.onSetupDataCall(apnTypeBitmask, isSatellite());
+            mDataCallSessionStats.onSetupDataCall(apnTypeBitmask, mSatellite);
 
             logl("setupData: accessNetwork="
-                    + AccessNetworkType.toString(accessNetwork) + ", " + mDataProfile
-                    + ", isModemRoaming=" + isModemRoaming + ", allowRoaming=" + allowRoaming
-                    + ", PDU session id=" + mPduSessionId + ", matchAllRuleAllowed="
+                    + AccessNetworkType.toString(accessNetwork) + ", isSatellite=" + mSatellite
+                    + ", " + mDataProfile + ", isModemRoaming=" + isModemRoaming + ", allowRoaming="
+                    + allowRoaming + ", PDU session id=" + mPduSessionId + ", matchAllRuleAllowed="
                     + matchAllRuleAllowed);
         }
 
@@ -2456,21 +2483,12 @@ public class DataNetwork extends StateMachine {
     }
 
     /**
-     * @return {@code true} if this is a satellite data network.
-     */
-    @VisibleForTesting
-    public boolean isSatellite() {
-        return mTransport == AccessNetworkConstants.TRANSPORT_TYPE_WWAN
-                && mPhone.getServiceState().isUsingNonTerrestrialNetwork();
-    }
-
-    /**
      * Update the network capabilities.
      */
     private void updateNetworkCapabilities() {
         final NetworkCapabilities.Builder builder = new NetworkCapabilities.Builder();
 
-        if (isSatellite() && mDataConfigManager.getForcedCellularTransportCapabilities().stream()
+        if (mSatellite && mDataConfigManager.getForcedCellularTransportCapabilities().stream()
                 .noneMatch(this::hasNetworkCapabilityInNetworkRequests)) {
             logd("transport satellite is set");
             builder.addTransportType(NetworkCapabilities.TRANSPORT_SATELLITE);
@@ -2697,7 +2715,7 @@ public class DataNetwork extends StateMachine {
         builder.setLinkUpstreamBandwidthKbps(mNetworkBandwidth.uplinkBandwidthKbps);
 
         // Configure the network as restricted/constrained for unrestricted satellite network.
-        if (isSatellite() && builder.build().hasCapability(
+        if (mSatellite && builder.build().hasCapability(
                 NetworkCapabilities.NET_CAPABILITY_NOT_RESTRICTED)) {
 
             int dataPolicy;
@@ -3846,7 +3864,7 @@ public class DataNetwork extends StateMachine {
             TelephonyNetworkRequest networkRequest = mAttachedNetworkRequestList.get(0);
             DataProfile dataProfile = mDataNetworkController.getDataProfileManager()
                     .getDataProfileForNetworkRequest(networkRequest, targetNetworkType,
-                            mPhone.getServiceState().isUsingNonTerrestrialNetwork(),
+                            mSatellite,
                             mDataNetworkController.isEsimBootStrapProvisioningActivated(), false);
             // Some carriers have different profiles between cellular and IWLAN. We need to
             // dynamically switch profile, but only when those profiles have same APN name.
@@ -4304,6 +4322,7 @@ public class DataNetwork extends StateMachine {
         pw.println("mSubId=" + mSubId);
         pw.println("mOnPreferredDataPhone=" + mOnPreferredDataPhone);
         pw.println("mTransport=" + AccessNetworkConstants.transportTypeToString(mTransport));
+        pw.println("isSatellite=" + mSatellite);
         pw.println("mLastKnownDataNetworkType=" + TelephonyManager
                 .getNetworkTypeName(mLastKnownDataNetworkType));
         pw.println("WWAN cid=" + mCid.get(AccessNetworkConstants.TRANSPORT_TYPE_WWAN));

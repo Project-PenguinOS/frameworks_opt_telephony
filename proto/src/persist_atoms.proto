@@ -780,6 +780,7 @@ message SatelliteSession {
     optional int32 max_inactivity_duration_sec = 20;
     optional int32 supported_connection_mode = 21;
     optional int32 session_connection_mode = 22;
+    optional string plmn = 23;
 }
 
 message SatelliteIncomingDatagram {
@@ -791,6 +792,7 @@ message SatelliteIncomingDatagram {
     optional bool is_ntn_only_carrier = 6;
     optional int32 supported_connection_mode = 7;
     optional int32 session_connection_mode = 8;
+  optional string plmn = 9;
 }
 
 message SatelliteOutgoingDatagram {
@@ -803,6 +805,7 @@ message SatelliteOutgoingDatagram {
     optional bool is_ntn_only_carrier = 7;
     optional int32 supported_connection_mode = 8;
     optional int32 session_connection_mode = 9;
+  optional string plmn = 10;
 }
 
 message SatelliteProvision {
@@ -829,6 +832,7 @@ message SatelliteSosMessageRecommender {
     optional bool is_ntn_only_carrier = 11;
     optional int32 supported_connection_mode = 12;
     optional int32 session_connection_mode = 13;
+    optional string plmn = 14;
 }
 
 message DataNetworkValidation {
@@ -878,6 +882,10 @@ message CarrierRoamingSatelliteSession {
     repeated int64 per_app_satellite_data_consumed_bytes = 34;
     optional int32 supported_connection_mode = 35;
     optional int32 session_connection_mode = 36;
+    optional string plmn = 37;
+    optional bool is_wifi_enabled = 38;
+    optional bool is_wfc_enabled = 39;
+    optional bool is_wfc_registered = 40;
 }
 
 message CarrierRoamingSatelliteControllerStats {

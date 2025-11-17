@@ -46,6 +46,7 @@ import android.telephony.SubscriptionInfo;
 import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyFrameworkInitializer;
 import android.telephony.TelephonyManager;
+import android.util.Log;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.telephony.flags.FeatureFlags;
@@ -70,19 +71,42 @@ public class SmsController extends ISmsImplBase {
     private final Context mContext;
     private final PackageManager mPackageManager;
     private final int mVendorApiLevel;
+    private static SmsController sInstance;
 
     @NonNull private final FeatureFlags mFlags;
+
+    /**
+     * Initialize the SmsController singleton instance and register to TelephonyServiceManager.
+     */
+    public static SmsController init(Context context, @NonNull FeatureFlags flags) {
+        synchronized (SmsController.class) {
+            if (sInstance == null) {
+                sInstance = new SmsController(context, flags);
+                ServiceRegisterer smsServiceRegisterer = TelephonyFrameworkInitializer
+                        .getTelephonyServiceManager()
+                        .getSmsServiceRegisterer();
+                if (smsServiceRegisterer.get() == null) {
+                    smsServiceRegisterer.register(sInstance);
+                }
+            } else {
+                Log.wtf(LOG_TAG, "SmsController already initialized");
+            }
+        }
+        return sInstance;
+    }
 
     @VisibleForTesting
     public SmsController(Context context, @NonNull FeatureFlags flags) {
         mContext = context;
         mFlags = flags;
         mPackageManager = context.getPackageManager();
-        ServiceRegisterer smsServiceRegisterer = TelephonyFrameworkInitializer
-                .getTelephonyServiceManager()
-                .getSmsServiceRegisterer();
-        if (smsServiceRegisterer.get() == null) {
-            smsServiceRegisterer.register(this);
+        if (!mFlags.publishTelephonyServicesAfterConstruction()) {
+            ServiceRegisterer smsServiceRegisterer = TelephonyFrameworkInitializer
+                    .getTelephonyServiceManager()
+                    .getSmsServiceRegisterer();
+            if (smsServiceRegisterer.get() == null) {
+                smsServiceRegisterer.register(this);
+            }
         }
 
         mVendorApiLevel = SystemProperties.getInt(

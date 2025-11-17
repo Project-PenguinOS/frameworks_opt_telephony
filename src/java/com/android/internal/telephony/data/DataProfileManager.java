@@ -17,6 +17,7 @@
 package com.android.internal.telephony.data;
 
 import android.annotation.CallbackExecutor;
+import android.annotation.ElapsedRealtimeLong;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.content.ContentResolver;
@@ -528,6 +529,26 @@ public class DataProfileManager extends Handler {
     }
 
     /**
+     * Set the timestamp of when the data profile was last used to set up a data network.
+     * This is used for sorting the data profiles so the least recently used ones can be
+     * prioritized.
+     *
+     * @param dataProfile The data profile that was used.
+     * @param timestamp The timestamp from {@link android.os.SystemClock#elapsedRealtime()}.
+     */
+    public void setDataProfileUsedTime(@NonNull DataProfile dataProfile,
+            @ElapsedRealtimeLong long timestamp) {
+        // Because in data profile manager, only the pre-built APN-based data profiles are stored..
+        // So this method is only meaningful when the data profile has APN in it.
+        for (DataProfile dp : mAllDataProfiles) {
+            if (dp.getApnSetting() != null
+                    && dp.getApnSetting().equals(dataProfile.getApnSetting())) {
+                dp.setLastSetupTimestamp(timestamp);
+            }
+        }
+    }
+
+    /**
      * Reload the latest preferred data profile from either database or the config. This is to
      * make sure the cached {@link #mPreferredDataProfile} is in-sync.
      *
@@ -707,13 +728,34 @@ public class DataProfileManager extends Handler {
             return null;
         }
 
+        if (!mFeatureFlags.enableTrafficDescriptorConnectionCapability() || mDataConfigManager
+                .isApnMatchedRequired()) {
+            if (trafficDescriptor.getDataNetworkName() == null
+                    && trafficDescriptor.getOsAppId() == null
+                    && trafficDescriptor.getConnectionCapability()
+                    != TrafficDescriptor.CONNECTION_CAPABILITY_UNKNOWN) {
+                return null;
+            }
+        }
+
         // Instead of building the data profile from APN setting and traffic descriptor on-the-fly,
         // find the existing one from mAllDataProfiles so the last-setup timestamp can be retained.
-        // Only create a new one when it can't be found.
-        for (DataProfile dataProfile : mAllDataProfiles) {
-            if (Objects.equals(apnSetting, dataProfile.getApnSetting())
-                    && trafficDescriptor.equals(dataProfile.getTrafficDescriptor())) {
-                return dataProfile;
+        // Note that the pre-built data profile in mAllDataProfiles all have connection capability
+        // unknown, so we need to apply the connection capability to it.
+        if (mFeatureFlags.enableTrafficDescriptorConnectionCapability()) {
+            for (DataProfile dataProfile : mAllDataProfiles) {
+                if (Objects.equals(apnSetting, dataProfile.getApnSetting())) {
+                    return new DataProfile.Builder(dataProfile)
+                            .setTrafficDescriptor(trafficDescriptor)
+                            .build();
+                }
+            }
+        } else {
+            for (DataProfile dataProfile : mAllDataProfiles) {
+                if (Objects.equals(apnSetting, dataProfile.getApnSetting())
+                        && trafficDescriptor.equals(dataProfile.getTrafficDescriptor())) {
+                    return dataProfile;
+                }
             }
         }
 

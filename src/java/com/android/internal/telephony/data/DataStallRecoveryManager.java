@@ -859,8 +859,7 @@ public class DataStallRecoveryManager extends Handler {
             return false;
         }
 
-        if (mFeatureFlags.inactiveDataNetworkIsNotStalled()
-                && mPhone.getSubId() != mActiveDataSubId) {
+        if (mPhone.getSubId() != mActiveDataSubId) {
             logl("skip data stall recovery for non-active data connection");
             return false;
         }

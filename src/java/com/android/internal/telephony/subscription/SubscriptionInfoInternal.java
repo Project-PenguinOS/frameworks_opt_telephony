@@ -416,6 +416,12 @@ public class SubscriptionInfoInternal {
     private final String mNumberFromIms;
 
     /**
+     * The phone number retrieved from TS43.
+     */
+    @NonNull
+    private final String mNumberFromTs43;
+
+    /**
      * The port index of the Uicc card.
      */
     private final int mPortIndex;
@@ -597,6 +603,7 @@ public class SubscriptionInfoInternal {
         this.mIsNrAdvancedCallingEnabled = builder.mIsNrAdvancedCallingEnabled;
         this.mNumberFromCarrier = builder.mNumberFromCarrier;
         this.mNumberFromIms = builder.mNumberFromIms;
+        this.mNumberFromTs43 = builder.mNumberFromTs43;
         this.mPortIndex = builder.mPortIndex;
         this.mUsageSetting = builder.mUsageSetting;
         this.mLastUsedTPMessageReference = builder.mLastUsedTPMessageReference;
@@ -1184,6 +1191,14 @@ public class SubscriptionInfoInternal {
     }
 
     /**
+     * @return Get the phone number retrieved from TS43.
+     */
+    @NonNull
+    public String getNumberFromTs43() {
+        return mNumberFromTs43;
+    }
+
+    /**
      * @return The port index of the SIM card which contains the subscription.
      */
     public int getPortIndex() {
@@ -1477,6 +1492,7 @@ public class SubscriptionInfoInternal {
                 + " deviceToDeviceStatusSharingContacts=" + mDeviceToDeviceStatusSharingContacts
                 + " numberFromCarrier=" + Rlog.pii(TelephonyUtils.IS_DEBUGGABLE, mNumberFromCarrier)
                 + " numberFromIms=" + Rlog.pii(TelephonyUtils.IS_DEBUGGABLE, mNumberFromIms)
+                + " numberFromTs43=" + Rlog.pii(TelephonyUtils.IS_DEBUGGABLE, mNumberFromTs43)
                 + " userId=" + mUserId
                 + " isSatelliteEnabled=" + mIsSatelliteEnabled
                 + " satellite_attach_enabled_for_carrier=" + mIsSatelliteAttachEnabledForCarrier
@@ -1551,6 +1567,7 @@ public class SubscriptionInfoInternal {
                 that.mAllowedNetworkTypesForReasons) && mDeviceToDeviceStatusSharingContacts.equals(
                 that.mDeviceToDeviceStatusSharingContacts) && mNumberFromCarrier.equals(
                 that.mNumberFromCarrier) && mNumberFromIms.equals(that.mNumberFromIms)
+                && mNumberFromTs43.equals(that.mNumberFromTs43)
                 && mIsSatelliteAttachEnabledForCarrier == that.mIsSatelliteAttachEnabledForCarrier
                 && mIsOnlyNonTerrestrialNetwork == that.mIsOnlyNonTerrestrialNetwork
                 && mServiceCapabilities == that.mServiceCapabilities
@@ -1595,8 +1612,8 @@ public class SubscriptionInfoInternal {
                 mIsCrossSimCallingEnabled, mAllowedNetworkTypesForReasons,
                 mDeviceToDeviceStatusSharingPreference, mIsVoImsOptInEnabled,
                 mDeviceToDeviceStatusSharingContacts, mIsNrAdvancedCallingEnabled,
-                mNumberFromCarrier,
-                mNumberFromIms, mPortIndex, mUsageSetting, mLastUsedTPMessageReference, mUserId,
+                mNumberFromCarrier, mNumberFromIms, mNumberFromTs43,
+                mPortIndex, mUsageSetting, mLastUsedTPMessageReference, mUserId,
                 mIsSatelliteEnabled, mCardId, mIsGroupDisabled,
                 mIsSatelliteAttachEnabledForCarrier, mIsOnlyNonTerrestrialNetwork,
                 mServiceCapabilities, mTransferStatus, mIsSatelliteEntitlementStatus,
@@ -1941,6 +1958,12 @@ public class SubscriptionInfoInternal {
         private String mNumberFromIms = "";
 
         /**
+         * The phone number retrieved from TS43.
+         */
+        @NonNull
+        private String mNumberFromTs43 = "";
+
+        /**
          * the port index of the Uicc card.
          */
         private int mPortIndex = TelephonyManager.INVALID_PORT_INDEX;
@@ -2124,6 +2147,7 @@ public class SubscriptionInfoInternal {
             mIsNrAdvancedCallingEnabled = info.mIsNrAdvancedCallingEnabled;
             mNumberFromCarrier = info.mNumberFromCarrier;
             mNumberFromIms = info.mNumberFromIms;
+            mNumberFromTs43 = info.mNumberFromTs43;
             mPortIndex = info.mPortIndex;
             mUsageSetting = info.mUsageSetting;
             mLastUsedTPMessageReference = info.getLastUsedTPMessageReference();
@@ -2949,6 +2973,19 @@ public class SubscriptionInfoInternal {
         public Builder setNumberFromIms(@NonNull String numberFromIms) {
             Objects.requireNonNull(numberFromIms);
             mNumberFromIms = numberFromIms;
+            return this;
+        }
+
+        /**
+         * Set the phone number retrieved from TS43.
+         *
+         * @param numberFromTs43 The phone number retrieved from TS43.
+         * @return The builder.
+         */
+        @NonNull
+        public Builder setNumberFromTs43(@NonNull String numberFromTs43) {
+            Objects.requireNonNull(numberFromTs43);
+            mNumberFromTs43 = numberFromTs43;
             return this;
         }
 

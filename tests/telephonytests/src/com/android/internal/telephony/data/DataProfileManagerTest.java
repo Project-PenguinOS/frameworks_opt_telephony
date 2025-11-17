@@ -967,7 +967,7 @@ public class DataProfileManagerTest extends TelephonyTest {
                 tnr, TelephonyManager.NETWORK_TYPE_LTE, false, false, false);
         assertThat(dataProfile.getApnSetting().getApnName()).isEqualTo(GENERAL_PURPOSE_APN);
         logd("Set setLastSetupTimestamp on " + dataProfile);
-        dataProfile.setLastSetupTimestamp(SystemClock.elapsedRealtime());
+        mDataProfileManagerUT.setDataProfileUsedTime(dataProfile, SystemClock.elapsedRealtime());
 
         // See if another one can be returned.
         dataProfile = mDataProfileManagerUT.getDataProfileForNetworkRequest(

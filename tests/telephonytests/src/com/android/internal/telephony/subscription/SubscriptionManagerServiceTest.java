@@ -505,6 +505,22 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
                 () -> mSubscriptionManagerServiceUT.setPhoneNumber(1,
                         SubscriptionManager.PHONE_NUMBER_SOURCE_CARRIER, FAKE_PHONE_NUMBER2,
                         CALLING_PACKAGE, CALLING_FEATURE));
+
+        // Resume Telephony feature for the next test
+        doReturn(true).when(mPackageManager).hasSystemFeature(
+                eq(PackageManager.FEATURE_TELEPHONY_SUBSCRIPTION));
+
+        // Test for PHONE_NUMBER_SOURCE_TS43
+        String phoneNumberFromTs43 = "1234567890";
+
+        mSubscriptionManagerServiceUT.setPhoneNumber(1,
+                SubscriptionManager.PHONE_NUMBER_SOURCE_TS43, phoneNumberFromTs43,
+                CALLING_PACKAGE, CALLING_FEATURE);
+        processAllMessages();
+
+        SubscriptionInfoInternal subInfo = mSubscriptionManagerServiceUT
+                .getSubscriptionInfoInternal(1);
+        assertThat(subInfo.getNumberFromTs43()).isEqualTo(phoneNumberFromTs43);
     }
 
     @Test
@@ -1833,6 +1849,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
 
         String phoneNumberFromCarrier = "8675309";
         String phoneNumberFromUicc = "1112223333";
+        String phoneNumberFromTs43 = "5551234";
         String phoneNumberFromIms = "5553466";
         String phoneNumberFromPhoneObject = "8001234567";
 
@@ -1843,6 +1860,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
                         .setNumberFromCarrier(phoneNumberFromCarrier)
                         .setNumber(phoneNumberFromUicc)
                         .setNumberFromIms(phoneNumberFromIms)
+                        .setNumberFromTs43(phoneNumberFromTs43)
                         .build();
         int subId = insertSubscription(multiNumberSubInfo);
 
@@ -1853,6 +1871,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
                 new SubscriptionInfoInternal.Builder(multiNumberSubInfo)
                         .setNumberFromCarrier("")
                         .setNumber("")
+                        .setNumberFromTs43(phoneNumberFromTs43)
                         .setNumberFromIms(phoneNumberFromIms)
                         .build();
         subId = insertSubscription(multiNumberSubInfo);
@@ -1861,6 +1880,18 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
                 subId, CALLING_PACKAGE, CALLING_FEATURE)).isEqualTo(phoneNumberFromPhoneObject);
 
         doReturn("").when(mPhone).getLine1Number();
+
+        assertThat(mSubscriptionManagerServiceUT.getPhoneNumberFromFirstAvailableSource(
+                subId, CALLING_PACKAGE, CALLING_FEATURE)).isEqualTo(phoneNumberFromTs43);
+
+        multiNumberSubInfo =
+                new SubscriptionInfoInternal.Builder(multiNumberSubInfo)
+                        .setNumberFromCarrier("")
+                        .setNumber("")
+                        .setNumberFromTs43("")
+                        .setNumberFromIms(phoneNumberFromIms)
+                        .build();
+        subId = insertSubscription(multiNumberSubInfo);
 
         doReturn(mTelephonyManager).when(mTelephonyManager).createForSubscriptionId(anyInt());
         doReturn(true).when(mTelephonyManager).isImsRegistered();
@@ -1878,15 +1909,17 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
         String phoneNumberFromCarrier = "";
         String phoneNumberFromUicc = "";
         String phoneNumberFromPhoneObject = "";
+        String phoneNumberFromTs43 = "";
         String phoneNumberFromIms = "5553466";
 
-        // Set up a scenario where the number is unavailable from the phone or UICC,
+        // Set up a scenario where the number is unavailable from the phone, UICC or TS43
         // but is available from IMS.
         doReturn(phoneNumberFromPhoneObject).when(mPhone).getLine1Number();
         SubscriptionInfoInternal multiNumberSubInfo =
                 new SubscriptionInfoInternal.Builder(FAKE_SUBSCRIPTION_INFO1)
                         .setNumberFromCarrier(phoneNumberFromCarrier)
                         .setNumber(phoneNumberFromUicc)
+                        .setNumberFromTs43(phoneNumberFromTs43)
                         .setNumberFromIms(phoneNumberFromIms)
                         .build();
         int subId = insertSubscription(multiNumberSubInfo);
@@ -2682,6 +2715,12 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
                 mSubscriptionManagerServiceUT.getPhoneNumber(
                         SubscriptionManager.DEFAULT_SUBSCRIPTION_ID,
                         SubscriptionManager.PHONE_NUMBER_SOURCE_IMS,
+                        CALLING_PACKAGE,
+                        CALLING_FEATURE)).isEqualTo(FAKE_PHONE_NUMBER1);
+        assertThat(
+                mSubscriptionManagerServiceUT.getPhoneNumber(
+                        SubscriptionManager.DEFAULT_SUBSCRIPTION_ID,
+                        SubscriptionManager.PHONE_NUMBER_SOURCE_TS43,
                         CALLING_PACKAGE,
                         CALLING_FEATURE)).isEqualTo(FAKE_PHONE_NUMBER1);
     }

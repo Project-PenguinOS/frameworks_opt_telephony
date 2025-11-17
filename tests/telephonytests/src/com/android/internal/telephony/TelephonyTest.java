@@ -569,8 +569,11 @@ public abstract class TelephonyTest {
                 .unsupportedNetworkCapabilitiesPerCarrier();
         lenient().doReturn(true).when(mFeatureFlags).macroBasedOpportunisticNetworks();
         lenient().doReturn(true).when(mFeatureFlags).exposeOpptAutoDataSwitchPolicies();
+        lenient().doReturn(true).when(mFeatureFlags).publishTelephonyServicesAfterConstruction();
         lenient().doReturn(true).when(mFeatureFlags)
                 .enableTrafficDescriptorConnectionCapability();
+        lenient().doReturn(true).when(mFeatureFlags).supportPsimToEsimConversion();
+        lenient().doReturn(true).when(mFeatureFlags).getPhoneNumberTs43Api();
 
         WorkerThread.reset();
         TelephonyManager.disableServiceHandleCaching();
@@ -913,6 +916,7 @@ public abstract class TelephonyTest {
                 .when(mDataConfigManager).getAnomalyImsReleaseRequestThreshold();
         lenient().doReturn(new DataConfigManager.EventFrequency(300000, 12))
                 .when(mDataConfigManager).getAnomalyNetworkUnwantedThreshold();
+        lenient().doReturn(true).when(mDataConfigManager).isApnMatchedRequired();
 
         // CellularNetworkValidator
         lenient().doReturn(SubscriptionManager.INVALID_PHONE_INDEX)
