@@ -2411,7 +2411,7 @@ public class SubscriptionManagerService extends ISub.Stub {
         } else if (subscriptionType == SubscriptionManager.SUBSCRIPTION_TYPE_REMOTE_SIM) {
             // We only support one remote SIM at this point, so use -1. This needs to be revisited
             // if we plan to support multiple remote SIMs in the future.
-            slotIndex = SubscriptionManager.INVALID_SIM_SLOT_INDEX;
+            slotIndex = SubscriptionManager.SLOT_INDEX_FOR_REMOTE_SIM_SUB;
         } else {
             throw new IllegalArgumentException("Invalid subscription type " + subscriptionType);
         }
