@@ -246,6 +246,7 @@ flag {
 # OWNER=shilpasatish TARGET=26Q2
 flag {
   name: "satellite_suspend"
+  is_exported: true
   namespace: "telephony"
   description: "Enables the satellite network suspend API."
   bug: "460876921"
