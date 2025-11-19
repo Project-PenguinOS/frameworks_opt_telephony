@@ -790,7 +790,7 @@ public class DatagramDispatcher extends Handler {
                         .setSessionConnectionMode(SatelliteController.getInstance()
                                 .getSessionConnectTypeMetrics())
                         .setPlmn(SatelliteController.getInstance()
-                                .getSatellitePhone().getOperatorNumeric())
+                                .getSatellitePlmnForMetrics())
                         .build());
         if (resultCode == SatelliteManager.SATELLITE_RESULT_SUCCESS) {
             mControllerMetricsStats.reportOutgoingDatagramSuccessCount(argument.datagramType,
