@@ -309,6 +309,7 @@ public class ImsPhone extends ImsPhoneBase {
 
     // The roaming state if currently in service, or the last roaming state when was in service.
     private boolean mLastKnownRoamingState = false;
+    private boolean mLastKnownIsUsingNtnState = false;
 
     private boolean mIsInImsEcm = false;
 
@@ -2453,8 +2454,10 @@ public class ImsPhone extends ImsPhoneBase {
             return;
         }
         boolean newRoamingState = ss.getRoaming();
+        boolean newIsUsingNtnState = ss.isUsingNonTerrestrialNetwork();
         // Do not recalculate if there is no change to state.
-        if (mLastKnownRoamingState == newRoamingState) {
+        if (mLastKnownRoamingState == newRoamingState
+                && mLastKnownIsUsingNtnState == newIsUsingNtnState) {
             return;
         }
         boolean isInService = (ss.getState() == ServiceState.STATE_IN_SERVICE
@@ -2477,8 +2480,18 @@ public class ImsPhone extends ImsPhoneBase {
             if (configManager != null && CarrierConfigManager.isConfigForIdentifiedCarrier(
                     configManager.getConfigForSubId(getSubId()))) {
                 ImsManager imsManager = mImsManagerFactory.create(mContext, mPhoneId);
-                imsManager.setWfcMode(imsManager.getWfcMode(newRoamingState), newRoamingState);
+                boolean shouldOverrideWfcRoamingModeWhileUsingNtn =
+                        imsManager.shouldOverrideWfcRoamingModeWhileUsingNTN();
+                logd("updateRoamingState overrideWfcRoamingModeWhileUsingNtn= "
+                        + shouldOverrideWfcRoamingModeWhileUsingNtn);
+                if (!shouldOverrideWfcRoamingModeWhileUsingNtn) {
+                    // If carrier wants to override wfc roaming preference
+                    // when device is connected to NTN, then do not store wfc roaming mode
+                    // in siminfo DB else store it.
+                    imsManager.setWfcMode(imsManager.getWfcMode(newRoamingState), newRoamingState);
+                }
                 mLastKnownRoamingState = newRoamingState;
+                mLastKnownIsUsingNtnState = newIsUsingNtnState;
             }
         } else {
             if (DBG) logd("updateRoamingState postponed: " + newRoamingState);
@@ -3101,6 +3114,7 @@ public class ImsPhone extends ImsPhoneBase {
         pw.println("  mImsMmTelRegistrationState = "
                 + mImsMmTelRegistrationHelper.getImsRegistrationState());
         pw.println("  mLastKnownRoamingState = " + mLastKnownRoamingState);
+        pw.println(" mLastKnownIsUsingNtn = " + mLastKnownIsUsingNtnState);
         pw.println("  mSsnRegistrants = " + mSsnRegistrants);
         pw.println(" Registration Log:");
         pw.increaseIndent();

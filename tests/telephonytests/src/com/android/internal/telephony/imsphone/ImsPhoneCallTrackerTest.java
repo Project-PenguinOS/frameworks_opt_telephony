@@ -2975,5 +2975,14 @@ public class ImsPhoneCallTrackerTest extends TelephonyTest {
         verify(mImsPhoneConnection).onConferenceMergeFailed();
         verify(mImsPhoneConnection).handleMergeComplete();
     }
+
+    @Test
+    public void testCarrierRoamingNtnListener() {
+        doReturn(mServiceState).when(mTelephonyManager).getServiceState();
+        doReturn(true).when(mServiceState).getRoaming();
+
+        mCTUT.getCarrierRoamingNtnListener().onCarrierRoamingNtnModeChanged(true);
+        verify(mImsManager, times(1)).setWfcModeInternal(anyInt());
+    }
 }
 
