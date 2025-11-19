@@ -117,11 +117,11 @@ public class SetUpCallCommandHandler extends Handler {
 
         Bundle extras = new Bundle();
         extras.putString(TelecomManager.EXTRA_CALL_SUBJECT, settings.callMsg.text);
-        TelecomManager.from(mContext).addNewUnknownCall(handle, extras);
+        mContext.getSystemService(TelecomManager.class).addNewUnknownCall(handle, extras);
     }
 
     private boolean canDial(CatCmdMessage.SetUpCallType cmdType) {
-        final TelecomManager telecomManager = TelecomManager.from(mContext);
+        final TelecomManager telecomManager = mContext.getSystemService(TelecomManager.class);
         final CallManager callManager = CallManager.getInstance();
 
         if (telecomManager.isInEmergencyCall()) {
