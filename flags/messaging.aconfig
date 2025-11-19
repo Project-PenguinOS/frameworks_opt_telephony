@@ -45,3 +45,19 @@ flag {
   description: "This flag controls the redirection of SMS_DELIVER AND WAP_PUSH_DELIVER broadcasts to the MAIN user."
   bug: "314321617"
 }
+
+# OWNER=prajogo TARGET=26Q2
+flag {
+  name: "redact_webotp_sms"
+  namespace: "telephony"
+  description: "Redact WebOTP SMS messages from untrusted packages"
+  bug: "437043173"
+}
+
+# OWNER=prajogo TARGET=26Q2
+flag {
+  name: "redact_generic_otp_sms"
+  namespace: "telephony"
+  description: "Redact Generic OTP SMS messages from untrusted packages"
+  bug: "437043173"
+}

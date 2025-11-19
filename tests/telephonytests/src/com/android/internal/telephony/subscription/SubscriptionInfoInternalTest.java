@@ -97,6 +97,7 @@ public class SubscriptionInfoInternalTest {
                             SubscriptionDatabaseManagerTest.FAKE_CONTACT1)
                     .setNrAdvancedCallingEnabled(1)
                     .setNumberFromCarrier(SubscriptionDatabaseManagerTest.FAKE_PHONE_NUMBER1)
+                    .setNumberFromTs43(SubscriptionDatabaseManagerTest.FAKE_PHONE_NUMBER1)
                     .setNumberFromIms(SubscriptionDatabaseManagerTest.FAKE_PHONE_NUMBER1)
                     .setPortIndex(0)
                     .setUsageSetting(SubscriptionManager.USAGE_SETTING_DEFAULT)
@@ -243,6 +244,8 @@ public class SubscriptionInfoInternalTest {
                 SubscriptionDatabaseManagerTest.FAKE_CONTACT1);
         assertThat(mSubInfo.getNrAdvancedCallingEnabled()).isEqualTo(1);
         assertThat(mSubInfo.getNumberFromCarrier()).isEqualTo(
+                SubscriptionDatabaseManagerTest.FAKE_PHONE_NUMBER1);
+        assertThat(mSubInfo.getNumberFromTs43()).isEqualTo(
                 SubscriptionDatabaseManagerTest.FAKE_PHONE_NUMBER1);
         assertThat(mSubInfo.getNumberFromIms()).isEqualTo(
                 SubscriptionDatabaseManagerTest.FAKE_PHONE_NUMBER1);

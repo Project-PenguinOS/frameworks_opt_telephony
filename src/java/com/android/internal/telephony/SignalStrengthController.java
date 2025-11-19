@@ -477,9 +477,13 @@ public class SignalStrengthController extends Handler {
                                 (lteMeasurementEnabled & CellSignalStrengthLte.USE_RSSNR) != 0));
             }
 
-            int nrMeasurementEnabled = mCarrierConfig.getInt(CarrierConfigManager
-                    .KEY_PARAMETERS_USE_FOR_5G_NR_SIGNAL_BAR_INT, CellSignalStrengthNr.USE_SSRSRP);
-            int[] nrSsrsrpThresholds = mCarrierConfig.getIntArray(
+            int nrMeasurementEnabled = mCarrierConfig.getInt(isUsingNonTerrestrialNetwork()
+                    ? CarrierConfigManager.KEY_PARAMETERS_USE_FOR_NTN_5G_NR_SIGNAL_BAR_INT
+                    : CarrierConfigManager.KEY_PARAMETERS_USE_FOR_5G_NR_SIGNAL_BAR_INT,
+                    CellSignalStrengthNr.USE_SSRSRP);
+
+            int[] nrSsrsrpThresholds = mCarrierConfig.getIntArray(isUsingNonTerrestrialNetwork()
+                    ? CarrierConfigManager.KEY_NTN_5G_NR_SSRSRP_THRESHOLDS_INT_ARRAY :
                     CarrierConfigManager.KEY_5G_NR_SSRSRP_THRESHOLDS_INT_ARRAY);
             if (nrSsrsrpThresholds != null) {
                 signalThresholdInfos.add(
@@ -491,7 +495,8 @@ public class SignalStrengthController extends Handler {
                                 (nrMeasurementEnabled & CellSignalStrengthNr.USE_SSRSRP) != 0));
             }
 
-            int[] nrSsrsrqThresholds = mCarrierConfig.getIntArray(
+            int[] nrSsrsrqThresholds = mCarrierConfig.getIntArray(isUsingNonTerrestrialNetwork()
+                    ? CarrierConfigManager.KEY_NTN_5G_NR_SSRSRQ_THRESHOLDS_INT_ARRAY :
                     CarrierConfigManager.KEY_5G_NR_SSRSRQ_THRESHOLDS_INT_ARRAY);
             if (nrSsrsrqThresholds != null) {
                 signalThresholdInfos.add(
@@ -503,7 +508,8 @@ public class SignalStrengthController extends Handler {
                                 (nrMeasurementEnabled & CellSignalStrengthNr.USE_SSRSRQ) != 0));
             }
 
-            int[] nrSssinrThresholds = mCarrierConfig.getIntArray(
+            int[] nrSssinrThresholds = mCarrierConfig.getIntArray(isUsingNonTerrestrialNetwork()
+                    ? CarrierConfigManager.KEY_NTN_5G_NR_SSSINR_THRESHOLDS_INT_ARRAY :
                     CarrierConfigManager.KEY_5G_NR_SSSINR_THRESHOLDS_INT_ARRAY);
             if (nrSssinrThresholds != null) {
                 signalThresholdInfos.add(
