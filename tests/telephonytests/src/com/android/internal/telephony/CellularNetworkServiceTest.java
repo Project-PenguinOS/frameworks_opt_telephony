@@ -31,6 +31,7 @@ import android.telephony.AccessNetworkConstants;
 import android.telephony.CellIdentityGsm;
 import android.telephony.CellIdentityLte;
 import android.telephony.CellIdentityWcdma;
+import android.telephony.DataSpecificRegistrationInfo;
 import android.telephony.INetworkService;
 import android.telephony.INetworkServiceCallback;
 import android.telephony.LteVopsSupportInfo;
@@ -558,5 +559,58 @@ public class CellularNetworkServiceTest extends TelephonyTest {
         } catch (RemoteException e) {
             assertTrue(false);
         }
+    }
+
+    @Test
+    public void testGetNetworkRegistrationInfoWithNtn() throws RemoteException {
+        logd("testGetNetworkRegistrationInfoWithNtn");
+        final int domain = NetworkRegistrationInfo.DOMAIN_PS;
+        final int regState = NetworkRegistrationInfo.REGISTRATION_STATE_HOME;
+        final int radioTech = ServiceState.RIL_RADIO_TECHNOLOGY_LTE;
+        final boolean isNtn = true;
+
+        logd("Create an AIDL HAL RegStateResult object and set the NTN flag");
+        android.hardware.radio.network.RegStateResult regResult =
+                new android.hardware.radio.network.RegStateResult();
+        regResult.regState = regState;
+        regResult.rat = radioTech;
+        regResult.reasonForDenial = 0;
+        regResult.cellIdentity = new android.hardware.radio.network.CellIdentity();
+        regResult.registeredPlmn = "";
+        regResult.isNonTerrestrialNetwork = isNtn;
+        regResult.accessTechnologySpecificInfo =
+                new android.hardware.radio.network.AccessTechnologySpecificInfo();
+        regResult.accessTechnologySpecificInfo.eutranInfo(
+                new android.hardware.radio.network.EutranRegistrationInfo());
+
+        logd("Set the mock response created above in SimulatedCommands");
+        mSimulatedCommands.setDataRegStateResult(regResult);
+
+        logd("Call the method of the CellularNetworkService under test");
+        mBinder.requestNetworkRegistrationInfo(0, domain, mCallback);
+
+        logd("Create the expected NetworkRegistrationInfo object using a builder");
+        NetworkRegistrationInfo.Builder expectedStateBuilder = new NetworkRegistrationInfo.Builder()
+                .setDomain(domain)
+                .setTransportType(AccessNetworkConstants.TRANSPORT_TYPE_WWAN)
+                .setRegistrationState(regState)
+                .setAccessNetworkTechnology(TelephonyManager.NETWORK_TYPE_LTE)
+                .setRejectCause(regResult.reasonForDenial)
+                .setEmergencyOnly(false)
+                .setAvailableServices(Arrays.asList(NetworkRegistrationInfo.SERVICE_TYPE_DATA))
+                .setCellIdentity(RILUtils.convertHalCellIdentity(regResult.cellIdentity))
+                .setRegisteredPlmn(regResult.registeredPlmn)
+                .setIsNonTerrestrialNetwork(isNtn);
+
+        logd("Build expected result with default maxDataCalls=16.");
+        int maxDataCalls = 16;
+        DataSpecificRegistrationInfo dsri =
+                new DataSpecificRegistrationInfo.Builder(maxDataCalls).build();
+        expectedStateBuilder.setDataSpecificInfo(dsri);
+        NetworkRegistrationInfo expectedState = expectedStateBuilder.build();
+
+        logd("Verify the callback result matches the expected one");
+        verify(mCallback, timeout(1000)).onRequestNetworkRegistrationInfoComplete(
+                eq(NetworkServiceCallback.RESULT_SUCCESS), eq(expectedState));
     }
 }

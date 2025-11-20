@@ -604,14 +604,14 @@ public class SatelliteServiceUtils {
     public static boolean isSatellitePlmn(int subId, @NonNull ServiceState serviceState) {
         List<String> satellitePlmnList = new ArrayList<>(
                 SatelliteController.getInstance().getAllPlmnSet());
-        if (satellitePlmnList.isEmpty()) {
-            logd("isSatellitePlmn: satellitePlmnList is empty");
-            return false;
-        }
 
         for (NetworkRegistrationInfo nri :
                 serviceState.getNetworkRegistrationInfoListForTransportType(
                         AccessNetworkConstants.TRANSPORT_TYPE_WWAN)) {
+            if (nri.isNonTerrestrialNetwork()) {
+                logd("isSatellitePlmn: nri.isNonTerrestrialNetwork() is true");
+                return true;
+            }
             String registeredPlmn = nri.getRegisteredPlmn();
             String mccmnc = getMccMnc(nri);
             if (TextUtils.isEmpty(registeredPlmn) && TextUtils.isEmpty(mccmnc)) {

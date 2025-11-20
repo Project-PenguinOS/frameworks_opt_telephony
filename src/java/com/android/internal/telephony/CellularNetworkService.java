@@ -477,6 +477,7 @@ public class CellularNetworkService extends NetworkService {
                     RILUtils.convertHalCellIdentity(regResult.cellIdentity);
             final String rplmn = regResult.registeredPlmn;
             final int reasonForDenial = regResult.reasonForDenial;
+            final boolean isNonTerrestrialNetwork = regResult.isNonTerrestrialNetwork;
 
             if (regState == NetworkRegistrationInfo.REGISTRATION_STATE_DENIED
                     && reasonForDenial
@@ -557,6 +558,7 @@ public class CellularNetworkService extends NetworkService {
                         .setAvailableServices(availableServices)
                         .setCellIdentity(cellIdentity)
                         .setRegisteredPlmn(rplmn)
+                        .setIsNonTerrestrialNetwork(isNonTerrestrialNetwork)
                         .setDataSpecificInfo(
                                 new DataSpecificRegistrationInfo.Builder(MAX_DATA_CALLS)
                                      .setDcNrRestricted(isDcNrRestricted)

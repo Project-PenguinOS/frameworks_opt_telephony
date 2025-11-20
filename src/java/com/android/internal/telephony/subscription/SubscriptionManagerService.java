@@ -95,6 +95,7 @@ import android.util.Base64;
 import android.util.EventLog;
 import android.util.IndentingPrintWriter;
 import android.util.LocalLog;
+import android.util.Log;
 
 import com.android.internal.R;
 import com.android.internal.annotations.VisibleForTesting;
@@ -503,6 +504,25 @@ public class SubscriptionManagerService extends ISub.Stub {
         public void onDefaultDataSubscriptionChanged(int subId) {}
     }
 
+    /** Initialize the singleton instance and register to TelephonyServiceManager */
+    public static SubscriptionManagerService init(@NonNull Context context, @NonNull Looper looper,
+            @NonNull FeatureFlags featureFlags) {
+        synchronized (SubscriptionManagerService.class) {
+            if (sInstance == null) {
+                sInstance = new SubscriptionManagerService(context, looper, featureFlags);
+                TelephonyServiceManager.ServiceRegisterer serviceRegisterer =
+                        TelephonyFrameworkInitializer.getTelephonyServiceManager()
+                                .getSubscriptionServiceRegisterer();
+                if (serviceRegisterer.get() == null) {
+                    serviceRegisterer.register(sInstance);
+                }
+            } else {
+                Log.wtf(LOG_TAG, "SubscriptionManagerService is already initialized.");
+            }
+        }
+        return sInstance;
+    }
+
     /**
      * The constructor
      *
@@ -653,12 +673,14 @@ public class SubscriptionManagerService extends ISub.Stub {
                 getDefaultSmsSubId());
         updateDefaultSubId();
 
-        TelephonyServiceManager.ServiceRegisterer subscriptionServiceRegisterer =
-                TelephonyFrameworkInitializer
-                        .getTelephonyServiceManager()
-                        .getSubscriptionServiceRegisterer();
-        if (subscriptionServiceRegisterer.get() == null) {
-            subscriptionServiceRegisterer.register(this);
+        if (!mFeatureFlags.publishTelephonyServicesAfterConstruction()) {
+            TelephonyServiceManager.ServiceRegisterer subscriptionServiceRegisterer =
+                    TelephonyFrameworkInitializer
+                            .getTelephonyServiceManager()
+                            .getSubscriptionServiceRegisterer();
+            if (subscriptionServiceRegisterer.get() == null) {
+                subscriptionServiceRegisterer.register(this);
+            }
         }
 
         mHandler.post(() -> {
@@ -3943,6 +3965,7 @@ public class SubscriptionManagerService extends ISub.Stub {
      * @see SubscriptionManager#PHONE_NUMBER_SOURCE_UICC
      * @see SubscriptionManager#PHONE_NUMBER_SOURCE_CARRIER
      * @see SubscriptionManager#PHONE_NUMBER_SOURCE_IMS
+     * @see SubscriptionManager#PHONE_NUMBER_SOURCE_TS43
      */
     @Override
     @NonNull
@@ -3996,7 +4019,9 @@ public class SubscriptionManagerService extends ISub.Stub {
     private void checkPhoneNumberSource(int source) {
         if (source == SubscriptionManager.PHONE_NUMBER_SOURCE_UICC
                 || source == SubscriptionManager.PHONE_NUMBER_SOURCE_CARRIER
-                || source == SubscriptionManager.PHONE_NUMBER_SOURCE_IMS) {
+                || source == SubscriptionManager.PHONE_NUMBER_SOURCE_IMS
+                || (mFeatureFlags.getPhoneNumberTs43Api()
+                && source == SubscriptionManager.PHONE_NUMBER_SOURCE_TS43)) {
             return;
         }
 
@@ -4038,6 +4063,8 @@ public class SubscriptionManagerService extends ISub.Stub {
                     }
                 }
                 return subInfo.getNumberFromIms();
+            case SubscriptionManager.PHONE_NUMBER_SOURCE_TS43:
+                return subInfo.getNumberFromTs43();
             default:
                 loge("No SubscriptionInfo found for subId=" + subId);
                 return "";
@@ -4047,7 +4074,8 @@ public class SubscriptionManagerService extends ISub.Stub {
     /**
      * Get phone number from first available source. The order would be
      * {@link SubscriptionManager#PHONE_NUMBER_SOURCE_CARRIER},
-     * {@link SubscriptionManager#PHONE_NUMBER_SOURCE_UICC}, then
+     * {@link SubscriptionManager#PHONE_NUMBER_SOURCE_UICC},
+     * {@link SubscriptionManager#PHONE_NUMBER_SOURCE_TS43}, then
      * {@link SubscriptionManager#PHONE_NUMBER_SOURCE_IMS}.
      *
      * @param subId The subscription ID.
@@ -4092,6 +4120,13 @@ public class SubscriptionManagerService extends ISub.Stub {
                     SubscriptionManager.PHONE_NUMBER_SOURCE_UICC, false);
             if (!TextUtils.isEmpty(number)) return number;
 
+            if (mFeatureFlags.getPhoneNumberTs43Api()) {
+                number = getPhoneNumberFromSourceInternal(
+                        subId,
+                        SubscriptionManager.PHONE_NUMBER_SOURCE_TS43, false);
+                if (!TextUtils.isEmpty(number)) return number;
+            }
+
             number = getPhoneNumberFromSourceInternal(
                     subId,
                     SubscriptionManager.PHONE_NUMBER_SOURCE_IMS, true);
@@ -4114,6 +4149,7 @@ public class SubscriptionManagerService extends ISub.Stub {
      * <ol>
      *   <li>{@link SubscriptionManager#PHONE_NUMBER_SOURCE_CARRIER}
      *   <li>{@link SubscriptionManager#PHONE_NUMBER_SOURCE_UICC}
+     *   <li>{@link SubscriptionManager#PHONE_NUMBER_SOURCE_TS43}
      *   <li>{@link SubscriptionManager#PHONE_NUMBER_SOURCE_IMS}
      * </ol>
      *
@@ -4155,6 +4191,12 @@ public class SubscriptionManagerService extends ISub.Stub {
                     SubscriptionManager.PHONE_NUMBER_SOURCE_UICC, false);
             if (!TextUtils.isEmpty(number)) return number;
 
+            if (mFeatureFlags.getPhoneNumberTs43Api()) {
+                number = getPhoneNumberFromSourceInternal(subId,
+                        SubscriptionManager.PHONE_NUMBER_SOURCE_TS43, false);
+                if (!TextUtils.isEmpty(number)) return number;
+            }
+
             number = getPhoneNumberFromSourceInternal(subId,
                     SubscriptionManager.PHONE_NUMBER_SOURCE_IMS, false);
             return TextUtils.emptyIfNull(number);
@@ -4190,21 +4232,33 @@ public class SubscriptionManagerService extends ISub.Stub {
      * @param callingFeatureId The feature in the package.
      *
      * @throws IllegalArgumentException {@code subId} is invalid, or {@code source} is not
-     * {@link SubscriptionManager#PHONE_NUMBER_SOURCE_CARRIER}.
+     * {@link SubscriptionManager#PHONE_NUMBER_SOURCE_CARRIER}
+     * and {@link SubscriptionManager#PHONE_NUMBER_SOURCE_TS43}.
      * @throws NullPointerException if {@code number} is {@code null}.
      */
     @Override
-    @RequiresPermission("carrier privileges")
+    @RequiresPermission(anyOf = {
+            Manifest.permission.MODIFY_PHONE_STATE,
+            "carrier privileges"
+    })
     public void setPhoneNumber(int subId, @PhoneNumberSource int source, @NonNull String number,
             @NonNull String callingPackage, @Nullable String callingFeatureId) {
-        logl("setPhoneNumber: subId=" + subId + ", number="
+        logl("setPhoneNumber: subId=" + subId + ", source=" + source + ", number="
                 + Rlog.pii(TelephonyUtils.IS_DEBUGGABLE, number)
                 + ", calling package=" + callingPackage);
-        if (!TelephonyPermissions.checkCarrierPrivilegeForSubId(mContext, subId)) {
+        if (source == SubscriptionManager.PHONE_NUMBER_SOURCE_CARRIER
+                && !TelephonyPermissions.checkCarrierPrivilegeForSubId(mContext, subId)) {
             throw new SecurityException("setPhoneNumber for CARRIER needs carrier privilege.");
         }
 
-        if (source != SubscriptionManager.PHONE_NUMBER_SOURCE_CARRIER) {
+        if (mFeatureFlags.getPhoneNumberTs43Api()
+                && source == SubscriptionManager.PHONE_NUMBER_SOURCE_TS43) {
+            enforcePermissions("setPhoneNumber", Manifest.permission.MODIFY_PHONE_STATE);
+        }
+
+        if (source != SubscriptionManager.PHONE_NUMBER_SOURCE_CARRIER
+                && !(mFeatureFlags.getPhoneNumberTs43Api()
+                && source == SubscriptionManager.PHONE_NUMBER_SOURCE_TS43)) {
             throw new IllegalArgumentException("setPhoneNumber doesn't accept source "
                     + SubscriptionManager.phoneNumberSourceToString(source));
         }
@@ -4215,7 +4269,12 @@ public class SubscriptionManagerService extends ISub.Stub {
 
         final long identity = Binder.clearCallingIdentity();
         try {
-            mSubscriptionDatabaseManager.setNumberFromCarrier(subId, number);
+            if (source == SubscriptionManager.PHONE_NUMBER_SOURCE_CARRIER) {
+                mSubscriptionDatabaseManager.setNumberFromCarrier(subId, number);
+            } else if (mFeatureFlags.getPhoneNumberTs43Api()
+                    && source == SubscriptionManager.PHONE_NUMBER_SOURCE_TS43) {
+                mSubscriptionDatabaseManager.setNumberFromTs43(subId, number);
+            }
         } finally {
             Binder.restoreCallingIdentity(identity);
         }

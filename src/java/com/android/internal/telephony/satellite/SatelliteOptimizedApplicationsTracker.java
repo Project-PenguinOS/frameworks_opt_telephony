@@ -181,39 +181,35 @@ public class SatelliteOptimizedApplicationsTracker {
     }
 
     private boolean isOptimizedSatelliteAppOrService(@NonNull PackageInfo packageInfo) {
-        boolean isOptimized = packageInfo.applicationInfo != null
-                && isOptimizedSatelliteApplication(packageInfo.applicationInfo,
-                packageInfo.packageName);
+        try {
+            boolean isOptimized = packageInfo.applicationInfo != null
+                    && isOptimizedSatelliteApplication(packageInfo.applicationInfo,
+                    packageInfo.packageName);
 
-        // check service metadata
-        if (!isOptimized && packageInfo.services != null && Flags.satelliteServiceMetadataCheck()) {
-            for (ServiceInfo serviceInfo : packageInfo.services) {
-                if (isOptimizedSatelliteService(serviceInfo)) {
-                    return true;
+            // check service metadata
+            if (!isOptimized && packageInfo.services != null
+                    && Flags.satelliteServiceMetadataCheck()) {
+                Bundle metadata;
+                String value;
+                ServiceInfo serviceInfo;
+                for (int i = 0; i < packageInfo.services.length; i++) {
+                    serviceInfo = packageInfo.services[i];
+                    metadata = serviceInfo.metaData;
+                    if (metadata != null) {
+                        value = metadata.getString(APP_PROPERTY);
+                        loge(String.format("service: %s, value: %s", serviceInfo.packageName,
+                                (value == null ? null : value)));
+                        if (value != null && TextUtils.equals(value, serviceInfo.packageName)) {
+                            return true;
+                        }
+                    }
                 }
             }
+            return isOptimized;
+        } catch (Exception e) {
+            loge(e.toString());
+            return false;
         }
-
-        return isOptimized;
-    }
-
-    private boolean isOptimizedSatelliteService(@NonNull ServiceInfo serviceInfo) {
-        Bundle metadata = serviceInfo.metaData;
-        if (metadata != null) {
-            try {
-                String value = metadata.getString(APP_PROPERTY);
-                logd("service: " + serviceInfo.name + ", value: "
-                        + (value == null ? "null" : value));
-                if (value == null) return false;
-                return TextUtils.equals(value, serviceInfo.packageName);
-            } catch (Exception e) {
-                loge("Exception while reading service metadata for "
-                        + serviceInfo.name
-                        + " exp = "
-                        + e.getMessage());
-            }
-        }
-        return false;
     }
 
     private void handleInitializeTracker() {
@@ -227,10 +223,13 @@ public class SatelliteOptimizedApplicationsTracker {
             // Get a list of installed packages
             List<PackageInfo> packages =
                     mPackageManager.getInstalledPackages(flags);
+            PackageInfo servicePackageInfo;
+            PackageInfo packageInfo;
             // Iterate through the packages
-            for (PackageInfo packageInfo : packages) {
+            for (int i = 0; i < packages.size(); i++) {
+                packageInfo = packages.get(i);
                 if (Flags.satelliteServiceMetadataCheck()) {
-                    PackageInfo servicePackageInfo = getPackageInfo(packageInfo.packageName);
+                    servicePackageInfo = getPackageInfo(packageInfo.packageName);
                     if (servicePackageInfo != null
                             && isOptimizedSatelliteAppOrService(servicePackageInfo)) {
                         addCacheOptimizedSatelliteApplication(packageInfo.packageName);

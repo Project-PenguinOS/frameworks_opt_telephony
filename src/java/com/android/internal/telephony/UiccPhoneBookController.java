@@ -18,6 +18,7 @@
 
 package com.android.internal.telephony;
 
+import android.annotation.NonNull;
 import android.compat.annotation.UnsupportedAppUsage;
 // QTI_BEGIN: 2018-03-08: Telephony: SimPhoneBook: Add ANR/EMAIL support for USIM phonebook.
 import android.content.ContentValues;
@@ -25,7 +26,9 @@ import android.content.ContentValues;
 import android.os.Build;
 import android.os.TelephonyServiceManager.ServiceRegisterer;
 import android.telephony.TelephonyFrameworkInitializer;
+import android.util.Log;
 
+import com.android.internal.telephony.flags.FeatureFlags;
 import com.android.internal.telephony.subscription.SubscriptionManagerService;
 import com.android.internal.telephony.uicc.AdnCapacity;
 import com.android.internal.telephony.uicc.AdnRecord;
@@ -35,15 +38,39 @@ import java.util.List;
 
 public class UiccPhoneBookController extends IIccPhoneBook.Stub {
     private static final String TAG = "UiccPhoneBookController";
+    private static UiccPhoneBookController sInstance;
+
+    /**
+     * Initialize the UiccPhoneBookController singleton instance and register to
+     * TelephonyServiceManager.
+     */
+    public static UiccPhoneBookController init(@NonNull FeatureFlags featureFlags) {
+        synchronized (UiccPhoneBookController.class) {
+            if (sInstance == null) {
+                sInstance = new UiccPhoneBookController(featureFlags);
+                ServiceRegisterer iccPhoneBookServiceRegisterer = TelephonyFrameworkInitializer
+                        .getTelephonyServiceManager()
+                        .getIccPhoneBookServiceRegisterer();
+                if (iccPhoneBookServiceRegisterer.get() == null) {
+                    iccPhoneBookServiceRegisterer.register(sInstance);
+                }
+            } else {
+                Log.wtf(TAG, "UiccPhoneBookController is already initialized.");
+            }
+        }
+        return sInstance;
+    }
 
     /* only one UiccPhoneBookController exists */
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
-    public UiccPhoneBookController() {
-        ServiceRegisterer iccPhoneBookServiceRegisterer = TelephonyFrameworkInitializer
-                .getTelephonyServiceManager()
-                .getIccPhoneBookServiceRegisterer();
-        if (iccPhoneBookServiceRegisterer.get() == null) {
-            iccPhoneBookServiceRegisterer.register(this);
+    public UiccPhoneBookController(@NonNull FeatureFlags featureFlags) {
+        if (!featureFlags.publishTelephonyServicesAfterConstruction()) {
+            ServiceRegisterer iccPhoneBookServiceRegisterer = TelephonyFrameworkInitializer
+                    .getTelephonyServiceManager()
+                    .getIccPhoneBookServiceRegisterer();
+            if (iccPhoneBookServiceRegisterer.get() == null) {
+                iccPhoneBookServiceRegisterer.register(this);
+            }
         }
     }
 
