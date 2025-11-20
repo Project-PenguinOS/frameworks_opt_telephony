@@ -19,7 +19,7 @@ package com.android.internal.telephony.d2d;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.telecom.Connection;
-import android.telecom.Log;
+import com.android.telephony.Rlog;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -32,6 +32,7 @@ import java.util.stream.Collectors;
  * Responsible for facilitating device-to-device communication between both ends of a call.
  */
 public class Communicator implements TransportProtocol.Callback {
+    private static final String TAG = "Communicator";
 
     /**
      * Callback for events out of communicator.
@@ -109,7 +110,7 @@ public class Communicator implements TransportProtocol.Callback {
 
     public Communicator(@NonNull List<TransportProtocol> transportProtocols,
             @NonNull Callback callback) {
-        Log.i(this, "Initializing communicator with transports: %s",
+        Rlog.i(TAG, "Initializing communicator with transports: " +
                 transportProtocols.stream().map(p -> p.getClass().getSimpleName()).collect(
                         Collectors.joining(",")));
         mTransportProtocols.addAll(transportProtocols);
@@ -131,13 +132,13 @@ public class Communicator implements TransportProtocol.Callback {
      * @param state The new state.
      */
     public void onStateChanged(String id, /*@Connection.ConnectionState*/ int state) {
-        Log.i(this, "onStateChanged: id=%s, newState=%d", id, state);
+        Rlog.i(TAG, "onStateChanged: id=" + id + ", newState=" + state);
         if (state == Connection.STATE_ACTIVE) {
             // Protocol negotiation can start as we are active
             if (mActiveTransport == null && !mIsNegotiationAttempted) {
                 mIsNegotiated = false;
                 mIsNegotiationAttempted = true;
-                Log.i(this, "onStateChanged: call active; negotiate D2D.");
+                Rlog.i(TAG, "onStateChanged: call active; negotiate D2D.");
                 negotiateNextProtocol();
             }
         }
@@ -153,11 +154,11 @@ public class Communicator implements TransportProtocol.Callback {
             // Uh oh, shouldn't happen.
             String activeTransportName = mActiveTransport == null ? "none"
                     : mActiveTransport.getClass().getSimpleName();
-            Log.w(this, "onNegotiationSuccess: ignored - %s negotiated but active transport is %s.",
-                    protocol.getClass().getSimpleName(), activeTransportName);
+            Rlog.w(TAG, "onNegotiationSuccess: ignored - " + protocol.getClass().getSimpleName()
+                    + " negotiated but active transport is " + activeTransportName);
         }
-        Log.i(this, "onNegotiationSuccess: %s negotiated; setting active.",
-                protocol.getClass().getSimpleName());
+        Rlog.i(TAG, "onNegotiationSuccess: " + protocol.getClass().getSimpleName()
+                + " negotiated; setting active.");
         mIsNegotiated = true;
         notifyD2DStatus(true /* isAvailable */);
     }
@@ -171,8 +172,8 @@ public class Communicator implements TransportProtocol.Callback {
         if (protocol != mActiveTransport) {
             // Uh oh, shouldn't happen.
         }
-        Log.i(this, "onNegotiationFailed: %s failed to negotiate.",
-                protocol.getClass().getSimpleName());
+        Rlog.i(TAG, "onNegotiationFailed: " + protocol.getClass().getSimpleName()
+                + " failed to negotiate.");
         mIsNegotiated = false;
         negotiateNextProtocol();
     }
@@ -195,12 +196,12 @@ public class Communicator implements TransportProtocol.Callback {
      */
     public void sendMessages(@NonNull Set<Message> messages) {
         if (mActiveTransport == null || !mIsNegotiated) {
-            Log.w(this, "sendMessages: no active transport");
+            Rlog.w(TAG, "sendMessages: no active transport");
             return;
         }
 
-        Log.i(this, "sendMessages: msgs=%d, activeTransport=%s",
-                messages.size(), mActiveTransport.getClass().getSimpleName());
+        Rlog.i(TAG, "sendMessages: msgs=" + messages.size() + ", activeTransport="
+                + mActiveTransport.getClass().getSimpleName());
         mActiveTransport.sendMessages(messages);
     }
 
@@ -211,12 +212,11 @@ public class Communicator implements TransportProtocol.Callback {
         mActiveTransport = getNextCandidateProtocol();
         if (mActiveTransport == null) {
             // No more protocols, exit.
-            Log.i(this, "negotiateNextProtocol: no remaining transports.");
+            Rlog.i(TAG, "negotiateNextProtocol: no remaining transports.");
             notifyD2DStatus(false /* isAvailable */);
             return;
         }
-        Log.i(this, "negotiateNextProtocol: trying %s",
-                mActiveTransport.getClass().getSimpleName());
+        Rlog.i(TAG, "negotiateNextProtocol: trying " + mActiveTransport.getClass().getSimpleName());
         mActiveTransport.startNegotiation();
     }
 
@@ -325,7 +325,7 @@ public class Communicator implements TransportProtocol.Callback {
                 .filter(t -> t.getClass().getSimpleName().equals(transport))
                 .findFirst();
         if (!tp.isPresent()) {
-            Log.w(this, "setTransportActive: %s is not a valid transport.");
+            Rlog.w(TAG, "setTransportActive: " + transport + " is not a valid transport.");
             return;
         }
 
@@ -335,7 +335,7 @@ public class Communicator implements TransportProtocol.Callback {
         tp.get().forceNegotiated();
         mActiveTransport = tp.get();
         mIsNegotiated = true;
-        Log.i(this, "setTransportActive: %s has been forced active.", transport);
+        Rlog.i(TAG, "setTransportActive: " + transport + " has been forced active.");
     }
 
     /**
