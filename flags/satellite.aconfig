@@ -251,3 +251,14 @@ flag {
     purpose: PURPOSE_FEATURE
   }
 }
+
+# OWNER=tnd TARGET=26Q2
+flag {
+  name: "new_satellite_icon"
+  namespace: "telephony"
+  description: "This flag controls the changes for the new satellite icon"
+  bug: "462776094"
+  metadata {
+    purpose: PURPOSE_FEATURE
+  }
+}
