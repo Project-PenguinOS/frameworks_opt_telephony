@@ -821,7 +821,7 @@ public class DatagramReceiver extends Handler {
                         .setSessionConnectionMode((SatelliteController.getInstance()
                                 .getSessionConnectTypeMetrics()))
                         .setPlmn(SatelliteController.getInstance()
-                                .getSatellitePhone().getOperatorNumeric())
+                                .getSatellitePlmnForMetrics())
                         .build());
 
         mControllerMetricsStats.reportIncomingDatagramCount(resultCode, mIsDemoMode.get());

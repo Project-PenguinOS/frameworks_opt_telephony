@@ -9138,6 +9138,17 @@ public class SatelliteController extends Handler {
         }
     }
 
+    /**
+     * return Satellite plmn value, empty string if satellite phone not available
+     */
+    public String getSatellitePlmnForMetrics() {
+        String satellitePlmn = Optional.ofNullable(getSatellitePhone())
+                .map(Phone::getServiceState)
+                .map(ServiceState::getOperatorNumeric)
+                .orElse(SatelliteConstants.DEFAULT_PLMN);
+        return satellitePlmn;
+    }
+
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PRIVATE)
     protected void setSelectedSatelliteSubId(int subId) {
         plogd("setSelectedSatelliteSubId: subId=" + subId);
