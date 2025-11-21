@@ -39,7 +39,6 @@ public class Communicator implements TransportProtocol.Callback {
      */
     public interface Callback {
         void onMessagesReceived(@NonNull Set<Message> messages);
-        void onD2DAvailabilitychanged(boolean isAvailable);
     }
 
     public static final int MESSAGE_CALL_RADIO_ACCESS_TYPE = 1;
@@ -160,7 +159,6 @@ public class Communicator implements TransportProtocol.Callback {
         Rlog.i(TAG, "onNegotiationSuccess: " + protocol.getClass().getSimpleName()
                 + " negotiated; setting active.");
         mIsNegotiated = true;
-        notifyD2DStatus(true /* isAvailable */);
     }
 
     /**
@@ -213,7 +211,6 @@ public class Communicator implements TransportProtocol.Callback {
         if (mActiveTransport == null) {
             // No more protocols, exit.
             Rlog.i(TAG, "negotiateNextProtocol: no remaining transports.");
-            notifyD2DStatus(false /* isAvailable */);
             return;
         }
         Rlog.i(TAG, "negotiateNextProtocol: trying " + mActiveTransport.getClass().getSimpleName());
@@ -245,17 +242,6 @@ public class Communicator implements TransportProtocol.Callback {
             }
         }
         return candidateProtocol;
-    }
-
-    /**
-     * Notifies listeners (okay, {@link com.android.services.telephony.TelephonyConnection} when
-     * the availability of D2D communication changes.
-     * @param isAvailable {@code true} if D2D is available, {@code false} otherwise.
-     */
-    private void notifyD2DStatus(boolean isAvailable) {
-        if (mCallback != null) {
-            mCallback.onD2DAvailabilitychanged(isAvailable);
-        }
     }
 
     public static String messageToString(int messageType) {
