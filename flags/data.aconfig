@@ -160,3 +160,14 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+# OWNER=navaldubey TARGET=26Q2
+flag {
+    name: "skip_connectivity_manager_captive_portal_check"
+    namespace: "telephony"
+    description: "Controls the removal of a deprecated API call in CarrierDefaultApp's CaptivePortalActivity."
+    bug: "451378239"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
