@@ -79,3 +79,15 @@ flag {
         purpose: PURPOSE_FEATURE
     }
 }
+
+# OWNER=braydenhass TARGET=26Q2
+flag {
+    name: "network_security_event_indications"
+    is_exported: true
+    namespace: "telephony"
+    description: "Guard system API for network security events"
+    bug: "407790397"
+    metadata {
+        purpose: PURPOSE_FEATURE
+    }
+}
