@@ -77,3 +77,14 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+# OWNER=hwangoo TARGET=26Q2
+flag {
+    name: "domain_selection_emergency_mode_notification"
+    namespace: "telephony"
+    description: "Used to notify the emergency mode for call/SMS to other applications when AP domain selection is enabled."
+    bug:"423761083"
+    metadata {
+        purpose: PURPOSE_FEATURE
+    }
+}
