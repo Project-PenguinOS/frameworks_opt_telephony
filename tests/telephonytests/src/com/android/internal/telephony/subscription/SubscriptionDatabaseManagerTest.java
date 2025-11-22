@@ -337,6 +337,8 @@ public class SubscriptionDatabaseManagerTest extends TelephonyTest {
 
         private boolean mDatabaseChanged;
 
+        private int mNextSubId = 1;
+
         SubscriptionProvider() {
             mAllColumns = SimInfo.getAllColumns();
         }
@@ -431,14 +433,8 @@ public class SubscriptionDatabaseManagerTest extends TelephonyTest {
                     throw new IllegalArgumentException("Insert with unknown column " + column);
                 }
             }
-            // The last row's subId + 1
-            int subId;
-            if (mDatabase.isEmpty()) {
-                subId = 1;
-            } else {
-                subId = (int) mDatabase.get(mDatabase.size() - 1)
-                        .get(SimInfo.COLUMN_UNIQUE_KEY_SUBSCRIPTION_ID) + 1;
-            }
+            // subId autoincrement
+            int subId = mNextSubId++;
             values.put(SimInfo.COLUMN_UNIQUE_KEY_SUBSCRIPTION_ID, subId);
             mDatabase.add(values);
             return ContentUris.withAppendedId(SimInfo.CONTENT_URI, subId);
