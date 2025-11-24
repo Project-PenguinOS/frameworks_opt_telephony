@@ -80,8 +80,8 @@ public class DataCallSessionStats {
 
     /** Creates a new ongoing atom when data call is set up. */
     public synchronized void onSetupDataCall(@ApnType int apnTypeBitMask,
-            boolean isSatellite) {
-        mDataCallSession = getDefaultProto(apnTypeBitMask, isSatellite);
+            boolean isSatellite, int sliceCapability) {
+        mDataCallSession = getDefaultProto(apnTypeBitMask, isSatellite, sliceCapability);
         mStartTime = getTimeMillis();
         PhoneFactory.getMetricsCollector().registerOngoingDataCallStat(this);
     }
@@ -311,12 +311,13 @@ public class DataCallSessionStats {
         copy.isSatelliteTransport = call.isSatelliteTransport;
         copy.isProvisioningProfile = call.isProvisioningProfile;
         copy.isNbIotNtn = call.isNbIotNtn;
+        copy.sliceCapability = call.sliceCapability;
         return copy;
     }
 
     /** Creates a proto for a normal {@code DataCallSession} with default values. */
     private DataCallSession getDefaultProto(@ApnType int apnTypeBitmask,
-            boolean isSatellite) {
+            boolean isSatellite, int sliceCapability) {
         DataCallSession proto = new DataCallSession();
         proto.dimension = RANDOM.nextInt();
         proto.isMultiSim = SimSlotState.isMultiSim();
@@ -347,6 +348,7 @@ public class DataCallSessionStats {
         }
         proto.isSatelliteTransport = isSatellite;
         proto.isProvisioningProfile = getIsProvisioningProfile();
+        proto.sliceCapability = sliceCapability;
         return proto;
     }
 

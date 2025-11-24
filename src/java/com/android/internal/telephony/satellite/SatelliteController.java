@@ -145,6 +145,7 @@ import android.telephony.satellite.ISatelliteProvisionStateCallback;
 import android.telephony.satellite.ISatelliteTransmissionUpdateCallback;
 import android.telephony.satellite.ISelectedNbIotSatelliteSubscriptionCallback;
 import android.telephony.satellite.NtnSignalStrength;
+import android.telephony.satellite.PlmnSatelliteConfig;
 import android.telephony.satellite.SatelliteAccessConfiguration;
 import android.telephony.satellite.SatelliteCapabilities;
 import android.telephony.satellite.SatelliteCommunicationAccessStateCallback;
@@ -9138,6 +9139,17 @@ public class SatelliteController extends Handler {
         }
     }
 
+    /**
+     * return Satellite plmn value, empty string if satellite phone not available
+     */
+    public String getSatellitePlmnForMetrics() {
+        String satellitePlmn = Optional.ofNullable(getSatellitePhone())
+                .map(Phone::getServiceState)
+                .map(ServiceState::getOperatorNumeric)
+                .orElse(SatelliteConstants.DEFAULT_PLMN);
+        return satellitePlmn;
+    }
+
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PRIVATE)
     protected void setSelectedSatelliteSubId(int subId) {
         plogd("setSelectedSatelliteSubId: subId=" + subId);
@@ -10565,6 +10577,24 @@ public class SatelliteController extends Handler {
     @SatelliteManager.SatelliteDataSupportMode
     public int getSatelliteDataSupportMode(int subId) {
         return getSatelliteDataServicePolicyForPlmn(subId, "");
+    }
+
+
+    /**
+     * Get the satellite configuration for the given PLMN.
+     *
+     * @param subId current subscription id.
+     * @param plmn PLMN for which the satellite configuration is requested.
+     * @return {@link PlmnSatelliteConfig} object containing the satellite configuration for the
+     * given PLMN.
+     *
+     * @hide
+     */
+    @NonNull
+    public PlmnSatelliteConfig getPlmnSatelliteConfig(int subId, String plmn) {
+        PlmnSatelliteConfig plmnSatelliteConfig = new PlmnSatelliteConfig(new HashSet<>(
+                    getSupportedSatelliteServicesForPlmn(subId, plmn)));
+        return plmnSatelliteConfig;
     }
 
     /**

@@ -98,7 +98,8 @@ public class DataCallSessionStatsTest extends TelephonyTest {
     @Test
     @SmallTest
     public void testSetupDataCallOnCellularIms_success() {
-        mDataCallSessionStats.onSetupDataCall(ApnSetting.TYPE_IMS, false);
+        mDataCallSessionStats.onSetupDataCall(ApnSetting.TYPE_IMS, false,
+                0 /*sliceCapability*/);
         mDataCallSessionStats.onSetupDataCallResponse(
                 mDefaultImsResponse,
                 TelephonyManager.NETWORK_TYPE_LTE,
@@ -124,7 +125,8 @@ public class DataCallSessionStatsTest extends TelephonyTest {
     @Test
     @SmallTest
     public void testSetupDataCallOnIwlan_success() {
-        mDataCallSessionStats.onSetupDataCall(ApnSetting.TYPE_IMS, false);
+        mDataCallSessionStats.onSetupDataCall(ApnSetting.TYPE_IMS, false,
+                0 /*sliceCapability*/);
         mDataCallSessionStats.onSetupDataCallResponse(
                 mDefaultImsResponse,
                 TelephonyManager.NETWORK_TYPE_IWLAN,
@@ -153,7 +155,8 @@ public class DataCallSessionStatsTest extends TelephonyTest {
     public void testSetupDataCallOnCrossSimCalling_success() {
         doReturn(mCellularNetworkCapabilities)
                 .when(mDefaultNetworkMonitor).getNetworkCapabilities();
-        mDataCallSessionStats.onSetupDataCall(ApnSetting.TYPE_IMS, false);
+        mDataCallSessionStats.onSetupDataCall(ApnSetting.TYPE_IMS, false,
+                0 /*sliceCapability*/);
         mDataCallSessionStats.onSetupDataCallResponse(
                 mDefaultImsResponse,
                 TelephonyManager.NETWORK_TYPE_IWLAN,
@@ -180,7 +183,8 @@ public class DataCallSessionStatsTest extends TelephonyTest {
     @Test
     @SmallTest
     public void testSetupDataCallOnCellularIms_failure() {
-        mDataCallSessionStats.onSetupDataCall(ApnSetting.TYPE_IMS, false);
+        mDataCallSessionStats.onSetupDataCall(ApnSetting.TYPE_IMS, false,
+                0 /*sliceCapability*/);
         mDataCallSessionStats.onSetupDataCallResponse(
                 mDefaultImsResponse,
                 TelephonyManager.NETWORK_TYPE_LTE,
@@ -203,7 +207,8 @@ public class DataCallSessionStatsTest extends TelephonyTest {
     @Test
     @SmallTest
     public void testHandoverFromCellularToIwlan_success() {
-        mDataCallSessionStats.onSetupDataCall(ApnSetting.TYPE_IMS, false);
+        mDataCallSessionStats.onSetupDataCall(ApnSetting.TYPE_IMS, false,
+                0 /*sliceCapability*/);
         mDataCallSessionStats.onSetupDataCallResponse(
                 mDefaultImsResponse,
                 TelephonyManager.NETWORK_TYPE_LTE,
@@ -229,7 +234,8 @@ public class DataCallSessionStatsTest extends TelephonyTest {
     @Test
     @SmallTest
     public void testHandoverFromCellularToCrossSimCalling_success() {
-        mDataCallSessionStats.onSetupDataCall(ApnSetting.TYPE_IMS, false);
+        mDataCallSessionStats.onSetupDataCall(ApnSetting.TYPE_IMS, false,
+                0 /*sliceCapability*/);
         mDataCallSessionStats.onSetupDataCallResponse(
                 mDefaultImsResponse,
                 TelephonyManager.NETWORK_TYPE_LTE,
@@ -258,7 +264,8 @@ public class DataCallSessionStatsTest extends TelephonyTest {
     @Test
     @SmallTest
     public void testHandoverFromCellularToIwlan_failure() {
-        mDataCallSessionStats.onSetupDataCall(ApnSetting.TYPE_IMS, false);
+        mDataCallSessionStats.onSetupDataCall(ApnSetting.TYPE_IMS, false,
+                0 /*sliceCapability*/);
         mDataCallSessionStats.onSetupDataCallResponse(
                 mDefaultImsResponse,
                 TelephonyManager.NETWORK_TYPE_LTE,
@@ -290,7 +297,8 @@ public class DataCallSessionStatsTest extends TelephonyTest {
     @Test
     @SmallTest
     public void testSetupDataCallOnIwlan_success_thenOOS() {
-        mDataCallSessionStats.onSetupDataCall(ApnSetting.TYPE_IMS, false);
+        mDataCallSessionStats.onSetupDataCall(ApnSetting.TYPE_IMS, false,
+                0 /*sliceCapability*/);
         mDataCallSessionStats.onSetupDataCallResponse(
                 mDefaultImsResponse,
                 TelephonyManager.NETWORK_TYPE_IWLAN,
@@ -317,7 +325,8 @@ public class DataCallSessionStatsTest extends TelephonyTest {
     public void testIsNtn() {
         when(mSatelliteController.isInSatelliteModeForCarrierRoaming(any())).thenReturn(true);
 
-        mDataCallSessionStats.onSetupDataCall(ApnSetting.TYPE_IMS, false);
+        mDataCallSessionStats.onSetupDataCall(ApnSetting.TYPE_IMS, false,
+                0 /*sliceCapability*/);
         mDataCallSessionStats.onSetupDataCallResponse(
                 mDefaultImsResponse,
                 TelephonyManager.NETWORK_TYPE_LTE,
@@ -340,7 +349,8 @@ public class DataCallSessionStatsTest extends TelephonyTest {
         when(mSatelliteController.isInSatelliteModeForCarrierRoaming(any()))
                 .thenReturn(false);
 
-        mDataCallSessionStats.onSetupDataCall(ApnSetting.TYPE_IMS, false);
+        mDataCallSessionStats.onSetupDataCall(ApnSetting.TYPE_IMS, false,
+                0 /*sliceCapability*/);
         mDataCallSessionStats.onSetupDataCallResponse(
                 mDefaultImsResponse,
                 TelephonyManager.NETWORK_TYPE_LTE,
@@ -366,7 +376,8 @@ public class DataCallSessionStatsTest extends TelephonyTest {
         when(mSubscriptionManagerService.getSubscriptionInfoInternal(mPhone.getSubId()))
             .thenReturn(mSubInfoInternal);
 
-        mDataCallSessionStats.onSetupDataCall(ApnSetting.TYPE_IMS, false);
+        mDataCallSessionStats.onSetupDataCall(ApnSetting.TYPE_IMS, false,
+                0 /*sliceCapability*/);
         mDataCallSessionStats.onSetupDataCallResponse(
             mDefaultImsResponse,
             TelephonyManager.NETWORK_TYPE_IWLAN,
@@ -393,7 +404,8 @@ public class DataCallSessionStatsTest extends TelephonyTest {
         when(mSubscriptionManagerService.getSubscriptionInfoInternal(mPhone.getSubId()))
             .thenReturn(mSubInfoInternal);
 
-        mDataCallSessionStats.onSetupDataCall(ApnSetting.TYPE_IMS, false);
+        mDataCallSessionStats.onSetupDataCall(ApnSetting.TYPE_IMS, false,
+                0 /*sliceCapability*/);
         mDataCallSessionStats.onSetupDataCallResponse(
             mDefaultImsResponse,
             TelephonyManager.NETWORK_TYPE_IWLAN,
@@ -414,7 +426,8 @@ public class DataCallSessionStatsTest extends TelephonyTest {
         when(mSatelliteController.isInSatelliteModeForCarrierRoaming(any())).thenReturn(true);
         when(mSatelliteController.isInCarrierRoamingNbIotNtn(any())).thenReturn(true);
 
-        mDataCallSessionStats.onSetupDataCall(ApnSetting.TYPE_IMS, false);
+        mDataCallSessionStats.onSetupDataCall(ApnSetting.TYPE_IMS, false,
+                0 /*sliceCapability*/);
         mDataCallSessionStats.onSetupDataCallResponse(
                 mDefaultImsResponse,
                 TelephonyManager.NETWORK_TYPE_LTE,
@@ -437,7 +450,8 @@ public class DataCallSessionStatsTest extends TelephonyTest {
         when(mSatelliteController.isInSatelliteModeForCarrierRoaming(any())).thenReturn(false);
         when(mSatelliteController.isInCarrierRoamingNbIotNtn(any())).thenReturn(false);
 
-        mDataCallSessionStats.onSetupDataCall(ApnSetting.TYPE_IMS, false);
+        mDataCallSessionStats.onSetupDataCall(ApnSetting.TYPE_IMS, false,
+                0 /*sliceCapability*/);
         mDataCallSessionStats.onSetupDataCallResponse(
                 mDefaultImsResponse,
                 TelephonyManager.NETWORK_TYPE_LTE,

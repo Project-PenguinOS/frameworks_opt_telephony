@@ -1695,13 +1695,29 @@ public class DataNetwork extends StateMachine {
 
             int apnTypeBitmask = mDataProfile.getApnSetting() != null
                     ? mDataProfile.getApnSetting().getApnTypeBitmask() : ApnSetting.TYPE_NONE;
-            mDataCallSessionStats.onSetupDataCall(apnTypeBitmask, mSatellite);
+            int sliceCapability = getSliceCapability(getNetworkCapabilities());
+            mDataCallSessionStats.onSetupDataCall(apnTypeBitmask, mSatellite, sliceCapability);
 
             logl("setupData: accessNetwork="
                     + AccessNetworkType.toString(accessNetwork) + ", isSatellite=" + mSatellite
                     + ", " + mDataProfile + ", isModemRoaming=" + isModemRoaming + ", allowRoaming="
                     + allowRoaming + ", PDU session id=" + mPduSessionId + ", matchAllRuleAllowed="
                     + matchAllRuleAllowed);
+        }
+
+        private int getSliceCapability(NetworkCapabilities nc) {
+            if (nc == null) {
+                return 0; // Return Unknown if no capabilities.
+            }
+
+            if (nc.hasCapability(DataUtils.NET_CAPABILITY_PRIORITIZE_UNIFIED_COMMUNICATIONS)) {
+                return DataUtils.NET_CAPABILITY_PRIORITIZE_UNIFIED_COMMUNICATIONS;
+            } else if (nc.hasCapability(NetworkCapabilities.NET_CAPABILITY_PRIORITIZE_LATENCY)) {
+                return NetworkCapabilities.NET_CAPABILITY_PRIORITIZE_LATENCY;
+            } else if (nc.hasCapability(NetworkCapabilities.NET_CAPABILITY_PRIORITIZE_BANDWIDTH)) {
+                return NetworkCapabilities.NET_CAPABILITY_PRIORITIZE_BANDWIDTH;
+            }
+            return 0; // Return Unknown if not a slice.
         }
 
         /**

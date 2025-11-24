@@ -85,6 +85,7 @@ import android.telephony.PhoneNumberUtils;
 import android.telephony.ServiceState;
 import android.telephony.SubscriptionInfo;
 import android.telephony.SubscriptionManager;
+import android.telephony.TelephonyCallback;
 import android.telephony.TelephonyLocalConnection;
 import android.telephony.TelephonyManager;
 import android.telephony.TelephonyManager.DataEnabledChangedReason;
@@ -756,6 +757,8 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
     private ImsUtInterface mUtInterface;
 
     private Call.SrvccState mSrvccState = Call.SrvccState.NONE;
+    private TelephonyManager mTelephonyManager;
+    private CarrierRoamingNtnListener mCarrierRoamingNtnListener;
 
     private boolean mIsInEmergencyCall = false;
     private boolean mIsDataEnabled = false;
@@ -1296,6 +1299,11 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
                     public void connectionReady(ImsManager manager, int subId) throws ImsException {
                         mImsManager = manager;
                         log("connectionReady for subId = " + subId);
+                        TelephonyManager telephonyManager = mPhone.getContext().getSystemService(
+                                TelephonyManager.class);
+                        if (telephonyManager != null) {
+                            mTelephonyManager = telephonyManager.createForSubscriptionId(subId);
+                        }
                         startListeningForCalls(subId);
                     }
 
@@ -1347,6 +1355,12 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
     public void startListeningForCalls(int subId) throws ImsException {
         log("startListeningForCalls");
         mOperationLocalLog.log("startListeningForCalls - Connecting to ImsService");
+
+        if (mTelephonyManager != null && SubscriptionManager.isValidSubscriptionId(subId)) {
+            mCarrierRoamingNtnListener = new CarrierRoamingNtnListener();
+            mTelephonyManager.registerTelephonyCallback(this::post, mCarrierRoamingNtnListener);
+        }
+
         ImsExternalCallTracker externalCallTracker = mPhone.getExternalCallTracker();
         ImsExternalCallTracker.ExternalCallStateListener externalCallStateListener =
                 externalCallTracker != null
@@ -1435,6 +1449,9 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
     private void stopListeningForCalls() {
         log("stopListeningForCalls");
         mOperationLocalLog.log("stopListeningForCalls - Disconnecting from ImsService");
+        if (mTelephonyManager != null && mCarrierRoamingNtnListener != null) {
+            mTelephonyManager.unregisterTelephonyCallback(mCarrierRoamingNtnListener);
+        }
         // Only close on valid session.
         if (mImsManager != null) {
             mImsManager.removeRegistrationListener(mPhone.getImsMmTelRegistrationCallback());
@@ -6232,6 +6249,30 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
         if (mPhone != null && mPhone.getContext() != null) {
             mPhone.getContext().sendBroadcastAsUser(configChangedIntent, UserHandle.ALL,
                     Manifest.permission.READ_PRIVILEGED_PHONE_STATE);
+        }
+    }
+
+    @VisibleForTesting
+    @Nullable
+    public CarrierRoamingNtnListener getCarrierRoamingNtnListener() {
+        return mCarrierRoamingNtnListener;
+    }
+
+    @VisibleForTesting
+    public class CarrierRoamingNtnListener extends TelephonyCallback
+            implements TelephonyCallback.CarrierRoamingNtnListener {
+
+        @Override
+        public void onCarrierRoamingNtnModeChanged(boolean active) {
+            log("onCarrierRoamingNtnModeChanged: active=" + active);
+            // This will trigger provisioning info change in QNS.
+            // QNS will then call getWfcMode() to get the latest value.
+            if (mTelephonyManager != null) {
+                TelephonyManager tm = mTelephonyManager.createForSubscriptionId(mPhone.getSubId());
+                boolean isNetworkRoaming = tm.getServiceState().getRoaming();
+                mImsManager.setWfcRoamingSettingInternal(mImsManager.isWfcRoamingEnabledByUser());
+                mImsManager.setWfcModeInternal(mImsManager.getWfcMode(isNetworkRoaming));
+            }
         }
     }
 }
