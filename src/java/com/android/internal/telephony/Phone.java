@@ -5193,6 +5193,30 @@ public abstract class Phone extends Handler implements PhoneInternalInterface {
         mAllowedImsServicesHomeOnly.clear();
     }
 
+    /**
+     * Notify emergency mode has been entered when AP domain selection is enabled.
+     *
+     * @param type for the emergency mode entry
+     *             See {@link TelephonyManager.DomainSelectionEmergencyType}.
+     */
+    public void notifyDomainSelectionEmergencyModeEntered(
+            @TelephonyManager.DomainSelectionEmergencyType int type) {
+        logd("notifyDomainSelectionEmergencyModeEntered: type=" + type);
+        mNotifier.notifyDomainSelectionEmergencyModeEntered(this, type);
+    }
+
+    /**
+     * Notify emergency mode has been exited when AP domain selection is enabled.
+     *
+     * @param type for the emergency mode exit
+     *             See {@link TelephonyManager.DomainSelectionEmergencyType}.
+     */
+    public void notifyDomainSelectionEmergencyModeExited(
+            @TelephonyManager.DomainSelectionEmergencyType int type) {
+        logd("notifyDomainSelectionEmergencyModeExited: type=" + type);
+        mNotifier.notifyDomainSelectionEmergencyModeExited(this, type);
+    }
+
     public void dump(FileDescriptor fd, PrintWriter pw, String[] args) {
         pw.println("Phone: subId=" + getSubId());
         pw.println(" mPhoneId=" + mPhoneId);
