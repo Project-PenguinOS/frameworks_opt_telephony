@@ -5164,7 +5164,8 @@ public class PersistAtomsStorageTest extends TelephonyTest {
         CarrierRoamingSatelliteSession[] output =
                 mPersistAtomsStorage.getCarrierRoamingSatelliteSessionStats(0L);
         assertProtoArrayEqualsIgnoringOrder(
-                new CarrierRoamingSatelliteSession[] {mCarrierRoamingSatelliteSession2}, output);
+                new CarrierRoamingSatelliteSession[] {mCarrierRoamingSatelliteSession1,
+                        mCarrierRoamingSatelliteSession2}, output);
     }
 
     @Test
@@ -5174,7 +5175,7 @@ public class PersistAtomsStorageTest extends TelephonyTest {
         mPersistAtomsStorage = new TestablePersistAtomsStorage(mContext);
 
         // Store atoms up to maximum number + 1
-        int maxCount = 1 + 1;
+        int maxCount = 14 + 1;
         for (int i = 0; i < maxCount; i++) {
             mPersistAtomsStorage.addCarrierRoamingSatelliteSessionStats(
                     copyOf(mCarrierRoamingSatelliteSession1));
@@ -5190,8 +5191,8 @@ public class PersistAtomsStorageTest extends TelephonyTest {
         CarrierRoamingSatelliteSession[] result =
                 mPersistAtomsStorage.getCarrierRoamingSatelliteSessionStats(0L);
 
-        // First atom has count 0, the other has 1
-        assertHasStatsAndCount(result, mCarrierRoamingSatelliteSession1, 0);
+        // First atom has count 14, the other has 1
+        assertHasStatsAndCount(result, mCarrierRoamingSatelliteSession1, 14);
         assertHasStatsAndCount(result, mCarrierRoamingSatelliteSession2, 1);
     }
 

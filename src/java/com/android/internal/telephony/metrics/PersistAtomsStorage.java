@@ -180,7 +180,6 @@ public class PersistAtomsStorage {
 
     /** Maximum number of Satellite relevant stats to store between pulls. */
     private final int mMaxNumSatelliteStats;
-    private final int mMaxNumCarrierRoamingSatelliteSessionStats = 1;
 
     /** Maximum number of data network validation to store during pulls. */
     private final int mMaxNumDataNetworkValidation;
@@ -876,7 +875,7 @@ public class PersistAtomsStorage {
             CarrierRoamingSatelliteSession stats) {
         mAtoms.carrierRoamingSatelliteSession = insertAtRandomPlace(
                 mAtoms.carrierRoamingSatelliteSession, stats,
-                mMaxNumCarrierRoamingSatelliteSessionStats);
+                mMaxNumSatelliteStats);
         saveAtomsToFile(SAVE_TO_FILE_DELAY_FOR_UPDATE_MILLIS);
     }
 
