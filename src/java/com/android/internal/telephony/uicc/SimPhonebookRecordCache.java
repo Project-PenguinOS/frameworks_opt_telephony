@@ -367,6 +367,7 @@ public class SimPhonebookRecordCache extends Handler {
                         mAdnCapacity.set(new AdnCapacity());
                     }
                     invalidateSimPbCache();
+                    responseToWaitersWithErrorOrSuccess(false);
                 }
                 break;
             case EVENT_PHONEBOOK_RECORDS_RECEIVED:
@@ -487,6 +488,9 @@ public class SimPhonebookRecordCache extends Handler {
                 populateAdnRecords(records.getPhonebookRecords());
             } else if (records.isCompleted()) {
                 logd("The whole loading process is finished");
+                if (hasMessages(EVENT_GET_PHONEBOOK_RECORDS_RETRY)) {
+                    removeMessages(EVENT_GET_PHONEBOOK_RECORDS_RETRY);
+                }
                 populateAdnRecords(records.getPhonebookRecords());
                 mIsRecordLoading.set(false);
                 mIsInRetry.set(false);
