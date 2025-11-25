@@ -215,7 +215,7 @@ public class NetworkSecurityEventTest {
         assertEquals(ALERT_STATUS, event.getAlertStatus());
         assertTrue(Arrays.equals(REASON_CODES, event.getReasonCodes()));
         assertEquals(CELL_ID, event.getCellId());
-        assertEquals(PHYS_CELL_ID, event.getPhysCellId());
+        assertEquals(PHYS_CELL_ID, event.getPhysicalCellId());
         assertEquals(ARFCN, event.getArfcn());
         assertEquals(PLMN, event.getPlmn());
         assertEquals(RAT, event.getRat());
@@ -245,7 +245,7 @@ public class NetworkSecurityEventTest {
         assertEquals(event.getAlertStatus(), fromParcel.getAlertStatus());
         assertTrue(Arrays.equals(event.getReasonCodes(), fromParcel.getReasonCodes()));
         assertEquals(event.getCellId(), fromParcel.getCellId());
-        assertEquals(event.getPhysCellId(), fromParcel.getPhysCellId());
+        assertEquals(event.getPhysicalCellId(), fromParcel.getPhysicalCellId());
         assertEquals(event.getArfcn(), fromParcel.getArfcn());
         assertEquals(event.getPlmn(), fromParcel.getPlmn());
         assertEquals(event.getRat(), fromParcel.getRat());
