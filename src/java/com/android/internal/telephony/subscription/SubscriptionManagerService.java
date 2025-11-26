@@ -16,8 +16,8 @@
 
 // QTI_BEGIN: 2025-02-26: Telephony: Fix license marking
 /*
- * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
- * Copyright (c) 2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -109,6 +109,7 @@ import com.android.internal.telephony.Phone;
 import com.android.internal.telephony.PhoneFactory;
 import com.android.internal.telephony.ProxyController;
 import com.android.internal.telephony.RILConstants;
+import com.android.internal.telephony.TelephonyComponentFactory;
 import com.android.internal.telephony.TelephonyIntents;
 import com.android.internal.telephony.TelephonyPermissions;
 import com.android.internal.telephony.data.PhoneSwitcher;
@@ -509,7 +510,9 @@ public class SubscriptionManagerService extends ISub.Stub {
             @NonNull FeatureFlags featureFlags) {
         synchronized (SubscriptionManagerService.class) {
             if (sInstance == null) {
-                sInstance = new SubscriptionManagerService(context, looper, featureFlags);
+                sInstance = TelephonyComponentFactory.getInstance().inject(
+                        SubscriptionManagerService.class.getName())
+                        .makeSubscriptionManagerService(context, looper, featureFlags);
                 TelephonyServiceManager.ServiceRegisterer serviceRegisterer =
                         TelephonyFrameworkInitializer.getTelephonyServiceManager()
                                 .getSubscriptionServiceRegisterer();
