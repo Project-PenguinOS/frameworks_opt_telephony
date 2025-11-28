@@ -907,6 +907,7 @@ message CarrierRoamingSatelliteControllerStats {
     optional int32 count_of_session_connection_mode_automatic = 14;
     optional int32 count_of_session_connection_mode_manual = 15;
     optional int32 service_data_policy = 16;
+    optional int32 total_session_duration_sec = 17;
 }
 
 message SatelliteEntitlement {
