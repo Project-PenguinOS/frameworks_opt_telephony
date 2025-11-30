@@ -88,4 +88,12 @@ flag {
     }
 }
 
+# OWNER=jackyu TARGET=26Q2
+flag {
+    name: "subscription_plan_enhancement"
+    namespace: "telephony"
+    description: "Subscription plan enhancement"
+    bug: "451832521"
+    is_exported: false
+}
 

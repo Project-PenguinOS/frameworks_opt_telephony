@@ -229,3 +229,25 @@ flag {
     purpose: PURPOSE_FEATURE
   }
 }
+
+# OWNER=hakjunc TARGET=26Q2
+flag {
+  name: "satellite_metrics_enhancement"
+  namespace: "telephony"
+  description: "Enhance satellite metrics by adding new features."
+  bug: "461649453"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}
+
+# OWNER=shilpasatish TARGET=26Q2
+flag {
+  name: "satellite_suspend"
+  namespace: "telephony"
+  description: "Enables the satellite network suspend API."
+  bug: "460876921"
+   metadata {
+    purpose: PURPOSE_FEATURE
+  }
+}
