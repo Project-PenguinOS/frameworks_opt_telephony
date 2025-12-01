@@ -61,3 +61,11 @@ flag {
   description: "Redact Generic OTP SMS messages from untrusted packages"
   bug: "437043173"
 }
+
+# OWNER=jferec TARGET=25Q4
+flag {
+  name: "secure_access_to_restricted_rcs_messages"
+  namespace: "telephony"
+  description: "Introduces access restrictions to reading and writing secure RCS messages in the messaging database."
+  bug: "462173073"
+}

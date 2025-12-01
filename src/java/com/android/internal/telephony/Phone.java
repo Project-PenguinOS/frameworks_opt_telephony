@@ -284,7 +284,8 @@ public abstract class Phone extends Handler implements PhoneInternalInterface {
     protected static final int EVENT_SET_IDENTIFIER_DISCLOSURE_ENABLED_DONE = 73;
     protected static final int EVENT_SECURITY_ALGORITHM_UPDATE = 74;
     protected static final int EVENT_SET_SECURITY_ALGORITHMS_UPDATED_ENABLED_DONE = 75;
-    protected static final int EVENT_LAST = EVENT_SET_SECURITY_ALGORITHMS_UPDATED_ENABLED_DONE;
+    protected static final int EVENT_NETWORK_SECURITY_EVENTS = 76;
+    protected static final int EVENT_LAST = EVENT_NETWORK_SECURITY_EVENTS;
 
     // For shared prefs.
     private static final String GSM_ROAMING_LIST_OVERRIDE_PREFIX = "gsm_roaming_list_";
@@ -5119,6 +5120,13 @@ public abstract class Phone extends Handler implements PhoneInternalInterface {
      * Override to handle an update to the cellular identifier disclosure transparency preference.
      */
     public void handleIdentifierDisclosureNotificationPreferenceChange() {
+    }
+
+    /**
+     * @return the supported network alert categories.
+     */
+    public int[] getSupportedNetworkAlertCategories() {
+        return new int[0];
     }
 
     /**

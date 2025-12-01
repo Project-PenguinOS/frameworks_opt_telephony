@@ -1852,6 +1852,23 @@ public class ImsPhoneTest extends TelephonyTest {
         assertTrue(mImsPhoneUT.canMakeWifiCall());
     }
 
+    @Test
+    public void updateRoamingState_idle_shouldOverrideNtn_updatesStateOnly() throws Exception {
+        doReturn(true).when(mImsManager).shouldOverrideWfcRoamingModeWhileUsingNTN();
+        doReturn(PhoneConstants.State.IDLE).when(mImsCT).getState();
+        doReturn(true).when(mPhone).isRadioOn();
+
+        //roaming - voice and data registration on LTE
+        Message m = getServiceStateChangedMessage(getServiceStateDataAndVoice(
+                ServiceState.RIL_RADIO_TECHNOLOGY_LTE, ServiceState.STATE_IN_SERVICE, true));
+        // Inject the message synchronously instead of waiting for the thread to do it.
+        mImsPhoneUT.handleMessage(m);
+
+        assertTrue(mImsPhoneUT.getLastKnownRoamingState());
+        verify(mImsManager, never()).setWfcMode(anyInt(), anyBoolean());
+    }
+
+
     private ServiceState getServiceStateDataAndVoice(int rat, int regState, boolean isRoaming) {
         ServiceState ss = new ServiceState();
         ss.setStateOutOfService();
