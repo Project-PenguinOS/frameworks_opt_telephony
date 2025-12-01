@@ -485,4 +485,32 @@ public class DefaultPhoneNotifierTest extends TelephonyTest {
         verify(mTelephonyRegistryManager).notifyCellularIdentifierDisclosedChanged(
                 eq(phoneId), eq(subId), eq(disclosure));
     }
+
+    @Test
+    @SmallTest
+    public void testDomainSelectionEmergencyModeEntered() {
+        doReturn(true).when(mFeatureFlags).domainSelectionEmergencyModeNotification();
+        int type = TelephonyManager.DOMAIN_SELECTION_EMERGENCY_TYPE_CALL;
+        int phoneId = mPhone.getPhoneId();
+        int subId = mPhone.getSubId();
+
+        mDefaultPhoneNotifierUT.notifyDomainSelectionEmergencyModeEntered(mPhone, type);
+
+        verify(mTelephonyRegistryManager).notifyDomainSelectionEmergencyModeEntered(
+                eq(phoneId), eq(subId), eq(type));
+    }
+
+    @Test
+    @SmallTest
+    public void testDomainSelectionEmergencyModeExited() {
+        doReturn(true).when(mFeatureFlags).domainSelectionEmergencyModeNotification();
+        int type = TelephonyManager.DOMAIN_SELECTION_EMERGENCY_TYPE_CALL;
+        int phoneId = mPhone.getPhoneId();
+        int subId = mPhone.getSubId();
+
+        mDefaultPhoneNotifierUT.notifyDomainSelectionEmergencyModeExited(mPhone, type);
+
+        verify(mTelephonyRegistryManager).notifyDomainSelectionEmergencyModeExited(
+                eq(phoneId), eq(subId), eq(type));
+    }
 }
