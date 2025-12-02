@@ -15,6 +15,12 @@
  * limitations under the License.
  */
 
+/*
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
 package com.android.internal.telephony;
 
 import android.annotation.NonNull;
@@ -91,7 +97,7 @@ public abstract class BaseCommands implements CommandsInterface {
             new RegistrantList();
     protected RegistrantList mPcoDataRegistrants = new RegistrantList();
     protected RegistrantList mCarrierInfoForImsiEncryptionRegistrants = new RegistrantList();
-    protected RegistrantList mRilNetworkScanResultRegistrants = new RegistrantList();
+    public RegistrantList mRilNetworkScanResultRegistrants = new RegistrantList();
     protected RegistrantList mModemResetRegistrants = new RegistrantList();
     protected RegistrantList mNattKeepaliveStatusRegistrants = new RegistrantList();
     protected RegistrantList mPhysicalChannelConfigurationRegistrants = new RegistrantList();
