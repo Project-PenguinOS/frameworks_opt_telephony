@@ -3634,7 +3634,7 @@ public class DataNetworkController extends Handler {
                 + (redirectUri != null ? ", " + redirectUri : ""));
         if (!TextUtils.isEmpty(redirectUri.toString())) {
             Intent intent = new Intent(TelephonyManager.ACTION_CARRIER_SIGNAL_REDIRECTED);
-            intent.putExtra(TelephonyManager.EXTRA_REDIRECTION_URL, redirectUri);
+            intent.putExtra(TelephonyManager.EXTRA_REDIRECTION_URL, redirectUri.toString());
             mPhone.getCarrierSignalAgent().notifyCarrierSignalReceivers(intent);
             log("Notify carrier signal receivers with redirectUri: " + redirectUri);
         }

@@ -64,18 +64,6 @@ flag {
   is_exported: false
 }
 
-# OWNER=jackyu TARGET=26Q2
-flag {
-  name: "update_resource_configuration"
-  namespace: "telephony"
-  description: "Update resource configuration when default sub id is changed"
-  bug: "397605393"
-  is_exported: false
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
 # OWNER=donaldahn TARGET=26Q2
 flag {
     name: "last_known_phone_number"
