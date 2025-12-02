@@ -1801,12 +1801,20 @@ public abstract class InboundSmsHandler extends StateMachine {
             intent.putExtra("messageId", messageId);
         }
 
-        UserHandle userHandle = null;
+        // Get the user handle associated with the subscription.
+        UserHandle userHandle = TelephonyUtils.getSubscriptionUserHandle(mContext, subId);
+
+        // In case of the  subscription association with default userId -1000, assume that the
+        // subscription is associated with the MAIN user which will be SYSTEM user in non-HSUM mode.
+        if (userHandle == null) {
+            userHandle = mUserManager.getMainUser();
+        }
+
         if (destPort == -1) {
             intent.setAction(Intents.SMS_DELIVER_ACTION);
+
             // Direct the intent to only the default SMS app. If we can't find a default SMS app
             // then sent it to all broadcast receivers.
-            userHandle = TelephonyUtils.getSubscriptionUserHandle(mContext, subId);
             ComponentName componentName = SmsApplication.getDefaultSmsApplicationAsUser(mContext,
                     true, userHandle);
             if (componentName != null) {
@@ -1832,13 +1840,6 @@ public abstract class InboundSmsHandler extends StateMachine {
             intent.setComponent(null);
         }
 
-        if (userHandle == null) {
-            if (mFeatureFlags.smsMmsDeliverBroadcastsRedirectToMainUser()) {
-                userHandle = mUserManager.getMainUser();
-            } else {
-                userHandle = UserHandle.SYSTEM;
-            }
-        }
         Bundle options = handleSmsWhitelisting(intent.getComponent(), isClass0);
         dispatchIntent(intent, android.Manifest.permission.RECEIVE_SMS,
                 AppOpsManager.OPSTR_RECEIVE_SMS, options, resultReceiver, userHandle, subId);
