@@ -20,10 +20,6 @@ import static android.telephony.CellularIdentifierDisclosure.NAS_PROTOCOL_MESSAG
 import static android.telephony.SecurityAlgorithmUpdate.CONNECTION_EVENT_VOLTE_SIP;
 import static android.telephony.SecurityAlgorithmUpdate.SECURITY_ALGORITHM_EEA2;
 import static android.telephony.SecurityAlgorithmUpdate.SECURITY_ALGORITHM_HMAC_SHA1_96;
-import static android.telephony.NetworkSecurityEvent.ALERT_CATEGORY_DOWNGRADE;
-import static android.telephony.NetworkSecurityEvent.ALERT_STATUS_DETECTED;
-import static android.telephony.NetworkSecurityEvent.REASON_CODE_DOWNGRADE_FORCED_HANDOVER;
-import static android.telephony.ServiceState.RIL_RADIO_TECHNOLOGY_LTE;
 
 import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
@@ -38,11 +34,9 @@ import android.telephony.CellIdentityGsm;
 import android.telephony.CellInfo;
 import android.telephony.CellularIdentifierDisclosure;
 import android.telephony.DisconnectCause;
-import android.telephony.NetworkSecurityEvent;
 import android.telephony.PreciseCallState;
 import android.telephony.PreciseDisconnectCause;
 import android.telephony.SecurityAlgorithmUpdate;
-import android.telephony.ServiceState;
 import android.telephony.SignalStrength;
 import android.telephony.TelephonyManager;
 import android.telephony.ims.ImsCallProfile;
@@ -61,9 +55,7 @@ import org.mockito.Mockito;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 public class DefaultPhoneNotifierTest extends TelephonyTest {
     private static final int PHONE_ID = 1;
@@ -520,25 +512,5 @@ public class DefaultPhoneNotifierTest extends TelephonyTest {
 
         verify(mTelephonyRegistryManager).notifyDomainSelectionEmergencyModeExited(
                 eq(phoneId), eq(subId), eq(type));
-    }
-
-    @Test
-    @SmallTest
-    public void testNotifyNetworkSecurityEvents() {
-        doReturn(true).when(mFeatureFlags).networkSecurityEventIndications();
-        int phoneId = mPhone.getPhoneId();
-        int subId = mPhone.getSubId();
-        Set<NetworkSecurityEvent> events = new HashSet<>();
-        events.add(new NetworkSecurityEvent(
-                ALERT_CATEGORY_DOWNGRADE,
-                ALERT_STATUS_DETECTED,
-                new int[]{REASON_CODE_DOWNGRADE_FORCED_HANDOVER},
-                123L, 456, 789, "101112",
-                RIL_RADIO_TECHNOLOGY_LTE,
-                false));
-
-        mDefaultPhoneNotifierUT.notifyNetworkSecurityEvents(mPhone, events);
-        verify(mTelephonyRegistryManager).notifyNetworkSecurityEvents(
-                eq(phoneId), eq(subId), eq(events));
     }
 }

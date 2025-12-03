@@ -986,19 +986,4 @@ public class RadioNetworkProxy extends RadioServiceProxy {
         }
         // Only supported on AIDL.
     }
-
-    /**
-     * Get the supported network alert categories.
-     *
-     * @param serial Serial number of request.
-     * @throws RemoteException
-     */
-    public void getSupportedNetworkAlertCategories(int serial)
-            throws RemoteException {
-        if (isEmpty()) return;
-        if (isAidl()) {
-            mNetworkProxy.getSupportedNetworkAlertCategories(serial);
-        }
-        // Only supported on AIDL.
-    }
 }

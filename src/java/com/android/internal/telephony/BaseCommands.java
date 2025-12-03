@@ -107,7 +107,6 @@ public abstract class BaseCommands implements CommandsInterface {
     protected RegistrantList mCellularIdentifierDisclosedRegistrants = new RegistrantList();
     protected RegistrantList mSecurityAlgorithmUpdatedRegistrants = new RegistrantList();
     protected RegistrantList mDisplayNetworkTypeChangedRegistrants = new RegistrantList();
-    protected RegistrantList mNetworkSecurityEventsRegistrants = new RegistrantList();
 
     @UnsupportedAppUsage
     protected Registrant mGsmSmsRegistrant;
@@ -959,10 +958,5 @@ public abstract class BaseCommands implements CommandsInterface {
     @Override
     public void registerForSecurityAlgorithmUpdates(Handler h, int what, Object obj) {
         mSecurityAlgorithmUpdatedRegistrants.add(h, what, obj);
-    }
-
-    @Override
-    public void registerForNetworkSecurityEvents(Handler h, int what, Object obj) {
-        mNetworkSecurityEventsRegistrants.add(h, what, obj);
     }
 }
