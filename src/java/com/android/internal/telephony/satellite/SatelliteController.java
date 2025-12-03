@@ -10660,4 +10660,9 @@ public class SatelliteController extends Handler {
             return mLastConfiguredIccId;
         }
     }
+
+    @VisibleForTesting
+    public boolean isWifiConnected() {
+        return mIsWifiConnected.get();
+    }
 }
