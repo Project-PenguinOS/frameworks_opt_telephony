@@ -77,6 +77,7 @@ import android.telephony.CellIdentityGsm;
 import android.telephony.CellularIdentifierDisclosure;
 import android.telephony.LinkCapacityEstimate;
 import android.telephony.NetworkRegistrationInfo;
+import android.telephony.NetworkSecurityEvent;
 import android.telephony.RadioAccessFamily;
 import android.telephony.SecurityAlgorithmUpdate;
 import android.telephony.ServiceState;
@@ -120,7 +121,9 @@ import org.mockito.Mockito;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @RunWith(AndroidTestingRunner.class)
 @TestableLooper.RunWithLooper
@@ -2723,6 +2726,92 @@ public class GsmCdmaPhoneTest extends TelephonyTest {
         sendRequestSuccessToPhone(phoneUT, EVENT_SET_IDENTIFIER_DISCLOSURE_ENABLED_DONE);
 
         assertTrue(phoneUT.isIdentifierDisclosureTransparencySupported());
+    }
+
+    @Test
+    public void testNetworkSecurityEventIndication() {
+        GsmCdmaPhone phoneUT = makeNewPhoneUT();
+
+        verify(mMockCi, times(1))
+                .registerForNetworkSecurityEvents(
+                        eq(phoneUT),
+                        eq(Phone.EVENT_NETWORK_SECURITY_EVENTS),
+                        nullable(Object.class));
+    }
+
+    @Test
+    public void testNetworkSecurityEvent_eventAddedToNotifier() {
+        when(mFeatureFlags.networkSecurityEventIndications()).thenReturn(true);
+        when(mSubscriptionManagerService.getSubId(0)).thenReturn(10);
+        GsmCdmaPhone phoneUT = makeNewPhoneUT();
+
+        Set<NetworkSecurityEvent> events = new HashSet<>();
+        events.add(new NetworkSecurityEvent(
+                NetworkSecurityEvent.ALERT_CATEGORY_DOWNGRADE,
+                NetworkSecurityEvent.ALERT_STATUS_DETECTED,
+                new int[]{NetworkSecurityEvent.REASON_CODE_DOWNGRADE_FORCED_HANDOVER},
+                123L, 456, 789, "101112",
+                ServiceState.RIL_RADIO_TECHNOLOGY_LTE,
+                false));
+        phoneUT.sendMessage(
+                phoneUT.obtainMessage(
+                        Phone.EVENT_NETWORK_SECURITY_EVENTS,
+                        new AsyncResult(null, events, null)));
+        processAllMessages();
+
+        verify(mNotifier, times(1)).notifyNetworkSecurityEvents(eq(phoneUT), eq(events));
+    }
+
+    @Test
+    public void testNetworkSecurityEvent_eventNull() {
+        when(mFeatureFlags.networkSecurityEventIndications()).thenReturn(true);
+        GsmCdmaPhone phoneUT = makeNewPhoneUT();
+
+
+        phoneUT.sendMessage(
+                phoneUT.obtainMessage(
+                        Phone.EVENT_NETWORK_SECURITY_EVENTS, new AsyncResult(null, null, null)));
+        processAllMessages();
+
+        verify(mNotifier, never()).notifyNetworkSecurityEvents(any(Phone.class), any());
+    }
+
+    @Test
+    public void testNetworkSecurityEvent_withInvalidSubscriptionID() {
+        when(mFeatureFlags.networkSecurityEventIndications()).thenReturn(true);
+        when(mSubscriptionManagerService.getSubId(0)).thenReturn(-1);
+        GsmCdmaPhone phoneUT = makeNewPhoneUT();
+
+        Set<NetworkSecurityEvent> events = new HashSet<>();
+        events.add(new NetworkSecurityEvent(
+                NetworkSecurityEvent.ALERT_CATEGORY_DOWNGRADE,
+                NetworkSecurityEvent.ALERT_STATUS_DETECTED,
+                new int[]{NetworkSecurityEvent.REASON_CODE_DOWNGRADE_FORCED_HANDOVER},
+                123L, 456, 789, "101112",
+                ServiceState.RIL_RADIO_TECHNOLOGY_LTE,
+                false));
+
+        phoneUT.sendMessage(
+                phoneUT.obtainMessage(
+                        Phone.EVENT_NETWORK_SECURITY_EVENTS,
+                        new AsyncResult(null, events, null)));
+        processAllMessages();
+
+        verify(mNotifier, never()).notifyNetworkSecurityEvents(any(Phone.class), any());
+        assertEquals(1, phoneUT.mCellularEventMessages.size());
+
+        when(mSubscriptionManagerService.getSubId(0)).thenReturn(10);
+
+        // sending SIM loaded broadCast.
+        Intent simLoadedIntent = new Intent(TelephonyManager.ACTION_SIM_APPLICATION_STATE_CHANGED);
+        simLoadedIntent.putExtra(SubscriptionManager.EXTRA_SLOT_INDEX, phoneUT.getPhoneId());
+        simLoadedIntent.putExtra(TelephonyManager.EXTRA_SIM_STATE,
+                TelephonyManager.SIM_STATE_LOADED);
+        mContext.sendBroadcast(simLoadedIntent);
+        processAllMessages();
+
+        verify(mNotifier, times(1)).notifyNetworkSecurityEvents(eq(phoneUT), eq(events));
+        assertTrue(phoneUT.mCellularEventMessages.isEmpty());
     }
 
     @Test
