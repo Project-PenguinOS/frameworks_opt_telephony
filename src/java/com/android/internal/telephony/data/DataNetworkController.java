@@ -1992,6 +1992,12 @@ public class DataNetworkController extends Handler {
             }
         }
 
+        if (evaluation.containsHardDisallowedReasons()) {
+            // Might have both hard and soft disallowed reasons. To reduce confusion, we should
+            // remove the soft disallowed reasons if there are hard disallowed reasons.
+            evaluation.removeSoftDisallowedReasons();
+        }
+
         networkRequest.setEvaluation(evaluation);
         // EXTERNAL_QUERY generates too many log spam.
         if (reason != DataEvaluationReason.EXTERNAL_QUERY) {
@@ -2408,6 +2414,10 @@ public class DataNetworkController extends Handler {
                     evaluation.addDataAllowedReason(DataAllowedReason.UNMETERED_USAGE);
                 }
             }
+        } else {
+            // Might have both hard and soft disallowed reasons. To reduce confusion, we should
+            // remove the soft disallowed reasons if there are hard disallowed reasons.
+            evaluation.removeSoftDisallowedReasons();
         }
 
         // Check if we allow additional lingering for active VoPS call network if
@@ -2861,10 +2871,6 @@ public class DataNetworkController extends Handler {
      * @return {@code true} if the device is under eSIM bootstrap provisioning.
      */
     public boolean isEsimBootStrapProvisioningActivated() {
-        if (!mFeatureFlags.esimBootstrapProvisioningFlag()) {
-            return false;
-        }
-
         SubscriptionInfoInternal subInfo = SubscriptionManagerService.getInstance()
                 .getSubscriptionInfoInternal(mPhone.getSubId());
         return subInfo != null
@@ -3578,7 +3584,7 @@ public class DataNetworkController extends Handler {
      *
      * @param dataNetwork The data network.
      */
-    private void onDataNetworkValidationStatusChanged(@NonNull DataNetwork dataNetwork,
+    protected void onDataNetworkValidationStatusChanged(@NonNull DataNetwork dataNetwork,
             @ValidationStatus int status, @Nullable Uri redirectUri) {
         log("onDataNetworkValidationStatusChanged: " + dataNetwork + ", validation status="
                 + DataUtils.validationStatusToString(status)

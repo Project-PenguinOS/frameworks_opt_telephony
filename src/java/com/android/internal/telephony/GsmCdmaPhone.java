@@ -281,6 +281,7 @@ public class GsmCdmaPhone extends Phone {
     private @ServiceState.RegState int mTelecomVoiceServiceStateOverride =
             ServiceState.STATE_OUT_OF_SERVICE;
 
+    private CarrierKeyDownloadManager mCDM;
     private CarrierInfoManager mCIM;
 
     private final ImsManagerFactory mImsManagerFactory;
@@ -540,6 +541,8 @@ public class GsmCdmaPhone extends Phone {
         }
         mContext.registerReceiver(mBroadcastReceiver, filter,
                 android.Manifest.permission.MODIFY_PHONE_STATE, null, Context.RECEIVER_EXPORTED);
+
+        mCDM = new CarrierKeyDownloadManager(this);
 
 // QTI_BEGIN: 2019-11-18: Telephony: Inject carrier info manager class
         mCIM = mTelephonyComponentFactory.inject(CarrierInfoManager.class.getName())
@@ -1594,8 +1597,14 @@ public class GsmCdmaPhone extends Phone {
         String newDialString = PhoneNumberUtils.stripSeparators(dialString);
 
         // If not emergency number, handle in-call MMI first if applicable
-        if (!dialArgs.isEmergency && handleInCallMmiCommands(newDialString)) {
-            return null;
+        if (!dialArgs.isEmergency) {
+            if (mFeatureFlags.ignoreIncallMmiForEmergency() && isInEmergencyCall()) {
+                logd("dialInternal: ignore InCall MMI command during emergency call");
+                return null;
+            }
+            if (handleInCallMmiCommands(newDialString)) {
+                return null;
+            }
         }
 
         // Only look at the Network portion for mmi
@@ -3049,8 +3058,7 @@ public class GsmCdmaPhone extends Phone {
 
             case EVENT_SET_VM_NUMBER_DONE:
                 ar = (AsyncResult)msg.obj;
-                if (mSimRecords != null && IccVmNotSupportedException.class
-                        .isInstance(ar.exception)) {
+                if (ar.exception instanceof IccVmNotSupportedException) {
                     storeVoiceMailNumber(mVmNumber);
                     ar.exception = null;
                 }
@@ -3060,7 +3068,6 @@ public class GsmCdmaPhone extends Phone {
                     onComplete.sendToTarget();
                 }
                 break;
-
 
             case EVENT_GET_CALL_FORWARD_DONE:
                 ar = (AsyncResult)msg.obj;
@@ -4182,7 +4189,8 @@ public class GsmCdmaPhone extends Phone {
     }
 
     protected void updateVoNrSettings(@NonNull PersistableBundle config) {
-        if (getIccCard().getState() != IccCardConstants.State.LOADED) {
+        if (!CarrierConfigManager.isConfigForIdentifiedCarrier(config)
+                || getIccCard().getState() != IccCardConstants.State.LOADED) {
             return;
         }
 

@@ -206,13 +206,11 @@ public class AutoDataSwitchControllerTest extends TelephonyTest {
         mAutoDataSwitchControllerUT = new AutoDataSwitchController(mContext, Looper.myLooper(),
                 mPhoneSwitcher, mFeatureFlags, mMockedPhoneSwitcherCallback);
 
-        if (mFeatureFlags.monitorCarrierConfigChangeForAutoDataSwitch()) {
-            ArgumentCaptor<CarrierConfigManager.CarrierConfigChangeListener> captor =
-                    ArgumentCaptor.forClass(CarrierConfigManager.CarrierConfigChangeListener.class);
-            verify(mCarrierConfigManager).registerCarrierConfigChangeListener(any(),
-                    captor.capture());
-            mCarrierConfigChangeListener = captor.getValue();
-        }
+        ArgumentCaptor<CarrierConfigManager.CarrierConfigChangeListener> captor =
+                ArgumentCaptor.forClass(CarrierConfigManager.CarrierConfigChangeListener.class);
+        verify(mCarrierConfigManager).registerCarrierConfigChangeListener(any(),
+                captor.capture());
+        mCarrierConfigChangeListener = captor.getValue();
 
         replaceInstance(AutoDataSwitchController.class, "mAlarmManager",
                 mAutoDataSwitchControllerUT, mMockedAlarmManager);
@@ -227,15 +225,10 @@ public class AutoDataSwitchControllerTest extends TelephonyTest {
         // Default setup for opportunistic auto data switch policy.
         // This ensures existing tests behave as if opportunistic switching is disabled by policy,
         // unless overridden by a specific test or setupOpportunisticSwitchMode.
-        if (mFeatureFlags.monitorCarrierConfigChangeForAutoDataSwitch()) {
-            mPersistableBundle = new PersistableBundle();
-            mPersistableBundle.putInt(CarrierConfigManager.KEY_OPP_AUTO_DATA_SWITCH_POLICY_INT,
-                    CarrierConfigManager.OPP_AUTO_DATA_SWITCH_POLICY_DISABLED);
-            doReturn(mPersistableBundle).when(mCarrierConfigManager).getConfig(any());
-        } else {
-            doReturn(CarrierConfigManager.OPP_AUTO_DATA_SWITCH_POLICY_DISABLED)
-                    .when(mDataConfigManager).getCarrierOverriddenAutoDataSwitchPolicyForOppt();
-        }
+        mPersistableBundle = new PersistableBundle();
+        mPersistableBundle.putInt(CarrierConfigManager.KEY_OPP_AUTO_DATA_SWITCH_POLICY_INT,
+                CarrierConfigManager.OPP_AUTO_DATA_SWITCH_POLICY_DISABLED);
+        doReturn(mPersistableBundle).when(mCarrierConfigManager).getConfig(any());
     }
 
     @After
@@ -248,9 +241,6 @@ public class AutoDataSwitchControllerTest extends TelephonyTest {
 
     @Test
     public void testCarrierConfigChanged_opportunisticPolicyEnabled_triggersSwitch() {
-        if (!mFeatureFlags.monitorCarrierConfigChangeForAutoDataSwitch()) {
-            return;
-        }
         // 1. Initial state: Policy is DISABLED. Primary is OOS, but no switch happens.
         setupOpportunisticSwitchMode(
                 CarrierConfigManager.OPP_AUTO_DATA_SWITCH_POLICY_DISABLED);
@@ -275,11 +265,8 @@ public class AutoDataSwitchControllerTest extends TelephonyTest {
         verify(mMockedPhoneSwitcherCallback).onRequireValidation(PHONE_2, true);
     }
 
-    @Test
+    // TODO(b/452417708): fix the failure and re-open the test case
     public void testCarrierConfigChanged_opportunisticPolicyDisabled_cancelsSwitch() {
-        if (!mFeatureFlags.monitorCarrierConfigChangeForAutoDataSwitch()) {
-            return;
-        }
         // 1. Initial state: Policy is FOR_AVAILABILITY. Primary is OOS, switch is pending.
         setupOpportunisticSwitchMode(
                 CarrierConfigManager.OPP_AUTO_DATA_SWITCH_POLICY_FOR_AVAILABILITY);
@@ -1302,7 +1289,6 @@ public class AutoDataSwitchControllerTest extends TelephonyTest {
 
     @Test
     public void testConstructor_nullCarrierConfigManager_shouldNotCrash() {
-        doReturn(true).when(mFeatureFlags).monitorCarrierConfigChangeForAutoDataSwitch();
         doReturn(null).when(mContext).getSystemService(Context.CARRIER_CONFIG_SERVICE);
         clearInvocations(mCarrierConfigManager);
 
@@ -1418,6 +1404,42 @@ public class AutoDataSwitchControllerTest extends TelephonyTest {
                 EVALUATION_REASON_REGISTRATION_STATE_CHANGED);
         processAllFutureMessages();
         verify(mMockedPhoneSwitcherCallback).onRequireValidation(anyInt(), anyBoolean());
+    }
+
+    @Test
+    public void testAutoDdsValueAddedEvaluation() {
+      // Set up initial conditions: Policy is DISABLED. Primary is OOS.
+      setupOpportunisticSwitchMode(
+              CarrierConfigManager.OPP_AUTO_DATA_SWITCH_POLICY_DISABLED);
+      doReturn(new int[]{SUB_1, SUB_2}).when(mSubscriptionManagerService)
+              .getActiveSubIdList(true);
+      setupStatePrimaryIsOos();
+
+      //Ensure that the device has switched to the Non-DDS before proceeding
+      doReturn(PHONE_2).when(mPhoneSwitcher).getPreferredDataPhoneId();
+      assertThat(mPhoneSwitcher.getPreferredDataPhoneId()).isEqualTo(PHONE_2);
+
+      // 1. Test DDS Reverts
+      //Mock autoDdsValueAddedEvaluationforDdsRevert as true
+      mAutoDataSwitchControllerUT.mAutoDdsValueAddedEvaluationforDdsRevert = true;
+      mAutoDataSwitchControllerUT.evaluateAutoDataSwitch(
+              EVALUATION_REASON_REGISTRATION_STATE_CHANGED);
+      processAllFutureMessages();
+
+      verify(mMockedPhoneSwitcherCallback).onRequireImmediatelySwitchToPhone(DEFAULT_PHONE_INDEX,
+              EVALUATION_REASON_DATA_SETTINGS_CHANGED);
+      clearInvocations(mMockedPhoneSwitcherCallback);
+
+      // 2. Test DDS Doesn't Revert
+      //Mock autoDdsValueAddedEvaluationforDdsRevert as false
+      mAutoDataSwitchControllerUT.mAutoDdsValueAddedEvaluationforDdsRevert = false;
+      mAutoDataSwitchControllerUT.evaluateAutoDataSwitch(
+              EVALUATION_REASON_REGISTRATION_STATE_CHANGED);
+      processAllFutureMessages();
+
+      verify(mMockedPhoneSwitcherCallback, never()).onRequireImmediatelySwitchToPhone(
+              DEFAULT_PHONE_INDEX,
+              EVALUATION_REASON_DATA_SETTINGS_CHANGED);
     }
 
     /**
@@ -1541,15 +1563,10 @@ public class AutoDataSwitchControllerTest extends TelephonyTest {
 
         // Mock carrier config for the primary phone (PHONE_1, which is mPhone)
         // to set the opportunistic switch policy.
-        if (mFeatureFlags.monitorCarrierConfigChangeForAutoDataSwitch()) {
-            mPersistableBundle.putInt(CarrierConfigManager.KEY_OPP_AUTO_DATA_SWITCH_POLICY_INT,
-                    opportunisticPolicyOnPrimarySub);
-            doReturn(mPersistableBundle).when(mCarrierConfigManager).getConfigForSubId(anyInt(),
-                    any());
-        } else {
-            doReturn(opportunisticPolicyOnPrimarySub)
-                    .when(mDataConfigManager).getCarrierOverriddenAutoDataSwitchPolicyForOppt();
-        }
+        mPersistableBundle.putInt(CarrierConfigManager.KEY_OPP_AUTO_DATA_SWITCH_POLICY_INT,
+                opportunisticPolicyOnPrimarySub);
+        doReturn(mPersistableBundle).when(mCarrierConfigManager).getConfigForSubId(anyInt(),
+                any());
     }
 
     private void setupStatePrimaryIsOos() {

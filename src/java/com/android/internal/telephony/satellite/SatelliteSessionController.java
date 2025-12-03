@@ -433,6 +433,8 @@ public class SatelliteSessionController extends StateMachine {
     public void registerForSatelliteModemStateChanged(
             @NonNull ISatelliteModemStateCallback callback) {
         try {
+            plogd("registerForSatelliteModemStateChanged: callback=" + callback
+                    + ", mCurrentState=" + mCurrentState);
             callback.onSatelliteModemStateChanged(mCurrentState);
             callback.onEmergencyModeChanged(mSatelliteController.getRequestIsEmergency());
             mListeners.put(callback.asBinder(), callback);

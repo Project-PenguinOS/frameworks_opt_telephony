@@ -18,6 +18,7 @@ package com.android.internal.telephony.data;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.net.IpPrefix;
 import android.net.LinkAddress;
 import android.net.NetworkAgent;
 import android.net.QosFilter;
@@ -32,6 +33,7 @@ import android.telephony.data.QosBearerFilter;
 import android.telephony.data.QosBearerSession;
 
 import com.android.internal.telephony.Phone;
+import com.android.internal.telephony.flags.FeatureFlags;
 import com.android.internal.telephony.metrics.RcsStats;
 import com.android.telephony.Rlog;
 
@@ -68,6 +70,9 @@ public class QosCallbackTracker extends Handler {
 
     private final int mPhoneId;
 
+    /** Feature flags */
+    @NonNull
+    private final FeatureFlags mFlags;
     /**
      * QOS sessions filter interface
      */
@@ -76,21 +81,25 @@ public class QosCallbackTracker extends Handler {
          * Filter using the local address.
          *
          * @param address The local address.
+         * @param prefixLength The prefix length of the local address.
          * @param startPort Starting port.
          * @param endPort Ending port.
          * @return {@code true} if matches, {@code false} otherwise.
          */
-        boolean matchesLocalAddress(InetAddress address, int startPort, int endPort);
+        boolean matchesLocalAddress(
+                InetAddress address, int prefixLength, int startPort, int endPort);
 
         /**
          * Filter using the remote address.
          *
          * @param address The remote address.
+         * @param prefixLength The prefix length of the remote address.
          * @param startPort Starting port.
          * @param endPort Ending port.
          * @return {@code true} if matches, {@code false} otherwise.
          */
-        boolean matchesRemoteAddress(InetAddress address, int startPort, int endPort);
+        boolean matchesRemoteAddress(
+                InetAddress address, int prefixLength, int startPort, int endPort);
 
         /**
          * Filter using the protocol
@@ -107,13 +116,16 @@ public class QosCallbackTracker extends Handler {
      * @param networkAgent The network agent to send events to.
      * @param phone The phone instance.
      */
-    public QosCallbackTracker(@NonNull TelephonyNetworkAgent networkAgent, @NonNull Phone phone) {
+    public QosCallbackTracker(
+            @NonNull TelephonyNetworkAgent networkAgent,
+            @NonNull Phone phone, FeatureFlags featureFlags) {
         mQosBearerSessions = new HashMap<>();
         mCallbacksToFilter = new HashMap<>();
         mNetworkAgent = networkAgent;
         mPhoneId = phone.getPhoneId();
         mRcsStats = RcsStats.getInstance();
         mLogTag = "QOSCT" + "-" + ((NetworkAgent) mNetworkAgent).getNetwork().getNetId();
+        mFlags = featureFlags;
 
         registerTelephonyNetworkAgentCallback(mNetworkAgent);
     }
@@ -145,16 +157,26 @@ public class QosCallbackTracker extends Handler {
                                 new QosCallbackTracker.IFilter() {
                                     @Override
                                     public boolean matchesLocalAddress(
-                                            @NonNull InetAddress address, int startPort,
-                                            int endPort) {
+                                            @NonNull InetAddress address, int prefixLength,
+                                            int startPort, int endPort) {
+                                        if (mFlags.qosFilterMatchAddressRange()) {
+                                            return filter.matchesLocalPrefix(
+                                                    new IpPrefix(address, prefixLength),
+                                                    startPort, endPort);
+                                        }
                                         return filter.matchesLocalAddress(address, startPort,
                                                 endPort);
                                     }
 
                                     @Override
                                     public boolean matchesRemoteAddress(
-                                            @NonNull InetAddress address, int startPort,
-                                            int endPort) {
+                                            @NonNull InetAddress address, int prefixLength,
+                                            int startPort, int endPort) {
+                                        if (mFlags.qosFilterMatchAddressRange()) {
+                                            return filter.matchesRemotePrefix(
+                                                    new IpPrefix(address, prefixLength),
+                                                    startPort, endPort);
+                                        }
                                         return filter.matchesRemoteAddress(address, startPort,
                                                 endPort);
                                     }
@@ -164,6 +186,13 @@ public class QosCallbackTracker extends Handler {
                                         return filter.matchesProtocol(protocol);
                                     }
                                 });
+                    }
+
+                    @Override
+                    public void onQosCallbackUnregistered(int qosCallbackId) {
+                        if (mFlags.removeUnregisteredQosFilter()) {
+                            removeFilter(qosCallbackId);
+                        }
                     }
                 });
     }
@@ -326,10 +355,11 @@ public class QosCallbackTracker extends Handler {
             } catch (UnknownHostException e) {
                 return false;
             }
-            return filter.matchesLocalAddress(anyAddress, portStart, portEnd);
+            return filter.matchesLocalAddress(anyAddress, 32, portStart, portEnd);
         } else {
             for (final LinkAddress qosAddress : sessionFilter.getLocalAddresses()) {
-                return filter.matchesLocalAddress(qosAddress.getAddress(), portStart, portEnd);
+                return filter.matchesLocalAddress(
+                        qosAddress.getAddress(), qosAddress.getPrefixLength(), portStart, portEnd);
             }
         }
         return false;
@@ -356,10 +386,11 @@ public class QosCallbackTracker extends Handler {
             } catch (UnknownHostException e) {
                 return false;
             }
-            result = filter.matchesRemoteAddress(anyAddress, portStart, portEnd);
+            result = filter.matchesRemoteAddress(anyAddress, 32, portStart, portEnd);
         } else {
             for (final LinkAddress qosAddress : sessionFilter.getRemoteAddresses()) {
-                result = filter.matchesRemoteAddress(qosAddress.getAddress(), portStart, portEnd);
+                return filter.matchesRemoteAddress(
+                        qosAddress.getAddress(), qosAddress.getPrefixLength(), portStart, portEnd);
             }
         }
         return result;

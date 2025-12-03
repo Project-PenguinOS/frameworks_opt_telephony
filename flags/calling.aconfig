@@ -10,17 +10,6 @@ flag {
   is_exported: true
 }
 
-# OWNER=stevestatia TARGET=24Q4
-flag {
-    name: "national_country_code_formatting_for_local_calls"
-    namespace: "telephony"
-    description: "Make requests and bug fixes for formatting local calls based on country codes easier with a more scalable solution."
-    bug: "293993310"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
 # OWNER=tgunn TARGET=25Q2
 flag {
     name: "robust_number_verification"
@@ -28,17 +17,6 @@ flag {
     description: "Makes range matching more robust for TelephonyManager#requestNumberVerification"
     bug:"400984263"
     is_exported: true
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-# OWNER=stevestatia TARGET=24Q4
-flag {
-    name: "remove_country_code_from_local_singapore_calls"
-    namespace: "telephony"
-    description: "Fix bug where the country code is being shown when merging in local Singapore numbers to conference calls."
-    bug:"284416645"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
@@ -54,17 +32,6 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
     is_exported: true
-}
-
-# OWNER=breadley TARGET=24Q4
-flag {
-    name: "delay_phone_account_registration"
-    namespace: "telephony"
-    description: "Fix bug where telephony would try to register for PhoneAccounts when Telecom isn't ready yet"
-    bug: "349731543"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
 }
 
 # OWNER=yongnamcha TARGET=25Q2
@@ -105,4 +72,24 @@ flag {
     namespace: "telephony"
     description: "Add support for auto-unholing the bg call for remotely disconnected calls (based on carrier config key)"
     bug:"439893979"
+}
+
+# OWNER=yadavabhinav TARGET=26Q2
+flag {
+    name: "support_low_battery_alert"
+    namespace: "telephony"
+    description: "Add Add periodic low battery alert during voice call"
+    bug:"421990884"
+    is_exported: true
+}
+
+# OWNER=breadley TARGET=26Q1
+flag {
+    name: "ignore_incall_mmi_for_emergency"
+    namespace: "telephony"
+    description: "Do not process in-call MMI codes when there is an active emergency call."
+    bug:"444515076"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
 }

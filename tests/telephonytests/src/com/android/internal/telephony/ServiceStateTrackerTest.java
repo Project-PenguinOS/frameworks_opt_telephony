@@ -106,7 +106,6 @@ import com.android.internal.telephony.subscription.SubscriptionInfoInternal;
 import com.android.internal.telephony.uicc.IccCardApplicationStatus;
 import com.android.internal.telephony.uicc.IccRecords;
 
-import java.util.Set;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Ignore;
@@ -121,6 +120,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.Executor;
 import java.util.stream.Collectors;
 
@@ -2940,6 +2940,42 @@ public class ServiceStateTrackerTest extends TelephonyTest {
     }
 
     @Test
+    public void testUpdateSpnDisplay_hybridMode_autoConnected_showSatelliteName() {
+        doReturn(true).when(mFeatureFlags).vzwAstSkyloFallback();
+
+        // Set connect type to HYBRID
+        mBundle.putInt(
+                CarrierConfigManager.KEY_CARRIER_ROAMING_NTN_CONNECT_TYPE_INT,
+                CarrierConfigManager.CARRIER_ROAMING_NTN_CONNECT_HYBRID);
+        // mBundle.putString(CarrierConfigManager.KEY_SATELLITE_DISPLAY_NAME_STRING,
+        //         SATELLITE_DISPLAY_NAME);
+        mBundle.putBoolean(
+                CarrierConfigManager.KEY_ENABLE_CARRIER_DISPLAY_NAME_RESOLVER_BOOL, false);
+        sendCarrierConfigUpdate(PHONE_ID);
+
+        // In Service
+        ServiceState ss = new ServiceState();
+        ss.setVoiceRegState(ServiceState.STATE_IN_SERVICE);
+        ss.setDataRegState(ServiceState.STATE_IN_SERVICE);
+        sst.mSS = ss;
+
+        // Mock auto satellite is connected
+        doReturn(new Pair<>(true, null)).when(mSatelliteController)
+                .isUsingNonTerrestrialNetworkViaCarrier();
+        doReturn(false).when(mSatelliteController).isInCarrierRoamingNbIotNtn(any());
+
+        // update the spn
+        sst.updateCarrierDisplayName();
+        processAllMessages();
+
+        // PLMN should be the satellite display name
+        Bundle b = getExtrasFromLastSpnUpdateIntent();
+        assertThat(b.getString(TelephonyManager.EXTRA_PLMN)).isEqualTo(SATELLITE_DISPLAY_NAME);
+        assertThat(b.getBoolean(TelephonyManager.EXTRA_SHOW_PLMN)).isTrue();
+        assertThat(b.getBoolean(TelephonyManager.EXTRA_SHOW_SPN)).isFalse();
+    }
+
+    @Test
     public void testShouldForceDisplayNoService_forceBasedOnLocale() {
         // set up unaffected locale (US) and clear the resource
         doReturn("us").when(mLocaleTracker).getLastKnownCountryIso();
@@ -3276,7 +3312,73 @@ public class ServiceStateTrackerTest extends TelephonyTest {
     }
 
     @Test
-    public void testSatelliteModemStateCallback() throws Exception {
+    public void testSatelliteModemStateCallback_ManualMode_ManualConnect() throws Exception {
+        ArgumentCaptor<ISatelliteModemStateCallback> captor =
+                ArgumentCaptor.forClass(ISatelliteModemStateCallback.class);
+        verify(mSatelliteController, times(1))
+                .registerForSatelliteModemStateChanged(captor.capture());
+        ISatelliteModemStateCallback callback = captor.getValue();
+
+        doReturn(1).when(mSatelliteController).getSelectedSatelliteSubId();
+        doReturn(1).when(mPhone).getSubId();
+
+        mSimulatedCommands.setVoiceRegState(
+                NetworkRegistrationInfo.REGISTRATION_STATE_NOT_REGISTERED_OR_SEARCHING);
+        mSimulatedCommands.setVoiceRadioTech(ServiceState.RIL_RADIO_TECHNOLOGY_UNKNOWN);
+        mSimulatedCommands.setDataRegState(
+                NetworkRegistrationInfo.REGISTRATION_STATE_NOT_REGISTERED_OR_SEARCHING);
+        mSimulatedCommands.setDataRadioTech(ServiceState.RIL_RADIO_TECHNOLOGY_UNKNOWN);
+        doReturn(ServiceState.STATE_OUT_OF_SERVICE).when(mServiceState).getState();
+        doReturn(ServiceState.STATE_OUT_OF_SERVICE).when(mServiceState).getDataRegistrationState();
+        sst.mSS = mServiceState;
+
+        mBundle.putBoolean(
+                CarrierConfigManager.KEY_ENABLE_CARRIER_DISPLAY_NAME_RESOLVER_BOOL, false);
+        mBundle.putInt(
+                CarrierConfigManager.KEY_CARRIER_ROAMING_NTN_CONNECT_TYPE_INT,
+                CarrierConfigManager.CARRIER_ROAMING_NTN_CONNECT_MANUAL);
+        sendCarrierConfigUpdate(PHONE_ID);
+
+        doReturn(true).when(mSatelliteController).isInConnectedState();
+        callback.onSatelliteModemStateChanged(SatelliteManager.SATELLITE_MODEM_STATE_CONNECTED);
+        processAllMessages();
+
+        // update the spn
+        sst.updateCarrierDisplayName();
+
+        Bundle b = getExtrasFromLastSpnUpdateIntent();
+        assertThat(b.getString(TelephonyManager.EXTRA_PLMN)).isEqualTo(SATELLITE_DISPLAY_NAME);
+        assertThat(b.getBoolean(TelephonyManager.EXTRA_SHOW_PLMN)).isTrue();
+
+        // Override operator name to "Satellite" when registration state is IN_SERVICE.
+        mSimulatedCommands.setVoiceRegState(NetworkRegistrationInfo.REGISTRATION_STATE_ROAMING);
+        mSimulatedCommands.setVoiceRadioTech(ServiceState.RIL_RADIO_TECHNOLOGY_LTE);
+        mSimulatedCommands.setDataRegState(NetworkRegistrationInfo.REGISTRATION_STATE_ROAMING);
+        mSimulatedCommands.setDataRadioTech(ServiceState.RIL_RADIO_TECHNOLOGY_LTE);
+        doReturn(ServiceState.STATE_IN_SERVICE).when(mServiceState).getState();
+        doReturn(ServiceState.STATE_IN_SERVICE).when(mServiceState).getDataRegistrationState();
+        doReturn("Skylo Technologies").when(mServiceState).getOperatorAlpha();
+
+        mBundle.putBoolean(
+                CarrierConfigManager.KEY_ENABLE_CARRIER_DISPLAY_NAME_RESOLVER_BOOL, false);
+        mBundle.putBoolean(CarrierConfigManager.KEY_CARRIER_NAME_OVERRIDE_BOOL, true);
+        mBundle.putString(CarrierConfigManager.KEY_CARRIER_NAME_STRING, "");
+        sendCarrierConfigUpdate(PHONE_ID);
+
+        callback.onSatelliteModemStateChanged(
+                SatelliteManager.SATELLITE_MODEM_STATE_DATAGRAM_TRANSFERRING);
+        processAllMessages();
+
+        // update the spn
+        sst.updateCarrierDisplayName();
+
+        b = getExtrasFromLastSpnUpdateIntent();
+        assertThat(b.getString(TelephonyManager.EXTRA_PLMN)).isEqualTo(SATELLITE_DISPLAY_NAME);
+        assertThat(b.getBoolean(TelephonyManager.EXTRA_SHOW_PLMN)).isTrue();
+    }
+
+    @Test
+    public void testSatelliteName_HybridMode_ManualConnect() throws Exception {
         ArgumentCaptor<ISatelliteModemStateCallback> captor =
                 ArgumentCaptor.forClass(ISatelliteModemStateCallback.class);
         verify(mSatelliteController, times(1)).registerForSatelliteModemStateChanged(
@@ -3298,6 +3400,9 @@ public class ServiceStateTrackerTest extends TelephonyTest {
 
         mBundle.putBoolean(
                 CarrierConfigManager.KEY_ENABLE_CARRIER_DISPLAY_NAME_RESOLVER_BOOL, false);
+        mBundle.putInt(
+                CarrierConfigManager.KEY_CARRIER_ROAMING_NTN_CONNECT_TYPE_INT,
+                CarrierConfigManager.CARRIER_ROAMING_NTN_CONNECT_HYBRID);
         sendCarrierConfigUpdate(PHONE_ID);
 
         doReturn(true).when(mSatelliteController).isInConnectedState();

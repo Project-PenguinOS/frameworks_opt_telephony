@@ -1455,13 +1455,13 @@ public abstract class InboundSmsHandler extends StateMachine {
                 if (mUserManager.isUserRunning(handle)) {
                     runningUserHandles.add(handle);
                 } else {
+                    long messageId = resultReceiver != null
+                            ? resultReceiver.mInboundSmsTracker.getMessageId() : -1;
                     if (mFeatureFlags.smsMmsDeliverBroadcastsRedirectToMainUser()
                             && handle.equals(mainUser)) {
-                        logeWithLocalLog("dispatchIntent: MAIN user is not running",
-                                resultReceiver.mInboundSmsTracker.getMessageId());
+                        logeWithLocalLog("dispatchIntent: MAIN user is not running", messageId);
                     } else if (handle.equals(UserHandle.SYSTEM)) {
-                        logeWithLocalLog("dispatchIntent: SYSTEM user is not running",
-                                resultReceiver.mInboundSmsTracker.getMessageId());
+                        logeWithLocalLog("dispatchIntent: SYSTEM user is not running", messageId);
                     }
                 }
             }
@@ -1492,7 +1492,6 @@ public abstract class InboundSmsHandler extends StateMachine {
                         isMainUser(users[i]) ? resultReceiver : null, targetUser);
             }
         } else {
-            resultReceiver.setWaitingForIntent(intent);
             sendBroadcast(intent, permission, appOp, opts, resultReceiver, user);
         }
     }
@@ -1546,23 +1545,20 @@ public abstract class InboundSmsHandler extends StateMachine {
             Bundle opts, SmsBroadcastReceiver resultReceiver, UserHandle user) {
         final long start = SystemClock.elapsedRealtime();
         mBackgroundExecutor.execute(() -> {
-            AtomicBoolean containsOtpCallPending = new AtomicBoolean(true);
-            AtomicBoolean sentBroadcastAfterWaitingMaxTime = new AtomicBoolean(false);
+            AtomicBoolean sentBroadcast = new AtomicBoolean(false);
             mMainThreadHandler.postDelayed(() -> {
-                if (containsOtpCallPending.get()) {
+                if (!sentBroadcast.getAndSet(true)) {
                     // If we've waited the maximum time, and still haven't classified, send the
                     // broadcast.
-                    sentBroadcastAfterWaitingMaxTime.set(true);
                     sendBroadcastWithStandardPermissions(intent, permission, appOp, opts,
                             resultReceiver, user);
                 }
             }, MAXIMUM_BROADCAST_DELAY_TIME_MS);
             Collection<TextLinks.TextLink> textLinks = generateOtpTextLinks(intent);
             boolean containsOtp = containsOtp(textLinks);
-            containsOtpCallPending.set(false);
             int classificationTime = (int)
                     (Math.min(SystemClock.elapsedRealtime() - start, Integer.MAX_VALUE));
-            if (sentBroadcastAfterWaitingMaxTime.get()) {
+            if (sentBroadcast.getAndSet(true)) {
                 // Broadcast was already sent, don't re-send
                 return;
             }

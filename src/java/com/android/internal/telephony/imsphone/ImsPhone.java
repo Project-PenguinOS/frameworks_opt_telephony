@@ -1045,8 +1045,14 @@ public class ImsPhone extends ImsPhoneBase {
 
 // QTI_BEGIN: 2025-01-28: Telephony: Revert "DSDA: Add support for MMI codes, adhoc conference"
         // handle in-call MMI first if applicable
-        if (!dialArgs.isEmergency && handleInCallMmiCommands(newDialString)) {
-            return null;
+        if (!dialArgs.isEmergency) {
+            if (mFeatureFlags.ignoreIncallMmiForEmergency() && mCT.isInEmergencyCall()) {
+                logd("dialInternal: ignore InCall MMI command during emergency call");
+                return null;
+            }
+            if (handleInCallMmiCommands(newDialString)) {
+                return null;
+            }
         }
 
 // QTI_END: 2025-01-28: Telephony: Revert "DSDA: Add support for MMI codes, adhoc conference"
@@ -2690,7 +2696,8 @@ public class ImsPhone extends ImsPhoneBase {
                 updateImsRegistrationInfo(REGISTRATION_STATE_NOT_REGISTERED,
                         imsRadioTech, suggestedModemAction, TRANSPORT_TYPE_INVALID);
 
-                if (mFeatureFlags.clearCachedImsPhoneNumberWhenDeviceLostImsRegistration()) {
+                if (mFeatureFlags.clearCachedImsPhoneNumberWhenDeviceLostImsRegistration()
+                        && !mFeatureFlags.lastKnownPhoneNumber()) {
                     // Clear the phone number from P-Associated-Uri
                     setCurrentSubscriberUris(null);
                     clearPhoneNumberForSourceIms();
@@ -2748,6 +2755,10 @@ public class ImsPhone extends ImsPhoneBase {
         getDefaultPhone().setImsRegistrationState(false);
         mImsStats.onImsUnregistered(imsReasonInfo);
         mImsNrSaModeHandler.onImsUnregistered(imsRadioTech);
+        if (mFeatureFlags.lastKnownPhoneNumber()) {
+            // Reset the previous P-Associated-URI parsing status for the new IMS registration.
+            mSubscriptionManagerService.clearImsNumberUpdateStatus(getSubId());
+        }
         mImsRegistrationTech = REGISTRATION_TECH_NONE;
         int suggestedModemAction = SUGGESTED_ACTION_NONE;
         if (imsReasonInfo.getCode() == ImsReasonInfo.CODE_REGISTRATION_ERROR) {
@@ -2765,7 +2776,8 @@ public class ImsPhone extends ImsPhoneBase {
         updateImsRegistrationInfo(REGISTRATION_STATE_NOT_REGISTERED,
                 imsRadioTech, suggestedModemAction, TRANSPORT_TYPE_INVALID, throttlingTimeSec);
 
-        if (mFeatureFlags.clearCachedImsPhoneNumberWhenDeviceLostImsRegistration()) {
+        if (mFeatureFlags.clearCachedImsPhoneNumberWhenDeviceLostImsRegistration()
+                && !mFeatureFlags.lastKnownPhoneNumber()) {
             // Clear the phone number from P-Associated-Uri
             setCurrentSubscriberUris(null);
             clearPhoneNumberForSourceIms();
@@ -2803,6 +2815,10 @@ public class ImsPhone extends ImsPhoneBase {
             // IMS callbacks are sent back to telephony after SIM state changed.
             return;
         }
+        if (mFeatureFlags.lastKnownPhoneNumber()) {
+            // Reset the previous P-Associated-URI parsing status for the new IMS registration.
+            mSubscriptionManagerService.clearImsNumberUpdateStatus(getSubId());
+        }
 
         String phoneNumber = extractPhoneNumberFromAssociatedUris(uris, /*isGlobalFormat*/true);
 // QTI_BEGIN: 2023-11-10: Telephony: Remove legacy subscription code
@@ -2827,6 +2843,9 @@ public class ImsPhone extends ImsPhoneBase {
                     } else if (result.isValidPhoneNumber()) {
                         mSubscriptionManagerService.setNumberFromIms(subId,
                                 result.getParsedPhoneNumber());
+                        if (mFeatureFlags.lastKnownPhoneNumber()) {
+                            mSubscriptionManagerService.setImsNumberUpdateStatus(subId, true);
+                        }
                         logd("setPhoneNumberForSourceIms: update IMS phone number");
                         return;
                     } else {
@@ -2854,6 +2873,9 @@ public class ImsPhone extends ImsPhoneBase {
             }
 // QTI_BEGIN: 2023-11-10: Telephony: Remove legacy subscription code
             mSubscriptionManagerService.setNumberFromIms(subId, phoneNumber);
+            if (mFeatureFlags.lastKnownPhoneNumber()) {
+                mSubscriptionManagerService.setImsNumberUpdateStatus(subId, true);
+            }
         } else if (isAllowNonGlobalNumberFormat()) {
             // If carrier config has true for KEY_IGNORE_GLOBAL_PHONE_NUMBER_FORMAT_BOOL and
             // P-Associated-Uri does not have global number,
@@ -2868,6 +2890,9 @@ public class ImsPhone extends ImsPhoneBase {
             }
 // QTI_BEGIN: 2023-11-10: Telephony: Remove legacy subscription code
             mSubscriptionManagerService.setNumberFromIms(subId, phoneNumber);
+            if (mFeatureFlags.lastKnownPhoneNumber()) {
+                mSubscriptionManagerService.setImsNumberUpdateStatus(subId, true);
+            }
         } else {
             logd("extract phone number failed");
 // QTI_END: 2023-11-10: Telephony: Remove legacy subscription code

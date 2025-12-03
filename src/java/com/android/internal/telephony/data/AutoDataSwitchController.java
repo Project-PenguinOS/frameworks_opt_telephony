@@ -65,6 +65,7 @@ import android.util.ArraySet;
 import android.util.IndentingPrintWriter;
 import android.util.LocalLog;
 
+import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.telephony.Phone;
 import com.android.internal.telephony.PhoneFactory;
 // QTI_BEGIN: 2024-09-04: Telephony: Fix to update AutoDataSwitch threshold values
@@ -267,7 +268,10 @@ public class AutoDataSwitchController extends Handler {
     /**
      * The phone Id of the pending switching phone. Used for pruning frequent switch evaluation.
      */
-    private int mSelectedTargetPhoneId = INVALID_PHONE_INDEX;
+    protected int mSelectedTargetPhoneId = INVALID_PHONE_INDEX;
+
+    @VisibleForTesting
+    public boolean mAutoDdsValueAddedEvaluationforDdsRevert = false;
 
     /**
      * To track the signal status of a phone in order to evaluate whether it's a good candidate to
@@ -404,8 +408,7 @@ public class AutoDataSwitchController extends Handler {
         mPhoneSwitcherCallback = phoneSwitcherCallback;
         mAlarmManager = context.getSystemService(AlarmManager.class);
         mCarrierConfigManager = context.getSystemService(CarrierConfigManager.class);
-        if (sFeatureFlags.monitorCarrierConfigChangeForAutoDataSwitch()
-                && mCarrierConfigManager != null) {
+        if (mCarrierConfigManager != null) {
             mCarrierConfigManager.registerCarrierConfigChangeListener(this::post,
                     (logicalSlotIndex, subId, carrierId, specificCarrierId) -> {
                         // Carrier config change is only used from primary sub to detect OPPT switch
@@ -792,8 +795,7 @@ public class AutoDataSwitchController extends Handler {
      * @param reason The reason for the evaluation.
      */
     private void onEvaluateAutoDataSwitch(@AutoDataSwitchEvaluationReason int reason) {
-        if (sFeatureFlags.monitorCarrierConfigChangeForAutoDataSwitch()
-                && reason == EVALUATION_REASON_CARRIER_CONFIG_CHANGED
+        if (reason == EVALUATION_REASON_CARRIER_CONFIG_CHANGED
                 && shouldExcludeOpportunisticForSwitch()
                 && mScheduledEventsToExtras.containsKey(EVENT_STABILITY_CHECK_PASSED)) {
             log("onEvaluateAutoDataSwitch: opportunistic policy disabled, cancelling pending "
@@ -854,6 +856,14 @@ public class AutoDataSwitchController extends Handler {
                 logl(debugMessage.append(
                         ", immediately back to default as user turns off default").toString());
                 return;
+            } else if (autoDdsValueAddedEvaluationforDdsRevert()) {
+                mSelectedTargetPhoneId = INVALID_PHONE_INDEX;
+                mPhoneSwitcherCallback.onRequireImmediatelySwitchToPhone(
+                        DEFAULT_PHONE_INDEX, EVALUATION_REASON_DATA_SETTINGS_CHANGED);
+                cancelAnyPendingSwitch();
+                log(debugMessage.append(
+                        ", immediately back to default as additional value added evaluation")
+                        .toString());
             } else if (!(internetEvaluation = getInternetEvaluation(backupDataPhone))
                     .isSubsetOf(DataEvaluation.DataDisallowedReason.NOT_IN_SERVICE)) {
                 mSelectedTargetPhoneId = INVALID_PHONE_INDEX;
@@ -943,6 +953,17 @@ public class AutoDataSwitchController extends Handler {
                 cancelAnyPendingSwitch();
             }
         }
+    }
+
+    /**
+     * Determines whether the Default Data Subscription (DDS) should revert to its original setting.
+     *
+     * @return boolean - Returns true if DDS should revert (Auto Data Switch UI is disabled),
+     *                   returns false if DDS should not revert (Auto Data Switch UI is enabled)
+     */
+    protected boolean autoDdsValueAddedEvaluationforDdsRevert() {
+        log("autoDdsValueAddedEvaluationforDdsRevert: false");
+        return mAutoDdsValueAddedEvaluationforDdsRevert;
     }
 
     /**
@@ -1374,18 +1395,12 @@ public class AutoDataSwitchController extends Handler {
         if (activeSubs.length != 1) {
             return OPP_AUTO_DATA_SWITCH_POLICY_DISABLED;
         }
-        if (sFeatureFlags.monitorCarrierConfigChangeForAutoDataSwitch()) {
-            return mCarrierConfigManager == null ? OPP_AUTO_DATA_SWITCH_POLICY_DISABLED :
+
+        return mCarrierConfigManager == null ? OPP_AUTO_DATA_SWITCH_POLICY_DISABLED :
                     mCarrierConfigManager.getCarrierConfigSubset(mContext, activeSubs[0],
                             CarrierConfigManager.KEY_OPP_AUTO_DATA_SWITCH_POLICY_INT).getInt(
                             CarrierConfigManager.KEY_OPP_AUTO_DATA_SWITCH_POLICY_INT,
                             OPP_AUTO_DATA_SWITCH_POLICY_DISABLED);
-        } else {
-            return PhoneFactory.getPhone(mSubscriptionManagerService.getPhoneId(activeSubs[0]))
-                    .getDataNetworkController()
-                    .getDataConfigManager()
-                    .getCarrierOverriddenAutoDataSwitchPolicyForOppt();
-        }
     }
 
     private boolean isAvailabilityBasedSwitchEnabledForOppt() {
@@ -1451,10 +1466,8 @@ public class AutoDataSwitchController extends Handler {
         STABILITY_CHECK_TIMER_MAP.forEach((key, value)
                 -> pw.println(switchTypeToString(key) + ": " + value));
         pw.println("mSelectedTargetPhoneId=" + mSelectedTargetPhoneId);
-        if (sFeatureFlags.monitorCarrierConfigChangeForAutoDataSwitch()) {
-            pw.println("autoDataSwitchPolicyForOppt=" + opportunisticNetworkSwitchPolicyToString(
-                    getOpptSwitchPolicyForPrimaryPhone()));
-        }
+        pw.println("autoDataSwitchPolicyForOppt=" + opportunisticNetworkSwitchPolicyToString(
+                getOpptSwitchPolicyForPrimaryPhone()));
         pw.increaseIndent();
         for (PhoneSignalStatus status: mPhonesSignalStatus) {
             pw.println(status);

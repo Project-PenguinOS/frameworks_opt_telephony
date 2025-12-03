@@ -86,6 +86,16 @@ public class DataEvaluation {
     }
 
     /**
+     * Remove all soft disallowed reasons. A soft reason means that in certain conditions, data is
+     * still allowed. Normally those reasons are due to users settings. See
+     * {@link DataDisallowedReason} for details.
+     */
+    public void removeSoftDisallowedReasons() {
+        mDataDisallowedReasons.removeIf(reason -> !reason.isHardReason());
+        mEvaluatedTime = System.currentTimeMillis();
+    }
+
+    /**
      * Add a data allowed reason. Note that adding an allowed reason will clean up the disallowed
      * reasons because they are mutual exclusive.
      *
