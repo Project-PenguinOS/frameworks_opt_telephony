@@ -824,7 +824,7 @@ public class SatelliteSOSMessageRecommenderTest extends TelephonyTest {
     }
 
     private void testStopTrackingCallBeforeTimeout(
-            @Connection.ConnectionState int connectionState) {
+            /*@Connection.ConnectionState*/ int connectionState) {
         mTestSOSMessageRecommender.onEmergencyCallStarted(mTestConnection, false);
         processAllMessages();
 
