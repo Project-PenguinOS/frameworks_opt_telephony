@@ -24,9 +24,9 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 
-// QTI_BEGIN: 2018-03-08: Telephony: SimPhoneBook: Add ANR/EMAIL support for USIM phonebook.
+// QTI_BEGIN: 2018-03-07: Telephony: SimPhoneBook: Add ANR/EMAIL support for USIM phonebook.
 import android.content.ContentValues;
-// QTI_END: 2018-03-08: Telephony: SimPhoneBook: Add ANR/EMAIL support for USIM phonebook.
+// QTI_END: 2018-03-07: Telephony: SimPhoneBook: Add ANR/EMAIL support for USIM phonebook.
 import android.os.AsyncResult;
 import android.os.HandlerThread;
 import android.os.Message;
@@ -43,10 +43,10 @@ import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
-// QTI_BEGIN: 2018-03-08: Telephony: SimPhoneBook: Add ANR/EMAIL support for USIM phonebook.
+// QTI_BEGIN: 2018-03-07: Telephony: SimPhoneBook: Add ANR/EMAIL support for USIM phonebook.
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.anyString;
-// QTI_END: 2018-03-08: Telephony: SimPhoneBook: Add ANR/EMAIL support for USIM phonebook.
+// QTI_END: 2018-03-07: Telephony: SimPhoneBook: Add ANR/EMAIL support for USIM phonebook.
 
 import java.util.Arrays;
 import java.util.List;
@@ -168,13 +168,13 @@ public class IccPhoneBookInterfaceManagerTest extends TelephonyTest {
         assertEquals(mAdnList, adnListResult);
     }
 
-// QTI_BEGIN: 2018-03-08: Telephony: SimPhoneBook: Add ANR/EMAIL support for USIM phonebook.
+// QTI_BEGIN: 2018-03-07: Telephony: SimPhoneBook: Add ANR/EMAIL support for USIM phonebook.
     @Test
     @SmallTest
     public void testUpdateAdnRecord() {
-// QTI_END: 2018-03-08: Telephony: SimPhoneBook: Add ANR/EMAIL support for USIM phonebook.
+// QTI_END: 2018-03-07: Telephony: SimPhoneBook: Add ANR/EMAIL support for USIM phonebook.
         doReturn(false).when(mSimPhonebookRecordCache).isEnabled();
-// QTI_BEGIN: 2018-03-08: Telephony: SimPhoneBook: Add ANR/EMAIL support for USIM phonebook.
+// QTI_BEGIN: 2018-03-07: Telephony: SimPhoneBook: Add ANR/EMAIL support for USIM phonebook.
         doAnswer(new Answer<Void>() {
             @Override
             public Void answer(InvocationOnMock invocation) throws Throwable {
@@ -185,7 +185,7 @@ public class IccPhoneBookInterfaceManagerTest extends TelephonyTest {
                 return null;
             }
         }).when(mAdnRecordCache).updateAdnBySearch(
-// QTI_END: 2018-03-08: Telephony: SimPhoneBook: Add ANR/EMAIL support for USIM phonebook.
+// QTI_END: 2018-03-07: Telephony: SimPhoneBook: Add ANR/EMAIL support for USIM phonebook.
             anyInt(), any(), any(),
             any(), (Message) any());
 
@@ -217,10 +217,10 @@ public class IccPhoneBookInterfaceManagerTest extends TelephonyTest {
             return null;
         }).when(mSimPhonebookRecordCache).updateSimPbAdnBySearch(any(),
             any(), (Message) any());
-// QTI_BEGIN: 2018-03-08: Telephony: SimPhoneBook: Add ANR/EMAIL support for USIM phonebook.
+// QTI_BEGIN: 2018-03-07: Telephony: SimPhoneBook: Add ANR/EMAIL support for USIM phonebook.
 
         ContentValues values = new ContentValues();
-// QTI_END: 2018-03-08: Telephony: SimPhoneBook: Add ANR/EMAIL support for USIM phonebook.
+// QTI_END: 2018-03-07: Telephony: SimPhoneBook: Add ANR/EMAIL support for USIM phonebook.
         values.put(IccProvider.STR_TAG, "");
         values.put(IccProvider.STR_NUMBER, "");
         values.put(IccProvider.STR_EMAILS, "");
@@ -232,9 +232,9 @@ public class IccPhoneBookInterfaceManagerTest extends TelephonyTest {
 
         boolean result = mIccPhoneBookInterfaceMgr.updateAdnRecordsInEfBySearchForSubscriber(
                 IccConstants.EF_ADN, values , "12");
-// QTI_BEGIN: 2018-03-08: Telephony: SimPhoneBook: Add ANR/EMAIL support for USIM phonebook.
+// QTI_BEGIN: 2018-03-07: Telephony: SimPhoneBook: Add ANR/EMAIL support for USIM phonebook.
 
         assertTrue(result);
     }
-// QTI_END: 2018-03-08: Telephony: SimPhoneBook: Add ANR/EMAIL support for USIM phonebook.
+// QTI_END: 2018-03-07: Telephony: SimPhoneBook: Add ANR/EMAIL support for USIM phonebook.
 }

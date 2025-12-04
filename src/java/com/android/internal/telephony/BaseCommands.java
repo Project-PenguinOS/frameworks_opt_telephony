@@ -31,10 +31,8 @@ import android.telephony.BarringInfo;
 import android.telephony.TelephonyManager;
 import android.telephony.emergency.EmergencyNumber;
 
-// QTI_BEGIN: 2021-05-19: Telephony: Optimize SIM phonebook feature with new batch APIs
 import com.android.internal.telephony.uicc.SimPhonebookRecord;
 
-// QTI_END: 2021-05-19: Telephony: Optimize SIM phonebook feature with new batch APIs
 import java.util.ArrayList;
 import java.util.List;
 
@@ -99,10 +97,8 @@ public abstract class BaseCommands implements CommandsInterface {
     protected RegistrantList mEmergencyNumberListRegistrants = new RegistrantList();
     protected RegistrantList mUiccApplicationsEnablementRegistrants = new RegistrantList();
     protected RegistrantList mBarringInfoChangedRegistrants = new RegistrantList();
-// QTI_BEGIN: 2021-05-19: Telephony: Optimize SIM phonebook feature with new batch APIs
     protected RegistrantList mSimPhonebookChangedRegistrants = new RegistrantList();
     protected RegistrantList mSimPhonebookRecordsReceivedRegistrants = new RegistrantList();
-// QTI_END: 2021-05-19: Telephony: Optimize SIM phonebook feature with new batch APIs
     protected RegistrantList mEmergencyNetworkScanRegistrants = new RegistrantList();
     protected RegistrantList mConnectionSetupFailureRegistrants = new RegistrantList();
     protected RegistrantList mNotifyAnbrRegistrants = new RegistrantList();
@@ -872,7 +868,6 @@ public abstract class BaseCommands implements CommandsInterface {
         mBarringInfoChangedRegistrants.remove(h);
     }
 
-// QTI_BEGIN: 2021-05-19: Telephony: Optimize SIM phonebook feature with new batch APIs
     @Override
     public void registerForSimPhonebookChanged(Handler h, int what, Object obj) {
         mSimPhonebookChangedRegistrants.addUnique(h, what, obj);
@@ -904,7 +899,6 @@ public abstract class BaseCommands implements CommandsInterface {
     @Override
     public void updateSimPhonebookRecord(SimPhonebookRecord phonebookRecord, Message result) {
     }
-// QTI_END: 2021-05-19: Telephony: Optimize SIM phonebook feature with new batch APIs
 
     /**
      * Register for Emergency network scan result.

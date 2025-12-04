@@ -29,13 +29,15 @@ import android.telephony.SubscriptionManager;
 import android.text.TextUtils;
 import android.util.Log;
 
-// QTI_BEGIN: 2019-09-19: Telephony: Fetching IMSI from RUIM properly
 import com.android.internal.annotations.VisibleForTesting;
-// QTI_END: 2019-09-19: Telephony: Fetching IMSI from RUIM properly
 import com.android.internal.telephony.CommandsInterface;
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
 import com.android.internal.telephony.GsmAlphabet;
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
 import com.android.internal.telephony.MccTable;
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
 import com.android.internal.telephony.cdma.sms.UserData;
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
 import com.android.internal.telephony.uicc.IccCardApplicationStatus.AppType;
 import com.android.internal.util.BitwiseInputStream;
 import com.android.telephony.Rlog;
@@ -61,17 +63,25 @@ public class RuimRecords extends IccRecords {
     private String mMin2Min1;
 
     private String mPrlVersion;
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
     // From CSIM application
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
     private byte[] mEFpl = null;
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
     private byte[] mEFli = null;
     boolean mCsimSpnDisplayCondition = false;
     private String mMdn;
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
     private String mMin;
     private String mHomeSystemId;
     private String mHomeNetworkId;
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     private String mNai;
 
@@ -105,8 +115,10 @@ public class RuimRecords extends IccRecords {
     private static final int EVENT_APP_LOCKED = 32;
     private static final int EVENT_APP_NETWORK_LOCKED = 33;
 
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
     public RuimRecords(UiccCardApplication app, Context c, CommandsInterface ci) {
         super(app, c, ci);
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
 
         mAdnCache = new AdnRecordCache(mFh);
 
@@ -119,14 +131,18 @@ public class RuimRecords extends IccRecords {
         // NOTE the EVENT_SMS_ON_RUIM is not registered
 
         // Start off by setting empty state
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
         resetRecords();
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
         if (DBG) log("RuimRecords X ctor this=" + this);
     }
 
     @Override
     public void dispose() {
         if (DBG) log("Disposing RuimRecords " + this);
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
         resetRecords();
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
         super.dispose();
     }
 
@@ -135,7 +151,9 @@ public class RuimRecords extends IccRecords {
         if(DBG) log("RuimRecords finalized");
     }
 
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
     protected void resetRecords() {
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
         mMncLength = UNINITIALIZED;
         log("setting0 mMncLength" + mMncLength);
         mIccId = null;
@@ -226,21 +244,28 @@ public class RuimRecords extends IccRecords {
         return imsi.substring(0, 3 + MccTable.smallestDigitsMccForMnc(mcc));
     }
 
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
     // Refer to ETSI TS 102.221
     private class EfPlLoaded implements IccRecordLoaded {
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
         @Override
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
         public String getEfName() {
             return "EF_PL";
         }
 
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
         @Override
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
         public void onRecordLoaded(AsyncResult ar) {
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
 // QTI_BEGIN: 2020-05-07: Telephony: Fix data call issue due to SPN load failure
             if (ar.exception != null) {
                 loge("Record Load Exception: " + ar.exception);
                 return;
             }
 // QTI_END: 2020-05-07: Telephony: Fix data call issue due to SPN load failure
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
             mEFpl = (byte[]) ar.result;
             if (DBG) log("EF_PL=" + IccUtils.bytesToHexString(mEFpl));
         }
@@ -248,19 +273,25 @@ public class RuimRecords extends IccRecords {
 
     // Refer to C.S0065 5.2.26
     private class EfCsimLiLoaded implements IccRecordLoaded {
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
         @Override
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
         public String getEfName() {
             return "EF_CSIM_LI";
         }
 
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
         @Override
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
         public void onRecordLoaded(AsyncResult ar) {
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
 // QTI_BEGIN: 2020-05-07: Telephony: Fix data call issue due to SPN load failure
             if (ar.exception != null) {
                 loge("Record Load Exception: " + ar.exception);
                 return;
             }
 // QTI_END: 2020-05-07: Telephony: Fix data call issue due to SPN load failure
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
             mEFli = (byte[]) ar.result;
             // convert csim efli data to iso 639 format
             for (int i = 0; i < mEFli.length; i+=2) {
@@ -282,13 +313,18 @@ public class RuimRecords extends IccRecords {
 
     // Refer to C.S0065 5.2.32
     private class EfCsimSpnLoaded implements IccRecordLoaded {
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
         @Override
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
         public String getEfName() {
             return "EF_CSIM_SPN";
         }
 
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
         @Override
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
         public void onRecordLoaded(AsyncResult ar) {
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
 // QTI_BEGIN: 2020-03-05: Telephony: Fetch SPN before initiating data attach
             mEssentialRecordsToLoad -= 1;
 // QTI_END: 2020-03-05: Telephony: Fetch SPN before initiating data attach
@@ -298,6 +334,7 @@ public class RuimRecords extends IccRecords {
                 return;
             }
 // QTI_END: 2020-05-07: Telephony: Fix data call issue due to SPN load failure
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
             byte[] data = (byte[]) ar.result;
             if (DBG) log("CSIM_SPN=" +
                          IccUtils.bytesToHexString(data));
@@ -317,20 +354,27 @@ public class RuimRecords extends IccRecords {
             }
 
             if (numBytes == 0) {
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
                 setServiceProviderName("");
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
                 return;
             }
             try {
                 switch (encoding) {
                 case UserData.ENCODING_OCTET:
                 case UserData.ENCODING_LATIN:
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
                     setServiceProviderName(new String(spnData, 0, numBytes, "ISO-8859-1"));
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
                     break;
                 case UserData.ENCODING_IA5:
                 case UserData.ENCODING_GSM_7BIT_ALPHABET:
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
                     setServiceProviderName(
                             GsmAlphabet.gsm7BitPackedToString(spnData, 0, (numBytes*8)/7));
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
                     break;
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
                 case UserData.ENCODING_7BIT_ASCII:
                     String spn = new String(spnData, 0, numBytes, "US-ASCII");
                     // To address issues with incorrect encoding scheme
@@ -347,8 +391,11 @@ public class RuimRecords extends IccRecords {
                                 GsmAlphabet.gsm7BitPackedToString(spnData, 0, (numBytes * 8) / 7));
                     }
                 break;
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
                 case UserData.ENCODING_UNICODE_16:
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
                     setServiceProviderName(new String(spnData, 0, numBytes, "utf-16"));
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
                     break;
                 default:
                     log("SPN encoding not supported");
@@ -356,13 +403,18 @@ public class RuimRecords extends IccRecords {
             } catch(Exception e) {
                 log("spn decode error: " + e);
             }
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
             if (DBG) log("spn=" + getServiceProviderName());
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
             if (DBG) log("spnCondition=" + mCsimSpnDisplayCondition);
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
             mTelephonyManager.setSimOperatorNameForPhone(
                     mParentApp.getPhoneId(), getServiceProviderName());
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
         }
     }
 
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
     private static boolean isPrintableAsciiOnly(final CharSequence str) {
         final int len = str.length();
         for (int i = 0; i < len; i++) {
@@ -379,20 +431,27 @@ public class RuimRecords extends IccRecords {
         return (asciiFirst <= c && c <= asciiLast) || c == '\r' || c == '\n';
     }
 
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
     private class EfCsimMdnLoaded implements IccRecordLoaded {
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
         @Override
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
         public String getEfName() {
             return "EF_CSIM_MDN";
         }
 
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
         @Override
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
         public void onRecordLoaded(AsyncResult ar) {
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
 // QTI_BEGIN: 2020-05-07: Telephony: Fix data call issue due to SPN load failure
             if (ar.exception != null) {
                 loge("Record Load Exception: " + ar.exception);
                 return;
             }
 // QTI_END: 2020-05-07: Telephony: Fix data call issue due to SPN load failure
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
             byte[] data = (byte[]) ar.result;
             if (DBG) log("CSIM_MDN=" + IccUtils.bytesToHexString(data));
             // Refer to C.S0065 5.2.35
@@ -402,56 +461,62 @@ public class RuimRecords extends IccRecords {
         }
     }
 
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
     /**
      * Parses IMSI based on C.S0065 section 5.2.2 and C.S0005 section 2.3.1
      */
-// QTI_BEGIN: 2019-09-19: Telephony: Fetching IMSI from RUIM properly
     @VisibleForTesting
     public class EfCsimImsimLoaded implements IccRecordLoaded {
-// QTI_END: 2019-09-19: Telephony: Fetching IMSI from RUIM properly
         @Override
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
         public String getEfName() {
             return "EF_CSIM_IMSIM";
         }
 
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
         @Override
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
         public void onRecordLoaded(AsyncResult ar) {
-// QTI_BEGIN: 2020-01-06: Telephony: Split uicc records loading in two groups.
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
+// QTI_BEGIN: 2020-01-05: Telephony: Split uicc records loading in two groups.
             mEssentialRecordsToLoad -= 1;
-// QTI_END: 2020-01-06: Telephony: Split uicc records loading in two groups.
+// QTI_END: 2020-01-05: Telephony: Split uicc records loading in two groups.
 // QTI_BEGIN: 2020-05-07: Telephony: Fix data call issue due to SPN load failure
             if (ar.exception != null) {
                 loge("Record Load Exception: " + ar.exception);
                 return;
             }
 // QTI_END: 2020-05-07: Telephony: Fix data call issue due to SPN load failure
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
             byte[] data = (byte[]) ar.result;
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
             if (data == null || data.length < IMSI_MIN_LENGTH) {
                 loge("Invalid IMSI from EF_CSIM_IMSIM");
-// QTI_BEGIN: 2019-09-19: Telephony: Fetching IMSI from RUIM properly
                 return;
             }
-// QTI_END: 2019-09-19: Telephony: Fetching IMSI from RUIM properly
             if (DBG) log("data=" + Rlog.pii(LOG_TAG, IccUtils.bytesToHexString(data)));
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
             // C.S0065 section 5.2.2 for IMSI_M encoding
             // C.S0005 section 2.3.1 for MIN encoding in IMSI_M.
             boolean provisioned = ((data[7] & 0x80) == 0x80);
 
             if (provisioned) {
-// QTI_BEGIN: 2019-09-19: Telephony: Fetching IMSI from RUIM properly
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
                 final String imsi = decodeImsi(data);
                 if (TextUtils.isEmpty(mImsi)) {
                     mImsi = imsi;
                     if (DBG) log("IMSI=" + Rlog.pii(LOG_TAG, mImsi));
                 }
-// QTI_END: 2019-09-19: Telephony: Fetching IMSI from RUIM properly
                 mMin = imsi.substring(5, 15);
                 if (DBG) log("min present=" + Rlog.pii(LOG_TAG, mMin));
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
             } else {
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
                 if (DBG) log("min not present");
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
             }
         }
-// QTI_BEGIN: 2019-09-19: Telephony: Fetching IMSI from RUIM properly
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
 
         private int decodeImsiDigits(int digits, int length) {
             // Per C.S0005 section 2.3.1.
@@ -471,11 +536,9 @@ public class RuimRecords extends IccRecords {
          * C.S0065 section 5.2.2 for IMSI_M encoding
          * C.S0005 section 2.3.1 for MIN encoding in IMSI_M.
          */
-// QTI_END: 2019-09-19: Telephony: Fetching IMSI from RUIM properly
         @VisibleForTesting
         @NonNull
         public String decodeImsi(byte[] data) {
-// QTI_BEGIN: 2019-09-19: Telephony: Fetching IMSI from RUIM properly
             // Retrieve the MCC and digits 11 and 12
             int mcc_data = ((0x03 & data[9]) << 8) | (0xFF & data[8]);
             int mcc = decodeImsiDigits(mcc_data, 3);
@@ -502,23 +565,29 @@ public class RuimRecords extends IccRecords {
             builder.append(String.format(Locale.US, "%03d", last3digits));
             return  builder.toString();
         }
-// QTI_END: 2019-09-19: Telephony: Fetching IMSI from RUIM properly
     }
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
 
     private class EfCsimCdmaHomeLoaded implements IccRecordLoaded {
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
         @Override
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
         public String getEfName() {
             return "EF_CSIM_CDMAHOME";
         }
 
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
         @Override
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
         public void onRecordLoaded(AsyncResult ar) {
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
 // QTI_BEGIN: 2020-05-07: Telephony: Fix data call issue due to SPN load failure
             if (ar.exception != null) {
                 loge("Record Load Exception: " + ar.exception);
                 return;
             }
 // QTI_END: 2020-05-07: Telephony: Fix data call issue due to SPN load failure
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
             // Per C.S0065 section 5.2.8
             ArrayList<byte[]> dataList = (ArrayList<byte[]>) ar.result;
             if (DBG) log("CSIM_CDMAHOME data size=" + dataList.size());
@@ -546,23 +615,31 @@ public class RuimRecords extends IccRecords {
     }
 
     private class EfCsimEprlLoaded implements IccRecordLoaded {
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
         @Override
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
         public String getEfName() {
             return "EF_CSIM_EPRL";
         }
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
         @Override
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
         public void onRecordLoaded(AsyncResult ar) {
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
 // QTI_BEGIN: 2020-05-07: Telephony: Fix data call issue due to SPN load failure
             if (ar.exception != null) {
                 loge("Record Load Exception: " + ar.exception);
                 return;
             }
 // QTI_END: 2020-05-07: Telephony: Fix data call issue due to SPN load failure
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
             onGetCSimEprlDone(ar);
         }
     }
 
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
     private void onGetCSimEprlDone(AsyncResult ar) {
         // C.S0065 section 5.2.57 for EFeprl encoding
         // C.S0016 section 3.5.5 for PRL format.
@@ -577,6 +654,7 @@ public class RuimRecords extends IccRecords {
         if (DBG) log("CSIM PRL version=" + mPrlVersion);
     }
 
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
     private class EfCsimMipUppLoaded implements IccRecordLoaded {
         @Override
         public String getEfName() {
@@ -715,7 +793,9 @@ public class RuimRecords extends IccRecords {
 
         boolean isRecordLoadResponse = false;
 
+// QTI_BEGIN: 2012-08-06: Telephony: Dynamically instantiate IccCard
         if (mDestroyed.get()) {
+// QTI_END: 2012-08-06: Telephony: Dynamically instantiate IccCard
             loge("Received message " + msg +
                     "[" + msg.what + "] while being destroyed. Ignoring.");
             return;
@@ -729,9 +809,9 @@ public class RuimRecords extends IccRecords {
 
             case EVENT_GET_ICCID_DONE:
                 isRecordLoadResponse = true;
-// QTI_BEGIN: 2020-01-06: Telephony: Split uicc records loading in two groups.
+// QTI_BEGIN: 2020-01-05: Telephony: Split uicc records loading in two groups.
                 mEssentialRecordsToLoad -= 1;
-// QTI_END: 2020-01-06: Telephony: Split uicc records loading in two groups.
+// QTI_END: 2020-01-05: Telephony: Split uicc records loading in two groups.
 
                 ar = (AsyncResult)msg.obj;
                 data = (byte[])ar.result;
@@ -766,9 +846,11 @@ public class RuimRecords extends IccRecords {
                 log("Event EVENT_GET_SST_DONE Received");
             break;
 
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
             default:
                 super.handleMessage(msg);   // IccRecords handles generic record load responses
 
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
         }}catch (RuntimeException exc) {
             // I don't want these exceptions to be fatal
             Rlog.w(LOG_TAG, "Exception parsing RUIM record", exc);
@@ -813,24 +895,26 @@ public class RuimRecords extends IccRecords {
                 mEssentialRecordsToLoad + " requested: " + mRecordsRequested);
 // QTI_END: 2020-05-07: Telephony: Fix data call issue due to SPN load failure
 
-// QTI_BEGIN: 2020-01-06: Telephony: Split uicc records loading in two groups.
+// QTI_BEGIN: 2020-01-05: Telephony: Split uicc records loading in two groups.
         if (getEssentialRecordsLoaded() && !mEssentialRecordsListenerNotified) {
             onAllEssentialRecordsLoaded();
         }
 
-// QTI_END: 2020-01-06: Telephony: Split uicc records loading in two groups.
+// QTI_END: 2020-01-05: Telephony: Split uicc records loading in two groups.
         if (getRecordsLoaded()) {
             onAllRecordsLoaded();
         } else if (getLockedRecordsLoaded() || getNetworkLockedRecordsLoaded()) {
             onLockedAllRecordsLoaded();
-// QTI_BEGIN: 2020-01-06: Telephony: Split uicc records loading in two groups.
+// QTI_BEGIN: 2020-01-05: Telephony: Split uicc records loading in two groups.
         } else if (mRecordsToLoad < 0 || mEssentialRecordsToLoad < 0) {
-// QTI_END: 2020-01-06: Telephony: Split uicc records loading in two groups.
+// QTI_END: 2020-01-05: Telephony: Split uicc records loading in two groups.
+// QTI_BEGIN: 2012-08-06: Telephony: Dynamically instantiate IccCard
             loge("recordsToLoad <0, programmer error suspected");
+// QTI_END: 2012-08-06: Telephony: Dynamically instantiate IccCard
             mRecordsToLoad = 0;
-// QTI_BEGIN: 2020-01-06: Telephony: Split uicc records loading in two groups.
+// QTI_BEGIN: 2020-01-05: Telephony: Split uicc records loading in two groups.
             mEssentialRecordsToLoad = 0;
-// QTI_END: 2020-01-06: Telephony: Split uicc records loading in two groups.
+// QTI_END: 2020-01-05: Telephony: Split uicc records loading in two groups.
         }
     }
 
@@ -847,10 +931,10 @@ public class RuimRecords extends IccRecords {
     }
 
     @Override
-// QTI_BEGIN: 2020-01-06: Telephony: Split uicc records loading in two groups.
+// QTI_BEGIN: 2020-01-05: Telephony: Split uicc records loading in two groups.
     protected void onAllEssentialRecordsLoaded() {
         if (DBG) log("Essential record load complete");
-// QTI_END: 2020-01-06: Telephony: Split uicc records loading in two groups.
+// QTI_END: 2020-01-05: Telephony: Split uicc records loading in two groups.
 
         // Further records that can be inserted are Operator/OEM dependent
 
@@ -858,35 +942,35 @@ public class RuimRecords extends IccRecords {
         if (false) {
             String operator = getRUIMOperatorNumeric();
             if (!TextUtils.isEmpty(operator)) {
-// QTI_BEGIN: 2020-01-06: Telephony: Split uicc records loading in two groups.
+// QTI_BEGIN: 2020-01-05: Telephony: Split uicc records loading in two groups.
                 log("onAllEssentialRecordsLoaded set 'gsm.sim.operator.numeric' to operator='" +
-// QTI_END: 2020-01-06: Telephony: Split uicc records loading in two groups.
+// QTI_END: 2020-01-05: Telephony: Split uicc records loading in two groups.
                         operator + "'");
                 log("update icc_operator_numeric=" + operator);
                 mTelephonyManager.setSimOperatorNumericForPhone(
                         mParentApp.getPhoneId(), operator);
             } else {
-// QTI_BEGIN: 2020-01-06: Telephony: Split uicc records loading in two groups.
+// QTI_BEGIN: 2020-01-05: Telephony: Split uicc records loading in two groups.
                 log("onAllEssentialRecordsLoaded empty 'gsm.sim.operator.numeric' skipping");
-// QTI_END: 2020-01-06: Telephony: Split uicc records loading in two groups.
+// QTI_END: 2020-01-05: Telephony: Split uicc records loading in two groups.
             }
 
             String imsi = getIMSI();
 
             if (!TextUtils.isEmpty(imsi)) {
-// QTI_BEGIN: 2020-01-06: Telephony: Split uicc records loading in two groups.
+// QTI_BEGIN: 2020-01-05: Telephony: Split uicc records loading in two groups.
                 log("onAllEssentialRecordsLoaded set mcc imsi=" + (VDBG ? ("=" + imsi) : ""));
-// QTI_END: 2020-01-06: Telephony: Split uicc records loading in two groups.
+// QTI_END: 2020-01-05: Telephony: Split uicc records loading in two groups.
                 mTelephonyManager.setSimCountryIsoForPhone(mParentApp.getPhoneId(),
                         MccTable.countryCodeForMcc(imsi.substring(0, 3)));
             } else {
-// QTI_BEGIN: 2020-01-06: Telephony: Split uicc records loading in two groups.
+// QTI_BEGIN: 2020-01-05: Telephony: Split uicc records loading in two groups.
                 log("onAllEssentialRecordsLoaded empty imsi skipping setting mcc");
-// QTI_END: 2020-01-06: Telephony: Split uicc records loading in two groups.
+// QTI_END: 2020-01-05: Telephony: Split uicc records loading in two groups.
             }
         }
 
-// QTI_BEGIN: 2020-01-06: Telephony: Split uicc records loading in two groups.
+// QTI_BEGIN: 2020-01-05: Telephony: Split uicc records loading in two groups.
         mEssentialRecordsListenerNotified = true;
         mEssentialRecordsLoadedRegistrants.notifyRegistrants(new AsyncResult(null, null, null));
     }
@@ -895,7 +979,7 @@ public class RuimRecords extends IccRecords {
     protected void onAllRecordsLoaded() {
         if (DBG) log("record load complete");
 
-// QTI_END: 2020-01-06: Telephony: Split uicc records loading in two groups.
+// QTI_END: 2020-01-05: Telephony: Split uicc records loading in two groups.
         Resources resource = Resources.getSystem();
         if (resource.getBoolean(com.android.internal.R.bool.config_use_sim_language_file)) {
             setSimLanguage(mEFli, mEFpl);
@@ -927,24 +1011,24 @@ public class RuimRecords extends IccRecords {
 
         mFh.loadEFTransparent(EF_ICCID, obtainMessage(EVENT_GET_ICCID_DONE));
         mRecordsToLoad++;
-// QTI_BEGIN: 2020-02-25: Telephony: Fix SIM can't get loaded after unlocking
+// QTI_BEGIN: 2020-02-24: Telephony: Fix SIM can't get loaded after unlocking
         mEssentialRecordsToLoad++;
-// QTI_END: 2020-02-25: Telephony: Fix SIM can't get loaded after unlocking
+// QTI_END: 2020-02-24: Telephony: Fix SIM can't get loaded after unlocking
     }
 
-// QTI_BEGIN: 2020-01-06: Telephony: Split uicc records loading in two groups.
+// QTI_BEGIN: 2020-01-05: Telephony: Split uicc records loading in two groups.
     private void fetchEssentialRuimRecords() {
-// QTI_END: 2020-01-06: Telephony: Split uicc records loading in two groups.
-// QTI_BEGIN: 2020-02-25: Telephony: Fix SIM can't get loaded after unlocking
+// QTI_END: 2020-01-05: Telephony: Split uicc records loading in two groups.
+// QTI_BEGIN: 2020-02-24: Telephony: Fix SIM can't get loaded after unlocking
         if (DBG) log("fetchEssentialRuimRecords: mRecordsToLoad = " + mRecordsToLoad
                 + " mEssentialRecordsToLoad = " + mEssentialRecordsToLoad);
         mEssentialRecordsListenerNotified = false;
-// QTI_END: 2020-02-25: Telephony: Fix SIM can't get loaded after unlocking
+// QTI_END: 2020-02-24: Telephony: Fix SIM can't get loaded after unlocking
 
         mFh.loadEFTransparent(EF_ICCID,
                 obtainMessage(EVENT_GET_ICCID_DONE));
         mRecordsToLoad++;
-// QTI_BEGIN: 2020-01-06: Telephony: Split uicc records loading in two groups.
+// QTI_BEGIN: 2020-01-05: Telephony: Split uicc records loading in two groups.
         mEssentialRecordsToLoad++;
 
         mFh.loadEFTransparent(EF_CSIM_IMSIM,
@@ -952,7 +1036,7 @@ public class RuimRecords extends IccRecords {
         mRecordsToLoad++;
         mEssentialRecordsToLoad++;
 
-// QTI_END: 2020-01-06: Telephony: Split uicc records loading in two groups.
+// QTI_END: 2020-01-05: Telephony: Split uicc records loading in two groups.
 // QTI_BEGIN: 2020-03-05: Telephony: Fetch SPN before initiating data attach
         mFh.loadEFTransparent(EF_CSIM_SPN,
                 obtainMessage(EVENT_GET_ICC_RECORD_DONE, new EfCsimSpnLoaded()));
@@ -961,21 +1045,21 @@ public class RuimRecords extends IccRecords {
 
 
 // QTI_END: 2020-03-05: Telephony: Fetch SPN before initiating data attach
-// QTI_BEGIN: 2020-01-06: Telephony: Split uicc records loading in two groups.
+// QTI_BEGIN: 2020-01-05: Telephony: Split uicc records loading in two groups.
         if (DBG) log("fetchEssentialRuimRecords " + mRecordsToLoad +
                 " requested: " + mRecordsRequested);
     }
 
-// QTI_END: 2020-01-06: Telephony: Split uicc records loading in two groups.
+// QTI_END: 2020-01-05: Telephony: Split uicc records loading in two groups.
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
-// QTI_BEGIN: 2020-01-06: Telephony: Split uicc records loading in two groups.
+// QTI_BEGIN: 2020-01-05: Telephony: Split uicc records loading in two groups.
     private void fetchRuimRecords() {
         mRecordsRequested = true;
 
         fetchEssentialRuimRecords();
 
         if (DBG) log("fetchRuimRecords " + mRecordsToLoad);
-// QTI_END: 2020-01-06: Telephony: Split uicc records loading in two groups.
+// QTI_END: 2020-01-05: Telephony: Split uicc records loading in two groups.
 
         mFh.loadEFTransparent(EF_PL,
                 obtainMessage(EVENT_GET_ICC_RECORD_DONE, new EfPlLoaded()));
@@ -984,42 +1068,49 @@ public class RuimRecords extends IccRecords {
         mFh.loadEFTransparent(EF_CSIM_LI,
                 obtainMessage(EVENT_GET_ICC_RECORD_DONE, new EfCsimLiLoaded()));
         mRecordsToLoad++;
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
 
         mFh.loadEFLinearFixed(EF_CSIM_MDN, 1,
                 obtainMessage(EVENT_GET_ICC_RECORD_DONE, new EfCsimMdnLoaded()));
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
         mRecordsToLoad++;
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
 
         mFh.loadEFLinearFixedAll(EF_CSIM_CDMAHOME,
                 obtainMessage(EVENT_GET_ICC_RECORD_DONE, new EfCsimCdmaHomeLoaded()));
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
         mRecordsToLoad++;
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
 
         // Entire PRL could be huge. We are only interested in
         // the first 4 bytes of the record.
         mFh.loadEFTransparent(EF_CSIM_EPRL, 4,
                 obtainMessage(EVENT_GET_ICC_RECORD_DONE, new EfCsimEprlLoaded()));
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
         mRecordsToLoad++;
 
         mFh.loadEFTransparent(EF_CSIM_MIPUPP,
                 obtainMessage(EVENT_GET_ICC_RECORD_DONE, new EfCsimMipUppLoaded()));
         mRecordsToLoad++;
-// QTI_BEGIN: 2018-03-08: Telephony: Get SIM card capacity of SMS
         mFh.getEFLinearRecordSize(EF_SMS, obtainMessage(EVENT_GET_SMS_RECORD_SIZE_DONE));
-// QTI_END: 2018-03-08: Telephony: Get SIM card capacity of SMS
         mRecordsToLoad++;
 
         if (DBG) log("fetchRuimRecords " + mRecordsToLoad + " requested: " + mRecordsRequested);
         // Further records that can be inserted are Operator/OEM dependent
     }
 
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
     @Override
     public boolean isProvisioned() {
         // If UICC card has CSIM app, look for MDN and MIN field
         // to determine if the SIM is provisioned.  Otherwise,
         // consider the SIM is provisioned. (for case of ordinal
         // USIM only UICC.)
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
         // If test_csim is true, bypess provision check and
         // consider the SIM is provisioned.
         if (TelephonyProperties.test_csim().orElse(false)) {
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
             return true;
         }
 
@@ -1034,6 +1125,7 @@ public class RuimRecords extends IccRecords {
         return true;
     }
 
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
     @Override
     public void setVoiceMessageWaiting(int line, int countWaiting) {
         // Will be used in future to store voice mail count in UIM
@@ -1057,6 +1149,7 @@ public class RuimRecords extends IccRecords {
     }
 
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
     public String getMdn() {
         return mMdn;
     }
@@ -1073,10 +1166,13 @@ public class RuimRecords extends IccRecords {
         return mHomeNetworkId;
     }
 
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
     public boolean getCsimSpnDisplayCondition() {
         return mCsimSpnDisplayCondition;
     }
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     @Override
     protected void log(String s) {

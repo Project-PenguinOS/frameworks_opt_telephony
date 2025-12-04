@@ -24,21 +24,15 @@ import static android.telephony.SmsManager.RESULT_ERROR_GENERIC_FAILURE;
 
 import static com.android.internal.telephony.SmsResponse.NO_ERROR_CODE;
 
-// QTI_BEGIN: 2018-05-22: Telephony: Emergency SMS support
 import android.content.Context;
-// QTI_END: 2018-05-22: Telephony: Emergency SMS support
 import android.os.Binder;
 // QTI_BEGIN: 2018-06-29: Telephony: Fix SMS over IMS retry issues.
 import android.os.Message;
 // QTI_END: 2018-06-29: Telephony: Fix SMS over IMS retry issues.
-// QTI_BEGIN: 2018-05-22: Telephony: Emergency SMS support
 import android.os.PersistableBundle;
-// QTI_END: 2018-05-22: Telephony: Emergency SMS support
 import android.os.RemoteException;
 import android.provider.Telephony.Sms.Intents;
-// QTI_BEGIN: 2018-05-22: Telephony: Emergency SMS support
 import android.telephony.CarrierConfigManager;
-// QTI_END: 2018-05-22: Telephony: Emergency SMS support
 import android.telephony.ServiceState;
 import android.telephony.SmsManager;
 import android.telephony.ims.ImsReasonInfo;
@@ -57,9 +51,7 @@ import com.android.internal.telephony.GsmAlphabet.TextEncodingDetails;
 import com.android.internal.telephony.analytics.TelephonyAnalytics;
 import com.android.internal.telephony.analytics.TelephonyAnalytics.SmsMmsAnalytics;
 import com.android.internal.telephony.flags.FeatureFlags;
-// QTI_BEGIN: 2020-04-15: Telephony: Fix failing to send SMS with SMSC over IMS
 import com.android.internal.telephony.uicc.IccUtils;
-// QTI_END: 2020-04-15: Telephony: Fix failing to send SMS with SMSC over IMS
 import com.android.internal.telephony.util.SMSDispatcherUtil;
 import com.android.telephony.Rlog;
 
@@ -432,17 +424,10 @@ public class ImsSmsDispatcher extends SMSDispatcher {
     }
 
 // QTI_END: 2021-05-18: Telephony: SMS over IMS on 5G SA
-// QTI_BEGIN: 2018-05-22: Telephony: Emergency SMS support
     private boolean isLteService() {
-// QTI_END: 2018-05-22: Telephony: Emergency SMS support
-// QTI_BEGIN: 2018-08-03: Telephony: SMS: check current LTE tech based on DATA_REGISTRATION_STATE
         return ((mPhone.getServiceState().getRilDataRadioTechnology() ==
-// QTI_END: 2018-08-03: Telephony: SMS: check current LTE tech based on DATA_REGISTRATION_STATE
-// QTI_BEGIN: 2018-05-22: Telephony: Emergency SMS support
             ServiceState.RIL_RADIO_TECHNOLOGY_LTE) && (mPhone.getServiceState().
-// QTI_END: 2018-05-22: Telephony: Emergency SMS support
                 getDataRegistrationState() == ServiceState.STATE_IN_SERVICE));
-// QTI_BEGIN: 2018-05-22: Telephony: Emergency SMS support
     }
 
     private boolean isLimitedLteService() {
@@ -450,25 +435,20 @@ public class ImsSmsDispatcher extends SMSDispatcher {
             ServiceState.RIL_RADIO_TECHNOLOGY_LTE) && mPhone.getServiceState().isEmergencyOnly());
     }
 
-// QTI_END: 2018-05-22: Telephony: Emergency SMS support
 // QTI_BEGIN: 2021-05-18: Telephony: SMS over IMS on 5G SA
     private boolean allowEmergencySms() {
         return isLteService() || isLimitedLteService() || isNrFullService();
 // QTI_END: 2021-05-18: Telephony: SMS over IMS on 5G SA
-// QTI_BEGIN: 2018-05-22: Telephony: Emergency SMS support
     }
 
     public boolean isEmergencySmsSupport(String destAddr) {
         PersistableBundle b;
         boolean eSmsCarrierSupport = false;
-// QTI_END: 2018-05-22: Telephony: Emergency SMS support
         if (!mTelephonyManager.isEmergencyNumber(destAddr)) {
             logi(Rlog.pii(TAG, destAddr) + " is not emergency number");
-// QTI_BEGIN: 2018-05-22: Telephony: Emergency SMS support
             return false;
         }
 
-// QTI_END: 2018-05-22: Telephony: Emergency SMS support
         final long identity = Binder.clearCallingIdentity();
         try {
             CarrierConfigManager configManager = (CarrierConfigManager) mContext
@@ -693,9 +673,7 @@ public class ImsSmsDispatcher extends SMSDispatcher {
                     token,
                     tracker.mMessageRef,
                     format,
-// QTI_BEGIN: 2020-04-15: Telephony: Fix failing to send SMS with SMSC over IMS
                     smsc != null ? IccUtils.bytesToHexString(smsc) : null,
-// QTI_END: 2020-04-15: Telephony: Fix failing to send SMS with SMSC over IMS
                     isRetry,
                     pdu);
         } catch (ImsException e) {

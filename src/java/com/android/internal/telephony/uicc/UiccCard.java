@@ -1,3 +1,4 @@
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
 /*
  * Copyright (C) 2006, 2012 The Android Open Source Project
  *
@@ -14,10 +15,13 @@
  * limitations under the License.
  */
 
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
 package com.android.internal.telephony.uicc;
 
 import android.compat.annotation.UnsupportedAppUsage;
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
 import android.content.Context;
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
 import android.os.Build;
 import android.telephony.TelephonyManager;
 import android.text.TextUtils;
@@ -36,12 +40,18 @@ import java.io.PrintWriter;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
 /**
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
  * @hide
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
  */
 public class UiccCard {
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
     protected static final String LOG_TAG = "UiccCard";
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
     protected static final boolean DBG = true;
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
     public static final String EXTRA_ICC_CARD_ADDED =
             "com.android.internal.telephony.uicc.ICC_CARD_ADDED";
 
@@ -50,7 +60,9 @@ public class UiccCard {
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     protected final Object mLock;
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
     private CardState mCardState;
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
     protected String mCardId;
     protected MultipleEnabledProfilesMode mSupportedMepMode;
 
@@ -69,21 +81,27 @@ public class UiccCard {
     /**
      * Dispose the card and its related UiccPort objects.
      */
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
     public void dispose() {
         synchronized (mLock) {
             if (DBG) log("Disposing card");
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
             for (UiccPort uiccPort : mUiccPorts.values()) {
                 if (uiccPort != null) {
                     uiccPort.dispose();
                 }
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
             }
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
             mUiccPorts.clear();
             mUiccPorts = null;
             mPhoneIdToPortIdx.clear();
             mPhoneIdToPortIdx = null;
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
         }
     }
 
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
     /**
      * Dispose the port corresponding to the port index.
      */
@@ -108,8 +126,10 @@ public class UiccCard {
      * Update card. The main trigger for this is a change in the ICC Card status.
      */
     public void update(Context c, CommandsInterface ci, IccCardStatus ics, int phoneId) {
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
         synchronized (mLock) {
             mCardState = ics.mCardState;
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
             updateCardId(ics.iccid);
             if (mCardState != CardState.CARDSTATE_ABSENT) {
                 int portIdx = ics.mSlotPortMapping.mPortIndex;
@@ -122,9 +142,13 @@ public class UiccCard {
                         port = new UiccPort(c, ci, ics, phoneId, mLock, this); // pSim
                     }
                     mUiccPorts.put(portIdx, port);
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
                 } else {
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
                     port.update(c, ci, ics, this);
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
                 }
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
                 mPhoneIdToPortIdx.put(phoneId, portIdx);
             } else {
                 throw new RuntimeException("Card state is absent when updating!");
@@ -133,10 +157,12 @@ public class UiccCard {
     }
 
     @Override
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
     protected void finalize() {
         if (DBG) log("UiccCard finalized");
     }
 
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
     /**
      * Updates the ID of the SIM card.
      *
@@ -161,16 +187,20 @@ public class UiccCard {
     }
 
     @UnsupportedAppUsage
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
     public CardState getCardState() {
         synchronized (mLock) {
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
             if (DBG) {
                 log("cardId = " + Rlog.pii(TelephonyUtils.IS_DEBUGGABLE, mCardId)
                                 + " CardState = " + mCardState);
             }
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
             return mCardState;
         }
     }
 
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
     /**
      * Returns the ID of this SIM card, it is the ICCID of the active profile on the card for a UICC
      * card or the EID of the card for an eUICC card.
@@ -185,18 +215,24 @@ public class UiccCard {
             }
             UiccProfile uiccProfile = uiccPort.getUiccProfile();
             return uiccProfile == null ? null : uiccProfile.getIccId();
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
         }
     }
 
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
     /**
      * Returns all the UiccPorts associated with the card.
      */
     public UiccPort[] getUiccPortList() {
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
         synchronized (mLock) {
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
             return mUiccPorts.values().stream().toArray(UiccPort[]::new);
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
         }
     }
 
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
     /**
      * Returns the UiccPort associated with the given phoneId
      */
@@ -216,14 +252,22 @@ public class UiccCard {
     }
 
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
     private void log(String msg) {
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
         Rlog.d(LOG_TAG, msg);
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
     }
 
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
     private void loge(String msg) {
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
         Rlog.e(LOG_TAG, msg);
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
     }
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
 
     public void dump(FileDescriptor fd, PrintWriter printWriter, String[] args) {
         IndentingPrintWriter pw = new IndentingPrintWriter(printWriter, "  ");
@@ -241,4 +285,6 @@ public class UiccCard {
         pw.decreaseIndent();
         pw.decreaseIndent();
     }
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
 }
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects

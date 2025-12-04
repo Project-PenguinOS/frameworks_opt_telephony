@@ -25,9 +25,7 @@ import android.app.ActivityManager;
 import android.content.Context;
 import android.content.Intent;
 // QTI_END: 2019-04-16: Telephony: Handle ECBM mode for both the SUBs to place calls in ECBM mode
-// QTI_BEGIN: 2022-10-07: Telephony: Merge "Fix issue of ecbm not exiting after phone process exception." into t-keystone-qcom-dev
 import android.content.SharedPreferences;
-// QTI_END: 2022-10-07: Telephony: Merge "Fix issue of ecbm not exiting after phone process exception." into t-keystone-qcom-dev
 // QTI_BEGIN: 2019-04-16: Telephony: Handle ECBM mode for both the SUBs to place calls in ECBM mode
 import android.os.AsyncResult;
 import android.os.Handler;
@@ -39,9 +37,7 @@ import android.os.RegistrantList;
 import android.os.SystemProperties;
 import android.os.UserHandle;
 // QTI_END: 2019-04-16: Telephony: Handle ECBM mode for both the SUBs to place calls in ECBM mode
-// QTI_BEGIN: 2022-10-07: Telephony: Merge "Fix issue of ecbm not exiting after phone process exception." into t-keystone-qcom-dev
 import android.preference.PreferenceManager;
-// QTI_END: 2022-10-07: Telephony: Merge "Fix issue of ecbm not exiting after phone process exception." into t-keystone-qcom-dev
 import android.sysprop.TelephonyProperties;
 // QTI_BEGIN: 2019-04-16: Telephony: Handle ECBM mode for both the SUBs to place calls in ECBM mode
 import android.telephony.Rlog;
@@ -60,10 +56,10 @@ import com.android.internal.telephony.imsphone.ImsPhone;
 import com.android.internal.telephony.imsphone.ImsPhoneCallTracker;
 // QTI_END: 2019-04-16: Telephony: Handle ECBM mode for both the SUBs to place calls in ECBM mode
 import java.util.concurrent.Executor;
-// QTI_BEGIN: 2021-05-11: Telephony: Inject RIL instance when notified of sim switch
+// QTI_BEGIN: 2021-05-10: Telephony: Inject RIL instance when notified of sim switch
 
 import static java.util.Arrays.copyOf;
-// QTI_END: 2021-05-11: Telephony: Inject RIL instance when notified of sim switch
+// QTI_END: 2021-05-10: Telephony: Inject RIL instance when notified of sim switch
 // QTI_BEGIN: 2019-04-16: Telephony: Handle ECBM mode for both the SUBs to place calls in ECBM mode
 public class EcbmHandler extends Handler {
 
@@ -98,15 +94,13 @@ public class EcbmHandler extends Handler {
     private final RegistrantList mEcmTimerResetRegistrants = new RegistrantList();
     private boolean mIsEcbmOnIms = false;
 // QTI_END: 2019-04-16: Telephony: Handle ECBM mode for both the SUBs to place calls in ECBM mode
-// QTI_BEGIN: 2024-11-05: Telephony: Add isInEcm(int phoneId) API
+// QTI_BEGIN: 2024-11-04: Telephony: Add isInEcm(int phoneId) API
     private int mEcbmPhoneId = SubscriptionManager.INVALID_PHONE_INDEX;
-// QTI_END: 2024-11-05: Telephony: Add isInEcm(int phoneId) API
+// QTI_END: 2024-11-04: Telephony: Add isInEcm(int phoneId) API
 
-// QTI_BEGIN: 2022-10-07: Telephony: Merge "Fix issue of ecbm not exiting after phone process exception." into t-keystone-qcom-dev
     private static final String PREF_KEY_ECBM_PHONEID = "ecbm_phoneid";
     private static final String PREF_KEY_IS_ECBM_ON_IMS = "is_ecbm_on_ims";
 
-// QTI_END: 2022-10-07: Telephony: Merge "Fix issue of ecbm not exiting after phone process exception." into t-keystone-qcom-dev
 // QTI_BEGIN: 2019-04-16: Telephony: Handle ECBM mode for both the SUBs to place calls in ECBM mode
     protected static final int EVENT_EMERGENCY_CALLBACK_MODE_ENTER  = 1;
     protected static final int EVENT_EXIT_EMERGENCY_CALLBACK_RESPONSE = 2;
@@ -157,18 +151,16 @@ public class EcbmHandler extends Handler {
             mWakeLock.setReferenceCounted(false);
 
 // QTI_END: 2019-04-16: Telephony: Handle ECBM mode for both the SUBs to place calls in ECBM mode
-// QTI_BEGIN: 2022-10-07: Telephony: Merge "Fix issue of ecbm not exiting after phone process exception." into t-keystone-qcom-dev
             if (mIsPhoneInEcmState) {
                 restoreCachedEcbmState();
                 logd("initialize: ecbmPhoneId = " + mEcbmPhoneId +
                         " isEcbmOnIms = " + mIsEcbmOnIms);
             }
-// QTI_END: 2022-10-07: Telephony: Merge "Fix issue of ecbm not exiting after phone process exception." into t-keystone-qcom-dev
 // QTI_BEGIN: 2019-04-16: Telephony: Handle ECBM mode for both the SUBs to place calls in ECBM mode
         }
 
 // QTI_END: 2019-04-16: Telephony: Handle ECBM mode for both the SUBs to place calls in ECBM mode
-// QTI_BEGIN: 2021-05-11: Telephony: Inject RIL instance when notified of sim switch
+// QTI_BEGIN: 2021-05-10: Telephony: Inject RIL instance when notified of sim switch
         mNumPhones = TelephonyManager.getDefault().getActiveModemCount();
         int prevModemCount = trackers.length;
         trackers = copyOf(trackers, mNumPhones);
@@ -177,7 +169,7 @@ public class EcbmHandler extends Handler {
             trackers[i] = new ECBMTracker();
         }
 
-// QTI_END: 2021-05-11: Telephony: Inject RIL instance when notified of sim switch
+// QTI_END: 2021-05-10: Telephony: Inject RIL instance when notified of sim switch
 // QTI_BEGIN: 2019-04-16: Telephony: Handle ECBM mode for both the SUBs to place calls in ECBM mode
         if ( phoneId >= 0 && phoneId < mNumPhones) {
             trackers[phoneId].phoneId = phoneId;
@@ -250,9 +242,9 @@ public class EcbmHandler extends Handler {
             handleExitEmergencyCallbackMode(phoneId);
             mIsEcbmOnIms = false;
 // QTI_END: 2019-04-16: Telephony: Handle ECBM mode for both the SUBs to place calls in ECBM mode
-// QTI_BEGIN: 2024-11-05: Telephony: Add isInEcm(int phoneId) API
+// QTI_BEGIN: 2024-11-04: Telephony: Add isInEcm(int phoneId) API
             mEcbmPhoneId = SubscriptionManager.INVALID_PHONE_INDEX;
-// QTI_END: 2024-11-05: Telephony: Add isInEcm(int phoneId) API
+// QTI_END: 2024-11-04: Telephony: Add isInEcm(int phoneId) API
 // QTI_BEGIN: 2019-04-16: Telephony: Handle ECBM mode for both the SUBs to place calls in ECBM mode
         }
     }
@@ -279,9 +271,9 @@ public class EcbmHandler extends Handler {
                 if (ar.exception == null) {
                     handleExitEmergencyCallbackMode(phoneId);
 // QTI_END: 2019-04-16: Telephony: Handle ECBM mode for both the SUBs to place calls in ECBM mode
-// QTI_BEGIN: 2024-11-05: Telephony: Add isInEcm(int phoneId) API
+// QTI_BEGIN: 2024-11-04: Telephony: Add isInEcm(int phoneId) API
                     mEcbmPhoneId = SubscriptionManager.INVALID_PHONE_INDEX;
-// QTI_END: 2024-11-05: Telephony: Add isInEcm(int phoneId) API
+// QTI_END: 2024-11-04: Telephony: Add isInEcm(int phoneId) API
 // QTI_BEGIN: 2019-04-16: Telephony: Handle ECBM mode for both the SUBs to place calls in ECBM mode
                 }
             }
@@ -326,9 +318,7 @@ public class EcbmHandler extends Handler {
         if (!isInEcm()) {
             setIsInEcm(true);
 // QTI_END: 2019-04-16: Telephony: Handle ECBM mode for both the SUBs to place calls in ECBM mode
-// QTI_BEGIN: 2022-10-07: Telephony: Merge "Fix issue of ecbm not exiting after phone process exception." into t-keystone-qcom-dev
             cacheEcbmState();
-// QTI_END: 2022-10-07: Telephony: Merge "Fix issue of ecbm not exiting after phone process exception." into t-keystone-qcom-dev
 // QTI_BEGIN: 2019-04-16: Telephony: Handle ECBM mode for both the SUBs to place calls in ECBM mode
 
             // notify change
@@ -362,9 +352,7 @@ public class EcbmHandler extends Handler {
 
         setIsInEcm(false);
 // QTI_END: 2019-04-16: Telephony: Handle ECBM mode for both the SUBs to place calls in ECBM mode
-// QTI_BEGIN: 2022-10-07: Telephony: Merge "Fix issue of ecbm not exiting after phone process exception." into t-keystone-qcom-dev
         removeEcbmCache();
-// QTI_END: 2022-10-07: Telephony: Merge "Fix issue of ecbm not exiting after phone process exception." into t-keystone-qcom-dev
 // QTI_BEGIN: 2019-04-16: Telephony: Handle ECBM mode for both the SUBs to place calls in ECBM mode
 
         // release wakeLock
@@ -445,12 +433,12 @@ public class EcbmHandler extends Handler {
     }
 
 // QTI_END: 2019-04-16: Telephony: Handle ECBM mode for both the SUBs to place calls in ECBM mode
-// QTI_BEGIN: 2021-06-24: Telephony: IMS: Update implementation of isInImsEcm API
+// QTI_BEGIN: 2021-06-23: Telephony: IMS: Update implementation of isInImsEcm API
     public boolean isInImsEcm() {
         return mIsEcbmOnIms;
     }
 
-// QTI_END: 2021-06-24: Telephony: IMS: Update implementation of isInImsEcm API
+// QTI_END: 2021-06-23: Telephony: IMS: Update implementation of isInImsEcm API
 // QTI_BEGIN: 2019-04-16: Telephony: Handle ECBM mode for both the SUBs to place calls in ECBM mode
     public void setIsInEcm(boolean isInEcm) {
 // QTI_END: 2019-04-16: Telephony: Handle ECBM mode for both the SUBs to place calls in ECBM mode
@@ -466,7 +454,6 @@ public class EcbmHandler extends Handler {
     }
 
 // QTI_END: 2019-04-16: Telephony: Handle ECBM mode for both the SUBs to place calls in ECBM mode
-// QTI_BEGIN: 2022-10-07: Telephony: Merge "Fix issue of ecbm not exiting after phone process exception." into t-keystone-qcom-dev
     /**
      * Cache the phoneid and ecbm on ims state in shared preference.
      * It is used when phone process restarts after a crash.
@@ -490,11 +477,9 @@ public class EcbmHandler extends Handler {
         mEcbmPhoneId = sp.getInt(PREF_KEY_ECBM_PHONEID, 0);
         if (mEcbmPhoneId < 0  || mEcbmPhoneId >=
                 TelephonyManager.getDefault().getActiveModemCount()) {
-// QTI_END: 2022-10-07: Telephony: Merge "Fix issue of ecbm not exiting after phone process exception." into t-keystone-qcom-dev
-// QTI_BEGIN: 2024-11-05: Telephony: Add isInEcm(int phoneId) API
+// QTI_BEGIN: 2024-11-04: Telephony: Add isInEcm(int phoneId) API
             mEcbmPhoneId = SubscriptionManager.INVALID_PHONE_INDEX;
-// QTI_END: 2024-11-05: Telephony: Add isInEcm(int phoneId) API
-// QTI_BEGIN: 2022-10-07: Telephony: Merge "Fix issue of ecbm not exiting after phone process exception." into t-keystone-qcom-dev
+// QTI_END: 2024-11-04: Telephony: Add isInEcm(int phoneId) API
         }
         mIsEcbmOnIms = sp.getBoolean(PREF_KEY_IS_ECBM_ON_IMS, false);
     }
@@ -508,7 +493,6 @@ public class EcbmHandler extends Handler {
         editor.apply();
     }
 
-// QTI_END: 2022-10-07: Telephony: Merge "Fix issue of ecbm not exiting after phone process exception." into t-keystone-qcom-dev
     /**
      * @return true if this Phone is in an emergency call that caused emergency callback mode to be
      * canceled, false if not.
@@ -527,7 +511,7 @@ public class EcbmHandler extends Handler {
         mEcmCanceledForEmergency = isCanceled;
     }
 
-// QTI_BEGIN: 2024-11-05: Telephony: Add isInEcm(int phoneId) API
+// QTI_BEGIN: 2024-11-04: Telephony: Add isInEcm(int phoneId) API
     /**
      * Check whether a particular sub is in ECBM
      * @param int phoneId is the particular phoneId that we are checking for ECBM
@@ -537,7 +521,7 @@ public class EcbmHandler extends Handler {
         return isInEcm() && (phoneId == mEcbmPhoneId);
     }
 
-// QTI_END: 2024-11-05: Telephony: Add isInEcm(int phoneId) API
+// QTI_END: 2024-11-04: Telephony: Add isInEcm(int phoneId) API
 // QTI_BEGIN: 2019-04-16: Telephony: Handle ECBM mode for both the SUBs to place calls in ECBM mode
     private void logd(String s) {
         Rlog.d(LOG_TAG, s);

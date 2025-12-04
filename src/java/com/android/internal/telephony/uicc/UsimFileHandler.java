@@ -1,3 +1,4 @@
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
 /*
  * Copyright (C) 2006, 2012 The Android Open Source Project
  *
@@ -14,17 +15,25 @@
  * limitations under the License.
  */
 
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
 package com.android.internal.telephony.uicc;
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
 
 import com.android.internal.telephony.CommandsInterface;
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
 import com.android.telephony.Rlog;
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
 
 /**
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
  * @hide
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
  * This class should be used to access files in USIM ADF
  */
 public final class UsimFileHandler extends IccFileHandler implements IccConstants {
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
     static final String LOG_TAG = "UsimFH";
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
 
     public UsimFileHandler(UiccCardApplication app, String aid, CommandsInterface ci) {
         super(app, aid, ci);
@@ -34,7 +43,9 @@ public final class UsimFileHandler extends IccFileHandler implements IccConstant
     protected String getEFPath(int efid) {
         switch(efid) {
         case EF_SMS:
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
         case EF_EXT5:
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
         case EF_EXT6:
         case EF_MWIS:
         case EF_MBI:
@@ -52,12 +63,15 @@ public final class UsimFileHandler extends IccFileHandler implements IccConstant
         case EF_SPN_CPHS:
         case EF_SPN_SHORT_CPHS:
         case EF_FDN:
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
         case EF_SDN:
         case EF_EXT3:
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
         case EF_MSISDN:
         case EF_EXT2:
         case EF_INFO_CPHS:
         case EF_CSP_CPHS:
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
         case EF_GID1:
         case EF_GID2:
         case EF_LI:
@@ -69,6 +83,7 @@ public final class UsimFileHandler extends IccFileHandler implements IccConstant
         case EF_LRPLMNSI:
         case EF_HPPLMN:
         case EF_SMSS:
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
             return MF_SIM + DF_ADF;
 
         case EF_PBR:
@@ -87,11 +102,16 @@ public final class UsimFileHandler extends IccFileHandler implements IccConstant
 
     @Override
     protected void logd(String msg) {
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
         Rlog.d(LOG_TAG, msg);
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
     }
 
     @Override
     protected void loge(String msg) {
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
         Rlog.e(LOG_TAG, msg);
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
     }
 }
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects

@@ -14,14 +14,14 @@
  * limitations under the License.
  */
 
-// QTI_BEGIN: 2025-02-26: Telephony: Fix license marking
+// QTI_BEGIN: 2025-02-25: Telephony: Fix license marking
 /*
  * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
  * Copyright (c) 2025 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
-// QTI_END: 2025-02-26: Telephony: Fix license marking
+// QTI_END: 2025-02-25: Telephony: Fix license marking
 package com.android.internal.telephony.uicc;
 
 import static com.android.internal.telephony.TelephonyStatsLog.PIN_STORAGE_EVENT;
@@ -351,18 +351,18 @@ public class UiccProfile extends IccCard {
 
         update(c, ci, ics);
         ci.registerForOffOrNotAvailable(mHandler, EVENT_RADIO_OFF_OR_UNAVAILABLE, null);
-// QTI_BEGIN: 2020-06-23: Telephony: UiccProfile: fix the uicc app is not created when updating app type.
+// QTI_BEGIN: 2020-06-22: Telephony: UiccProfile: fix the uicc app is not created when updating app type.
 
         Phone phone = PhoneFactory.getPhone(phoneId);
         if (phone != null) {
             setCurrentAppType(phone.getPhoneType() == PhoneConstants.PHONE_TYPE_GSM);
         }
 
-// QTI_END: 2020-06-23: Telephony: UiccProfile: fix the uicc app is not created when updating app type.
+// QTI_END: 2020-06-22: Telephony: UiccProfile: fix the uicc app is not created when updating app type.
         resetProperties();
-// QTI_BEGIN: 2020-06-23: Telephony: UiccProfile: fix the uicc app is not created when updating app type.
+// QTI_BEGIN: 2020-06-22: Telephony: UiccProfile: fix the uicc app is not created when updating app type.
         updateIccAvailability(false);
-// QTI_END: 2020-06-23: Telephony: UiccProfile: fix the uicc app is not created when updating app type.
+// QTI_END: 2020-06-22: Telephony: UiccProfile: fix the uicc app is not created when updating app type.
 
         mCarrierConfigManager = c.getSystemService(CarrierConfigManager.class);
         // Listener callback directly handles config change and thus runs on handler thread
@@ -455,9 +455,9 @@ public class UiccProfile extends IccCard {
                 mCurrentAppType = secondaryAppType;
             }
         }
-// QTI_BEGIN: 2020-06-23: Telephony: UiccProfile: fix the uicc app is not created when updating app type.
+// QTI_BEGIN: 2020-06-22: Telephony: UiccProfile: fix the uicc app is not created when updating app type.
         log("setCurrentAppType to be " + mCurrentAppType);
-// QTI_END: 2020-06-23: Telephony: UiccProfile: fix the uicc app is not created when updating app type.
+// QTI_END: 2020-06-22: Telephony: UiccProfile: fix the uicc app is not created when updating app type.
     }
 
     /**
@@ -561,19 +561,15 @@ public class UiccProfile extends IccCard {
         if (!TextUtils.isEmpty(iso)
                 && !iso.equals(TelephonyManager.getSimCountryIsoForPhone(mPhoneId))) {
             mTelephonyManager.setSimCountryIsoForPhone(mPhoneId, iso);
-// QTI_BEGIN: 2023-11-10: Telephony: Remove legacy subscription code
             SubscriptionManagerService.getInstance().setCountryIso(subId, iso);
-// QTI_END: 2023-11-10: Telephony: Remove legacy subscription code
         }
     }
 
     private void updateCarrierNameForSubscription(int subId, int nameSource) {
         /* update display name with carrier override */
-// QTI_BEGIN: 2023-11-10: Telephony: Remove legacy subscription code
         SubscriptionInfo subInfo = SubscriptionManagerService.getInstance()
                 .getActiveSubscriptionInfo(subId, mContext.getOpPackageName(),
                         mContext.getAttributionTag());
-// QTI_END: 2023-11-10: Telephony: Remove legacy subscription code
 
         if (subInfo == null) {
             return;
@@ -584,10 +580,8 @@ public class UiccProfile extends IccCard {
 
         if (!TextUtils.isEmpty(newCarrierName) && !newCarrierName.equals(oldSubName)) {
             log("sim name[" + mPhoneId + "] = " + newCarrierName);
-// QTI_BEGIN: 2023-11-10: Telephony: Remove legacy subscription code
             SubscriptionManagerService.getInstance().setDisplayNameUsingSrc(
                     newCarrierName, subId, nameSource);
-// QTI_END: 2023-11-10: Telephony: Remove legacy subscription code
         }
     }
 
@@ -650,10 +644,8 @@ public class UiccProfile extends IccCard {
         if (mUiccCard instanceof EuiccCard && ((EuiccCard) mUiccCard).getEid() == null) {
             // for RadioConfig<1.2 the EID is not known when the EuiccCard is constructed
             if (DBG) log("EID is not ready yet.");
-// QTI_BEGIN: 2018-02-24: Telephony: MSIM: Fix subId creation issue when only one SIM card present
             return;
         }
-// QTI_END: 2018-02-24: Telephony: MSIM: Fix subId creation issue when only one SIM card present
 
         // By process of elimination, the UICC Card State = PRESENT and state needs to be decided
         // based on apps
@@ -828,10 +820,8 @@ public class UiccProfile extends IccCard {
             if (mExternalState == IccCardConstants.State.LOADED) {
                 // Update the MCC/MNC.
                 if (mIccRecords != null) {
-// QTI_BEGIN: 2018-09-17: Telephony: Refresh SIM operator numeric for multi-mode SIM
                     Phone currentPhone = PhoneFactory.getPhone(mPhoneId);
                     String operator = currentPhone.getOperatorNumeric();
-// QTI_END: 2018-09-17: Telephony: Refresh SIM operator numeric for multi-mode SIM
                     log("setExternalState: operator=" + operator + " mPhoneId=" + mPhoneId);
 
                     if (!TextUtils.isEmpty(operator)) {
@@ -850,10 +840,8 @@ public class UiccProfile extends IccCard {
             }
             log("setExternalState: set mPhoneId=" + mPhoneId + " mExternalState=" + mExternalState);
 
-// QTI_BEGIN: 2023-11-10: Telephony: Remove legacy subscription code
             UiccController.getInstance().updateSimState(mPhoneId, mExternalState,
                     getIccStateReason(mExternalState));
-// QTI_END: 2023-11-10: Telephony: Remove legacy subscription code
         }
     }
 
@@ -1274,10 +1262,8 @@ public class UiccProfile extends IccCard {
 
     private boolean areReadyAppsRecordsLoaded() {
         for (UiccCardApplication app : mUiccApplications) {
-// QTI_BEGIN: 2019-05-23: Telephony: Fix Telephony can't inform SIM loaded with CDMALess MBN
             if (app != null && isSupportedApplication(app) && app.isReady()
                     && !app.isAppIgnored()) {
-// QTI_END: 2019-05-23: Telephony: Fix Telephony can't inform SIM loaded with CDMALess MBN
                 IccRecords ir = app.getIccRecords();
                 if (ir == null || !ir.isLoaded()) {
 // QTI_BEGIN: 2018-06-13: Telephony: Update external card state based on current app
@@ -1728,7 +1714,6 @@ public class UiccProfile extends IccCard {
             return false;
         }
 
-// QTI_BEGIN: 2023-11-10: Telephony: Remove legacy subscription code
         int subId = SubscriptionManager.getSubscriptionId(getPhoneId());
         SubscriptionInfoInternal subInfo = SubscriptionManagerService.getInstance()
                 .getSubscriptionInfoInternal(subId);
@@ -1736,9 +1721,7 @@ public class UiccProfile extends IccCard {
             loge("setOperatorBrandOverride: Cannot find subscription info for sub " + subId);
             return false;
         }
-// QTI_END: 2023-11-10: Telephony: Remove legacy subscription code
 
-// QTI_BEGIN: 2023-11-10: Telephony: Remove legacy subscription code
         List<SubscriptionInfo> subInfos = new ArrayList<>();
         subInfos.add(subInfo.toSubscriptionInfo());
         String groupUuid = subInfo.getGroupUuid();
@@ -1747,14 +1730,11 @@ public class UiccProfile extends IccCard {
                     .getSubscriptionsInGroup(ParcelUuid.fromString(groupUuid),
                             mContext.getOpPackageName(), mContext.getFeatureId()));
         }
-// QTI_END: 2023-11-10: Telephony: Remove legacy subscription code
 
-// QTI_BEGIN: 2023-11-10: Telephony: Remove legacy subscription code
         if (subInfos.stream().noneMatch(info -> TextUtils.equals(IccUtils.stripTrailingFs(
                 info.getIccId()), IccUtils.stripTrailingFs(iccId)))) {
             loge("iccId doesn't match current active subId.");
             return false;
-// QTI_END: 2023-11-10: Telephony: Remove legacy subscription code
         }
 
         SharedPreferences.Editor spEditor =

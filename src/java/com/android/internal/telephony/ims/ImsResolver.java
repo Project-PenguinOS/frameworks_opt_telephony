@@ -723,17 +723,17 @@ public class ImsResolver implements ImsServiceController.ImsServiceControllerCal
         appChangedFilter.addAction(Intent.ACTION_PACKAGE_ADDED);
         appChangedFilter.addDataScheme("package");
         mReceiverContext.registerReceiver(mAppChangedReceiver, appChangedFilter);
-// QTI_BEGIN: 2022-12-16: Telephony: IMS: Add support to read essential records loaded
+// QTI_BEGIN: 2022-12-15: Telephony: IMS: Add support to read essential records loaded
 
         IntentFilter configFilter = new IntentFilter();
         configFilter.addAction(CarrierConfigManager.ACTION_CARRIER_CONFIG_CHANGED);
         configFilter.addAction(CarrierConfigManager.ACTION_ESSENTIAL_RECORDS_LOADED);
-// QTI_END: 2022-12-16: Telephony: IMS: Add support to read essential records loaded
+// QTI_END: 2022-12-15: Telephony: IMS: Add support to read essential records loaded
         mReceiverContext.registerReceiver(mUserReceiver, new IntentFilter(
                 Intent.ACTION_USER_SWITCHED));
-// QTI_BEGIN: 2022-12-16: Telephony: IMS: Add support to read essential records loaded
+// QTI_BEGIN: 2022-12-15: Telephony: IMS: Add support to read essential records loaded
         mReceiverContext.registerReceiver(mConfigChangedReceiver, configFilter);
-// QTI_END: 2022-12-16: Telephony: IMS: Add support to read essential records loaded
+// QTI_END: 2022-12-15: Telephony: IMS: Add support to read essential records loaded
 
         UserManager userManager = (UserManager) mContext.getSystemService(Context.USER_SERVICE);
         if (userManager.isUserUnlocked()) {

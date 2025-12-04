@@ -58,9 +58,9 @@ import com.android.internal.R;
 import com.android.internal.telephony.CommandException;
 import com.android.internal.telephony.Phone;
 import com.android.internal.telephony.PhoneFactory;
-// QTI_BEGIN: 2023-11-10: Telephony: Remove legacy subscription code
+// QTI_BEGIN: 2023-11-09: Telephony: Remove legacy subscription code
 import com.android.internal.telephony.RILUtils;
-// QTI_END: 2023-11-10: Telephony: Remove legacy subscription code
+// QTI_END: 2023-11-09: Telephony: Remove legacy subscription code
 import com.android.internal.telephony.subscription.SubscriptionManagerService;
 import com.android.internal.telephony.util.TelephonyUtils;
 
@@ -405,10 +405,10 @@ public class SatelliteServiceUtils {
     public static int getValidSatelliteSubId(int subId, @NonNull Context context) {
         final long identity = Binder.clearCallingIdentity();
         try {
-// QTI_BEGIN: 2023-11-10: Telephony: Remove legacy subscription code
+// QTI_BEGIN: 2023-11-09: Telephony: Remove legacy subscription code
             boolean isActive = SubscriptionManagerService.getInstance().isActiveSubId(subId,
                     context.getOpPackageName(), context.getAttributionTag());
-// QTI_END: 2023-11-10: Telephony: Remove legacy subscription code
+// QTI_END: 2023-11-09: Telephony: Remove legacy subscription code
 
             if (isActive) {
                 return subId;

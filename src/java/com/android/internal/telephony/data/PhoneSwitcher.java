@@ -18,9 +18,9 @@
 /*
  * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
 // QTI_END: 2024-12-11: Telephony: Fix for smart temp DDS not seen after Mobile Data enable
-// QTI_BEGIN: 2025-02-26: Telephony: Fix license marking
+// QTI_BEGIN: 2025-02-25: Telephony: Fix license marking
  * Copyright (c) 2024-2025 Qualcomm Innovation Center, Inc. All rights reserved.
-// QTI_END: 2025-02-26: Telephony: Fix license marking
+// QTI_END: 2025-02-25: Telephony: Fix license marking
 // QTI_BEGIN: 2024-12-11: Telephony: Fix for smart temp DDS not seen after Mobile Data enable
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
@@ -64,9 +64,7 @@ import android.os.RegistrantList;
 import android.os.RemoteException;
 import android.telephony.CarrierConfigManager;
 import android.telephony.PhoneStateListener;
-// QTI_BEGIN: 2021-04-19: Telephony: Add support to retry for DDS switch failures
 import android.telephony.SubscriptionInfo;
-// QTI_END: 2021-04-19: Telephony: Add support to retry for DDS switch failures
 import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyManager;
 import android.telephony.TelephonyRegistryManager;
@@ -87,9 +85,9 @@ import com.android.internal.telephony.ISetOpportunisticDataCallback;
 import com.android.internal.telephony.IccCard;
 import com.android.internal.telephony.Phone;
 import com.android.internal.telephony.PhoneConfigurationManager;
-// QTI_BEGIN: 2022-04-18: Telephony: Fix modem DDS recommendation is ignored
+// QTI_BEGIN: 2022-04-17: Telephony: Fix modem DDS recommendation is ignored
 import com.android.internal.telephony.PhoneConstants;
-// QTI_END: 2022-04-18: Telephony: Fix modem DDS recommendation is ignored
+// QTI_END: 2022-04-17: Telephony: Fix modem DDS recommendation is ignored
 import com.android.internal.telephony.PhoneFactory;
 import com.android.internal.telephony.RadioConfig;
 import com.android.internal.telephony.data.DataNetworkController.NetworkRequestList;
@@ -102,9 +100,9 @@ import com.android.internal.telephony.subscription.SubscriptionInfoInternal;
 import com.android.internal.telephony.subscription.SubscriptionManagerService;
 import com.android.internal.telephony.subscription.SubscriptionManagerService.SubscriptionManagerServiceCallback;
 import com.android.internal.telephony.subscription.SubscriptionManagerService.WatchedInt;
-// QTI_BEGIN: 2025-02-07: Telephony: Telephony-Data: Decouple Qualcomm value adds.
+// QTI_BEGIN: 2025-02-06: Telephony: Telephony-Data: Decouple Qualcomm value adds.
 import com.android.internal.telephony.TelephonyComponentFactory;
-// QTI_END: 2025-02-07: Telephony: Telephony-Data: Decouple Qualcomm value adds.
+// QTI_END: 2025-02-06: Telephony: Telephony-Data: Decouple Qualcomm value adds.
 import com.android.internal.util.IndentingPrintWriter;
 import com.android.telephony.Rlog;
 
@@ -112,14 +110,10 @@ import java.io.FileDescriptor;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Calendar;
-// QTI_BEGIN: 2021-04-19: Telephony: Add support to retry for DDS switch failures
 import java.util.HashSet;
-// QTI_END: 2021-04-19: Telephony: Add support to retry for DDS switch failures
 import java.util.List;
 import java.util.Map;
-// QTI_BEGIN: 2021-04-19: Telephony: Add support to retry for DDS switch failures
 import java.util.Set;
-// QTI_END: 2021-04-19: Telephony: Add support to retry for DDS switch failures
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
@@ -156,17 +150,17 @@ public class PhoneSwitcher extends Handler {
      * call to allow for carrier specific operations, such as provide SUPL updates during or after
      * the emergency call, since some modems do not support these operations on the non DDS.
      */
-// QTI_BEGIN: 2025-02-07: Telephony: Telephony-Data: Decouple Qualcomm value adds.
+// QTI_BEGIN: 2025-02-06: Telephony: Telephony-Data: Decouple Qualcomm value adds.
     public static final class EmergencyOverrideRequest {
-// QTI_END: 2025-02-07: Telephony: Telephony-Data: Decouple Qualcomm value adds.
+// QTI_END: 2025-02-06: Telephony: Telephony-Data: Decouple Qualcomm value adds.
         /* The Phone ID that the DDS should be set to. */
-// QTI_BEGIN: 2023-02-28: Telephony: Making some members of PhoneSwitcher accessible
+// QTI_BEGIN: 2023-02-27: Telephony: Making some members of PhoneSwitcher accessible
         public int mPhoneId = INVALID_PHONE_INDEX;
-// QTI_END: 2023-02-28: Telephony: Making some members of PhoneSwitcher accessible
+// QTI_END: 2023-02-27: Telephony: Making some members of PhoneSwitcher accessible
         /* The time after the emergency call ends that the DDS should be overridden for. */
-// QTI_BEGIN: 2025-02-07: Telephony: Telephony-Data: Decouple Qualcomm value adds.
+// QTI_BEGIN: 2025-02-06: Telephony: Telephony-Data: Decouple Qualcomm value adds.
         public int mGnssOverrideTimeMs = -1;
-// QTI_END: 2025-02-07: Telephony: Telephony-Data: Decouple Qualcomm value adds.
+// QTI_END: 2025-02-06: Telephony: Telephony-Data: Decouple Qualcomm value adds.
         /* A callback to the requester notifying them if the initial call to the modem to override
          * the DDS was successful.
          */
@@ -181,9 +175,9 @@ public class PhoneSwitcher extends Handler {
          * Keeps track of whether or not this request has already serviced the outgoing emergency
          * call. Once finished, do not delay for any other calls.
          */
-// QTI_BEGIN: 2025-02-07: Telephony: Telephony-Data: Decouple Qualcomm value adds.
+// QTI_BEGIN: 2025-02-06: Telephony: Telephony-Data: Decouple Qualcomm value adds.
         public boolean mPendingOriginatingCall = true;
-// QTI_END: 2025-02-07: Telephony: Telephony-Data: Decouple Qualcomm value adds.
+// QTI_END: 2025-02-06: Telephony: Telephony-Data: Decouple Qualcomm value adds.
 
         /**
          * @return true if there is a pending override complete callback.
@@ -247,17 +241,15 @@ public class PhoneSwitcher extends Handler {
     protected PhoneState[] mPhoneStates;
     protected int[] mPhoneSubscriptions;
     private boolean mIsRegisteredForImsRadioTechChange;
-// QTI_BEGIN: 2020-05-06: Telephony: Add new vendor prefix data files
     @VisibleForTesting
-// QTI_END: 2020-05-06: Telephony: Add new vendor prefix data files
 // QTI_BEGIN: 2019-03-08: Telephony: Add support for retry with new DDS API and update QtiPhoneSwitcher
     protected final CellularNetworkValidator mValidator;
 // QTI_END: 2019-03-08: Telephony: Add support for retry with new DDS API and update QtiPhoneSwitcher
     private int mPendingSwitchSubId = INVALID_SUBSCRIPTION_ID;
     /** The reason for the last time changing preferred data sub **/
-// QTI_BEGIN: 2024-09-12: Telephony: Adapt the auto DDS switch function
+// QTI_BEGIN: 2024-09-11: Telephony: Adapt the auto DDS switch function
     protected int mLastSwitchPreferredDataReason = -1;
-// QTI_END: 2024-09-12: Telephony: Adapt the auto DDS switch function
+// QTI_END: 2024-09-11: Telephony: Adapt the auto DDS switch function
     private boolean mPendingSwitchNeedValidation;
     @VisibleForTesting
     public final CellularNetworkValidator.ValidationCallback mValidationCallback =
@@ -314,10 +306,8 @@ public class PhoneSwitcher extends Handler {
     protected int mPreferredDataPhoneId = SubscriptionManager.INVALID_PHONE_INDEX;
 
     // Subscription ID corresponds to mPreferredDataPhoneId.
-// QTI_BEGIN: 2023-11-10: Telephony: Remove legacy subscription code
     protected WatchedInt mPreferredDataSubId = new WatchedInt(
             SubscriptionManager.INVALID_SUBSCRIPTION_ID);
-// QTI_END: 2023-11-10: Telephony: Remove legacy subscription code
 
     // If non-null, An emergency call is about to be started, is ongoing, or has just ended and we
     // are overriding the DDS.
@@ -330,9 +320,9 @@ public class PhoneSwitcher extends Handler {
 
     /** Phone switcher callbacks. */
     @NonNull
-// QTI_BEGIN: 2024-10-04: Telephony: Remove SatelliteNetworkFactory
+// QTI_BEGIN: 2024-10-03: Telephony: Remove SatelliteNetworkFactory
     protected final Set<PhoneSwitcherCallback> mPhoneSwitcherCallbacks = new ArraySet<>();
-// QTI_END: 2024-10-04: Telephony: Remove SatelliteNetworkFactory
+// QTI_END: 2024-10-03: Telephony: Remove SatelliteNetworkFactory
 
     private static final int EVENT_PRIMARY_DATA_SUB_CHANGED       = 101;
     protected static final int EVENT_SUBSCRIPTION_CHANGED         = 102;
@@ -343,9 +333,9 @@ public class PhoneSwitcher extends Handler {
     private static final int EVENT_EMERGENCY_TOGGLE               = 105;
     private static final int EVENT_RADIO_CAPABILITY_CHANGED       = 106;
     private static final int EVENT_OPPT_DATA_SUB_CHANGED          = 107;
-// QTI_BEGIN: 2023-04-20: Telephony: Add provision to customize auto data switch logic
+// QTI_BEGIN: 2023-04-19: Telephony: Add provision to customize auto data switch logic
     protected static final int EVENT_RADIO_ON                     = 108;
-// QTI_END: 2023-04-20: Telephony: Add provision to customize auto data switch logic
+// QTI_END: 2023-04-19: Telephony: Add provision to customize auto data switch logic
     // A call has either started or ended. If an emergency ended and DDS is overridden using
     // mEmergencyOverride, start the countdown to remove the override using the message
     // EVENT_REMOVE_DDS_EMERGENCY_OVERRIDE. The only exception to this is if the device moves to
@@ -362,19 +352,15 @@ public class PhoneSwitcher extends Handler {
     // DEFAULT_DATA_OVERRIDE_TIMEOUT_MS milliseconds, then the override will be removed.
     private static final int EVENT_OVERRIDE_DDS_FOR_EMERGENCY     = 115;
     // If it exists, remove the current mEmergencyOverride DDS override.
-// QTI_BEGIN: 2025-02-07: Telephony: Telephony-Data: Decouple Qualcomm value adds.
+// QTI_BEGIN: 2025-02-06: Telephony: Telephony-Data: Decouple Qualcomm value adds.
     protected static final int EVENT_REMOVE_DDS_EMERGENCY_OVERRIDE  = 116;
-// QTI_END: 2025-02-07: Telephony: Telephony-Data: Decouple Qualcomm value adds.
+// QTI_END: 2025-02-06: Telephony: Telephony-Data: Decouple Qualcomm value adds.
     // If it exists, remove the current mEmergencyOverride DDS override.
     private static final int EVENT_MULTI_SIM_CONFIG_CHANGED       = 117;
     private static final int EVENT_NETWORK_AVAILABLE              = 118;
-// QTI_BEGIN: 2021-04-19: Telephony: Add support to retry for DDS switch failures
     private static final int EVENT_PROCESS_SIM_STATE_CHANGE       = 119;
-// QTI_END: 2021-04-19: Telephony: Add support to retry for DDS switch failures
     public static final int EVENT_IMS_RADIO_TECH_CHANGED          = 120;
-// QTI_BEGIN: 2024-10-09: Telephony: Clean up constants in PhoneSwitcher am: 79f2805e93 am: 79f2805e93
     protected static final int EVENT_VOICE_CALL_ENDED             = 121;
-// QTI_END: 2024-10-09: Telephony: Clean up constants in PhoneSwitcher am: 79f2805e93 am: 79f2805e93
     protected static final int EVENT_UNSOL_MAX_DATA_ALLOWED_CHANGED = 122;
     protected static final int EVENT_OEM_HOOK_SERVICE_READY       = 123;
     protected static final int EVENT_SUB_INFO_READY               = 124;
@@ -402,9 +388,9 @@ public class PhoneSwitcher extends Handler {
     private static final int DEFAULT_VALIDATION_EXPIRATION_TIME = 2000;
 
     /** Controller that tracks {@link TelephonyManager#MOBILE_DATA_POLICY_AUTO_DATA_SWITCH} */
-// QTI_BEGIN: 2024-09-12: Telephony: Adapt the auto DDS switch function
+// QTI_BEGIN: 2024-09-11: Telephony: Adapt the auto DDS switch function
     @NonNull protected final AutoDataSwitchController mAutoDataSwitchController;
-// QTI_END: 2024-09-12: Telephony: Adapt the auto DDS switch function
+// QTI_END: 2024-09-11: Telephony: Adapt the auto DDS switch function
     /** Callback to deal with requests made by the auto data switch controller. */
     @NonNull private final AutoDataSwitchController.AutoDataSwitchControllerCallback
             mAutoDataSwitchCallback;
@@ -564,20 +550,16 @@ public class PhoneSwitcher extends Handler {
         mMaxDataAttachModemCount = maxActivePhones;
         mLocalLog = new LocalLog(MAX_LOCAL_LOG_LINES);
 
-// QTI_BEGIN: 2023-11-10: Telephony: Remove legacy subscription code
         mSubscriptionManagerService = SubscriptionManagerService.getInstance();
-// QTI_END: 2023-11-10: Telephony: Remove legacy subscription code
 
         mRadioConfig = RadioConfig.getInstance();
         mValidator = CellularNetworkValidator.getInstance();
 
         mCurrentDdsSwitchFailure = new ArrayList<>();
-// QTI_BEGIN: 2021-04-19: Telephony: Add support to retry for DDS switch failures
         IntentFilter filter = new IntentFilter();
         filter.addAction(TelephonyManager.ACTION_SIM_APPLICATION_STATE_CHANGED);
         mContext.registerReceiver(mSimStateIntentReceiver, filter);
 
-// QTI_END: 2021-04-19: Telephony: Add support to retry for DDS switch failures
         mActivePhoneRegistrants = new RegistrantList();
         for (int phoneId = 0; phoneId < mActiveModemCount; phoneId++) {
             mPhoneStates[phoneId] = new PhoneState();
@@ -601,13 +583,13 @@ public class PhoneSwitcher extends Handler {
                 mDataSettingsManagerCallbacks.computeIfAbsent(phoneId,
                         v -> new DataSettingsManagerCallback(this::post) {
                             @Override
-// QTI_BEGIN: 2023-02-27: Telephony: Fix data during call option not working
+// QTI_BEGIN: 2023-02-26: Telephony: Fix data during call option not working
                             public void onDataEnabledOverrideChanged(boolean enabled,
                                     @TelephonyManager.MobileDataPolicy int policy) {
-// QTI_END: 2023-02-27: Telephony: Fix data during call option not working
-// QTI_BEGIN: 2025-02-07: Telephony: Telephony-Data: Decouple Qualcomm value adds.
+// QTI_END: 2023-02-26: Telephony: Fix data during call option not working
+// QTI_BEGIN: 2025-02-06: Telephony: Telephony-Data: Decouple Qualcomm value adds.
                                 PhoneSwitcher.this.onDataEnabledOverrideChanged(enabled, policy);
-// QTI_END: 2025-02-07: Telephony: Telephony-Data: Decouple Qualcomm value adds.
+// QTI_END: 2025-02-06: Telephony: Telephony-Data: Decouple Qualcomm value adds.
                             }
 
                             @Override
@@ -627,9 +609,7 @@ public class PhoneSwitcher extends Handler {
                         mDataSettingsManagerCallbacks.get(phoneId));
             }
             Set<CommandException.Error> ddsFailure = new HashSet<>();
-// QTI_BEGIN: 2021-04-19: Telephony: Add support to retry for DDS switch failures
             mCurrentDdsSwitchFailure.add(ddsFailure);
-// QTI_END: 2021-04-19: Telephony: Add support to retry for DDS switch failures
         }
 
         if (mActiveModemCount > 0) {
@@ -671,11 +651,11 @@ public class PhoneSwitcher extends Handler {
                 PhoneSwitcher.this.cancelPendingAutoDataSwitchValidation();
             }
         };
-// QTI_BEGIN: 2025-02-07: Telephony: Telephony-Data: Decouple Qualcomm value adds.
+// QTI_BEGIN: 2025-02-06: Telephony: Telephony-Data: Decouple Qualcomm value adds.
         mAutoDataSwitchController = TelephonyComponentFactory.getInstance().inject(
                 AutoDataSwitchController.class.getName()).makeAutoDataSwitchController(context,
                         looper, this, mFlags, mAutoDataSwitchCallback);
-// QTI_END: 2025-02-07: Telephony: Telephony-Data: Decouple Qualcomm value adds.
+// QTI_END: 2025-02-06: Telephony: Telephony-Data: Decouple Qualcomm value adds.
         mSubscriptionManagerService.registerCallback(new SubscriptionManagerServiceCallback(
                 this::post) {
             @Override
@@ -689,20 +669,17 @@ public class PhoneSwitcher extends Handler {
                 this, EVENT_MULTI_SIM_CONFIG_CHANGED, null);
 
         mConnectivityManager.registerDefaultNetworkCallback(mDefaultNetworkCallback, this);
-// QTI_BEGIN: 2021-04-19: Telephony: Add support to retry for DDS switch failures
         updateHalCommandToUse();
-// QTI_END: 2021-04-19: Telephony: Add support to retry for DDS switch failures
 
         logl("PhoneSwitcher started");
     }
 
-// QTI_BEGIN: 2025-02-07: Telephony: Telephony-Data: Decouple Qualcomm value adds.
+// QTI_BEGIN: 2025-02-06: Telephony: Telephony-Data: Decouple Qualcomm value adds.
     protected void onDataEnabledOverrideChanged(boolean enabled,
             @TelephonyManager.MobileDataPolicy int policy) {}
 
-// QTI_END: 2025-02-07: Telephony: Telephony-Data: Decouple Qualcomm value adds.
+// QTI_END: 2025-02-06: Telephony: Telephony-Data: Decouple Qualcomm value adds.
     private final BroadcastReceiver mSimStateIntentReceiver = new BroadcastReceiver() {
-// QTI_BEGIN: 2021-04-19: Telephony: Add support to retry for DDS switch failures
         @Override
         public void onReceive(Context context, Intent intent) {
             String action = intent.getAction();
@@ -711,44 +688,33 @@ public class PhoneSwitcher extends Handler {
                         TelephonyManager.SIM_STATE_UNKNOWN);
                 int slotIndex = intent.getIntExtra(SubscriptionManager.EXTRA_SLOT_INDEX,
                         SubscriptionManager.INVALID_SIM_SLOT_INDEX);
-// QTI_END: 2021-04-19: Telephony: Add support to retry for DDS switch failures
                 logl("mSimStateIntentReceiver: slotIndex = " + slotIndex + " state = " + state);
-// QTI_BEGIN: 2021-04-19: Telephony: Add support to retry for DDS switch failures
                 obtainMessage(EVENT_PROCESS_SIM_STATE_CHANGE, slotIndex, state).sendToTarget();
             }
         }
     };
 
-// QTI_END: 2021-04-19: Telephony: Add support to retry for DDS switch failures
 // QTI_BEGIN: 2021-05-24: Telephony: Delete vendor class files added for Data
     protected boolean isSimApplicationReady(int slotIndex) {
 // QTI_END: 2021-05-24: Telephony: Delete vendor class files added for Data
-// QTI_BEGIN: 2021-04-19: Telephony: Add support to retry for DDS switch failures
         if (!SubscriptionManager.isValidSlotIndex(slotIndex)) {
             return false;
         }
 
-// QTI_END: 2021-04-19: Telephony: Add support to retry for DDS switch failures
-// QTI_BEGIN: 2023-11-10: Telephony: Remove legacy subscription code
         SubscriptionInfo info = mSubscriptionManagerService
                 .getActiveSubscriptionInfoForSimSlotIndex(slotIndex,
                         mContext.getOpPackageName(), mContext.getAttributionTag());
-// QTI_END: 2023-11-10: Telephony: Remove legacy subscription code
-// QTI_BEGIN: 2021-04-19: Telephony: Add support to retry for DDS switch failures
         boolean uiccAppsEnabled = info != null && info.areUiccApplicationsEnabled();
 
         IccCard iccCard = PhoneFactory.getPhone(slotIndex).getIccCard();
         if (!iccCard.isEmptyProfile() && uiccAppsEnabled) {
-// QTI_END: 2021-04-19: Telephony: Add support to retry for DDS switch failures
             logl("isSimApplicationReady: SIM is ready for slotIndex: " + slotIndex);
-// QTI_BEGIN: 2021-04-19: Telephony: Add support to retry for DDS switch failures
             return true;
         } else {
             return false;
         }
     }
 
-// QTI_END: 2021-04-19: Telephony: Add support to retry for DDS switch failures
     private final SubscriptionManager.OnSubscriptionsChangedListener mSubscriptionsChangedListener =
             new SubscriptionManager.OnSubscriptionsChangedListener() {
         @Override
@@ -806,7 +772,6 @@ public class PhoneSwitcher extends Handler {
                 break;
             }
             case EVENT_IMS_RADIO_TECH_CHANGED: {
-// QTI_BEGIN: 2023-06-27: Telephony: Fix starting temp DDS switch by IMS radio tech changed
                 if (msg.obj == null) {
                     log("EVENT_IMS_RADIO_TECH_CHANGED but parameter is not available");
                     break;
@@ -814,7 +779,6 @@ public class PhoneSwitcher extends Handler {
                 if (!onImsRadioTechChanged((AsyncResult) (msg.obj))) {
                     break;
                 }
-// QTI_END: 2023-06-27: Telephony: Fix starting temp DDS switch by IMS radio tech changed
 
                 // if voice call state changes or in voice call didn't change
                 // but RAT changes(e.g. Iwlan -> cross sim), reevaluate for data switch.
@@ -825,14 +789,11 @@ public class PhoneSwitcher extends Handler {
                 break;
             }
             case EVENT_PRECISE_CALL_STATE_CHANGED: {
-// QTI_BEGIN: 2025-02-04: Telephony: Prevent AOSP auto DDS evaluation when UI disabled
                 // If the phoneId in voice call didn't change, do nothing.
                 if (!updatesIfPhoneInVoiceCallChanged()) {
                     break;
                 }
-// QTI_END: 2025-02-04: Telephony: Prevent AOSP auto DDS evaluation when UI disabled
 
-// QTI_BEGIN: 2025-02-04: Telephony: Prevent AOSP auto DDS evaluation when UI disabled
                 if (!isAnyVoiceCallActiveOnDevice()) {
                     for (int i = 0; i < mActiveModemCount; i++) {
                         if (mCurrentDdsSwitchFailure.get(i).contains(
@@ -862,7 +823,6 @@ public class PhoneSwitcher extends Handler {
                 // mAutoSelectedDataSubId doesn't know about any data switch due to voice call
                 evaluateIfImmediateDataSwitchIsNeeded("precise call state changed",
                         DataSwitch.Reason.DATA_SWITCH_REASON_IN_CALL);
-// QTI_END: 2025-02-04: Telephony: Prevent AOSP auto DDS evaluation when UI disabled
                 if (!isAnyVoiceCallActiveOnDevice()) {
                     // consider auto switch on hang up all voice call
                     mAutoDataSwitchController.evaluateAutoDataSwitch(
@@ -897,19 +857,13 @@ public class PhoneSwitcher extends Handler {
                 if (mActiveModemCount <= phoneId) {
                     break;
                 }
-// QTI_BEGIN: 2021-04-19: Telephony: Add support to retry for DDS switch failures
                 if (isPhoneIdValidForRetry(phoneId)) {
-// QTI_END: 2021-04-19: Telephony: Add support to retry for DDS switch failures
                     logl("EVENT_MODEM_COMMAND_RETRY: resend modem command on phone " + phoneId);
-// QTI_BEGIN: 2021-04-19: Telephony: Add support to retry for DDS switch failures
                     sendRilCommands(phoneId);
                 } else {
-// QTI_END: 2021-04-19: Telephony: Add support to retry for DDS switch failures
                     logl("EVENT_MODEM_COMMAND_RETRY: skip retry as DDS sub changed");
-// QTI_BEGIN: 2021-04-19: Telephony: Add support to retry for DDS switch failures
                     mCurrentDdsSwitchFailure.get(phoneId).clear();
                 }
-// QTI_END: 2021-04-19: Telephony: Add support to retry for DDS switch failures
                 break;
             }
             case EVENT_OVERRIDE_DDS_FOR_EMERGENCY: {
@@ -965,34 +919,24 @@ public class PhoneSwitcher extends Handler {
                 onMultiSimConfigChanged(activeModemCount);
                 break;
             }
-// QTI_BEGIN: 2021-04-19: Telephony: Add support to retry for DDS switch failures
             case EVENT_PROCESS_SIM_STATE_CHANGE: {
-// QTI_END: 2021-04-19: Telephony: Add support to retry for DDS switch failures
                 int slotIndex = msg.arg1;
                 int simState = msg.arg2;
-// QTI_BEGIN: 2021-04-19: Telephony: Add support to retry for DDS switch failures
 
                 if (!SubscriptionManager.isValidSlotIndex(slotIndex)) {
-// QTI_END: 2021-04-19: Telephony: Add support to retry for DDS switch failures
                     logl("EVENT_PROCESS_SIM_STATE_CHANGE: skip processing due to invalid slotId: "
-// QTI_BEGIN: 2021-04-19: Telephony: Add support to retry for DDS switch failures
                             + slotIndex);
-// QTI_END: 2021-04-19: Telephony: Add support to retry for DDS switch failures
                 } else if (TelephonyManager.SIM_STATE_LOADED == simState) {
                     if (mCurrentDdsSwitchFailure.get(slotIndex).contains(
-// QTI_BEGIN: 2021-04-19: Telephony: Add support to retry for DDS switch failures
                         CommandException.Error.INVALID_SIM_STATE)
                         && isSimApplicationReady(slotIndex)) {
-// QTI_END: 2021-04-19: Telephony: Add support to retry for DDS switch failures
                         sendRilCommands(slotIndex);
                     }
                     // SIM loaded after subscriptions slot mapping are done. Evaluate for auto
                     // data switch.
                     mAutoDataSwitchController.evaluateAutoDataSwitch(
                             AutoDataSwitchController.EVALUATION_REASON_SIM_LOADED);
-// QTI_BEGIN: 2021-04-19: Telephony: Add support to retry for DDS switch failures
                 }
-// QTI_END: 2021-04-19: Telephony: Add support to retry for DDS switch failures
                 break;
             }
         }
@@ -1077,19 +1021,19 @@ public class PhoneSwitcher extends Handler {
                                 @NonNull String callingPackage) {
                             PhoneSwitcher.this.onDataEnabledChanged();
                         }
-// QTI_BEGIN: 2023-05-26: Telephony: Add missed callbacks for PhoneSwitcher
+// QTI_BEGIN: 2023-05-25: Telephony: Add missed callbacks for PhoneSwitcher
 
                         @Override
                         public void onDataEnabledOverrideChanged(boolean enabled,
                                 @TelephonyManager.MobileDataPolicy int policy) {
                             // Add it when mobile data is on
-// QTI_END: 2023-05-26: Telephony: Add missed callbacks for PhoneSwitcher
-// QTI_BEGIN: 2025-02-07: Telephony: Telephony-Data: Decouple Qualcomm value adds.
+// QTI_END: 2023-05-25: Telephony: Add missed callbacks for PhoneSwitcher
+// QTI_BEGIN: 2025-02-06: Telephony: Telephony-Data: Decouple Qualcomm value adds.
                             PhoneSwitcher.this.onDataEnabledOverrideChanged(enabled, policy);
-// QTI_END: 2025-02-07: Telephony: Telephony-Data: Decouple Qualcomm value adds.
-// QTI_BEGIN: 2023-05-26: Telephony: Add missed callbacks for PhoneSwitcher
+// QTI_END: 2025-02-06: Telephony: Telephony-Data: Decouple Qualcomm value adds.
+// QTI_BEGIN: 2023-05-25: Telephony: Add missed callbacks for PhoneSwitcher
                         }
-// QTI_END: 2023-05-26: Telephony: Add missed callbacks for PhoneSwitcher
+// QTI_END: 2023-05-25: Telephony: Add missed callbacks for PhoneSwitcher
 
                         @Override
                         public void onDataRoamingEnabledChanged(boolean enabled) {
@@ -1102,9 +1046,7 @@ public class PhoneSwitcher extends Handler {
                     mDataSettingsManagerCallbacks.get(phone.getPhoneId()));
 
             Set<CommandException.Error> ddsFailure = new HashSet<>();
-// QTI_BEGIN: 2021-04-19: Telephony: Add support to retry for DDS switch failures
             mCurrentDdsSwitchFailure.add(ddsFailure);
-// QTI_END: 2021-04-19: Telephony: Add support to retry for DDS switch failures
         }
 
         mAutoDataSwitchController.onMultiSimConfigChanged(activeModemCount);
@@ -1188,9 +1130,7 @@ public class PhoneSwitcher extends Handler {
         return (TelephonyManager) mContext.getSystemService(Context.TELEPHONY_SERVICE);
     }
 
-// QTI_BEGIN: 2020-05-06: Telephony: Add new vendor prefix data files
     protected static final boolean REQUESTS_CHANGED   = true;
-// QTI_END: 2020-05-06: Telephony: Add new vendor prefix data files
 // QTI_BEGIN: 2018-01-31: Telephony: Enable vendor Telephony plugin
     protected static final boolean REQUESTS_UNCHANGED = false;
 // QTI_END: 2018-01-31: Telephony: Enable vendor Telephony plugin
@@ -1210,9 +1150,7 @@ public class PhoneSwitcher extends Handler {
         boolean diffDetected = mHalCommandToUse != HAL_COMMAND_PREFERRED_DATA && requestsChanged;
 
         // Check if user setting of default non-opportunistic data sub is changed.
-// QTI_BEGIN: 2023-11-10: Telephony: Remove legacy subscription code
         int primaryDataSubId = mSubscriptionManagerService.getDefaultDataSubId();
-// QTI_END: 2023-11-10: Telephony: Remove legacy subscription code
         if (primaryDataSubId != mPrimaryDataSubId) {
             sb.append(" mPrimaryDataSubId ").append(mPrimaryDataSubId).append("->")
                 .append(primaryDataSubId);
@@ -1414,14 +1352,10 @@ public class PhoneSwitcher extends Handler {
     }
 
     protected void sendRilCommands(int phoneId) {
-// QTI_BEGIN: 2021-04-19: Telephony: Add support to retry for DDS switch failures
         if (!SubscriptionManager.isValidPhoneId(phoneId)) {
-// QTI_END: 2021-04-19: Telephony: Add support to retry for DDS switch failures
             logl("sendRilCommands: skip dds switch due to invalid phoneId=" + phoneId);
-// QTI_BEGIN: 2021-04-19: Telephony: Add support to retry for DDS switch failures
             return;
         }
-// QTI_END: 2021-04-19: Telephony: Add support to retry for DDS switch failures
 
         Message message = Message.obtain(this, EVENT_MODEM_COMMAND_DONE, phoneId);
         if (mHalCommandToUse == HAL_COMMAND_ALLOW_DATA || mHalCommandToUse == HAL_COMMAND_UNKNOWN) {
@@ -1429,20 +1363,18 @@ public class PhoneSwitcher extends Handler {
             if (mActiveModemCount > 1) {
                 PhoneFactory.getPhone(phoneId).mCi.setDataAllowed(isPhoneActive(phoneId), message);
             }
-// QTI_BEGIN: 2022-04-18: Telephony: Fix modem DDS recommendation is ignored
+// QTI_BEGIN: 2022-04-17: Telephony: Fix modem DDS recommendation is ignored
         } else if (phoneId == mPreferredDataPhoneId) {
-// QTI_END: 2022-04-18: Telephony: Fix modem DDS recommendation is ignored
-// QTI_BEGIN: 2021-05-11: Telephony: Fix DDS sub notify issue for SIM refresh
+// QTI_END: 2022-04-17: Telephony: Fix modem DDS recommendation is ignored
             // Only setPreferredDataModem if the phoneId equals to current mPreferredDataPhoneId
-// QTI_END: 2021-05-11: Telephony: Fix DDS sub notify issue for SIM refresh
             logl("sendRilCommands: setPreferredDataModem - phoneId: " + phoneId);
             mRadioConfig.setPreferredDataModem(mPreferredDataPhoneId, message);
         }
     }
 
-// QTI_BEGIN: 2023-02-14: Telephony: Add support for DATA++DATA feature
+// QTI_BEGIN: 2023-02-13: Telephony: Add support for DATA++DATA feature
     protected int phoneIdForRequest(TelephonyNetworkRequest networkRequest) {
-// QTI_END: 2023-02-14: Telephony: Add support for DATA++DATA feature
+// QTI_END: 2023-02-13: Telephony: Add support for DATA++DATA feature
         NetworkRequest netRequest = networkRequest.getNativeNetworkRequest();
         int subId = getSubIdFromNetworkSpecifier(netRequest.getNetworkSpecifier());
 
@@ -1488,11 +1420,9 @@ public class PhoneSwitcher extends Handler {
     }
 
     private boolean isActiveSubId(int subId) {
-// QTI_BEGIN: 2023-11-10: Telephony: Remove legacy subscription code
         SubscriptionInfoInternal subInfo = mSubscriptionManagerService
                 .getSubscriptionInfoInternal(subId);
         return subInfo != null && subInfo.isActive();
-// QTI_END: 2023-11-10: Telephony: Remove legacy subscription code
     }
 
     // This updates mPreferredDataPhoneId which decides which phone should handle default network
@@ -1532,9 +1462,9 @@ public class PhoneSwitcher extends Handler {
     /**
      * @return the default data phone Id (or auto selected phone Id in auto data switch/CBRS case)
      */
-// QTI_BEGIN: 2023-02-28: Telephony: Making some members of PhoneSwitcher accessible
+// QTI_BEGIN: 2023-02-27: Telephony: Making some members of PhoneSwitcher accessible
     protected int getFallbackDataPhoneIdForInternetRequests() {
-// QTI_END: 2023-02-28: Telephony: Making some members of PhoneSwitcher accessible
+// QTI_END: 2023-02-27: Telephony: Making some members of PhoneSwitcher accessible
         int fallbackSubId = isActiveSubId(mAutoSelectedDataSubId)
                 ? mAutoSelectedDataSubId : mPrimaryDataSubId;
 
@@ -1585,14 +1515,12 @@ public class PhoneSwitcher extends Handler {
     }
 
     private Phone getPhoneBySubId(int subId) {
-// QTI_BEGIN: 2023-11-10: Telephony: Remove legacy subscription code
         return findPhoneById(mSubscriptionManagerService.getPhoneId(subId));
-// QTI_END: 2023-11-10: Telephony: Remove legacy subscription code
     }
 
-// QTI_BEGIN: 2023-02-28: Telephony: Making some members of PhoneSwitcher accessible
+// QTI_BEGIN: 2023-02-27: Telephony: Making some members of PhoneSwitcher accessible
     protected Phone findPhoneById(final int phoneId) {
-// QTI_END: 2023-02-28: Telephony: Making some members of PhoneSwitcher accessible
+// QTI_END: 2023-02-27: Telephony: Making some members of PhoneSwitcher accessible
         if (!SubscriptionManager.isValidPhoneId(phoneId)) {
             return null;
         }
@@ -1998,11 +1926,9 @@ public class PhoneSwitcher extends Handler {
         }
         pw.println("mPreferredDataPhoneId=" + mPreferredDataPhoneId);
         pw.println("mPreferredDataSubId=" + mPreferredDataSubId.get());
-// QTI_BEGIN: 2023-11-10: Telephony: Remove legacy subscription code
         pw.println("DefaultDataSubId=" + mSubscriptionManagerService.getDefaultDataSubId());
         pw.println("DefaultDataPhoneId=" + mSubscriptionManagerService.getPhoneId(
                 mSubscriptionManagerService.getDefaultDataSubId()));
-// QTI_END: 2023-11-10: Telephony: Remove legacy subscription code
         pw.println("mPrimaryDataSubId=" + mPrimaryDataSubId);
         pw.println("mAutoSelectedDataSubId=" + mAutoSelectedDataSubId);
         pw.println("mIsRegisteredForImsRadioTechChange=" + mIsRegisteredForImsRadioTechChange);
@@ -2024,15 +1950,11 @@ public class PhoneSwitcher extends Handler {
 // QTI_BEGIN: 2021-05-24: Telephony: Delete vendor class files added for Data
     protected boolean isAnyVoiceCallActiveOnDevice() {
 // QTI_END: 2021-05-24: Telephony: Delete vendor class files added for Data
-// QTI_BEGIN: 2021-04-19: Telephony: Add support to retry for DDS switch failures
         boolean ret = mPhoneIdInVoiceCall != SubscriptionManager.INVALID_PHONE_INDEX;
-// QTI_END: 2021-04-19: Telephony: Add support to retry for DDS switch failures
         if (VDBG) log("isAnyVoiceCallActiveOnDevice: " + ret);
-// QTI_BEGIN: 2021-04-19: Telephony: Add support to retry for DDS switch failures
         return ret;
     }
 
-// QTI_END: 2021-04-19: Telephony: Add support to retry for DDS switch failures
 // QTI_BEGIN: 2021-06-14: Telephony: Add support to extend Telephony methods
     protected void onDdsSwitchResponse(AsyncResult ar) {
 // QTI_END: 2021-06-14: Telephony: Add support to extend Telephony methods
@@ -2049,37 +1971,27 @@ public class PhoneSwitcher extends Handler {
         } else if (!commandSuccess) {
 // QTI_END: 2021-05-24: Telephony: Fix DDS sub notify issue for SIM refresh
             logl("onDdsSwitchResponse: DDS switch failed. with exception " + ar.exception);
-// QTI_BEGIN: 2021-04-19: Telephony: Add support to retry for DDS switch failures
             if (ar.exception instanceof CommandException) {
                 CommandException.Error error = ((CommandException)
                         (ar.exception)).getCommandError();
                 mCurrentDdsSwitchFailure.get(phoneId).add(error);
                 if (error == CommandException.Error.OP_NOT_ALLOWED_DURING_VOICE_CALL) {
-// QTI_END: 2021-04-19: Telephony: Add support to retry for DDS switch failures
                     logl("onDdsSwitchResponse: Wait for call end indication");
-// QTI_BEGIN: 2021-04-19: Telephony: Add support to retry for DDS switch failures
                     return;
                 } else if (error == CommandException.Error.INVALID_SIM_STATE) {
                     /* If there is a attach failure due to sim not ready then
                     hold the retry until sim gets ready */
-// QTI_END: 2021-04-19: Telephony: Add support to retry for DDS switch failures
                     logl("onDdsSwitchResponse: Wait for SIM to get READY");
-// QTI_BEGIN: 2021-04-19: Telephony: Add support to retry for DDS switch failures
                     return;
                 }
             }
-// QTI_END: 2021-04-19: Telephony: Add support to retry for DDS switch failures
             logl("onDdsSwitchResponse: Scheduling DDS switch retry");
-// QTI_BEGIN: 2021-04-19: Telephony: Add support to retry for DDS switch failures
             sendMessageDelayed(Message.obtain(this, EVENT_MODEM_COMMAND_RETRY,
                         phoneId), MODEM_COMMAND_RETRY_PERIOD_MS);
-// QTI_END: 2021-04-19: Telephony: Add support to retry for DDS switch failures
 // QTI_BEGIN: 2021-05-24: Telephony: Fix DDS sub notify issue for SIM refresh
             return;
 // QTI_END: 2021-05-24: Telephony: Fix DDS sub notify issue for SIM refresh
-// QTI_BEGIN: 2021-04-19: Telephony: Add support to retry for DDS switch failures
         }
-// QTI_END: 2021-04-19: Telephony: Add support to retry for DDS switch failures
         if (commandSuccess) {
             logl("onDdsSwitchResponse: DDS switch success on phoneId = " + phoneId);
             mAutoDataSwitchController.displayAutoDataSwitchNotification(phoneId,
@@ -2093,31 +2005,23 @@ public class PhoneSwitcher extends Handler {
 // QTI_END: 2021-05-24: Telephony: Fix DDS sub notify issue for SIM refresh
         mPhoneSwitcherCallbacks.forEach(callback -> callback.invokeFromExecutor(
                 () -> callback.onPreferredDataPhoneIdChanged(phoneId)));
-// QTI_BEGIN: 2021-04-19: Telephony: Add support to retry for DDS switch failures
     }
 
-// QTI_END: 2021-04-19: Telephony: Add support to retry for DDS switch failures
-// QTI_BEGIN: 2025-02-07: Telephony: Telephony-Data: Decouple Qualcomm value adds.
+// QTI_BEGIN: 2025-02-06: Telephony: Telephony-Data: Decouple Qualcomm value adds.
     protected boolean isPhoneIdValidForRetry(int phoneId) {
-// QTI_END: 2025-02-07: Telephony: Telephony-Data: Decouple Qualcomm value adds.
-// QTI_BEGIN: 2023-11-10: Telephony: Remove legacy subscription code
+// QTI_END: 2025-02-06: Telephony: Telephony-Data: Decouple Qualcomm value adds.
         int ddsPhoneId = mSubscriptionManagerService.getPhoneId(
                 mSubscriptionManagerService.getDefaultDataSubId());
-// QTI_END: 2023-11-10: Telephony: Remove legacy subscription code
-// QTI_BEGIN: 2021-04-19: Telephony: Add support to retry for DDS switch failures
         if (ddsPhoneId != INVALID_PHONE_INDEX && ddsPhoneId == phoneId) {
             return true;
         } else {
-// QTI_END: 2021-04-19: Telephony: Add support to retry for DDS switch failures
             if (mNetworkRequestList.isEmpty()) return false;
             for (TelephonyNetworkRequest networkRequest : mNetworkRequestList) {
                 if (phoneIdForRequest(networkRequest) == phoneId) {
                     return true;
                 }
-// QTI_BEGIN: 2021-04-19: Telephony: Add support to retry for DDS switch failures
             }
         }
         return false;
     }
-// QTI_END: 2021-04-19: Telephony: Add support to retry for DDS switch failures
 }
