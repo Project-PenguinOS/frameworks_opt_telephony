@@ -28,7 +28,6 @@ import android.telephony.CellInfo;
 import android.telephony.CellularIdentifierDisclosure;
 import android.telephony.LinkCapacityEstimate;
 import android.telephony.NetworkRegistrationInfo;
-import android.telephony.NetworkSecurityEvent;
 import android.telephony.PhoneCapability;
 import android.telephony.PhysicalChannelConfig;
 import android.telephony.PreciseCallState;
@@ -387,16 +386,6 @@ public class DefaultPhoneNotifier implements PhoneNotifier {
 
         mTelephonyRegistryMgr.notifyDomainSelectionEmergencyModeExited(
                 sender.getPhoneId(), sender.getSubId(), type);
-    }
-
-
-    @Override
-    public void notifyNetworkSecurityEvents(Phone sender,
-            Set<NetworkSecurityEvent> events) {
-        if (!mFeatureFlags.networkSecurityEventIndications()) return;
-
-        mTelephonyRegistryMgr.notifyNetworkSecurityEvents(sender.getPhoneId(),
-                sender.getSubId(), events);
     }
 
     /**
