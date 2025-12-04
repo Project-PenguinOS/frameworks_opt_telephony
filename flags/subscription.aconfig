@@ -85,3 +85,11 @@ flag {
     is_exported: false
 }
 
+# OWNER=justingross TARGET=26Q2
+flag {
+    name: "enable_is_private_network_api"
+    namespace: "telephony"
+    description: "Adds SubscriptionInfo#isPrivateNetwork and the corresponding carrier config."
+    bug: "458746638"
+    is_exported: true
+}

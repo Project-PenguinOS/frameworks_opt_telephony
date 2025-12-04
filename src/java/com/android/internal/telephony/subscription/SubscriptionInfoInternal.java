@@ -541,6 +541,12 @@ public class SubscriptionInfoInternal {
     @NonNull private final String mSatellitePlmnsVoiceServicePolicy;
 
     /**
+     * Whether the subscription is for private network. It is intended to use integer to fit the
+     * database format.
+     */
+    private final int mIsPrivateNetwork;
+
+    /**
      * Constructor from builder.
      *
      * @param builder Builder of {@link SubscriptionInfoInternal}.
@@ -628,6 +634,7 @@ public class SubscriptionInfoInternal {
         this.mSatelliteEntitlementServicesForPlmn = builder.mSatelliteEntitlementServicesForPlmn;
         this.mSatellitePlmnsDataServicePolicy = builder.mSatellitePlmnsDataServicePolicy;
         this.mSatellitePlmnsVoiceServicePolicy = builder.mSatellitePlmnsVoiceServicePolicy;
+        this.mIsPrivateNetwork = builder.mIsPrivateNetwork;
     }
 
     /**
@@ -1398,6 +1405,13 @@ public class SubscriptionInfoInternal {
         return mSatellitePlmnsVoiceServicePolicy;
     }
 
+    /**
+     * @return {@code 1} if the subscription is for private network.
+     */
+    public int getIsPrivateNetwork() {
+        return mIsPrivateNetwork;
+    }
+
     /** @return converted {@link SubscriptionInfo}. */
     @NonNull
     public SubscriptionInfo toSubscriptionInfo() {
@@ -1438,6 +1452,7 @@ public class SubscriptionInfoInternal {
                         SubscriptionManager.getServiceCapabilitiesSet(mServiceCapabilities))
                 .setTransferStatus(mTransferStatus)
                 .setSatelliteESOSSupported(mIsSatelliteESOSSupported == 1)
+                .setIsPrivateNetwork(mIsPrivateNetwork == 1)
                 .build();
     }
 
@@ -1510,6 +1525,7 @@ public class SubscriptionInfoInternal {
                 + " mSatelliteEntitlementServicesForPlmn=" + mSatelliteEntitlementServicesForPlmn
                 + " mSatellitePlmnsDataServicePolicy=" + mSatellitePlmnsDataServicePolicy
                 + " mSatellitePlmnsVoiceServicePolicy=" + mSatellitePlmnsVoiceServicePolicy
+                + " isPrivateNetwork=" + mIsPrivateNetwork
                 + "]";
     }
 
@@ -1584,7 +1600,8 @@ public class SubscriptionInfoInternal {
                 && mSatelliteEntitlementServicesForPlmn.equals(
                 that.mSatelliteEntitlementServicesForPlmn)
                 && mSatellitePlmnsDataServicePolicy.equals(that.mSatellitePlmnsDataServicePolicy)
-                && mSatellitePlmnsVoiceServicePolicy.equals(that.mSatellitePlmnsVoiceServicePolicy);
+                && mSatellitePlmnsVoiceServicePolicy.equals(that.mSatellitePlmnsVoiceServicePolicy)
+                && mIsPrivateNetwork == that.mIsPrivateNetwork;
     }
 
     @Override
@@ -1620,7 +1637,8 @@ public class SubscriptionInfoInternal {
                 mSatelliteEntitlementPlmns, mIsSatelliteESOSSupported,
                 mIsSatelliteProvisionedForNonIpDatagram, mSatelliteEntitlementBarredPlmnsList,
                 mSatelliteEntitlementDataPlanForPlmn, mSatelliteEntitlementServicesForPlmn,
-                mSatellitePlmnsDataServicePolicy, mSatellitePlmnsVoiceServicePolicy);
+                mSatellitePlmnsDataServicePolicy, mSatellitePlmnsVoiceServicePolicy,
+                mIsPrivateNetwork);
         result = 31 * result + Arrays.hashCode(mNativeAccessRules);
         result = 31 * result + Arrays.hashCode(mCarrierConfigAccessRules);
         result = 31 * result + Arrays.hashCode(mRcsConfig);
@@ -2078,6 +2096,11 @@ public class SubscriptionInfoInternal {
         @NonNull
         private String mSatellitePlmnsVoiceServicePolicy = "";
 
+        /**
+         * Whether the subscription is for private network.
+         */
+        private int mIsPrivateNetwork = 0;
+
 
         /**
          * Default constructor.
@@ -2169,6 +2192,7 @@ public class SubscriptionInfoInternal {
             mSatelliteEntitlementServicesForPlmn = info.mSatelliteEntitlementServicesForPlmn;
             mSatellitePlmnsDataServicePolicy = info.mSatellitePlmnsDataServicePolicy;
             mSatellitePlmnsVoiceServicePolicy = info.mSatellitePlmnsVoiceServicePolicy;
+            mIsPrivateNetwork = info.mIsPrivateNetwork;
         }
 
         /**
@@ -3252,6 +3276,18 @@ public class SubscriptionInfoInternal {
         public Builder setSatellitePlmnsVoiceServicePolicy(
                 @NonNull String satellitePlmnsVoiceServicePolicy) {
             mSatellitePlmnsVoiceServicePolicy = satellitePlmnsVoiceServicePolicy;
+            return this;
+        }
+
+        /**
+         * Set whether the subscription is for private network.
+         *
+         * @param isPrivateNetwork {@code 1} if the subscription is for private network.
+         * @return The builder.
+         */
+        @NonNull
+        public Builder setIsPrivateNetwork(int isPrivateNetwork) {
+            mIsPrivateNetwork = isPrivateNetwork;
             return this;
         }
     }
