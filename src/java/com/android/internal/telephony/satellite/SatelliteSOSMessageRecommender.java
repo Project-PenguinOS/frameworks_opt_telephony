@@ -54,6 +54,7 @@ import android.telephony.TelephonyManager;
 import android.telephony.ims.ImsReasonInfo;
 import android.telephony.ims.ImsRegistrationAttributes;
 import android.telephony.ims.RegistrationManager;
+import android.telephony.ims.stub.ImsRegistrationImplBase;
 import android.telephony.satellite.ISatelliteProvisionStateCallback;
 import android.telephony.satellite.SatelliteManager;
 import android.telephony.satellite.SatelliteSubscriberProvisionStatus;
@@ -342,7 +343,14 @@ public class SatelliteSOSMessageRecommender extends Handler {
 
         boolean isDialerNotified = false;
         boolean isCellularAvailable = SatelliteServiceUtils.isCellularAvailable();
-        if (!isCellularAvailable
+        boolean canMakeWifiCall = canMakeWifiCall();
+        plogd("handleTimeoutEvent: isImsRegisteredOverIwlan=" + isImsRegisteredOverIwlan()
+                + ", isCellularAvailable=" + isCellularAvailable
+                + ", canMakeWifiCall=" + canMakeWifiCall
+                + ", isSatelliteAllowed=" + isSatelliteAllowed()
+                + ", shouldTrackCall=" + shouldTrackCall(mEmergencyConnection.getState()));
+
+        if (!isCellularAvailable && !canMakeWifiCall
                 && isSatelliteAllowed()
                 && ((isDeviceProvisioned() && isSatelliteAllowedByReasons())
                 || isSatelliteEmergencyMessagingViaCarrierAvailable())
@@ -355,10 +363,7 @@ public class SatelliteSOSMessageRecommender extends Handler {
             isDialerNotified = true;
 
         }
-        plogd("handleTimeoutEvent: isImsRegistered=" + isImsRegistered()
-                + ", isCellularAvailable=" + isCellularAvailable
-                + ", isSatelliteAllowed=" + isSatelliteAllowed()
-                + ", shouldTrackCall=" + shouldTrackCall(mEmergencyConnection.getState()));
+
         cleanUpResources(isDialerNotified);
     }
 
@@ -433,7 +438,7 @@ public class SatelliteSOSMessageRecommender extends Handler {
                 new SatelliteStats.SatelliteSosMessageRecommenderParams.Builder()
                         .setDisplaySosMessageSent(isDialerNotified)
                         .setCountOfTimerStarted(mCountOfTimerStarted.get())
-                        .setImsRegistered(isImsRegistered())
+                        .setImsRegistered(isImsRegisteredOverIwlan())
                         .setCellularServiceState(getBestCellularServiceState())
                         .setIsMultiSim(isMultiSim())
                         .setRecommendingHandoverType(getEmergencyCallToSatelliteHandoverType())
@@ -526,9 +531,13 @@ public class SatelliteSOSMessageRecommender extends Handler {
         return isStateOutOfService ? STATE_OUT_OF_SERVICE : STATE_EMERGENCY_ONLY;
     }
 
-    private boolean isImsRegistered() {
+    private boolean isImsRegisteredOverIwlan() {
         for (Phone phone : PhoneFactory.getPhones()) {
-            if (phone.isImsRegistered()) return true;
+            if (phone.isImsRegistered()
+                    && phone.getImsRegistrationTech()
+                    == ImsRegistrationImplBase.REGISTRATION_TECH_IWLAN) {
+                        return true;
+            }
         }
         return false;
     }
@@ -874,6 +883,10 @@ public class SatelliteSOSMessageRecommender extends Handler {
             mSubIdOfSatelliteConnectedViaCarrierWithinHysteresisTime.set(
                 SubscriptionManager.INVALID_SUBSCRIPTION_ID);
         }
+    }
+
+    private boolean canMakeWifiCall() {
+        return isImsRegisteredOverIwlan() && mSatelliteController.isWifiConnected();
     }
 
     private static void logv(@NonNull String log) {
