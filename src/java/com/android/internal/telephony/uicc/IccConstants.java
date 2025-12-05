@@ -120,6 +120,8 @@ public interface IccConstants {
     static final String DF_MMSS = "5F3C";
 // QTI_END: 2018-03-14: Telephony: Define EF MSPL/MLPL/PRL values and paths
 
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
     //UICC access
     static final String DF_ADF = "7FFF";
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
 }

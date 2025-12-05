@@ -47,9 +47,9 @@ import java.util.concurrent.Executor;
  * has an associated parent {@link DataNetwork}.
  */
 public class TelephonyNetworkAgent extends NetworkAgent {
-// QTI_BEGIN: 2022-03-09: Telephony: Port linger/delay timer changes to Android T
+// QTI_BEGIN: 2022-03-08: Telephony: Port linger/delay timer changes to Android T
     protected String mLogTag;
-// QTI_END: 2022-03-09: Telephony: Port linger/delay timer changes to Android T
+// QTI_END: 2022-03-08: Telephony: Port linger/delay timer changes to Android T
     private final LocalLog mLocalLog = new LocalLog(128);
 
     /** Max unregister network agent delay. */
@@ -60,9 +60,9 @@ public class TelephonyNetworkAgent extends NetworkAgent {
     protected final DataNetwork mDataNetwork;
 
     /** This is the id from {@link NetworkAgent#register()}. */
-// QTI_BEGIN: 2022-03-09: Telephony: Port linger/delay timer changes to Android T
+// QTI_BEGIN: 2022-03-08: Telephony: Port linger/delay timer changes to Android T
     protected final int mId;
-// QTI_END: 2022-03-09: Telephony: Port linger/delay timer changes to Android T
+// QTI_END: 2022-03-08: Telephony: Port linger/delay timer changes to Android T
 
     /**
      * Indicates if this network agent is abandoned. if {@code true}, it ignores the
@@ -344,9 +344,9 @@ public class TelephonyNetworkAgent extends NetworkAgent {
      * Log error messages.
      * @param s error messages
      */
-// QTI_BEGIN: 2022-03-09: Telephony: Port linger/delay timer changes to Android T
+// QTI_BEGIN: 2022-03-08: Telephony: Port linger/delay timer changes to Android T
     protected void loge(@NonNull String s) {
-// QTI_END: 2022-03-09: Telephony: Port linger/delay timer changes to Android T
+// QTI_END: 2022-03-08: Telephony: Port linger/delay timer changes to Android T
         Rlog.e(mLogTag, s);
     }
 

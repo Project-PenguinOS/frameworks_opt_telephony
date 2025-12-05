@@ -20,17 +20,23 @@ import static com.android.internal.telephony.util.TelephonyUtils.FORCE_VERBOSE_S
 
 import android.annotation.NonNull;
 import android.compat.annotation.UnsupportedAppUsage;
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
 import android.content.Context;
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
 import android.content.Intent;
 import android.os.AsyncResult;
 import android.os.Build;
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
 import android.os.Message;
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
 import android.os.UserHandle;
 import android.telephony.SubscriptionManager;
 import android.util.Log;
 
 import com.android.internal.annotations.VisibleForTesting;
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
 import com.android.internal.telephony.CommandsInterface;
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
 import com.android.internal.telephony.flags.FeatureFlags;
 import com.android.internal.telephony.gsm.SimTlv;
 import com.android.telephony.Rlog;
@@ -89,18 +95,23 @@ public class IsimUiccRecords extends IccRecords implements IsimRecords {
 
     public IsimUiccRecords(@NonNull UiccCardApplication app, @NonNull Context c,
             @NonNull CommandsInterface ci, @NonNull FeatureFlags flags) {
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
         super(app, c, ci);
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
         mFeatureFlags = flags;
         mRecordsRequested = false;  // No load request is made till SIM ready
         //todo: currently locked state for ISIM is not handled well and may cause app state to not
         //be broadcast
         mLockedRecordsReqReason = LOCKED_RECORDS_REQ_REASON_NONE;
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
 
         // recordsToLoad is set to 0 because no requests are made yet
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
         mRecordsToLoad = 0;
         // Start off by setting empty state
         resetRecords();
         if (DBG) log("IsimUiccRecords X ctor this=" + this);
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
     }
 
     @Override
@@ -112,61 +123,80 @@ public class IsimUiccRecords extends IccRecords implements IsimRecords {
 
     // ***** Overridden from Handler
     public void handleMessage(Message msg) {
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
         AsyncResult ar;
 
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
         if (mDestroyed.get()) {
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
             Rlog.e(LOG_TAG, "Received message " + msg +
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
                     "[" + msg.what + "] while being destroyed. Ignoring.");
             return;
         }
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
         loge("IsimUiccRecords: handleMessage " + msg + "[" + msg.what + "] ");
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
 
         try {
             switch (msg.what) {
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
                 case EVENT_REFRESH:
                     broadcastRefresh();
                     super.handleMessage(msg);
                     break;
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
                 default:
                     super.handleMessage(msg);   // IccRecords handles generic record load responses
 
             }
         } catch (RuntimeException exc) {
             // I don't want these exceptions to be fatal
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
             Rlog.w(LOG_TAG, "Exception parsing SIM record", exc);
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
         }
     }
 
-// QTI_BEGIN: 2020-01-06: Telephony: Split uicc records loading in two groups.
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
+// QTI_BEGIN: 2020-01-05: Telephony: Split uicc records loading in two groups.
     private void fetchEssentialIsimRecords() {
         //NOP: No essential ISim records identified.
-// QTI_END: 2020-01-06: Telephony: Split uicc records loading in two groups.
-// QTI_BEGIN: 2020-02-25: Telephony: Fix SIM can't get loaded after unlocking
+// QTI_END: 2020-01-05: Telephony: Split uicc records loading in two groups.
+// QTI_BEGIN: 2020-02-24: Telephony: Fix SIM can't get loaded after unlocking
         mEssentialRecordsListenerNotified = false;
-// QTI_END: 2020-02-25: Telephony: Fix SIM can't get loaded after unlocking
-// QTI_BEGIN: 2020-01-06: Telephony: Split uicc records loading in two groups.
+// QTI_END: 2020-02-24: Telephony: Fix SIM can't get loaded after unlocking
+// QTI_BEGIN: 2020-01-05: Telephony: Split uicc records loading in two groups.
     }
 
-// QTI_END: 2020-01-06: Telephony: Split uicc records loading in two groups.
+// QTI_END: 2020-01-05: Telephony: Split uicc records loading in two groups.
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
     protected void fetchIsimRecords() {
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
         mRecordsRequested = true;
-// QTI_BEGIN: 2020-01-06: Telephony: Split uicc records loading in two groups.
+// QTI_BEGIN: 2020-01-05: Telephony: Split uicc records loading in two groups.
         if (DBG) log("fetchIsimRecords " + mRecordsToLoad);
 
         fetchEssentialIsimRecords();
-// QTI_END: 2020-01-06: Telephony: Split uicc records loading in two groups.
+// QTI_END: 2020-01-05: Telephony: Split uicc records loading in two groups.
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
 
         mFh.loadEFTransparent(EF_IMPI, obtainMessage(
                 IccRecords.EVENT_GET_ICC_RECORD_DONE, new EfIsimImpiLoaded()));
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
         mRecordsToLoad++;
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
 
         mFh.loadEFLinearFixedAll(EF_IMPU, obtainMessage(
                 IccRecords.EVENT_GET_ICC_RECORD_DONE, new EfIsimImpuLoaded()));
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
         mRecordsToLoad++;
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
 
         mFh.loadEFTransparent(EF_DOMAIN, obtainMessage(
                 IccRecords.EVENT_GET_ICC_RECORD_DONE, new EfIsimDomainLoaded()));
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
         mRecordsToLoad++;
         mFh.loadEFTransparent(EF_IST, obtainMessage(
                     IccRecords.EVENT_GET_ICC_RECORD_DONE, new EfIsimIstLoaded()));
@@ -187,12 +217,14 @@ public class IsimUiccRecords extends IccRecords implements IsimRecords {
         mRecordsToLoad++;
 
         if (DBG) log("fetchIsimRecords " + mRecordsToLoad + " requested: " + mRecordsRequested);
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
     }
 
     protected void resetRecords() {
         // recordsRequested is set to false indicating that the SIM
         // read requests made so far are not valid. This is set to
         // true only when fresh set of read requests are made.
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
         mIsimImpi = null;
         mIsimDomain = null;
         mIsimImpu = null;
@@ -204,8 +236,10 @@ public class IsimUiccRecords extends IccRecords implements IsimRecords {
         mRecordsRequested = false;
         mLockedRecordsReqReason = LOCKED_RECORDS_REQ_REASON_NONE;
         mLoaded.set(false);
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
     }
 
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
     private class EfIsimImpiLoaded implements IccRecords.IccRecordLoaded {
         public String getEfName() {
             return "EF_ISIM_IMPI";
@@ -392,32 +426,40 @@ public class IsimUiccRecords extends IccRecords implements IsimRecords {
         return null;
     }
 
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
     @Override
     protected void onRecordLoaded() {
         // One record loaded successfully or failed, In either case
         // we need to update the recordsToLoad count
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
         mRecordsToLoad -= 1;
         if (DBG) log("onRecordLoaded " + mRecordsToLoad + " requested: " + mRecordsRequested);
 
-// QTI_BEGIN: 2020-01-06: Telephony: Split uicc records loading in two groups.
+// QTI_BEGIN: 2020-01-05: Telephony: Split uicc records loading in two groups.
         if (getEssentialRecordsLoaded() && !mEssentialRecordsListenerNotified) {
             onAllEssentialRecordsLoaded();
         }
 
-// QTI_END: 2020-01-06: Telephony: Split uicc records loading in two groups.
+// QTI_END: 2020-01-05: Telephony: Split uicc records loading in two groups.
         if (getRecordsLoaded()) {
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
             onAllRecordsLoaded();
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
         } else if (getLockedRecordsLoaded() || getNetworkLockedRecordsLoaded()) {
             onLockedAllRecordsLoaded();
-// QTI_BEGIN: 2020-01-06: Telephony: Split uicc records loading in two groups.
+// QTI_BEGIN: 2020-01-05: Telephony: Split uicc records loading in two groups.
         } else if (mRecordsToLoad < 0 || mEssentialRecordsToLoad < 0) {
-// QTI_END: 2020-01-06: Telephony: Split uicc records loading in two groups.
+// QTI_END: 2020-01-05: Telephony: Split uicc records loading in two groups.
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
             loge("recordsToLoad <0, programmer error suspected");
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
             mRecordsToLoad = 0;
-// QTI_BEGIN: 2020-01-06: Telephony: Split uicc records loading in two groups.
+// QTI_BEGIN: 2020-01-05: Telephony: Split uicc records loading in two groups.
             mEssentialRecordsToLoad = 0;
-// QTI_END: 2020-01-06: Telephony: Split uicc records loading in two groups.
+// QTI_END: 2020-01-05: Telephony: Split uicc records loading in two groups.
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
         }
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
     }
 
     private void onLockedAllRecordsLoaded() {
@@ -433,7 +475,7 @@ public class IsimUiccRecords extends IccRecords implements IsimRecords {
         }
     }
 
-// QTI_BEGIN: 2020-01-06: Telephony: Split uicc records loading in two groups.
+// QTI_BEGIN: 2020-01-05: Telephony: Split uicc records loading in two groups.
     @Override
     protected void onAllEssentialRecordsLoaded() {
         if (DBG) log("Essential record load complete");
@@ -441,12 +483,14 @@ public class IsimUiccRecords extends IccRecords implements IsimRecords {
         mEssentialRecordsLoadedRegistrants.notifyRegistrants(new AsyncResult(null, null, null));
     }
 
-// QTI_END: 2020-01-06: Telephony: Split uicc records loading in two groups.
+// QTI_END: 2020-01-05: Telephony: Split uicc records loading in two groups.
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
     @Override
     protected void onAllRecordsLoaded() {
-// QTI_BEGIN: 2020-01-06: Telephony: Split uicc records loading in two groups.
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
+// QTI_BEGIN: 2020-01-05: Telephony: Split uicc records loading in two groups.
         if (DBG) log("record load complete");
-// QTI_END: 2020-01-06: Telephony: Split uicc records loading in two groups.
+// QTI_END: 2020-01-05: Telephony: Split uicc records loading in two groups.
         mLoaded.set(true);
         mRecordsLoadedRegistrants.notifyRegistrants(new AsyncResult(null, null, null));
     }
@@ -502,7 +546,9 @@ public class IsimUiccRecords extends IccRecords implements IsimRecords {
      * Returns null if the IMPI hasn't been loaded or isn't present on the ISIM.
      * @return the IMS private user identity string, or null if not available
      */
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
     @Override
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
     public String getIsimImpi() {
         return mIsimImpi;
     }
@@ -512,7 +558,9 @@ public class IsimUiccRecords extends IccRecords implements IsimRecords {
      * Returns null if the IMS domain hasn't been loaded or isn't present on the ISIM.
      * @return the IMS home network domain name, or null if not available
      */
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
     @Override
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
     public String getIsimDomain() {
         return mIsimDomain;
     }
@@ -522,7 +570,9 @@ public class IsimUiccRecords extends IccRecords implements IsimRecords {
      * Returns null if the IMPU hasn't been loaded or isn't present on the ISIM.
      * @return an array of IMS public user identity strings, or null if not available
      */
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
     @Override
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
     public String[] getIsimImpu() {
         return (mIsimImpu != null) ? mIsimImpu.clone() : null;
     }
@@ -546,6 +596,7 @@ public class IsimUiccRecords extends IccRecords implements IsimRecords {
         return (mIsimPcscf != null) ? mIsimPcscf.clone() : null;
     }
 
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
     @Override
     public void onReady() {
         fetchIsimRecords();
@@ -553,12 +604,14 @@ public class IsimUiccRecords extends IccRecords implements IsimRecords {
 
     @Override
     public void onRefresh(boolean fileChanged, int[] fileList) {
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
         if (fileChanged) {
             // A future optimization would be to inspect fileList and
             // only reload those files that we care about.  For now,
             // just re-fetch all SIM records that we cache.
             fetchIsimRecords();
         }
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
     }
 
     @Override
@@ -572,6 +625,7 @@ public class IsimUiccRecords extends IccRecords implements IsimRecords {
         // Not applicable to Isim
     }
 
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
     /**
      * Returns the IMS Application Reference Identifier(IARI) that was loaded from the ISIM.
      * @return array of IARI or null if not loaded
@@ -582,23 +636,29 @@ public class IsimUiccRecords extends IccRecords implements IsimRecords {
     }
 
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
     @Override
     protected void log(String s) {
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
         if (mParentApp != null) {
             Rlog.d(LOG_TAG, "[ISIM-" + mParentApp.getPhoneId() + "] " + s);
         } else {
             Rlog.d(LOG_TAG, "[ISIM] " + s);
         }
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
     }
 
     @Override
     protected void loge(String s) {
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
         if (mParentApp != null) {
             Rlog.e(LOG_TAG, "[ISIM-" + mParentApp.getPhoneId() + "] " + s);
         } else {
             Rlog.e(LOG_TAG, "[ISIM] " + s);
         }
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
     }
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
 
     @Override
     public void dump(FileDescriptor fd, PrintWriter pw, String[] args) {

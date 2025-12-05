@@ -14,14 +14,14 @@
  * limitations under the License.
  */
 
-// QTI_BEGIN: 2025-02-26: Telephony: Fix license marking
+// QTI_BEGIN: 2025-02-25: Telephony: Fix license marking
 /*
  * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
  * Copyright (c) 2025 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
-// QTI_END: 2025-02-26: Telephony: Fix license marking
+// QTI_END: 2025-02-25: Telephony: Fix license marking
 package com.android.internal.telephony.data;
 
 import static android.net.NetworkCapabilities.TRANSPORT_CELLULAR;
@@ -72,7 +72,9 @@ import android.util.ArraySet;
 import android.util.IndentingPrintWriter;
 import android.util.LocalLog;
 
+// QTI_BEGIN: 2025-10-14: Telephony: Google Auto DDS FR changes
 import com.android.internal.annotations.VisibleForTesting;
+// QTI_END: 2025-10-14: Telephony: Google Auto DDS FR changes
 import com.android.internal.telephony.Phone;
 import com.android.internal.telephony.PhoneFactory;
 // QTI_BEGIN: 2024-09-04: Telephony: Fix to update AutoDataSwitch threshold values
@@ -291,10 +293,12 @@ public class AutoDataSwitchController extends Handler {
     /**
      * The phone Id of the pending switching phone. Used for pruning frequent switch evaluation.
      */
+// QTI_BEGIN: 2025-10-14: Telephony: Google Auto DDS FR changes
     protected int mSelectedTargetPhoneId = INVALID_PHONE_INDEX;
 
     @VisibleForTesting
     public boolean mAutoDdsValueAddedEvaluationforDdsRevert = false;
+// QTI_END: 2025-10-14: Telephony: Google Auto DDS FR changes
 
     /**
      * To track the signal status of a phone in order to evaluate whether it's a good candidate to
@@ -602,9 +606,9 @@ public class AutoDataSwitchController extends Handler {
      * Read the default device config from any default phone because the resource config are per
      * device. No need to register callback for the same reason.
      */
-// QTI_BEGIN: 2025-02-07: Telephony: Telephony-Data: Decouple Qualcomm value adds.
+// QTI_BEGIN: 2025-02-06: Telephony: Telephony-Data: Decouple Qualcomm value adds.
     public void readDeviceResourceConfig() {
-// QTI_END: 2025-02-07: Telephony: Telephony-Data: Decouple Qualcomm value adds.
+// QTI_END: 2025-02-06: Telephony: Telephony-Data: Decouple Qualcomm value adds.
         Phone phone = PhoneFactory.getDefaultPhone();
         DataConfigManager dataConfig = phone.getDataNetworkController().getDataConfigManager();
         mScoreTolerance = dataConfig.getAutoDataSwitchScoreTolerance();
@@ -940,6 +944,7 @@ public class AutoDataSwitchController extends Handler {
                 logl(debugMessage.append(
                         ", immediately back to default as user turns off default").toString());
                 return;
+// QTI_BEGIN: 2025-10-14: Telephony: Google Auto DDS FR changes
             } else if (autoDdsValueAddedEvaluationforDdsRevert()) {
                 mSelectedTargetPhoneId = INVALID_PHONE_INDEX;
                 mPhoneSwitcherCallback.onRequireImmediatelySwitchToPhone(
@@ -948,6 +953,7 @@ public class AutoDataSwitchController extends Handler {
                 log(debugMessage.append(
                         ", immediately back to default as additional value added evaluation")
                         .toString());
+// QTI_END: 2025-10-14: Telephony: Google Auto DDS FR changes
             } else if (!(internetEvaluation = getInternetEvaluation(backupDataPhone))
                     .isSubsetOf(DataEvaluation.DataDisallowedReason.NOT_IN_SERVICE)) {
                 mSelectedTargetPhoneId = INVALID_PHONE_INDEX;
@@ -1039,6 +1045,7 @@ public class AutoDataSwitchController extends Handler {
         }
     }
 
+// QTI_BEGIN: 2025-10-14: Telephony: Google Auto DDS FR changes
     /**
      * Determines whether the Default Data Subscription (DDS) should revert to its original setting.
      *
@@ -1050,6 +1057,7 @@ public class AutoDataSwitchController extends Handler {
         return mAutoDdsValueAddedEvaluationforDdsRevert;
     }
 
+// QTI_END: 2025-10-14: Telephony: Google Auto DDS FR changes
     /**
      * Called when consider switching from primary default data sub to another data sub.
      * @param defaultPhoneId The default data phone

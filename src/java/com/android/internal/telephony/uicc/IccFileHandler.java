@@ -111,9 +111,13 @@ public abstract class IccFileHandler extends Handler implements IccConstants {
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     protected final CommandsInterface mCi;
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
     protected final UiccCardApplication mParentApp;
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
     protected final String mAid;
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
 
     public static class LoadLinearFixedContext {
 
@@ -162,8 +166,10 @@ public abstract class IccFileHandler extends Handler implements IccConstants {
     /**
      * Default constructor
      */
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
     protected IccFileHandler(UiccCardApplication app, String aid, CommandsInterface ci) {
         mParentApp = app;
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
         mAid = aid;
         mCi = ci;
     }
@@ -343,6 +349,7 @@ public abstract class IccFileHandler extends Handler implements IccConstants {
                         0, 0, GET_RESPONSE_EF_SIZE_BYTES, null, null, mAid, response);
     }
 
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
     /**
      * Load first @size bytes from SIM Transparent EF
      *
@@ -361,6 +368,7 @@ public abstract class IccFileHandler extends Handler implements IccConstants {
                         0, 0, size, null, null, mAid, response);
     }
 
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
     /**
      * Load a SIM Transparent EF-IMG. Used right after loadEFImgLinearFixed to
      * retrive STK's icon data.
@@ -699,9 +707,11 @@ public abstract class IccFileHandler extends Handler implements IccConstants {
         case EF_ICCID:
         case EF_PL:
             return MF_SIM;
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
         case EF_PBR:
             // we only support global phonebook.
             return MF_SIM + DF_TELECOM + DF_PHONEBOOK;
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
         case EF_IMG:
             return MF_SIM + DF_TELECOM + DF_GRAPHICS;
         }

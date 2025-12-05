@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-// QTI_BEGIN: 2022-09-20: Telephony: CAG and SNPN feature
+// QTI_BEGIN: 2022-09-19: Telephony: CAG and SNPN feature
 /*
  * Changes from Qualcomm Innovation Center are provided under the following license:
  *
@@ -22,7 +22,7 @@
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
-// QTI_END: 2022-09-20: Telephony: CAG and SNPN feature
+// QTI_END: 2022-09-19: Telephony: CAG and SNPN feature
 package com.android.internal.telephony;
 
 import android.compat.annotation.UnsupportedAppUsage;
