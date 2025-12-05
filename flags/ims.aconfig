@@ -124,3 +124,14 @@ flag {
     description: "This flag adds P-CSCF address in IMS registration attributes"
     bug:"433593483"
 }
+
+# OWNER=donaldahn TARGET=26Q2
+flag {
+    name: "ensure_ims_feature_order"
+    namespace: "telephony"
+    description: "Ensures that ImsService feature creation and modification are executed sequentially to prevent race conditions."
+    bug:"403628336"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
