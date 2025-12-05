@@ -92,6 +92,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.ParcelUuid;
+import android.os.Process;
 import android.os.UserHandle;
 import android.provider.Settings;
 import android.provider.Telephony;
@@ -103,6 +104,7 @@ import android.service.euicc.GetEuiccProfileInfoListResult;
 import android.telephony.RadioAccessFamily;
 import android.telephony.SubscriptionInfo;
 import android.telephony.SubscriptionManager;
+import android.telephony.SubscriptionPlan;
 import android.telephony.TelephonyManager;
 import android.telephony.UiccAccessRule;
 import android.test.mock.MockContentResolver;
@@ -142,6 +144,8 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.lang.reflect.Array;
 import java.lang.reflect.Field;
+import java.time.Period;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -4316,5 +4320,182 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
         assertThat(SubscriptionManagerService.getStrippedIccid(FAKE_ICCID2)).isEqualTo(FAKE_ICCID2);
         assertThat(SubscriptionManagerService.getStrippedIccid(FAKE_ICCID3)).isEqualTo("12345");
         assertThat(SubscriptionManagerService.getStrippedIccid(FAKE_ICCID4)).isEqualTo(FAKE_ICCID4);
+    }
+
+    /**
+     * Helper to setup PackageManager mocks for checking uid and package name.
+     */
+    private void setupPackageManagerMocks(String packageName, int uid) throws Exception {
+        doReturn(uid).when(mPackageManager).getPackageUid(anyString(), anyInt());
+        doReturn(new String[]{packageName}).when(mPackageManager).getPackagesForUid(anyInt());
+    }
+
+    /**
+     * Helper to grant or remove MANAGE_SUBSCRIPTION_PLANS permission
+     */
+    private void setManageSubscriptionPlansPermission(boolean granted) {
+        if (granted) {
+            mContextFixture.addCallingOrSelfPermission(
+                    Manifest.permission.MANAGE_SUBSCRIPTION_PLANS);
+        } else {
+            mContextFixture.removeCallingOrSelfPermission(
+                    Manifest.permission.MANAGE_SUBSCRIPTION_PLANS);
+        }
+    }
+
+    /**
+     * Helper to mock Carrier Privileges for the specific test package
+     */
+    private void setCarrierPrivilegesCheckForPackage(boolean hasPrivileges, int subId) {
+        setCarrierPrivilegesForSubId(hasPrivileges, subId);
+        TelephonyManager mockTelephonyManager = Mockito.mock(TelephonyManager.class);
+        doReturn(mockTelephonyManager).when(mTelephonyManager).createForSubscriptionId(eq(subId));
+        int privilegeStatus = hasPrivileges
+                ? TelephonyManager.CARRIER_PRIVILEGE_STATUS_HAS_ACCESS
+                : TelephonyManager.CARRIER_PRIVILEGE_STATUS_NO_ACCESS;
+        doReturn(privilegeStatus).when(mockTelephonyManager)
+                .checkCarrierPrivilegesForPackage(eq(CALLING_PACKAGE));
+    }
+
+    /**
+     * Create and return a test Subscription Plan.
+     */
+    private SubscriptionPlan createTestSubscriptionPlan(String title) {
+        return SubscriptionPlan.Builder
+                .createRecurring(
+                        ZonedDateTime.parse("2025-01-01T00:00:00.000Z"), Period.ofMonths(1))
+                .setTitle(title)
+                .setDataLimit(SubscriptionPlan.BYTES_UNLIMITED,
+                        SubscriptionPlan.LIMIT_BEHAVIOR_THROTTLED)
+                .build();
+    }
+
+    @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
+    public void testSetGetEnrollableSubscriptionPlans() throws Exception {
+        // SetUp: the mock PackageManager to associate CALLING_PACKAGE with CALLING_UID
+        setupPackageManagerMocks(CALLING_PACKAGE, Process.myUid());
+        // SetUp: add MANAGE_SUBSCRIPTION_PLANS permission
+        setManageSubscriptionPlansPermission(true);
+        // SetUp: make a sample plan
+        SubscriptionPlan plan = createTestSubscriptionPlan("Test Enrollable Plan");
+        // SetUp: subId to test
+        int subId = 1;
+
+        // Act: set plan
+        mSubscriptionManagerServiceUT.setEnrollableSubscriptionPlans(
+                subId, new SubscriptionPlan[]{plan}, 0, CALLING_PACKAGE);
+        processAllMessages();
+
+        // Verify that plan was set properly
+        SubscriptionPlan[] storedPlans = mSubscriptionManagerServiceUT
+                .getEnrollableSubscriptionPlans(subId, CALLING_PACKAGE);
+        assertThat(storedPlans).isNotNull();
+        assertThat(storedPlans).hasLength(1);
+        assertThat(storedPlans[0]).isEqualTo(plan);
+
+        try {
+            // Verify that owner was set properly
+            String owner = mSubscriptionManagerServiceUT.getEnrollableSubscriptionPlansOwner(subId);
+            if (owner != null) {
+                assertThat(owner).isEqualTo(CALLING_PACKAGE);
+            }
+        } catch (SecurityException e) {
+            // Expected if not system uid
+        }
+    }
+
+    @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
+    public void testEnrollableSubscriptionPlansSecurity() throws Exception {
+        // Set up the mock PackageManager to associate CALLING_PACKAGE with CALLING_UID
+        setupPackageManagerMocks(CALLING_PACKAGE, Process.myUid());
+        // SetUp: make a sample plan
+        SubscriptionPlan plan = createTestSubscriptionPlan("Security Test Plan");
+        // SetUp: subId to test
+        int subId = 1;
+
+        // Test #1. no permission, no carrier privilege.
+        // SetUp: no permission, no carrier privilege.
+        setManageSubscriptionPlansPermission(false);
+        setCarrierPrivilegesCheckForPackage(false, subId);
+
+        // Act and Verify SecurityException is thrown.
+        assertThrows(SecurityException.class, () ->
+                mSubscriptionManagerServiceUT.setEnrollableSubscriptionPlans(subId,
+                        new SubscriptionPlan[]{plan}, 0, CALLING_PACKAGE));
+
+        // Act and Verify SecurityException is thrown.
+        assertThrows(SecurityException.class, () ->
+                mSubscriptionManagerServiceUT.getEnrollableSubscriptionPlans(subId,
+                        CALLING_PACKAGE));
+
+        // Test #2. call with Carrier Privilege
+        // SetUp: set Carrier Privilege
+        setCarrierPrivilegesCheckForPackage(true, subId);
+
+        // Act: call set plan API.
+        mSubscriptionManagerServiceUT.setEnrollableSubscriptionPlans(subId,
+                new SubscriptionPlan[]{plan}, 0, CALLING_PACKAGE);
+        processAllMessages();
+
+        // Verify that Carrier Privilege allows get/set enrollable subscription plan.
+        SubscriptionPlan[] plans = mSubscriptionManagerServiceUT
+                .getEnrollableSubscriptionPlans(subId, CALLING_PACKAGE);
+        assertThat(plans).hasLength(1);
+
+        // Test #3. call with owner.
+        // SetUp: remove all permission.
+        setCarrierPrivilegesCheckForPackage(false, subId);
+
+        // Act: call get plan API.
+        plans = mSubscriptionManagerServiceUT.getEnrollableSubscriptionPlans(subId,
+                CALLING_PACKAGE);
+
+        // Verify that call get plan API with owner.
+        assertThat(plans).hasLength(1);
+
+        // Act: call set plan API as well.
+        mSubscriptionManagerServiceUT.setEnrollableSubscriptionPlans(subId,
+                new SubscriptionPlan[]{}, 0, CALLING_PACKAGE);
+        processAllMessages();
+
+        // Verify that call set plan API with owner.
+        plans = mSubscriptionManagerServiceUT.getEnrollableSubscriptionPlans(subId,
+                CALLING_PACKAGE);
+        assertThat(plans).isEmpty();
+    }
+
+    @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
+    public void testEnrollableSubscriptionPlansExpiration() throws Exception {
+        // SetUp: the mock PackageManager to associate CALLING_PACKAGE with CALLING_UID
+        setupPackageManagerMocks(CALLING_PACKAGE, Process.myUid());
+        // SetUp: add MANAGE_SUBSCRIPTION_PLANS permission
+        setManageSubscriptionPlansPermission(true);
+        // SetUp: make a sample plan
+        SubscriptionPlan plan = createTestSubscriptionPlan("Expiring Plan");
+        // SetUp: subId to test
+        int subId = 1;
+        // SetUp: set expiration time.
+        long expirationDuration = 1000; // 1 sec.
+
+        // Act: Sets a plan with an expiration time
+        mSubscriptionManagerServiceUT.setEnrollableSubscriptionPlans(subId,
+                new SubscriptionPlan[]{plan}, expirationDuration, CALLING_PACKAGE);
+        processAllMessages();
+
+        // Verify that plan must exist immediately after setup
+        assertThat(mSubscriptionManagerServiceUT.getEnrollableSubscriptionPlans(subId,
+                CALLING_PACKAGE)).hasLength(1);
+
+        // Act: Time-lapse simulation (1 second + slack time)
+        // Using TelephonyTest's moveTimeForward (controlling TestableLooper)
+        moveTimeForward(expirationDuration + 1000);
+        processAllMessages();
+
+        // Verify that plan has expired and is gone (expected to return null)
+        assertThat(mSubscriptionManagerServiceUT.getEnrollableSubscriptionPlans(subId,
+                CALLING_PACKAGE)).isNull();
     }
 }
