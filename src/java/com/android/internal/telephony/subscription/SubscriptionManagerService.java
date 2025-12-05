@@ -109,7 +109,6 @@ import com.android.internal.telephony.TelephonyPermissions;
 import com.android.internal.telephony.data.PhoneSwitcher;
 import com.android.internal.telephony.euicc.EuiccController;
 import com.android.internal.telephony.flags.FeatureFlags;
-import com.android.internal.telephony.flags.Flags;
 import com.android.internal.telephony.satellite.SatelliteController;
 import com.android.internal.telephony.subscription.SubscriptionDatabaseManager.SubscriptionDatabaseManagerCallback;
 import com.android.internal.telephony.uicc.IccRecords;
@@ -141,8 +140,10 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.time.Period;
 import java.time.ZonedDateTime;
+import java.util.AbstractSet;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -430,9 +431,28 @@ public class SubscriptionManagerService extends ISub.Stub {
     @NonNull
     private final SubscriptionDatabaseManager mSubscriptionDatabaseManager;
 
-    /** The slot index subscription id map. Key is the slot index, and the value is sub id. */
+    /**
+     * The slot index to subscription ID map for local SIMs. This map should only contain
+     * subscriptions of type {@link SubscriptionManager#SUBSCRIPTION_TYPE_LOCAL_SIM}.
+     *
+     * <p>Key is the physical slot index (0-indexed), and the value is the subscription ID.
+     *
+     * <p>Remote SIMs ({@link SubscriptionManager#SUBSCRIPTION_TYPE_REMOTE_SIM}) are not associated
+     * with a physical slot index on the device and are tracked separately in
+     * {@link #mRemoteSubIds}.
+     */
     @NonNull
     private final SubscriptionMap<Integer, Integer> mSlotIndexToSubId = new SubscriptionMap<>();
+
+    /**
+     * The subscription ID set for remote SIMs
+     * ({@link SubscriptionManager#SUBSCRIPTION_TYPE_REMOTE_SIM}).
+     *
+     * <p>Local SIMs ({@link SubscriptionManager#SUBSCRIPTION_TYPE_LOCAL_SIM}) are tracked in
+     * {@link #mSlotIndexToSubId}.
+     */
+    @NonNull
+    private final SubscriptionSet<Integer> mRemoteSubIds = new SubscriptionSet<>();
 
     /** Subscription manager service callbacks. */
     @NonNull
@@ -522,7 +542,7 @@ public class SubscriptionManagerService extends ISub.Stub {
     private final AtomicFile mEnrollablePlansFile;
 
     /**
-     * Slot index/subscription map that automatically invalidate cache in
+     * Slot index/subscription map that automatically invalidates caches in
      * {@link SubscriptionManager}.
      *
      * @param <K> The type of the key.
@@ -552,6 +572,118 @@ public class SubscriptionManagerService extends ISub.Stub {
                 SubscriptionManager.invalidateSubscriptionManagerServiceCaches();
             }
             return oldValue;
+        }
+    }
+
+    /**
+     * Subscription ID set for remote SIMs that automatically invalidates caches in
+     * {@link SubscriptionManager}.
+     *
+     * @param <T> The type of the element.
+     */
+    @VisibleForTesting
+    public static class SubscriptionSet<T extends Comparable<? super T>> extends AbstractSet<T> {
+        private final Set<T> mBackingSet = ConcurrentHashMap.newKeySet();
+
+        @Override
+        public void clear() {
+            mBackingSet.clear();
+            SubscriptionManager.invalidateSubscriptionManagerServiceCaches();
+        }
+
+        @Override
+        public boolean add(T subId) {
+            boolean changed = mBackingSet.add(subId);
+            if (changed) {
+                SubscriptionManager.invalidateSubscriptionManagerServiceCaches();
+            }
+            return changed;
+        }
+
+        @Override
+        public boolean remove(Object o) {
+            boolean changed = mBackingSet.remove(o);
+            if (changed) {
+                SubscriptionManager.invalidateSubscriptionManagerServiceCaches();
+            }
+            return changed;
+        }
+
+        @Override
+        public boolean addAll(Collection<? extends T> c) {
+            boolean changed = mBackingSet.addAll(c);
+            if (changed) {
+                SubscriptionManager.invalidateSubscriptionManagerServiceCaches();
+            }
+            return changed;
+        }
+
+        @Override
+        public boolean removeAll(Collection<?> c) {
+            boolean changed = mBackingSet.removeAll(c);
+            if (changed) {
+                SubscriptionManager.invalidateSubscriptionManagerServiceCaches();
+            }
+            return changed;
+        }
+
+        @Override
+        public int size() {
+            return mBackingSet.size();
+        }
+
+        @Override
+        public boolean isEmpty() {
+            return mBackingSet.isEmpty();
+        }
+
+        @Override
+        public boolean contains(Object o) {
+            return mBackingSet.contains(o);
+        }
+
+        private Stream<T> sortedStream() {
+            return mBackingSet.stream().sorted();
+        }
+
+        /**
+         * Returns an iterator over the elements in this set in ascending order of subId.
+         * <p>
+         * The iterator provides a snapshot of the set at the time the iterator is created.
+         * It does not reflect subsequent modifications to the set. The iterator does
+         * NOT support the {@code remove} operation.
+         */
+        @Override
+        public Iterator<T> iterator() {
+            return sortedStream().iterator();
+        }
+
+        @Override
+        public Object[] toArray() {
+            return sortedStream().toArray();
+        }
+
+        @Override
+        public <t> t[] toArray(t[] a) {
+            return sortedStream().toList().toArray(a);
+        }
+
+        @Override
+        public boolean containsAll(Collection<?> c) {
+            return mBackingSet.containsAll(c);
+        }
+
+        @Override
+        public boolean retainAll(Collection<?> c) {
+            boolean changed = mBackingSet.retainAll(c);
+            if (changed) {
+                SubscriptionManager.invalidateSubscriptionManagerServiceCaches();
+            }
+            return changed;
+        }
+
+        public T getLargest() {
+            return mBackingSet.stream().max(Comparator.naturalOrder()).orElse(null);
         }
     }
 
@@ -6090,6 +6222,9 @@ public class SubscriptionManagerService extends ISub.Stub {
             mSlotIndexToSubId.forEach((slotIndex, subId)
                     -> pw.println("Logical SIM slot " + slotIndex + ": subId=" + subId));
             pw.decreaseIndent();
+            if (mFeatureFlags.remoteSimSubIdSet()) {
+                pw.println("Remote SIM sub IDs: " + mRemoteSubIds);
+            }
             pw.println("ICCID:");
             pw.increaseIndent();
             for (int i = 0; i < mTelephonyManager.getActiveModemCount(); i++) {

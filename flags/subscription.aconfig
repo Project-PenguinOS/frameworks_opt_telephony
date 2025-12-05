@@ -110,3 +110,15 @@ flag {
     purpose: PURPOSE_BUGFIX
   }
 }
+
+# OWNER=kevinching TARGET=26Q2
+flag {
+  name: "remote_sim_sub_id_set"
+  namespace: "telephony"
+  description: "Put remote SIMs in their own set instead of the slot index mapping"
+  bug: "455587208"
+  is_exported: false
+  metadata {
+      purpose: PURPOSE_BUGFIX
+  }
+}

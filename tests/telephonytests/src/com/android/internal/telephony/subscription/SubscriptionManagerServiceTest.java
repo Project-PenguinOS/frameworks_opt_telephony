@@ -127,6 +127,7 @@ import com.android.internal.telephony.subscription.SubscriptionDatabaseManagerTe
 import com.android.internal.telephony.subscription.SubscriptionManagerService.BinderWrapper;
 import com.android.internal.telephony.subscription.SubscriptionManagerService.SubscriptionManagerServiceCallback;
 import com.android.internal.telephony.subscription.SubscriptionManagerService.SubscriptionMap;
+import com.android.internal.telephony.subscription.SubscriptionManagerService.SubscriptionSet;
 import com.android.internal.telephony.uicc.IccCardStatus;
 import com.android.internal.telephony.uicc.UiccSlot;
 
@@ -3199,6 +3200,38 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
         assertThat(map.get(1)).isNull();
         map.clear();
         assertThat(map).hasSize(0);
+    }
+
+    @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
+    public void testSubscriptionSet() {
+        doReturn(true).when(mFeatureFlags).remoteSimSubIdSet();
+
+        SubscriptionSet<Integer> set = new SubscriptionSet<>();
+        assertThat(set.getLargest()).isNull();
+
+        set.add(0);
+        assertThat(set.contains(0)).isTrue();
+        assertThat(set.getLargest()).isEqualTo(0);
+
+        set.add(5);
+        assertThat(set.contains(5)).isTrue();
+        assertThat(set.getLargest()).isEqualTo(5);
+
+        set.add(2);
+        assertThat(set.contains(2)).isTrue();
+        assertThat(set.getLargest()).isEqualTo(5);
+
+        set.remove(5);
+        assertThat(set.contains(5)).isFalse();
+        assertThat(set.getLargest()).isEqualTo(2);
+
+        set.clear();
+        assertThat(set).hasSize(0);
+        assertThat(set.getLargest()).isNull();
+
+        set.addAll(Arrays.asList(2, 0, 1));
+        assertThat(set.toArray()).isEqualTo(new Object[]{0, 1, 2});
     }
 
     @Test
