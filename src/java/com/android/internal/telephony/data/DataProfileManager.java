@@ -47,8 +47,10 @@ import android.util.IndentingPrintWriter;
 import android.util.LocalLog;
 import android.util.LruCache;
 
+import com.android.internal.telephony.HalVersion;
 import com.android.internal.telephony.IccCardConstants;
 import com.android.internal.telephony.Phone;
+import com.android.internal.telephony.RIL;
 import com.android.internal.telephony.data.DataConfigManager.DataConfigManagerCallback;
 import com.android.internal.telephony.data.DataNetworkController.DataNetworkControllerCallback;
 import com.android.internal.telephony.flags.FeatureFlags;
@@ -685,6 +687,18 @@ public class DataProfileManager extends Handler {
                 .CAPABILITY_ATTRIBUTE_APN_SETTING)) {
             apnSetting = getApnSettingForNetworkRequest(networkRequest, networkType, isNtn,
                     isEsimBootstrapProvisioning, ignorePermanentFailure);
+        }
+
+        HalVersion halVersion = mPhone.getHalVersion();
+        boolean useApnOnly = halVersion != null
+                && halVersion.lessOrEqual(RIL.RADIO_HAL_VERSION_1_5);
+        if (useApnOnly) {
+            for (DataProfile dataProfile : mAllDataProfiles) {
+                if (Objects.equals(apnSetting, dataProfile.getApnSetting())) {
+                    return dataProfile;
+                }
+            }
+            return null;
         }
 
         TrafficDescriptor.Builder trafficDescriptorBuilder = new TrafficDescriptor.Builder();

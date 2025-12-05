@@ -18,6 +18,8 @@ package com.android.internal.telephony.data;
 
 import static com.google.common.truth.Truth.assertThat;
 
+import static org.mockito.Mockito.doReturn;
+
 import android.net.ConnectivityManager;
 import android.net.NetworkCapabilities;
 import android.net.NetworkRequest;
@@ -28,6 +30,7 @@ import android.telephony.data.ApnSetting;
 import android.telephony.data.DataProfile;
 import android.telephony.data.TrafficDescriptor;
 
+import com.android.internal.telephony.RIL;
 import com.android.internal.telephony.TelephonyTest;
 import com.android.internal.telephony.flags.Flags;
 
@@ -494,22 +497,43 @@ public class TelephonyNetworkRequestTest extends TelephonyTest {
     @EnableFlags(Flags.FLAG_UNSUPPORTED_NETWORK_CAPABILITIES_PER_CARRIER)
     public void testGetAllSupportedNetworkCapabilities() {
         List<Integer> caps = TelephonyNetworkRequest.getAllSupportedNetworkCapabilities();
-        assertThat(caps).contains(NetworkCapabilities.NET_CAPABILITY_MMS);
-        assertThat(caps).contains(NetworkCapabilities.NET_CAPABILITY_SUPL);
-        assertThat(caps).contains(NetworkCapabilities.NET_CAPABILITY_DUN);
-        assertThat(caps).contains(NetworkCapabilities.NET_CAPABILITY_FOTA);
-        assertThat(caps).contains(NetworkCapabilities.NET_CAPABILITY_IMS);
-        assertThat(caps).contains(NetworkCapabilities.NET_CAPABILITY_CBS);
-        assertThat(caps).contains(NetworkCapabilities.NET_CAPABILITY_XCAP);
-        assertThat(caps).contains(NetworkCapabilities.NET_CAPABILITY_EIMS);
-        assertThat(caps).contains(NetworkCapabilities.NET_CAPABILITY_INTERNET);
-        assertThat(caps).contains(NetworkCapabilities.NET_CAPABILITY_MCX);
-        assertThat(caps).contains(NetworkCapabilities.NET_CAPABILITY_ENTERPRISE);
-        assertThat(caps).contains(NetworkCapabilities.NET_CAPABILITY_VSIM);
-        assertThat(caps).contains(NetworkCapabilities.NET_CAPABILITY_BIP);
-        assertThat(caps).contains(NetworkCapabilities.NET_CAPABILITY_PRIORITIZE_LATENCY);
-        assertThat(caps).contains(NetworkCapabilities.NET_CAPABILITY_PRIORITIZE_BANDWIDTH);
-        assertThat(caps).contains(NetworkCapabilities.NET_CAPABILITY_RCS);
-        assertThat(caps).contains(DataUtils.NET_CAPABILITY_PRIORITIZE_UNIFIED_COMMUNICATIONS);
+        assertThat(caps).containsExactly(NetworkCapabilities.NET_CAPABILITY_MMS,
+                NetworkCapabilities.NET_CAPABILITY_SUPL,
+                NetworkCapabilities.NET_CAPABILITY_DUN,
+                NetworkCapabilities.NET_CAPABILITY_FOTA,
+                NetworkCapabilities.NET_CAPABILITY_IMS,
+                NetworkCapabilities.NET_CAPABILITY_CBS,
+                NetworkCapabilities.NET_CAPABILITY_XCAP,
+                NetworkCapabilities.NET_CAPABILITY_EIMS,
+                NetworkCapabilities.NET_CAPABILITY_INTERNET,
+                NetworkCapabilities.NET_CAPABILITY_MCX,
+                NetworkCapabilities.NET_CAPABILITY_ENTERPRISE,
+                NetworkCapabilities.NET_CAPABILITY_VSIM,
+                NetworkCapabilities.NET_CAPABILITY_BIP,
+                NetworkCapabilities.NET_CAPABILITY_PRIORITIZE_LATENCY,
+                NetworkCapabilities.NET_CAPABILITY_PRIORITIZE_BANDWIDTH,
+                NetworkCapabilities.NET_CAPABILITY_RCS,
+                DataUtils.NET_CAPABILITY_PRIORITIZE_UNIFIED_COMMUNICATIONS);
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_UNSUPPORTED_NETWORK_CAPABILITIES_PER_CARRIER)
+    public void testGetAllSupportedNetworkCapabilitiesOldHal() {
+        doReturn(RIL.RADIO_HAL_VERSION_1_5).when(mPhone).getHalVersion();
+        List<Integer> caps = TelephonyNetworkRequest.getAllSupportedNetworkCapabilities();
+        assertThat(caps).containsExactly(NetworkCapabilities.NET_CAPABILITY_MMS,
+                NetworkCapabilities.NET_CAPABILITY_SUPL,
+                NetworkCapabilities.NET_CAPABILITY_DUN,
+                NetworkCapabilities.NET_CAPABILITY_FOTA,
+                NetworkCapabilities.NET_CAPABILITY_IMS,
+                NetworkCapabilities.NET_CAPABILITY_CBS,
+                NetworkCapabilities.NET_CAPABILITY_XCAP,
+                NetworkCapabilities.NET_CAPABILITY_EIMS,
+                NetworkCapabilities.NET_CAPABILITY_INTERNET,
+                NetworkCapabilities.NET_CAPABILITY_MCX,
+                NetworkCapabilities.NET_CAPABILITY_ENTERPRISE,
+                NetworkCapabilities.NET_CAPABILITY_VSIM,
+                NetworkCapabilities.NET_CAPABILITY_BIP,
+                NetworkCapabilities.NET_CAPABILITY_RCS);
     }
 }
