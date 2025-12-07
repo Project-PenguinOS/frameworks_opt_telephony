@@ -30,8 +30,10 @@ public final class RuimFileHandler extends IccFileHandler {
     //***** Instance Variables
 
     //***** Constructor
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
     public RuimFileHandler(UiccCardApplication app, String aid, CommandsInterface ci) {
         super(app, aid, ci);
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
     }
 
     //***** Overridden from IccFileHandler
@@ -59,11 +61,13 @@ public final class RuimFileHandler extends IccFileHandler {
         case EF_SMS:
         case EF_CST:
         case EF_RUIM_SPN:
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
         case EF_CSIM_LI:
         case EF_CSIM_MDN:
         case EF_CSIM_IMSIM:
         case EF_CSIM_CDMAHOME:
         case EF_CSIM_EPRL:
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
 // QTI_BEGIN: 2018-03-14: Telephony: Define EF MSPL/MLPL/PRL values and paths
         case EF_CSIM_PRL:
 // QTI_END: 2018-03-14: Telephony: Define EF MSPL/MLPL/PRL values and paths
@@ -81,12 +85,16 @@ public final class RuimFileHandler extends IccFileHandler {
         return getCommonIccEFPath(efid);
     }
 
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
     @Override
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
     protected void logd(String msg) {
         Rlog.d(LOG_TAG, "[RuimFileHandler] " + msg);
     }
 
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
     @Override
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
     protected void loge(String msg) {
         Rlog.e(LOG_TAG, "[RuimFileHandler] " + msg);
     }

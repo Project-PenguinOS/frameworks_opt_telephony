@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-// QTI_BEGIN: 2022-09-20: Telephony: CAG and SNPN feature
+// QTI_BEGIN: 2022-09-19: Telephony: CAG and SNPN feature
 /*
  * Changes from Qualcomm Innovation Center are provided under the following license:
  *
@@ -22,7 +22,7 @@
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
-// QTI_END: 2022-09-20: Telephony: CAG and SNPN feature
+// QTI_END: 2022-09-19: Telephony: CAG and SNPN feature
 package com.android.internal.telephony;
 
 import android.compat.annotation.UnsupportedAppUsage;
@@ -1582,17 +1582,17 @@ public class SimulatedCommands extends BaseCommands
         resultSuccess(response, null);
     }
 
-// QTI_BEGIN: 2018-08-01: Telephony: CDMA MO SMS follow on DC feature
+// QTI_BEGIN: 2018-07-31: Telephony: CDMA MO SMS follow on DC feature
     /**
      * {@inheritDoc}
      */
     @Override
-// QTI_END: 2018-08-01: Telephony: CDMA MO SMS follow on DC feature
+// QTI_END: 2018-07-31: Telephony: CDMA MO SMS follow on DC feature
     public void sendCdmaSMSExpectMore(byte[] pdu, Message response){
-// QTI_BEGIN: 2018-08-01: Telephony: CDMA MO SMS follow on DC feature
+// QTI_BEGIN: 2018-07-31: Telephony: CDMA MO SMS follow on DC feature
     }
 
-// QTI_END: 2018-08-01: Telephony: CDMA MO SMS follow on DC feature
+// QTI_END: 2018-07-31: Telephony: CDMA MO SMS follow on DC feature
     @Override
     public void setCdmaBroadcastActivation(boolean activate, Message response) {
         SimulatedCommandsVerifier.getInstance().setCdmaBroadcastActivation(activate, response);

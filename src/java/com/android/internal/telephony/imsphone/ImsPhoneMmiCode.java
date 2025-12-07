@@ -1120,9 +1120,7 @@ public final class ImsPhoneMmiCode extends Handler implements MmiCode {
                 }
             } else if (mSc != null && mSc.equals(SC_WAIT)) {
                 // sia = basic service group
-// QTI_BEGIN: 2019-05-02: Telephony: IMS: Use Sia as service class for call waiting MMI operations
                 int serviceClass = siToServiceClass(mSia);
-// QTI_END: 2019-05-02: Telephony: IMS: Use Sia as service class for call waiting MMI operations
 
                 if (isActivate() || isDeactivate()) {
                     if (serviceClass == SERVICE_CLASS_NONE
@@ -1343,9 +1341,9 @@ public final class ImsPhoneMmiCode extends Handler implements MmiCode {
                     mState = State.FAILED;
                     mMessage = getErrorMessage(ar);
 
-// QTI_BEGIN: 2020-05-22: Telephony: IMS: USSD over IMS
+// QTI_BEGIN: 2020-05-21: Telephony: IMS: USSD over IMS
                     mPhone.onUssdComplete(this, (CommandException) ar.exception);
-// QTI_END: 2020-05-22: Telephony: IMS: USSD over IMS
+// QTI_END: 2020-05-21: Telephony: IMS: USSD over IMS
                 }
 
                 // Note that unlike most everything else, the USSD complete
@@ -1720,15 +1718,11 @@ public final class ImsPhoneMmiCode extends Handler implements MmiCode {
                 if (ssInfo != null) {
                     Rlog.d(LOG_TAG,
                             "onSuppSvcQueryComplete: ImsSsInfo mStatus = " + ssInfo.getStatus());
-// QTI_BEGIN: 2018-05-02: Telephony: IMS: Adding support for TIR/TIP permanent provisioning
                     if (ssInfo.getProvisionStatus() == ImsSsInfo.SERVICE_NOT_PROVISIONED) {
-// QTI_END: 2018-05-02: Telephony: IMS: Adding support for TIR/TIP permanent provisioning
                         sb.append(mContext.getText(
                                 com.android.internal.R.string.serviceNotProvisioned));
-// QTI_BEGIN: 2018-05-02: Telephony: IMS: Adding support for TIR/TIP permanent provisioning
                         mState = State.COMPLETE;
                     } else if (ssInfo.getStatus() == ImsSsInfo.DISABLED) {
-// QTI_END: 2018-05-02: Telephony: IMS: Adding support for TIR/TIP permanent provisioning
                         sb.append(mContext.getText(com.android.internal.R.string.serviceDisabled));
                         mState = State.COMPLETE;
                     } else if (ssInfo.getStatus() == ImsSsInfo.ENABLED) {
