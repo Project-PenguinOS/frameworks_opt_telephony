@@ -3225,9 +3225,11 @@ public class DataNetworkController extends Handler {
         boolean isSatellite = (transport == AccessNetworkConstants.TRANSPORT_TYPE_WWAN)
                 && nri != null && nri.isNonTerrestrialNetwork();
 
-        mDataNetworkList.add(new DataNetwork(mPhone, mFeatureFlags, getLooper(),
-                mDataServiceManagers, dataProfile, networkRequestList, transport, isSatellite,
-                allowedReason, new DataNetworkCallback(this::post) {
+        mDataNetworkList.add(TelephonyComponentFactory.getInstance().inject(
+                DataNetwork.class.getName())
+                .makeDataNetwork(mPhone, mFeatureFlags, getLooper(),
+                mDataServiceManagers, dataProfile, networkRequestList, transport,
+                isSatellite, allowedReason, new DataNetworkCallback(this::post) {
                     @Override
                     public void onSetupDataFailed(@NonNull DataNetwork dataNetwork,
                             @NonNull NetworkRequestList requestList, @DataFailureCause int cause,
