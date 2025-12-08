@@ -5049,6 +5049,32 @@ public class RIL extends BaseCommands implements CommandsInterface {
      * {@inheritDoc}
      */
     @Override
+    public void getSupportedNetworkAlertCategories(Message result) {
+        RadioNetworkProxy networkProxy = getRadioServiceProxy(RadioNetworkProxy.class);
+        if (!canMakeRequest(
+                "getSupportedNetworkAlertCategories",
+                networkProxy,
+                result,
+                RADIO_HAL_VERSION_2_4)) {
+            return;
+        }
+
+        RILRequest rr = obtainRequest(RIL_REQUEST_GET_SUPPORTED_NETWORK_ALERT_CATEGORIES, result,
+                mRILDefaultWorkSource);
+
+        if (RILJ_LOGD) {
+            riljLog(rr.serialString() + "> " + RILUtils.requestToString(rr.mRequest));
+        }
+
+        radioServiceInvokeHelper(
+                HAL_SERVICE_NETWORK, rr, "getSupportedNetworkAlertCategories", () -> {
+                networkProxy.getSupportedNetworkAlertCategories(rr.mSerial);
+            });
+    }
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public void setSatellitePlmn(int simSlot, @NonNull List<String> carrierPlmnList,
             @NonNull List<String> allSatellitePlmnList, Message result) {
         RadioNetworkProxy networkProxy = getRadioServiceProxy(RadioNetworkProxy.class);
