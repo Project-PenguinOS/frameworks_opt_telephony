@@ -326,9 +326,18 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
             SubscriptionMap<Integer, Integer> map = (SubscriptionMap<Integer, Integer>)
                     field.get(mSubscriptionManagerServiceUT);
 
+            field = SubscriptionManagerService.class.getDeclaredField("mRemoteSubIds");
+            field.setAccessible(true);
+            SubscriptionSet<Integer> set = (SubscriptionSet<Integer>)
+                    field.get(mSubscriptionManagerServiceUT);
+
             if (subInfo.getSimSlotIndex() >= 0) {
                 // Change the slot -> subId mapping
                 map.put(subInfo.getSimSlotIndex(), subId);
+            } else if (mFeatureFlags.remoteSimSubIdSet() && subInfo.getSimSlotIndex()
+                    == SubscriptionManager.SLOT_INDEX_FOR_REMOTE_SIM_SUB) {
+                // Change the remote SIM subId set
+                set.add(subId);
             }
 
             verify(mMockedSubscriptionManagerServiceCallback).onSubscriptionChanged(eq(subId));
@@ -342,6 +351,9 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
                 field.setAccessible(true);
                 Object array = field.get(mSubscriptionManagerServiceUT);
                 Array.set(array, subInfo.getSimSlotIndex(), TelephonyManager.SIM_STATE_LOADED);
+            } else if (mFeatureFlags.remoteSimSubIdSet() && subInfo.getSimSlotIndex()
+                    == SubscriptionManager.SLOT_INDEX_FOR_REMOTE_SIM_SUB) {
+                mActiveSubs.add(subId);
             } else {
                 mActiveSubs.remove(subId);
             }

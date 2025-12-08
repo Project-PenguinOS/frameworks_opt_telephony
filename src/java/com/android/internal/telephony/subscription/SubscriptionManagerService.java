@@ -2670,8 +2670,9 @@ public class SubscriptionManagerService extends ISub.Stub {
                         + " for local SIM");
             }
         } else if (subscriptionType == SubscriptionManager.SUBSCRIPTION_TYPE_REMOTE_SIM) {
-            // We only support one remote SIM at this point, so use -1. This needs to be revisited
-            // if we plan to support multiple remote SIMs in the future.
+            // All SIM subscriptions – local and remote – are stored in the same database, so remote
+            // SIMs must be assigned a SIM slot index. They are distinguished through a subscription
+            // type column.
             slotIndex = SubscriptionManager.SLOT_INDEX_FOR_REMOTE_SIM_SUB;
         } else {
             throw new IllegalArgumentException("Invalid subscription type " + subscriptionType);
@@ -2700,7 +2701,12 @@ public class SubscriptionManagerService extends ISub.Stub {
 
                 int subId = insertSubscriptionInfo(iccId, slotIndex, displayName, subscriptionType);
                 updateGroupDisabled();
-                mSlotIndexToSubId.put(slotIndex, subId);
+                if (mFeatureFlags.remoteSimSubIdSet()
+                        && subscriptionType == SubscriptionManager.SUBSCRIPTION_TYPE_REMOTE_SIM) {
+                    mRemoteSubIds.add(subId);
+                } else {
+                    mSlotIndexToSubId.put(slotIndex, subId);
+                }
                 logl("addSubInfo: current mapping " + slotMappingToString());
             } else {
                 // Record already exists.
@@ -2751,7 +2757,12 @@ public class SubscriptionManagerService extends ISub.Stub {
                 loge("The subscription type does not match.");
                 return false;
             }
-            mSlotIndexToSubId.remove(subInfo.getSimSlotIndex());
+            if (mFeatureFlags.remoteSimSubIdSet()
+                    && subscriptionType == SubscriptionManager.SUBSCRIPTION_TYPE_REMOTE_SIM) {
+                mRemoteSubIds.remove(subInfo.getSubscriptionId());
+            } else {
+                mSlotIndexToSubId.remove(subInfo.getSimSlotIndex());
+            }
             mSubscriptionDatabaseManager.removeSubscriptionInfo(subInfo.getSubscriptionId());
             return true;
         } finally {
