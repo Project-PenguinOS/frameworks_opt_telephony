@@ -17,6 +17,7 @@
 package com.android.internal.telephony.gsm;
 
 import static com.android.internal.telephony.TelephonyTestUtils.waitForMs;
+import static com.google.common.truth.Truth.assertThat;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -53,11 +54,15 @@ import android.os.AsyncResult;
 import android.os.Bundle;
 import android.os.UserHandle;
 import android.os.UserManager;
+import android.platform.test.annotations.DisableFlags;
+import android.platform.test.annotations.EnableFlags;
+import android.platform.test.flag.junit.SetFlagsRule;
 import android.provider.Telephony;
 import android.telephony.SubscriptionManager;
 import android.test.mock.MockContentResolver;
 import android.testing.AndroidTestingRunner;
 import android.testing.TestableLooper;
+import android.view.textclassifier.TextClassifier;
 
 import androidx.test.filters.MediumTest;
 
@@ -76,6 +81,7 @@ import com.android.internal.util.StateMachine;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
@@ -91,6 +97,9 @@ import java.util.List;
 @RunWith(AndroidTestingRunner.class)
 @TestableLooper.RunWithLooper
 public class GsmInboundSmsHandlerTest extends TelephonyTest {
+    @Rule
+    public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
+
     // Mocked classes
     private SmsStorageMonitor mSmsStorageMonitor;
     private android.telephony.SmsMessage mSmsMessage;
@@ -1352,6 +1361,16 @@ public class GsmInboundSmsHandlerTest extends TelephonyTest {
 
         // There should not happen the invocation for below method, nor exception
         verify(mContext, never()).startActivityAsUser(any(Intent.class), any(UserHandle.class));
+    }
+
+    @Test
+    @EnableFlags(com.android.internal.telephony.flags.Flags.FLAG_REDACT_WEBOTP_SMS)
+    @DisableFlags(com.android.internal.telephony.flags.Flags.FLAG_REDACT_GENERIC_OTP_SMS)
+    public void testGetIncludedTextClassifierTypes_enableWebOtpRedaction_containsWebOtpType() {
+        transitionFromStartupToIdle();
+        assertThat(InboundSmsHandler.getIncludedTextClassifierTypes())
+            .containsExactly(TextClassifier.TYPE_SMS_RETRIEVER_OTP,
+                             TextClassifier.TYPE_SMS_WEB_OTP);
     }
 }
 

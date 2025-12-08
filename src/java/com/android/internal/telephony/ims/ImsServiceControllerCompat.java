@@ -32,12 +32,14 @@ import android.telephony.ims.compat.feature.ImsFeature;
 import android.telephony.ims.compat.feature.MMTelFeature;
 import android.util.Log;
 import android.util.SparseArray;
+import java.util.concurrent.ExecutorService;
 
 import com.android.ims.ImsFeatureBinderRepository;
 import com.android.ims.internal.IImsFeatureStatusCallback;
 import com.android.ims.internal.IImsMMTelFeature;
 import com.android.ims.internal.IImsServiceController;
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.internal.telephony.flags.Flags;
 
 /**
  * Manages the Binding lifecycle of one ImsService as well as the relevant ImsFeatures that the
@@ -83,8 +85,9 @@ public class ImsServiceControllerCompat extends ImsServiceController {
     @VisibleForTesting
     public ImsServiceControllerCompat(Context context, ComponentName componentName,
             ImsServiceControllerCallbacks callbacks, Handler handler, RebindRetry rebindRetry,
-            ImsFeatureBinderRepository repo, MmTelFeatureCompatFactory factory) {
-        super(context, componentName, callbacks, handler, rebindRetry, repo);
+            ImsFeatureBinderRepository repo, MmTelFeatureCompatFactory factory,
+            ExecutorService executor) {
+        super(context, componentName, callbacks, handler, rebindRetry, repo, executor);
         mMmTelFeatureFactory = factory;
     }
 
@@ -170,9 +173,22 @@ public class ImsServiceControllerCompat extends ImsServiceController {
     }
 
     @Override
-    protected final void notifyImsServiceReady() {
-        Log.d(TAG, "notifyImsServiceReady");
-        // don't do anything for compat impl.
+    protected void notifyImsServiceReady() {
+        if (Flags.ensureImsFeatureOrder()) {
+            mExecutor.execute(() -> {
+                Log.d(TAG, "notifyImsServiceReady (Compat Async)");
+                if (mHandler != null) {
+                    mHandler.post(() -> {
+                        if (mImsServiceConnection != null) {
+                            mImsServiceConnection.updateCapabilityAndServiceFeature();
+                        }
+                    });
+                }
+            });
+        } else {
+            Log.d(TAG, "notifyImsServiceReady");
+            // don't do anything for compat impl.
+        }
     }
 
     @Override

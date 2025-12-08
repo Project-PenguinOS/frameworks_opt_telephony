@@ -124,3 +124,25 @@ flag {
     description: "This flag adds P-CSCF address in IMS registration attributes"
     bug:"433593483"
 }
+
+# OWNER=donaldahn TARGET=26Q2
+flag {
+    name: "ensure_ims_feature_order"
+    namespace: "telephony"
+    description: "Ensures that ImsService feature creation and modification are executed sequentially to prevent race conditions."
+    bug:"403628336"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+# OWNER=donaldahn TARGET=26Q2
+flag {
+    name: "separate_vt_activation_for_wifi_and_cellular"
+    namespace: "telephony"
+    description: "Separates Video Telephony (VT) activation logic for WiFi and Cellular to ensure correct provisioning."
+    bug: "169550960"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}

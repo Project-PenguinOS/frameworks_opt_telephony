@@ -6745,10 +6745,13 @@ public class SatelliteController extends Handler {
      * @param subId : subscription Id.
      */
     public int getSupportedConnectTypeMetrics(int subId) {
-        if (subId == SubscriptionManager.INVALID_SUBSCRIPTION_ID) {
+        // Return UNKNOWN if the subId is invalid OR if satellite attach is not supported by the
+        // carrier
+        if (subId == SubscriptionManager.INVALID_SUBSCRIPTION_ID || !isSatelliteSupportedViaCarrier(
+                subId)) {
             return SatelliteConstants.GLOBAL_NTN_CONNECT_TYPE_UNKNOWN;
-
         }
+
         int globalNtnConnectType = getConfigForSubId(subId).getInt(
                 KEY_CARRIER_ROAMING_NTN_CONNECT_TYPE_INT);
         return SatelliteServiceUtils.fromSupportedConnectionMode(globalNtnConnectType);
@@ -6765,12 +6768,15 @@ public class SatelliteController extends Handler {
      * @param subId : subscription Id.
      */
     public int getSessionConnectTypeMetrics(int subId) {
-        if (subId == SubscriptionManager.INVALID_SUBSCRIPTION_ID) {
-            return SatelliteConstants.GLOBAL_NTN_CONNECT_TYPE_UNKNOWN;
-
+        // Return UNKNOWN if the subId is invalid OR if satellite attach is not supported by the
+        // carrier
+        if (subId == SubscriptionManager.INVALID_SUBSCRIPTION_ID || !isSatelliteSupportedViaCarrier(
+                subId)) {
+            return SatelliteConstants.SESSION_NTN_CONNECT_TYPE_UNKNOWN;
         }
+
         int connectType = getCarrierRoamingNtnConnectType(subId);
-        return SatelliteServiceUtils.fromSupportedConnectionMode(connectType);
+        return SatelliteServiceUtils.fromSessionConnectionMode(connectType);
     }
 
 
@@ -10689,5 +10695,10 @@ public class SatelliteController extends Handler {
         synchronized (mSatelliteTokenProvisionedLock) {
             return mLastConfiguredIccId;
         }
+    }
+
+    @VisibleForTesting
+    public boolean isWifiConnected() {
+        return mIsWifiConnected.get();
     }
 }

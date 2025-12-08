@@ -75,6 +75,7 @@ import android.telephony.SubscriptionManager.PhoneNumberSource;
 import android.telephony.SubscriptionManager.SimDisplayNameSource;
 import android.telephony.SubscriptionManager.SubscriptionType;
 import android.telephony.SubscriptionManager.UsageSetting;
+import android.telephony.SubscriptionPlan;
 import android.telephony.TelephonyFrameworkInitializer;
 import android.telephony.TelephonyManager;
 import android.telephony.TelephonyManager.SimState;
@@ -155,6 +156,7 @@ public class SubscriptionManagerService extends ISub.Stub {
     private static final String LOG_TAG = "SMSVC";
     private static final String ALLOW_MOCK_MODEM_PROPERTY = "persist.radio.allow_mock_modem";
     private static final String BOOT_ALLOW_MOCK_MODEM_PROPERTY = "ro.boot.radio.allow_mock_modem";
+    private static final String PRIVATE_NETWORK_MCC = "999";
 
     private static final int CHECK_BOOTSTRAP_TIMER_IN_MS = 20 * 60 * 1000; // 20 minutes
     private static CountDownTimer bootstrapProvisioningTimer;
@@ -357,6 +359,42 @@ public class SubscriptionManagerService extends ISub.Stub {
      * Tracks whether the phone number for the current IMS session was successfully parsed.
      */
     private final Map<Integer, Boolean> mImsNumberUpdateStatus = new ConcurrentHashMap<>();
+
+    /**
+     * Maps subscription ID to the list of enrollable subscription plans.
+     * <p>
+     * These plans represent purchasable offers or available subscriptions provided by the carrier
+     * application. The data is stored in memory.
+     * <p>
+     * The key is the subscription ID ({@link Integer}),
+     * <p>
+     * The value is an array of {@link SubscriptionPlan} objects.
+     */
+    @NonNull
+    private final Map<Integer, SubscriptionPlan[]> mEnrollableSubscriptionPlans =
+            new ConcurrentHashMap<>();
+
+    /**
+     * Maps subscription ID to the package name of the app that owns the enrollable plans.
+     * <p>
+     * The key is the subscription ID ({@link Integer}),
+     * <p>
+     * The value is a string of package name that set enrollable subscription plans.
+     */
+    @NonNull
+    private final Map<Integer, String> mEnrollableSubscriptionPlansOwner =
+            new ConcurrentHashMap<>();
+
+    /**
+     * Maps subscription ID to the pending runnable responsible for expiring the enrollable plans.
+     * <p>
+     * The key is the subscription ID ({@link Integer}),
+     * <p>
+     * The value is the Runnable that clears the plans
+     */
+    @NonNull
+    private final Map<Integer, Runnable> mEnrollablePlanExpirationRunnables =
+            new ConcurrentHashMap<>();
 
     /**
      * Slot index/subscription map that automatically invalidate cache in
@@ -1919,6 +1957,12 @@ public class SubscriptionManagerService extends ISub.Stub {
             log("updateSubscriptionByCarrierConfig: serviceCapabilities updated from "
                     + subInfo.getServiceCapabilities() + " to " + serviceBitmasks);
             mSubscriptionDatabaseManager.setServiceCapabilities(subId, serviceBitmasks);
+        }
+
+        if (mFeatureFlags.enableIsPrivateNetworkApi()) {
+            boolean isPrivateNetwork = PRIVATE_NETWORK_MCC.equals(subInfo.getMcc()) || config
+                    .getBoolean(CarrierConfigManager.KEY_IS_PRIVATE_NETWORK_BOOL, false);
+            mSubscriptionDatabaseManager.setIsPrivateNetwork(subId, isPrivateNetwork ? 1 : 0);
         }
     }
 
@@ -4760,6 +4804,219 @@ public class SubscriptionManagerService extends ISub.Stub {
         } finally {
             Binder.restoreCallingIdentity(token);
         }
+    }
+
+    /**
+     * Set the enrollable subscription plans for a specific subscription.
+     *
+     * @param subId the subscriber this relationship applies to.
+     * @param plans the array of the SubscriptionPlans.
+     * @param expirationDurationMillis the duration after which the plans will be automatically
+     *                                 cleared.
+     * @param callingPackage the package name that called this function
+     */
+    @Override
+    public void setEnrollableSubscriptionPlans(int subId, @NonNull SubscriptionPlan[] plans,
+            long expirationDurationMillis, @NonNull String callingPackage) {
+        // Check permissions (Modify Phone State or Carrier Privilege)
+        enforceEnrollableSubscriptionPlanAccess(subId, Binder.getCallingUid(), callingPackage,
+                "setEnrollableSubscriptionPlans", true /* isWrite */);
+
+        // Verify plans are not null and valid.
+        for (SubscriptionPlan plan : plans) {
+            Objects.requireNonNull(plan);
+        }
+
+        // 2. Post to Handler (Run on Main/Worker Thread)
+        mHandler.post(() -> {
+            setEnrollableSubscriptionPlansInternal(subId, plans, expirationDurationMillis,
+                    callingPackage);
+        });
+    }
+    /**
+     * Internal method to update enrollable plans, running on the handler thread.
+     */
+    private void setEnrollableSubscriptionPlansInternal(int subId,
+            @NonNull SubscriptionPlan[] plans, long expirationDurationMillis,
+            @NonNull String callingPackage) {
+        // 1. Store the plans and owner
+        mEnrollableSubscriptionPlans.put(subId, plans);
+        mEnrollableSubscriptionPlansOwner.put(subId, callingPackage);
+
+        // 2. Manage Expiration Timer
+        // Cancel any existing expiration task for this subId
+        Runnable oldRunnable = mEnrollablePlanExpirationRunnables.remove(subId);
+        if (oldRunnable != null) {
+            mHandler.removeCallbacks(oldRunnable);
+        }
+
+        // 3. Schedule new expiration if duration > 0
+        if (expirationDurationMillis > 0) {
+            Runnable expirationRunnable = () -> {
+                // Check if the owner is still the same before clearing (handling race conditions)
+                String currentOwner = mEnrollableSubscriptionPlansOwner.get(subId);
+                if (Objects.equals(callingPackage, currentOwner)) {
+                    logl("Clearing expired enrollable plans for subId=" + subId);
+                    mEnrollableSubscriptionPlans.remove(subId);
+                    mEnrollableSubscriptionPlansOwner.remove(subId);
+                    mEnrollablePlanExpirationRunnables.remove(subId);
+                    broadcastEnrollableSubscriptionPlansChanged(subId);
+                }
+            };
+            mEnrollablePlanExpirationRunnables.put(subId, expirationRunnable);
+            mHandler.postDelayed(expirationRunnable, expirationDurationMillis);
+        }
+
+        // 3. Notify Listeners
+        broadcastEnrollableSubscriptionPlansChanged(subId);
+    }
+
+    /**
+     * Get the enrollable subscription plans for the given subscription id.
+     *
+     * @param subId the subscriber to get the subscription plans for.
+     * @param callingPackage the name of the package making the call.
+     * @return the array of enrollable subscription plans, or null if not found or access denied.
+     */
+    @Override
+    @Nullable
+    public SubscriptionPlan[] getEnrollableSubscriptionPlans(
+            int subId, @NonNull String callingPackage) {
+        // Check permissions
+        enforceEnrollableSubscriptionPlanAccess(subId, Binder.getCallingUid(), callingPackage,
+                "getEnrollableSubscriptionPlans", false /* isWrite */);
+
+        return mEnrollableSubscriptionPlans.get(subId);
+    }
+
+    /**
+     * Get the package name of the app that owns the enrollable subscription plans.
+     *
+     * @param subId the subscriber to get the owner for.
+     * @return the package name of the app that owns the enrollable plans, or null if not found.
+     */
+    @Override
+    @Nullable
+    public String getEnrollableSubscriptionPlansOwner(int subId) {
+        if (UserHandle.getCallingAppId() != android.os.Process.SYSTEM_UID) {
+            throw new SecurityException();
+        }
+        return mEnrollableSubscriptionPlansOwner.get(subId);
+    }
+
+    /**
+     * Enforce permissions for accessing enrollable plans.
+     * <p>
+     * Access is granted if the caller meets ANY of the following criteria:
+     * <ol>
+     *     <li>Has Carrier Privileges for the subscription.</li>
+     *     <li>Is the delegated Carrier Service for the subscription.</li>
+     *     <li>Is the default Carrier Service for the device.</li>
+     *     <li>Is the current owner of the plans (i.e., the app that set them).</li>
+     *     <li>Holds the {@code MANAGE_SUBSCRIPTION_PLANS} permission.</li>
+     * </ol>
+     *
+     * @param subId The subscription ID.
+     * @param callingUid The UID of the caller.
+     * @param callingPackage The package name of the caller.
+     * @param message The message to include in any security exception.
+     */
+    private void enforceEnrollableSubscriptionPlanAccess(int subId, int callingUid,
+            @NonNull String callingPackage, @NonNull String message, boolean isWrite) {
+        // 0. Allow System and Phone (Radio) explicitly.
+        // They are trusted components and should always have access.
+        int appId = UserHandle.getAppId(callingUid);
+        if (appId == Process.SYSTEM_UID || appId == Process.PHONE_UID) {
+            return;
+        }
+
+        // 1. Verify the caller's package name matches their UID.
+        try {
+            int packageUid = mPackageManager.getPackageUid(callingPackage, 0);
+            // Use isSameApp to handle multi-user scenarios (ignores user ID, checks app ID)
+            if (!UserHandle.isSameApp(packageUid, callingUid)) {
+                throw new SecurityException("Package " + callingPackage + " does not belong to uid "
+                        + callingUid);
+            }
+        } catch (PackageManager.NameNotFoundException e) {
+            throw new SecurityException("Package " + callingPackage + " not found");
+        }
+
+        // 2. Check Carrier Privileges, Delegated Access, and Default Carrier Service.
+        long token = Binder.clearCallingIdentity();
+        try {
+            TelephonyManager tm = mContext.getSystemService(TelephonyManager.class)
+                    .createForSubscriptionId(subId);
+
+            // 2a. Check Carrier Privileges
+            if (tm != null && tm.checkCarrierPrivilegesForPackage(callingPackage)
+                    == TelephonyManager.CARRIER_PRIVILEGE_STATUS_HAS_ACCESS) {
+                return;
+            }
+
+            CarrierConfigManager configManager =
+                    mContext.getSystemService(CarrierConfigManager.class);
+            PersistableBundle config = (configManager != null)
+                    ? configManager.getConfigForSubId(
+                            subId, CarrierConfigManager.KEY_CONFIG_PLANS_PACKAGE_OVERRIDE_STRING)
+                    : null;
+
+            if (config != null) {
+                // 2b. Check Delegated Access
+                String overridePackage = config.getString(
+                        CarrierConfigManager.KEY_CONFIG_PLANS_PACKAGE_OVERRIDE_STRING, null);
+                if (!TextUtils.isEmpty(overridePackage)
+                        && Objects.equals(overridePackage, callingPackage)) {
+                    return;
+                }
+            }
+
+            // 2c. Check Default Carrier Service
+            if (configManager != null) {
+                String defaultPackage = configManager.getDefaultCarrierServicePackageName();
+                if (!TextUtils.isEmpty(defaultPackage)
+                        && Objects.equals(defaultPackage, callingPackage)) {
+                    return;
+                }
+            }
+        } finally {
+            Binder.restoreCallingIdentity(token);
+        }
+
+        // 3. Check if the caller is the owner of the plans (if they exist).
+        String ownerPackage = mEnrollableSubscriptionPlansOwner.get(subId);
+        if (ownerPackage != null && ownerPackage.equals(callingPackage)) {
+            return;
+        }
+
+        // 4. Permission Checks
+        // MANAGE_SUBSCRIPTION_PLANS allows for read or write.
+        if (mContext.checkCallingOrSelfPermission(
+                android.Manifest.permission.MANAGE_SUBSCRIPTION_PLANS)
+                        == PackageManager.PERMISSION_GRANTED) {
+            return;
+        }
+
+        // READ_SUBSCRIPTION_PLANS allows only for read.
+        if (!isWrite && mContext.checkCallingOrSelfPermission(
+                android.Manifest.permission.READ_SUBSCRIPTION_PLANS)
+                        == PackageManager.PERMISSION_GRANTED) {
+            return;
+        }
+
+        throw new SecurityException(message + ": Caller " + callingPackage
+                + " does not meet required permissions (Carrier Privilege, Plan Owner, or "
+                + "MANAGE_SUBSCRIPTION_PLANS)");
+    }
+
+    /**
+     * Helper to broadcast ACTION_ENROLLABLE_SUBSCRIPTION_PLANS_CHANGED.
+     */
+    private void broadcastEnrollableSubscriptionPlansChanged(int subId) {
+        Intent intent = new Intent(
+                SubscriptionManager.ACTION_ENROLLABLE_SUBSCRIPTION_PLANS_CHANGED);
+        SubscriptionManager.putSubscriptionIdExtra(intent, subId);
+        mContext.sendBroadcast(intent, android.Manifest.permission.READ_SUBSCRIPTION_PLANS);
     }
 
     /**

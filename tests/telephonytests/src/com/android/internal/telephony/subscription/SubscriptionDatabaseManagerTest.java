@@ -28,6 +28,7 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -157,6 +158,9 @@ public class SubscriptionDatabaseManagerTest extends TelephonyTest {
     static final int FAKE_SATELLITE_PROVISIONED = 1;
     static final int FAKE_SATELLITE_NOT_PROVISIONED = 0;
 
+    static final int FAKE_IS_PRIVATE_NETWORK_DISABLED = 0;
+    static final int FAKE_IS_PRIVATE_NETWORK_ENABLED = 1;
+
     static final SubscriptionInfoInternal FAKE_SUBSCRIPTION_INFO1 =
             new SubscriptionInfoInternal.Builder()
                     .setId(1)
@@ -232,7 +236,7 @@ public class SubscriptionDatabaseManagerTest extends TelephonyTest {
                     .setSatelliteEntitlementStatus(FAKE_SATELLITE_ENTITLEMENT_STATUS_DISABLED)
                     .setSatelliteEntitlementPlmns(FAKE_SATELLITE_ENTITLEMENT_PLMNS2)
                     .setSatelliteESOSSupported(FAKE_SATELLITE_ESOS_SUPPORTED_DISABLED)
-                    .setIsSatelliteProvisionedForNonIpDatagram(FAKE_SATELLITE_NOT_PROVISIONED)
+                    .setIsPrivateNetwork(FAKE_IS_PRIVATE_NETWORK_DISABLED)
                     .build();
 
     static final SubscriptionInfoInternal FAKE_SUBSCRIPTION_INFO2 =
@@ -321,6 +325,7 @@ public class SubscriptionDatabaseManagerTest extends TelephonyTest {
                             FAKE_SATELLITE_ENTITLEMENT_DATA_SERVICE_POLICY1)
                     .setSatellitePlmnsVoiceServicePolicy(
                             FAKE_SATELLITE_ENTITLEMENT_VOICE_SERVICE_POLICY1)
+                    .setIsPrivateNetwork(FAKE_IS_PRIVATE_NETWORK_ENABLED)
                     .build();
 
     private SubscriptionDatabaseManager mDatabaseManagerUT;
@@ -478,6 +483,7 @@ public class SubscriptionDatabaseManagerTest extends TelephonyTest {
 
         doReturn(1).when(mUiccController).convertToPublicCardId(eq(FAKE_ICCID1));
         doReturn(2).when(mUiccController).convertToPublicCardId(eq(FAKE_ICCID2));
+        when(mFeatureFlags.enableIsPrivateNetworkApi()).thenReturn(true);
         mDatabaseManagerUT = new SubscriptionDatabaseManager(mContext, Looper.myLooper(),
                 mFeatureFlags, mSubscriptionDatabaseManagerCallback);
         logd("SubscriptionDatabaseManagerTest -Setup!");
@@ -2595,5 +2601,38 @@ public class SubscriptionDatabaseManagerTest extends TelephonyTest {
                 FAKE_SUBSCRIPTION_INFO1.getSubscriptionId())
                 .getSatellitePlmnsVoiceServicePolicy()).isEqualTo(
                 FAKE_SATELLITE_ENTITLEMENT_VOICE_SERVICE_POLICY2);
+    }
+
+    @Test
+    public void testUpdateIsPrivateNetwork() throws Exception {
+        // exception is expected if there is nothing in the database.
+        assertThrows(IllegalArgumentException.class,
+                () -> mDatabaseManagerUT.setIsPrivateNetwork(
+                        FAKE_SUBSCRIPTION_INFO1.getSubscriptionId(),
+                        FAKE_IS_PRIVATE_NETWORK_ENABLED));
+
+        SubscriptionInfoInternal subInfo = insertSubscriptionAndVerify(FAKE_SUBSCRIPTION_INFO1);
+        mDatabaseManagerUT.setIsPrivateNetwork(
+                FAKE_SUBSCRIPTION_INFO1.getSubscriptionId(),
+                FAKE_IS_PRIVATE_NETWORK_ENABLED);
+        processAllMessages();
+
+        subInfo = new SubscriptionInfoInternal.Builder(subInfo)
+                .setIsPrivateNetwork(FAKE_IS_PRIVATE_NETWORK_ENABLED).build();
+        verifySubscription(subInfo);
+        verify(mSubscriptionDatabaseManagerCallback, times(2)).onSubscriptionChanged(eq(1));
+
+        assertThat(mDatabaseManagerUT.getSubscriptionProperty(
+                FAKE_SUBSCRIPTION_INFO1.getSubscriptionId(),
+                SimInfo.COLUMN_IS_PRIVATE_NETWORK)).isEqualTo(
+                FAKE_IS_PRIVATE_NETWORK_ENABLED);
+
+        mDatabaseManagerUT.setSubscriptionProperty(FAKE_SUBSCRIPTION_INFO1.getSubscriptionId(),
+                SimInfo.COLUMN_IS_PRIVATE_NETWORK,
+                FAKE_IS_PRIVATE_NETWORK_DISABLED);
+        assertThat(mDatabaseManagerUT.getSubscriptionInfoInternal(
+                FAKE_SUBSCRIPTION_INFO1.getSubscriptionId())
+                .getIsPrivateNetwork()).isEqualTo(
+                FAKE_IS_PRIVATE_NETWORK_DISABLED);
     }
 }
