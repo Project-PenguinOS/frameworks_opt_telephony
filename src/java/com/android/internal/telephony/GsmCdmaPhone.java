@@ -78,6 +78,7 @@ import android.telephony.CellularIdentifierDisclosure;
 import android.telephony.ImsiEncryptionInfo;
 import android.telephony.LinkCapacityEstimate;
 import android.telephony.NetworkScanRequest;
+import android.telephony.NetworkSecurityEvent;
 import android.telephony.PhoneNumberUtils;
 import android.telephony.RadioAccessFamily;
 import android.telephony.SecurityAlgorithmUpdate;
@@ -236,6 +237,7 @@ public class GsmCdmaPhone extends Phone {
     private boolean mIsNullCipherAndIntegritySupported = false;
     private boolean mIsIdentifierDisclosureTransparencySupported = false;
     private boolean mIsNullCipherNotificationSupported = false;
+
     /**
      * Queue for holding cellular events that arrive before a valid subscription ID is available.
      * These messages are held until the SIM state is {@link TelephonyManager#SIM_STATE_LOADED},
@@ -557,6 +559,8 @@ public class GsmCdmaPhone extends Phone {
                         .makeNullCipherNotifier(mSafetySource);
         mCi.registerForSecurityAlgorithmUpdates(
                 this, EVENT_SECURITY_ALGORITHM_UPDATE, null);
+        mCi.registerForNetworkSecurityEvents(this, EVENT_NETWORK_SECURITY_EVENTS, null);
+
 
         initializeCarrierApps();
     }
@@ -3283,6 +3287,34 @@ public class GsmCdmaPhone extends Phone {
                 logd("EVENT_SET_SECURITY_ALGORITHMS_UPDATED_ENABLED_DONE");
                 ar = (AsyncResult) msg.obj;
                 mIsNullCipherNotificationSupported = doesResultIndicateModemSupport(ar);
+                break;
+
+            case EVENT_NETWORK_SECURITY_EVENTS:
+                logd("EVENT_NETWORK_SECURITY_EVENTS phoneId = " + getPhoneId());
+                ar = (AsyncResult) msg.obj;
+                if (ar == null) {
+                    Rlog.e(LOG_TAG, "EVENT_NETWORK_SECURITY_EVENTS: ar is null");
+                    break;
+                }
+
+                if (ar.result == null || ar.exception != null) {
+                    Rlog.e(
+                            LOG_TAG,
+                            "Failed to process network security events",
+                            ar.exception);
+                    break;
+                }
+                Set<NetworkSecurityEvent> events = (Set<NetworkSecurityEvent>) ar.result;
+
+                if (queueCellularEventIfSubIdInvalid(msg, "EVENT_NETWORK_SECURITY_EVENTS")) {
+                    return;
+                }
+
+                if (mFeatureFlags.networkSecurityEventIndications()) {
+                    logd("EVENT_NETWORK_SECURITY_EVENTS for non-Safety Center listeners "
+                            + "phoneId = " + getPhoneId());
+                    mNotifier.notifyNetworkSecurityEvents(this, events);
+                }
                 break;
 
             default:
