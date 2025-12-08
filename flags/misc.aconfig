@@ -74,17 +74,6 @@ flag {
     bug:"412747188"
 }
 
-# OWNER=aleksandermj TARGET=26Q1
-flag {
-    name: "minimal_telephony_cdm_use_board_api_level"
-    namespace: "telephony"
-    description: "Use ro.board.api_level for call/data/messaging feature checks"
-    bug:"395087895"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
 # OWNER=rambowang TARGET=26Q2
 flag {
     name: "publish_telephony_services_after_construction"
@@ -108,15 +97,6 @@ flag {
     }
 }
 
-# OWNER=aditimutagi TARGET=26Q2
-flag {
-    name: "guard_identifier_and_network_country_apis"
-    is_exported: true
-    namespace: "telephony"
-    description: "Guards getSubscriberId and getNetworkCountryIso APIs with permission."
-    bug: "417788332"
-}
-
 # OWNER=hyeinyu TARGET=26Q2
 flag {
     name: "get_phone_number_ts43_api"
@@ -125,4 +105,3 @@ flag {
     bug:"435429723"
     is_exported: true
 }
-

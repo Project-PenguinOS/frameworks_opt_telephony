@@ -135,3 +135,14 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+# OWNER=donaldahn TARGET=26Q2
+flag {
+    name: "separate_vt_activation_for_wifi_and_cellular"
+    namespace: "telephony"
+    description: "Separates Video Telephony (VT) activation logic for WiFi and Cellular to ensure correct provisioning."
+    bug: "169550960"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
