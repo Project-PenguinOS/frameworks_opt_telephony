@@ -8376,4 +8376,94 @@ public class SatelliteControllerTest extends TelephonyTest {
             assertTrue(action.isAuthenticationRequired());
         }
     }
+
+    @Test
+    public void testConnectTypeMetrics() {
+        // Case 1: KEY_SATELLITE_ATTACH_SUPPORTED_BOOL is false.
+        mCarrierConfigBundle.putBoolean(CarrierConfigManager.KEY_SATELLITE_ATTACH_SUPPORTED_BOOL,
+                false);
+        invokeCarrierConfigChanged();
+        assertEquals("getSupportedConnectTypeMetrics should return UNKNOWN.",
+                SatelliteConstants.GLOBAL_NTN_CONNECT_TYPE_UNKNOWN,
+                mSatelliteControllerUT.getSupportedConnectTypeMetrics(SUB_ID));
+
+        // Case 2: KEY_SATELLITE_ATTACH_SUPPORTED_BOOL is false, type AUTOMATIC.
+        mCarrierConfigBundle.putBoolean(CarrierConfigManager.KEY_SATELLITE_ATTACH_SUPPORTED_BOOL,
+                false);
+        mCarrierConfigBundle.putInt(CarrierConfigManager.KEY_CARRIER_ROAMING_NTN_CONNECT_TYPE_INT,
+                CarrierConfigManager.CARRIER_ROAMING_NTN_CONNECT_AUTOMATIC);
+        invokeCarrierConfigChanged();
+        assertEquals("getSupportedConnectTypeMetrics should return UNKNOWN.",
+                SatelliteConstants.GLOBAL_NTN_CONNECT_TYPE_UNKNOWN,
+                mSatelliteControllerUT.getSupportedConnectTypeMetrics(SUB_ID));
+        assertEquals("getSupportedConnectTypeMetrics should return UNKNOWN.",
+                SatelliteConstants.GLOBAL_NTN_CONNECT_TYPE_UNKNOWN,
+                mSatelliteControllerUT.getSessionConnectTypeMetrics(SUB_ID));
+
+        // Case 3: KEY_SATELLITE_ATTACH_SUPPORTED_BOOL is false, type MANUAL
+        mCarrierConfigBundle.putBoolean(CarrierConfigManager.KEY_SATELLITE_ATTACH_SUPPORTED_BOOL,
+                false);
+        mCarrierConfigBundle.putInt(CarrierConfigManager.KEY_CARRIER_ROAMING_NTN_CONNECT_TYPE_INT,
+                CarrierConfigManager.CARRIER_ROAMING_NTN_CONNECT_MANUAL);
+        invokeCarrierConfigChanged();
+        assertEquals("getSupportedConnectTypeMetrics should return UNKNOWN.",
+                SatelliteConstants.GLOBAL_NTN_CONNECT_TYPE_UNKNOWN,
+                mSatelliteControllerUT.getSupportedConnectTypeMetrics(SUB_ID));
+        assertEquals("getSupportedConnectTypeMetrics should return UNKNOWN.",
+                SatelliteConstants.GLOBAL_NTN_CONNECT_TYPE_UNKNOWN,
+                mSatelliteControllerUT.getSessionConnectTypeMetrics(SUB_ID));
+
+        // Case 4: KEY_SATELLITE_ATTACH_SUPPORTED_BOOL is false, type HYBRID
+        mCarrierConfigBundle.putBoolean(CarrierConfigManager.KEY_SATELLITE_ATTACH_SUPPORTED_BOOL,
+                false);
+        mCarrierConfigBundle.putInt(CarrierConfigManager.KEY_CARRIER_ROAMING_NTN_CONNECT_TYPE_INT,
+                CarrierConfigManager.CARRIER_ROAMING_NTN_CONNECT_HYBRID);
+        invokeCarrierConfigChanged();
+        assertEquals("getSupportedConnectTypeMetrics should return UNKNOWN.",
+                SatelliteConstants.GLOBAL_NTN_CONNECT_TYPE_UNKNOWN,
+                mSatelliteControllerUT.getSupportedConnectTypeMetrics(SUB_ID));
+        assertEquals("getSupportedConnectTypeMetrics should return UNKNOWN.",
+                SatelliteConstants.GLOBAL_NTN_CONNECT_TYPE_UNKNOWN,
+                mSatelliteControllerUT.getSessionConnectTypeMetrics(SUB_ID));
+
+        // Case 5 KEY_SATELLITE_ATTACH_SUPPORTED_BOOL is true, type AUTOMATIC.
+        mCarrierConfigBundle.putBoolean(CarrierConfigManager.KEY_SATELLITE_ATTACH_SUPPORTED_BOOL,
+                true);
+        mCarrierConfigBundle.putInt(CarrierConfigManager.KEY_CARRIER_ROAMING_NTN_CONNECT_TYPE_INT,
+                CarrierConfigManager.CARRIER_ROAMING_NTN_CONNECT_AUTOMATIC);
+        invokeCarrierConfigChanged();
+        assertEquals("getSupportedConnectTypeMetrics should return AUTOMATIC.",
+                SatelliteConstants.GLOBAL_NTN_CONNECT_TYPE_AUTOMATIC,
+                mSatelliteControllerUT.getSupportedConnectTypeMetrics(SUB_ID));
+        assertEquals("getSupportedConnectTypeMetrics should return AUTOMATIC.",
+                SatelliteConstants.SESSION_NTN_CONNECT_TYPE_AUTOMATIC,
+                mSatelliteControllerUT.getSessionConnectTypeMetrics(SUB_ID));
+
+        // Case 6: KEY_SATELLITE_ATTACH_SUPPORTED_BOOL is true, type MANUAL
+        mCarrierConfigBundle.putBoolean(CarrierConfigManager.KEY_SATELLITE_ATTACH_SUPPORTED_BOOL,
+                true);
+        mCarrierConfigBundle.putInt(CarrierConfigManager.KEY_CARRIER_ROAMING_NTN_CONNECT_TYPE_INT,
+                CarrierConfigManager.CARRIER_ROAMING_NTN_CONNECT_MANUAL);
+        invokeCarrierConfigChanged();
+        assertEquals("getSupportedConnectTypeMetrics should return MANUAL.",
+                SatelliteConstants.GLOBAL_NTN_CONNECT_TYPE_MANUAL,
+                mSatelliteControllerUT.getSupportedConnectTypeMetrics(SUB_ID));
+        assertEquals("getSupportedConnectTypeMetrics should return MANUAL.",
+                SatelliteConstants.SESSION_NTN_CONNECT_TYPE_MANUAL,
+                mSatelliteControllerUT.getSessionConnectTypeMetrics(SUB_ID));
+
+        // Case 7: KEY_SATELLITE_ATTACH_SUPPORTED_BOOL is true, type HYBRID
+        mCarrierConfigBundle.putBoolean(CarrierConfigManager.KEY_SATELLITE_ATTACH_SUPPORTED_BOOL,
+                true);
+        mCarrierConfigBundle.putInt(CarrierConfigManager.KEY_CARRIER_ROAMING_NTN_CONNECT_TYPE_INT,
+                CarrierConfigManager.CARRIER_ROAMING_NTN_CONNECT_HYBRID);
+        invokeCarrierConfigChanged();
+        assertEquals("getSupportedConnectTypeMetrics should return HYBRID.",
+                SatelliteConstants.GLOBAL_NTN_CONNECT_TYPE_HYBRID,
+                mSatelliteControllerUT.getSupportedConnectTypeMetrics(SUB_ID));
+        // Session Connection Type does not have HYBRID.
+        assertEquals("getSupportedConnectTypeMetrics should return UNKNOWN.",
+                SatelliteConstants.SESSION_NTN_CONNECT_TYPE_UNKNOWN,
+                mSatelliteControllerUT.getSessionConnectTypeMetrics(SUB_ID));
+    }
 }

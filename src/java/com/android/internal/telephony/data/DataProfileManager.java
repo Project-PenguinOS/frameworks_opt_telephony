@@ -65,6 +65,7 @@ import com.android.telephony.Rlog;
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
@@ -106,9 +107,21 @@ public class DataProfileManager extends Handler {
      * All data profiles for the current carrier. Note only data profiles loaded from the APN
      * database will be stored here. The on-demand data profiles (generated dynamically, for
      * example, enterprise data profiles with differentiator) are not stored here.
+     *
+     * @see #updateDataProfiles(boolean) for how this is updated.
+     *
+     * Thread-safety: This list is read by multiple threads (e.g., Binder threads for API calls
+     * like {@link TelephonyManager#isTetheringApnRequired()}) but is only ever modified on the main
+     * thread.
+     *
+     * To ensure thread safety without locks (which can cause performance issues), this list is
+     * treated as immutable. It is declared {@code volatile}, and any modifications are performed
+     * by creating a new list and swapping this reference atomically (a copy-on-write pattern).
+     * This guarantees that reader threads will always see a consistent, fully-formed snapshot
+     * of the list.
      */
     @NonNull
-    private final List<DataProfile> mAllDataProfiles = new ArrayList<>();
+    private volatile List<DataProfile> mAllDataProfiles = Collections.emptyList();
 
     /** The data profile used for initial attach. */
     @Nullable
@@ -385,8 +398,7 @@ public class DataProfileManager extends Handler {
         boolean profilesChanged = false;
         if (mAllDataProfiles.size() != profiles.size() || !mAllDataProfiles.containsAll(profiles)) {
             log("Data profiles changed.");
-            mAllDataProfiles.clear();
-            mAllDataProfiles.addAll(profiles);
+            mAllDataProfiles = Collections.unmodifiableList(new ArrayList<>(profiles));
             profilesChanged = true;
         }
 

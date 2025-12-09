@@ -167,6 +167,7 @@ public class SubscriptionManagerService extends ISub.Stub {
     private static final String LOG_TAG = "SMSVC";
     private static final String ALLOW_MOCK_MODEM_PROPERTY = "persist.radio.allow_mock_modem";
     private static final String BOOT_ALLOW_MOCK_MODEM_PROPERTY = "ro.boot.radio.allow_mock_modem";
+    private static final String PRIVATE_NETWORK_MCC = "999";
 
     private static final int CHECK_BOOTSTRAP_TIMER_IN_MS = 20 * 60 * 1000; // 20 minutes
     private static CountDownTimer bootstrapProvisioningTimer;
@@ -1994,6 +1995,12 @@ public class SubscriptionManagerService extends ISub.Stub {
             log("updateSubscriptionByCarrierConfig: serviceCapabilities updated from "
                     + subInfo.getServiceCapabilities() + " to " + serviceBitmasks);
             mSubscriptionDatabaseManager.setServiceCapabilities(subId, serviceBitmasks);
+        }
+
+        if (mFeatureFlags.enableIsPrivateNetworkApi()) {
+            boolean isPrivateNetwork = PRIVATE_NETWORK_MCC.equals(subInfo.getMcc()) || config
+                    .getBoolean(CarrierConfigManager.KEY_IS_PRIVATE_NETWORK_BOOL, false);
+            mSubscriptionDatabaseManager.setIsPrivateNetwork(subId, isPrivateNetwork ? 1 : 0);
         }
     }
 

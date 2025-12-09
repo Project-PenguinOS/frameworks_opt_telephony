@@ -88,6 +88,7 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
+import android.os.PersistableBundle;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -101,6 +102,7 @@ import android.service.carrier.CarrierIdentifier;
 import android.service.euicc.EuiccProfileInfo;
 import android.service.euicc.EuiccService;
 import android.service.euicc.GetEuiccProfileInfoListResult;
+import android.telephony.CarrierConfigManager;
 import android.telephony.RadioAccessFamily;
 import android.telephony.SubscriptionInfo;
 import android.telephony.SubscriptionManager;
@@ -4311,6 +4313,51 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
         assertThrows(UnsupportedOperationException.class,
                 () -> mSubscriptionManagerServiceUT.getAllSubInfoList(
                         CALLING_PACKAGE, CALLING_FEATURE));
+    }
+
+    @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
+    public void testUpdateSubByCarrierConfig_withPrivateNetworkCarrierConfig_setsIsPrivateNetwork()
+            throws Exception {
+        doReturn(true).when(mFeatureFlags).enableIsPrivateNetworkApi();
+        int subId = insertSubscription(FAKE_SUBSCRIPTION_INFO1);
+        int phoneId = FAKE_SUBSCRIPTION_INFO1.getSimSlotIndex();
+        getSubscriptionDatabaseManager().setIsPrivateNetwork(subId, 0);
+        processAllMessages();
+
+        PersistableBundle config = new PersistableBundle();
+        config.putBoolean(CarrierConfigManager.KEY_IS_PRIVATE_NETWORK_BOOL, true);
+        mSubscriptionManagerServiceUT.updateSubscriptionByCarrierConfig(phoneId, CALLING_PACKAGE,
+                config, () -> {});
+        processAllMessages();
+
+        SubscriptionInfoInternal subInfo = mSubscriptionManagerServiceUT
+                .getSubscriptionInfoInternal(subId);
+        assertThat(subInfo.getIsPrivateNetwork()).isEqualTo(1);
+    }
+
+    @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
+    public void testUpdateSubByCarrierConfig_withPrivateNetworkMcc_setsIsPrivateNetwork()
+            throws Exception {
+        doReturn(true).when(mFeatureFlags).enableIsPrivateNetworkApi();
+        SubscriptionInfoInternal privateNetworkMccSubInfo =
+                new SubscriptionInfoInternal.Builder(FAKE_SUBSCRIPTION_INFO2)
+                        .setMcc("999")
+                        .build();
+        int subId = insertSubscription(privateNetworkMccSubInfo);
+        int phoneId = privateNetworkMccSubInfo.getSimSlotIndex();
+        getSubscriptionDatabaseManager().setIsPrivateNetwork(subId, 0);
+        processAllMessages();
+
+        PersistableBundle config = new PersistableBundle();
+        mSubscriptionManagerServiceUT.updateSubscriptionByCarrierConfig(phoneId, CALLING_PACKAGE,
+                config, () -> {});
+        processAllMessages();
+
+        SubscriptionInfoInternal subInfo = mSubscriptionManagerServiceUT
+                .getSubscriptionInfoInternal(subId);
+        assertThat(subInfo.getIsPrivateNetwork()).isEqualTo(1);
     }
 
     @Test

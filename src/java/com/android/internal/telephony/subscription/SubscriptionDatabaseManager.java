@@ -310,6 +310,9 @@ public class SubscriptionDatabaseManager extends Handler {
                     SimInfo.COLUMN_IS_SATELLITE_PROVISIONED_FOR_NON_IP_DATAGRAM,
                     SubscriptionInfoInternal::getIsSatelliteProvisionedForNonIpDatagram),
             new AbstractMap.SimpleImmutableEntry<>(
+                    SimInfo.COLUMN_IS_PRIVATE_NETWORK,
+                    SubscriptionInfoInternal::getIsPrivateNetwork),
+            new AbstractMap.SimpleImmutableEntry<>(
                     SimInfo.COLUMN_SATELLITE_ENTITLEMENT_BARRED_PLMNS,
                     SubscriptionInfoInternal::getSatelliteEntitlementBarredPlmnsList),
             new AbstractMap.SimpleImmutableEntry<>(
@@ -469,7 +472,10 @@ public class SubscriptionDatabaseManager extends Handler {
                     SubscriptionDatabaseManager::setSatelliteESOSSupported),
             new AbstractMap.SimpleImmutableEntry<>(
                     SimInfo.COLUMN_IS_SATELLITE_PROVISIONED_FOR_NON_IP_DATAGRAM,
-                    SubscriptionDatabaseManager::setIsSatelliteProvisionedForNonIpDatagram)
+                    SubscriptionDatabaseManager::setIsSatelliteProvisionedForNonIpDatagram),
+            new AbstractMap.SimpleImmutableEntry<>(
+                    SimInfo.COLUMN_IS_PRIVATE_NETWORK,
+                    SubscriptionDatabaseManager::setIsPrivateNetwork)
     );
 
     /**
@@ -2295,6 +2301,21 @@ public class SubscriptionDatabaseManager extends Handler {
     }
 
     /**
+     * Set whether the subscription is for private network.
+     *
+     * @param subId Subscription id.
+     * @param isPrivateNetwork {@code 1} if the subscription is for private network.
+     *
+     * @throws IllegalArgumentException if the subscription does not exist.
+     */
+    public void setIsPrivateNetwork(int subId, int isPrivateNetwork) {
+        if (mFeatureFlags.enableIsPrivateNetworkApi()) {
+            writeDatabaseAndCacheHelper(subId, SimInfo.COLUMN_IS_PRIVATE_NETWORK, isPrivateNetwork,
+                    SubscriptionInfoInternal.Builder::setIsPrivateNetwork);
+        }
+    }
+
+    /**
      * Set satellite entitlement barred plmns list by entitlement query result.
      *
      * @param subId Subscription id.
@@ -2639,6 +2660,8 @@ public class SubscriptionDatabaseManager extends Handler {
         }
         builder.setSatelliteESOSSupported(cursor.getInt(
                 cursor.getColumnIndexOrThrow(SimInfo.COLUMN_SATELLITE_ESOS_SUPPORTED)));
+        builder.setIsPrivateNetwork(cursor.getInt(
+                cursor.getColumnIndexOrThrow(SimInfo.COLUMN_IS_PRIVATE_NETWORK)));
         return builder.build();
     }
 
