@@ -21,6 +21,7 @@ import static android.telephony.TelephonyManager.HAL_SERVICE_NETWORK;
 import android.hardware.radio.RadioError;
 import android.hardware.radio.RadioResponseInfo;
 import android.hardware.radio.network.IRadioNetworkResponse;
+import android.hardware.radio.network.AlertCategory;
 import android.os.AsyncResult;
 import android.telephony.BarringInfo;
 import android.telephony.CellInfo;
@@ -579,6 +580,16 @@ public class NetworkResponse extends IRadioNetworkResponse.Stub {
             }
             mRil.processResponseDone(rr, responseInfo, isEnabled);
         }
+    }
+
+    /**
+     * @param responseInfo Response info struct containing response type, serial no. and error.
+     * @param alertCategories Array of AlertCategories supported by the modem.
+     */
+    public void getSupportedNetworkAlertCategoriesResponse(RadioResponseInfo responseInfo,
+            /* @AlertCategories */ int[] alertCategories) {
+        RadioResponse.responseIntArrayList(HAL_SERVICE_NETWORK, mRil, responseInfo,
+                RILUtils.primitiveArrayToArrayList(alertCategories));
     }
 
     @Override
