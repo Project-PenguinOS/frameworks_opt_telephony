@@ -3396,6 +3396,10 @@ public class SubscriptionManagerService extends ISub.Stub {
             subId = getDefaultSubId();
         }
 
+        if (mFeatureFlags.remoteSimSubIdSet() && mRemoteSubIds.contains(subId)) {
+            return SubscriptionManager.SLOT_INDEX_FOR_REMOTE_SIM_SUB;
+        }
+
         for (Map.Entry<Integer, Integer> entry : mSlotIndexToSubId.entrySet()) {
             if (entry.getValue() == subId) return entry.getKey();
         }
@@ -3417,11 +3421,23 @@ public class SubscriptionManagerService extends ISub.Stub {
             slotIndex = getSlotIndex(getDefaultSubId());
         }
 
-        // Check that we have a valid slotIndex or the slotIndex is for a remote SIM (remote SIM
-        // uses special slot index that may be invalid otherwise)
-        if (!SubscriptionManager.isValidSlotIndex(slotIndex)
-                && slotIndex != SubscriptionManager.SLOT_INDEX_FOR_REMOTE_SIM_SUB) {
-            return SubscriptionManager.INVALID_SUBSCRIPTION_ID;
+        if (mFeatureFlags.remoteSimSubIdSet()) {
+            if (slotIndex == SubscriptionManager.SLOT_INDEX_FOR_REMOTE_SIM_SUB) {
+                // The last inserted remote SIM subscription has the largest sub ID, due to the
+                // database auto-increment
+                return !mRemoteSubIds.isEmpty() ? mRemoteSubIds.getLargest()
+                        : SubscriptionManager.INVALID_SUBSCRIPTION_ID;
+            }
+            if (!SubscriptionManager.isValidSlotIndex(slotIndex)) {
+                return SubscriptionManager.INVALID_SUBSCRIPTION_ID;
+            }
+        } else {
+            // Check that we have a valid slotIndex or the slotIndex is for a remote SIM (remote SIM
+            // uses special slot index that may be invalid otherwise)
+            if (slotIndex != SubscriptionManager.SLOT_INDEX_FOR_REMOTE_SIM_SUB
+                    && !SubscriptionManager.isValidSlotIndex(slotIndex)) {
+                return SubscriptionManager.INVALID_SUBSCRIPTION_ID;
+            }
         }
 
         return mSlotIndexToSubId.getOrDefault(slotIndex,

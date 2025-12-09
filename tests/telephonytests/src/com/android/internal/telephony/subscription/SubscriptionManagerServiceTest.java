@@ -180,9 +180,16 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
 
     private static final UserHandle FAKE_MANAGED_PROFILE_USER_HANDLE = new UserHandle(13);
 
-    private static final SubscriptionInfoInternal FAKE_REMOTE_SIM =
+    private static final SubscriptionInfoInternal FAKE_REMOTE_SIM1 =
             new SubscriptionInfoInternal.Builder(FAKE_SUBSCRIPTION_INFO1)
                     .setIccId(FAKE_MAC_ADDRESS1)
+                    .setType(SubscriptionManager.SUBSCRIPTION_TYPE_REMOTE_SIM)
+                    .setSimSlotIndex(SubscriptionManager.SLOT_INDEX_FOR_REMOTE_SIM_SUB)
+                    .build();
+
+    private static final SubscriptionInfoInternal FAKE_REMOTE_SIM2 =
+            new SubscriptionInfoInternal.Builder(FAKE_SUBSCRIPTION_INFO2)
+                    .setIccId(FAKE_MAC_ADDRESS2)
                     .setType(SubscriptionManager.SUBSCRIPTION_TYPE_REMOTE_SIM)
                     .setSimSlotIndex(SubscriptionManager.SLOT_INDEX_FOR_REMOTE_SIM_SUB)
                     .build();
@@ -3967,6 +3974,136 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
                 mSubscriptionManagerServiceUT.getSubscriptionInfoInternal(/* subId= */ 1)).isNull();
     }
 
+    /**
+     * Verifies that getSubId correctly returns the most recently inserted remote SIM after removing
+     * the second remote SIM.
+     */
+    @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
+    public void testGetSubIdNoSubscriptionWithOverlay_afterRemovingSecondRemoteSim()
+            throws Exception {
+        setTelephonySubscriptionSimulation(/* enableFeature= */ false, /* enableOverlay= */ true);
+
+        doReturn(true).when(mFeatureFlags).remoteSimSubIdSet();
+
+        mContextFixture.addCallingOrSelfPermission(Manifest.permission.MODIFY_PHONE_STATE);
+        mContextFixture.addCallingOrSelfPermission(Manifest.permission.READ_PRIVILEGED_PHONE_STATE);
+
+        insertSubscription(FAKE_REMOTE_SIM1);
+
+        // Grant carrier privilege
+        setCarrierPrivilegesForSubId(/* hasCarrierPrivileges= */ true, /* subId= */ 1);
+        SubscriptionInfo subInfo = mSubscriptionManagerServiceUT
+                .getSubscriptionInfo(/* subId= */ 1);
+        assertThat(subInfo).isNotNull();
+        assertThat(subInfo).isEqualTo(FAKE_REMOTE_SIM1.toSubscriptionInfo());
+        assertThat(mSubscriptionManagerServiceUT.getSubId(
+                SubscriptionManager.SLOT_INDEX_FOR_REMOTE_SIM_SUB)).isEqualTo(1);
+        assertThat(mSubscriptionManagerServiceUT.getSlotIndex(/* subId= */ 1)).isEqualTo(
+                SubscriptionManager.SLOT_INDEX_FOR_REMOTE_SIM_SUB);
+
+        // Test with second remote SIM
+        insertSubscription(FAKE_REMOTE_SIM2);
+        // Grant carrier privilege
+        setCarrierPrivilegesForSubId(/* hasCarrierPrivileges= */ true, /* subId= */ 2);
+        subInfo = mSubscriptionManagerServiceUT
+                .getSubscriptionInfo(/* subId= */ 2);
+        assertThat(subInfo).isNotNull();
+        assertThat(subInfo).isEqualTo(FAKE_REMOTE_SIM2.toSubscriptionInfo());
+        // Correctly gives most recently inserted remote SIM
+        assertThat(mSubscriptionManagerServiceUT.getSubId(
+                SubscriptionManager.SLOT_INDEX_FOR_REMOTE_SIM_SUB)).isEqualTo(2);
+        assertThat(mSubscriptionManagerServiceUT.getSlotIndex(/* subId= */ 2)).isEqualTo(
+                SubscriptionManager.SLOT_INDEX_FOR_REMOTE_SIM_SUB);
+
+        // Remove second remote SIM
+        mSubscriptionManagerServiceUT.removeSubInfo(FAKE_MAC_ADDRESS2,
+                SubscriptionManager.SUBSCRIPTION_TYPE_REMOTE_SIM);
+        // Correctly gives most recently inserted remote SIM (the remaining one)
+        assertThat(mSubscriptionManagerServiceUT.getSubId(
+                SubscriptionManager.SLOT_INDEX_FOR_REMOTE_SIM_SUB)).isEqualTo(1);
+        assertThat(mSubscriptionManagerServiceUT.getSlotIndex(/* subId= */ 1)).isEqualTo(
+                SubscriptionManager.SLOT_INDEX_FOR_REMOTE_SIM_SUB);
+        assertThat(mSubscriptionManagerServiceUT.getSlotIndex(/* subId= */ 2)).isEqualTo(
+                SubscriptionManager.INVALID_SIM_SLOT_INDEX);
+
+        // Remove first remote SIM
+        mSubscriptionManagerServiceUT.removeSubInfo(FAKE_MAC_ADDRESS1,
+                SubscriptionManager.SUBSCRIPTION_TYPE_REMOTE_SIM);
+        assertThat(mSubscriptionManagerServiceUT.getSubId(
+                SubscriptionManager.SLOT_INDEX_FOR_REMOTE_SIM_SUB)).isEqualTo(
+                SubscriptionManager.INVALID_SUBSCRIPTION_ID);
+        assertThat(mSubscriptionManagerServiceUT.getSlotIndex(/* subId= */ 1)).isEqualTo(
+                SubscriptionManager.INVALID_SIM_SLOT_INDEX);
+        assertThat(mSubscriptionManagerServiceUT.getSlotIndex(/* subId= */ 2)).isEqualTo(
+                SubscriptionManager.INVALID_SIM_SLOT_INDEX);
+    }
+
+    /**
+     * Verifies that getSubId correctly returns the most recently inserted remote SIM after removing
+     * the first remote SIM.
+     */
+    @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
+    public void testGetSubIdNoSubscriptionWithOverlay_afterRemovingFirstRemoteSim()
+            throws Exception {
+        setTelephonySubscriptionSimulation(/* enableFeature= */ false, /* enableOverlay= */ true);
+
+        doReturn(true).when(mFeatureFlags).remoteSimSubIdSet();
+
+        mContextFixture.addCallingOrSelfPermission(Manifest.permission.MODIFY_PHONE_STATE);
+        mContextFixture.addCallingOrSelfPermission(Manifest.permission.READ_PRIVILEGED_PHONE_STATE);
+
+        insertSubscription(FAKE_REMOTE_SIM1);
+
+        // Grant carrier privilege
+        setCarrierPrivilegesForSubId(/* hasCarrierPrivileges= */ true, /* subId= */ 1);
+        SubscriptionInfo subInfo = mSubscriptionManagerServiceUT
+                .getSubscriptionInfo(/* subId= */ 1);
+        assertThat(subInfo).isNotNull();
+        assertThat(subInfo).isEqualTo(FAKE_REMOTE_SIM1.toSubscriptionInfo());
+        assertThat(mSubscriptionManagerServiceUT.getSubId(
+                SubscriptionManager.SLOT_INDEX_FOR_REMOTE_SIM_SUB)).isEqualTo(1);
+        assertThat(mSubscriptionManagerServiceUT.getSlotIndex(/* subId= */ 1)).isEqualTo(
+                SubscriptionManager.SLOT_INDEX_FOR_REMOTE_SIM_SUB);
+
+        // Test with second remote SIM
+        insertSubscription(FAKE_REMOTE_SIM2);
+        // Grant carrier privilege
+        setCarrierPrivilegesForSubId(/* hasCarrierPrivileges= */ true, /* subId= */ 2);
+        subInfo = mSubscriptionManagerServiceUT
+                .getSubscriptionInfo(/* subId= */ 2);
+        assertThat(subInfo).isNotNull();
+        assertThat(subInfo).isEqualTo(FAKE_REMOTE_SIM2.toSubscriptionInfo());
+        // Correctly gives most recently inserted remote SIM
+        assertThat(mSubscriptionManagerServiceUT.getSubId(
+                SubscriptionManager.SLOT_INDEX_FOR_REMOTE_SIM_SUB)).isEqualTo(2);
+        assertThat(mSubscriptionManagerServiceUT.getSlotIndex(/* subId= */ 2)).isEqualTo(
+                SubscriptionManager.SLOT_INDEX_FOR_REMOTE_SIM_SUB);
+
+        // Remove first remote SIM
+        mSubscriptionManagerServiceUT.removeSubInfo(FAKE_MAC_ADDRESS1,
+                SubscriptionManager.SUBSCRIPTION_TYPE_REMOTE_SIM);
+        // Correctly gives most recently inserted remote SIM (the remaining one)
+        assertThat(mSubscriptionManagerServiceUT.getSubId(
+                SubscriptionManager.SLOT_INDEX_FOR_REMOTE_SIM_SUB)).isEqualTo(2);
+        assertThat(mSubscriptionManagerServiceUT.getSlotIndex(/* subId= */ 1)).isEqualTo(
+                SubscriptionManager.INVALID_SIM_SLOT_INDEX);
+        assertThat(mSubscriptionManagerServiceUT.getSlotIndex(/* subId= */ 2)).isEqualTo(
+                SubscriptionManager.SLOT_INDEX_FOR_REMOTE_SIM_SUB);
+
+        // Remove second remote SIM
+        mSubscriptionManagerServiceUT.removeSubInfo(FAKE_MAC_ADDRESS2,
+                SubscriptionManager.SUBSCRIPTION_TYPE_REMOTE_SIM);
+        assertThat(mSubscriptionManagerServiceUT.getSubId(
+                SubscriptionManager.SLOT_INDEX_FOR_REMOTE_SIM_SUB)).isEqualTo(
+                SubscriptionManager.INVALID_SUBSCRIPTION_ID);
+        assertThat(mSubscriptionManagerServiceUT.getSlotIndex(/* subId= */ 1)).isEqualTo(
+                SubscriptionManager.INVALID_SIM_SLOT_INDEX);
+        assertThat(mSubscriptionManagerServiceUT.getSlotIndex(/* subId= */ 2)).isEqualTo(
+                SubscriptionManager.INVALID_SIM_SLOT_INDEX);
+    }
+
     @Test
     @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testGetActiveSubscriptionInfoListNoSubscriptionWithOverlay_localSimListed()
@@ -4020,7 +4157,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     private void verifyRemoteSimListedGetActiveSubscriptionInfoList() {
         // Grant MODIFY_PHONE_STATE permission for insertion.
         mContextFixture.addCallingOrSelfPermission(Manifest.permission.MODIFY_PHONE_STATE);
-        insertSubscription(FAKE_REMOTE_SIM);
+        insertSubscription(FAKE_REMOTE_SIM1);
         // Remove MODIFY_PHONE_STATE
         mContextFixture.removeCallingOrSelfPermission(Manifest.permission.MODIFY_PHONE_STATE);
 
@@ -4052,7 +4189,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
                 .getActiveSubscriptionInfoList(CALLING_PACKAGE,
                         CALLING_FEATURE, /* isForAllProfiles= */ true);
         assertThat(subInfos).hasSize(1);
-        assertThat(subInfos.get(0)).isEqualTo(FAKE_REMOTE_SIM.toSubscriptionInfo());
+        assertThat(subInfos.get(0)).isEqualTo(FAKE_REMOTE_SIM1.toSubscriptionInfo());
     }
 
     @Test
@@ -4090,7 +4227,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
 
         // Grant MODIFY_PHONE_STATE permission for insertion.
         mContextFixture.addCallingOrSelfPermission(Manifest.permission.MODIFY_PHONE_STATE);
-        insertSubscription(FAKE_REMOTE_SIM);
+        insertSubscription(FAKE_REMOTE_SIM1);
         // Remove MODIFY_PHONE_STATE
         mContextFixture.removeCallingOrSelfPermission(Manifest.permission.MODIFY_PHONE_STATE);
 
@@ -4144,7 +4281,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
      * using {@link #setTelephonySubscriptionSimulation}.
      */
     private void verifyRemoteSimReturnedGetActiveSubscriptionInfoForIccId() {
-        insertSubscription(FAKE_REMOTE_SIM);
+        insertSubscription(FAKE_REMOTE_SIM1);
 
         // Should fail without READ_PRIVILEGED_PHONE_STATE
         assertThrows(SecurityException.class, () -> mSubscriptionManagerServiceUT
@@ -4154,7 +4291,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
         mContextFixture.addCallingOrSelfPermission(Manifest.permission.READ_PRIVILEGED_PHONE_STATE);
         SubscriptionInfo subInfo = mSubscriptionManagerServiceUT.getActiveSubscriptionInfoForIccId(
                 FAKE_MAC_ADDRESS1, CALLING_PACKAGE, CALLING_FEATURE);
-        assertThat(subInfo).isEqualTo(FAKE_REMOTE_SIM.toSubscriptionInfo());
+        assertThat(subInfo).isEqualTo(FAKE_REMOTE_SIM1.toSubscriptionInfo());
     }
 
     @Test
@@ -4190,7 +4327,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
             throws Exception {
         setTelephonySubscriptionSimulation(/* enableFeature= */ false, /* enableOverlay= */ false);
 
-        insertSubscription(FAKE_REMOTE_SIM);
+        insertSubscription(FAKE_REMOTE_SIM1);
 
         // Should fail without READ_PRIVILEGED_PHONE_STATE
         assertThrows(SecurityException.class, () -> mSubscriptionManagerServiceUT
@@ -4232,7 +4369,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
      * using {@link #setTelephonySubscriptionSimulation}.
      */
     private void verifyRemoteSimRemovedRemoveSubInfo() {
-        insertSubscription(FAKE_REMOTE_SIM);
+        insertSubscription(FAKE_REMOTE_SIM1);
 
         assertThrows(SecurityException.class, () -> mSubscriptionManagerServiceUT
                 .removeSubInfo(FAKE_MAC_ADDRESS1,
@@ -4278,7 +4415,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     public void testRemoveSubInfoNoSubscriptionNoOverlay_throwsException() throws Exception {
         setTelephonySubscriptionSimulation(/* enableFeature= */ false, /* enableOverlay= */ false);
 
-        insertSubscription(FAKE_REMOTE_SIM);
+        insertSubscription(FAKE_REMOTE_SIM1);
 
         assertThrows(SecurityException.class, () -> mSubscriptionManagerServiceUT
                 .removeSubInfo(FAKE_MAC_ADDRESS1,
