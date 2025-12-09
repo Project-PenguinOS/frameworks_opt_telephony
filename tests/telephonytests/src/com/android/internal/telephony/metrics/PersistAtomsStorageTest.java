@@ -1463,6 +1463,7 @@ public class PersistAtomsStorageTest extends TelephonyTest {
         mCarrierRoamingSatelliteControllerStats1.isMultiSim = false;
         mCarrierRoamingSatelliteControllerStats1.countOfSatelliteSessions = 1;
         mCarrierRoamingSatelliteControllerStats1.isNbIotNtn = false;
+        mCarrierRoamingSatelliteControllerStats1.totalSessionDurationSec = 70;
 
         mCarrierRoamingSatelliteControllerStats2 = new CarrierRoamingSatelliteControllerStats();
         mCarrierRoamingSatelliteControllerStats2.configDataSource =
@@ -1481,6 +1482,7 @@ public class PersistAtomsStorageTest extends TelephonyTest {
         mCarrierRoamingSatelliteControllerStats2.isMultiSim = true;
         mCarrierRoamingSatelliteControllerStats2.countOfSatelliteSessions = 2;
         mCarrierRoamingSatelliteControllerStats2.isNbIotNtn = true;
+        mCarrierRoamingSatelliteControllerStats2.totalSessionDurationSec = 99;
 
         // CarrierRoamingSatelliteController has one data point
         mCarrierRoamingSatelliteControllerStats = new CarrierRoamingSatelliteControllerStats[] {
@@ -5290,6 +5292,8 @@ public class PersistAtomsStorageTest extends TelephonyTest {
                 mCarrierRoamingSatelliteControllerStats1.countOfSessionConnectionModeAutomatic * 2;
         expected.countOfSessionConnectionModeManual =
                 mCarrierRoamingSatelliteControllerStats1.countOfSessionConnectionModeManual * 2;
+        expected.totalSessionDurationSec =
+                mCarrierRoamingSatelliteControllerStats1.totalSessionDurationSec * 2;
         verifyCurrentStateSavedToFileOnce();
         CarrierRoamingSatelliteControllerStats[] output =
                 mPersistAtomsStorage.getCarrierRoamingSatelliteControllerStats(0L);
@@ -6799,6 +6803,7 @@ public class PersistAtomsStorageTest extends TelephonyTest {
                 assertEquals(expectedStats.countOfSessionConnectionModeAutomatic,
                         stats.countOfSessionConnectionModeAutomatic);
                 assertEquals(expectedStats.isNbIotNtn, stats.isNbIotNtn);
+                assertEquals(expectedStats.totalSessionDurationSec, stats.totalSessionDurationSec);
                 count++;
             }
         }

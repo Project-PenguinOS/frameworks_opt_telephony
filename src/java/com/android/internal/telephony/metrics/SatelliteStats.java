@@ -68,7 +68,7 @@ public class SatelliteStats {
      * A data class to contain whole component of {@link SatelliteController) atom.
      * Refer to {@link #onSatelliteControllerMetrics(SatelliteControllerParams)}.
      */
-    public class SatelliteControllerParams {
+    public static class SatelliteControllerParams {
         private final int mCountOfSatelliteServiceEnablementsSuccess;
         private final int mCountOfSatelliteServiceEnablementsFail;
         private final int mCountOfOutgoingDatagramSuccess;
@@ -915,8 +915,7 @@ public class SatelliteStats {
              * {@link SatelliteController} atom
              */
             public SatelliteControllerParams build() {
-                return new SatelliteStats()
-                        .new SatelliteControllerParams(this);
+                return new SatelliteControllerParams(this);
             }
         }
 
@@ -993,7 +992,7 @@ public class SatelliteStats {
      * A data class to contain whole component of {@link SatelliteSession) atom.
      * Refer to {@link #onSatelliteSessionMetrics(SatelliteSessionParams)}.
      */
-    public class SatelliteSessionParams {
+    public static class SatelliteSessionParams {
         private final int mSatelliteServiceInitializationResult;
         private final int mSatelliteTechnology;
         private final int mTerminationResult;
@@ -1333,8 +1332,7 @@ public class SatelliteStats {
              * {@link SatelliteSession} atom
              */
             public SatelliteSessionParams build() {
-                return new SatelliteStats()
-                        .new SatelliteSessionParams(this);
+                return new SatelliteSessionParams(this);
             }
         }
 
@@ -1372,7 +1370,7 @@ public class SatelliteStats {
      * A data class to contain whole component of {@link SatelliteIncomingDatagram} atom.
      * Refer to {@link #onSatelliteIncomingDatagramMetrics(SatelliteIncomingDatagramParams)}.
      */
-    public class SatelliteIncomingDatagramParams {
+    public static class SatelliteIncomingDatagramParams {
         private final int mResultCode;
         private final int mDatagramSizeBytes;
         private final long mDatagramTransferTimeMillis;
@@ -1530,8 +1528,7 @@ public class SatelliteStats {
              * {@link SatelliteIncomingDatagram} atom
              */
             public SatelliteIncomingDatagramParams build() {
-                return new SatelliteStats()
-                        .new SatelliteIncomingDatagramParams(Builder.this);
+                return new SatelliteIncomingDatagramParams(Builder.this);
             }
         }
 
@@ -1555,7 +1552,7 @@ public class SatelliteStats {
      * A data class to contain whole component of {@link SatelliteOutgoingDatagram} atom.
      * Refer to {@link #onSatelliteOutgoingDatagramMetrics(SatelliteOutgoingDatagramParams)}.
      */
-    public class SatelliteOutgoingDatagramParams {
+    public static class SatelliteOutgoingDatagramParams {
         private final int mDatagramType;
         private final int mResultCode;
         private final int mDatagramSizeBytes;
@@ -1730,8 +1727,7 @@ public class SatelliteStats {
              * {@link SatelliteOutgoingDatagram} atom
              */
             public SatelliteOutgoingDatagramParams build() {
-                return new SatelliteStats()
-                        .new SatelliteOutgoingDatagramParams(Builder.this);
+                return new SatelliteOutgoingDatagramParams(Builder.this);
             }
         }
 
@@ -1756,7 +1752,7 @@ public class SatelliteStats {
      * A data class to contain whole component of {@link SatelliteProvision} atom.
      * Refer to {@link #onSatelliteProvisionMetrics(SatelliteProvisionParams)}.
      */
-    public class SatelliteProvisionParams {
+    public static class SatelliteProvisionParams {
         private final int mResultCode;
         private final int mProvisioningTimeSec;
         private final boolean mIsProvisionRequest;
@@ -1882,8 +1878,7 @@ public class SatelliteStats {
              * {@link SatelliteProvision} atom
              */
             public SatelliteProvisionParams build() {
-                return new SatelliteStats()
-                        .new SatelliteProvisionParams(Builder.this);
+                return new SatelliteProvisionParams(Builder.this);
             }
         }
 
@@ -1905,7 +1900,7 @@ public class SatelliteStats {
      * A data class to contain whole component of {@link SatelliteSosMessageRecommender} atom.
      * Refer to {@link #onSatelliteSosMessageRecommender(SatelliteSosMessageRecommenderParams)}.
      */
-    public class SatelliteSosMessageRecommenderParams {
+    public static class SatelliteSosMessageRecommenderParams {
         private final boolean mIsDisplaySosMessageSent;
         private final int mCountOfTimerStarted;
         private final boolean mIsImsRegistered;
@@ -2133,8 +2128,7 @@ public class SatelliteStats {
              * {@link SatelliteSosMessageRecommenderParams} atom
              */
             public SatelliteSosMessageRecommenderParams build() {
-                return new SatelliteStats()
-                        .new SatelliteSosMessageRecommenderParams(Builder.this);
+                return new SatelliteSosMessageRecommenderParams(Builder.this);
             }
         }
 
@@ -2164,7 +2158,7 @@ public class SatelliteStats {
      * Refer to {@link #onCarrierRoamingSatelliteSessionMetrics(
      * CarrierRoamingSatelliteSessionParams)}.
      */
-    public class CarrierRoamingSatelliteSessionParams {
+    public static class CarrierRoamingSatelliteSessionParams {
         private final int mCarrierId;
         private final boolean mIsNtnRoamingInHomeCountry;
         private final int mTotalSatelliteModeTimeSec;
@@ -2650,8 +2644,7 @@ public class SatelliteStats {
              * {@link CarrierRoamingSatelliteSession} atom
              */
             public CarrierRoamingSatelliteSessionParams build() {
-                return new SatelliteStats()
-                        .new CarrierRoamingSatelliteSessionParams(Builder.this);
+                return new CarrierRoamingSatelliteSessionParams(Builder.this);
             }
 
             /**
@@ -2891,7 +2884,7 @@ public class SatelliteStats {
      * atom. Refer to {@link #onCarrierRoamingSatelliteControllerStatsMetrics(
      * CarrierRoamingSatelliteControllerStatsParams)}.
      */
-    public class CarrierRoamingSatelliteControllerStatsParams {
+    public static class CarrierRoamingSatelliteControllerStatsParams {
         private final int mConfigDataSource;
         private final int mCountOfEntitlementStatusQueryRequest;
         private final int mCountOfSatelliteConfigUpdateRequest;
@@ -2908,6 +2901,7 @@ public class SatelliteStats {
         private final int mCountOfSessionConnectionModeAutomatic;
         private final int mCountOfSessionConnectionModeManual;
         private final int mServiceDataPolicy;
+        private final int mSessionDurationSec;
 
         private CarrierRoamingSatelliteControllerStatsParams(Builder builder) {
             this.mConfigDataSource = builder.mConfigDataSource;
@@ -2961,6 +2955,7 @@ public class SatelliteStats {
             }
 
             this.mServiceDataPolicy = builder.mServiceDataPolicy;
+            this.mSessionDurationSec = builder.mSessionDurationSec;
 
         }
 
@@ -3028,6 +3023,10 @@ public class SatelliteStats {
             return mServiceDataPolicy;
         }
 
+        public int getSessionDurationSec() {
+            return mSessionDurationSec;
+        }
+
         /**
          * A builder class to create {@link CarrierRoamingSatelliteControllerStatsParams}
          * data structure class
@@ -3050,6 +3049,7 @@ public class SatelliteStats {
             private int mCountOfSessionConnectionModeManual = 0;
             private int mServiceDataPolicy =
                     SatelliteConstants.SATELLITE_ENTITLEMENT_SERVICE_POLICY_UNKNOWN;
+            private int mSessionDurationSec = 0;
             /**
              * Sets configDataSource value of {@link CarrierRoamingSatelliteControllerStats} atom
              * then returns Builder class
@@ -3179,6 +3179,12 @@ public class SatelliteStats {
                 return this;
             }
 
+            /** Sets the session duration in seconds when each session ends. */
+            public Builder setSessionDurationSec(int sessionDurationSec) {
+                this.mSessionDurationSec = sessionDurationSec;
+                return this;
+            }
+
             /**
              * Sets serviceDataPolicy value of {@link CarrierRoamingSatelliteControllerStats} atom
              * then returns Builder class
@@ -3193,8 +3199,7 @@ public class SatelliteStats {
              * of {@link CarrierRoamingSatelliteControllerStats} atom
              */
             public CarrierRoamingSatelliteControllerStatsParams build() {
-                return new SatelliteStats()
-                        .new CarrierRoamingSatelliteControllerStatsParams(Builder.this);
+                return new CarrierRoamingSatelliteControllerStatsParams(Builder.this);
             }
         }
 
@@ -3224,7 +3229,8 @@ public class SatelliteStats {
                     .getCountOfSessionConnectionModeAutomatic()
                     && mCountOfSessionConnectionModeManual == that
                     .getCountOfSessionConnectionModeManual()
-                    && mServiceDataPolicy == that.getServiceDataPolicy();
+                    && mServiceDataPolicy == that.getServiceDataPolicy()
+                    && mSessionDurationSec == that.getSessionDurationSec();
         }
 
         @Override
@@ -3234,7 +3240,8 @@ public class SatelliteStats {
                     sSatelliteSessionGapMinSec, sSatelliteSessionGapAvgSec,
                     sSatelliteSessionGapMaxSec, sCarrierId, sIsDeviceEntitled, sIsMultiSim,
                     mCountOfSatelliteSessions, sIsNbIotNtn, sSupportedConnectionMode,
-                    mCountOfSessionConnectionModeAutomatic, mCountOfSessionConnectionModeManual);
+                    mCountOfSessionConnectionModeAutomatic, mCountOfSessionConnectionModeManual,
+                    mSessionDurationSec);
         }
 
         @Override
@@ -3261,6 +3268,7 @@ public class SatelliteStats {
                     + ", countOfSessionConnectionModeManual="
                     + mCountOfSessionConnectionModeManual
                     + ", serviceDataPolicy=" + mServiceDataPolicy
+                    + ", totalSessionDurationSec" + mSessionDurationSec
                     + ")";
         }
     }
@@ -3269,7 +3277,7 @@ public class SatelliteStats {
      * A data class to contain whole component of {@link SatelliteEntitlement} atom.
      * Refer to {@link #onSatelliteEntitlementMetrics(SatelliteEntitlementParams)}.
      */
-    public class SatelliteEntitlementParams {
+    public static class SatelliteEntitlementParams {
         private final int mCarrierId;
         private final int mResult;
         private final int mEntitlementStatus;
@@ -3447,8 +3455,7 @@ public class SatelliteStats {
              * {@link SatelliteEntitlement} atom
              */
             public SatelliteEntitlementParams build() {
-                return new SatelliteStats()
-                        .new SatelliteEntitlementParams(Builder.this);
+                return new SatelliteEntitlementParams(Builder.this);
             }
         }
 
@@ -3473,7 +3480,7 @@ public class SatelliteStats {
      * A data class to contain whole component of {@link SatelliteConfigUpdater} atom.
      * Refer to {@link #onSatelliteConfigUpdaterMetrics(SatelliteConfigUpdaterParams)}.
      */
-    public class SatelliteConfigUpdaterParams {
+    public static class SatelliteConfigUpdaterParams {
         private final int mConfigVersion;
         private final int mOemConfigResult;
         private final int mCarrierConfigResult;
@@ -3552,8 +3559,7 @@ public class SatelliteStats {
              * {@link SatelliteConfigUpdater} atom
              */
             public SatelliteConfigUpdaterParams build() {
-                return new SatelliteStats()
-                        .new SatelliteConfigUpdaterParams(Builder.this);
+                return new SatelliteConfigUpdaterParams(Builder.this);
             }
         }
 
@@ -3571,7 +3577,7 @@ public class SatelliteStats {
      * A data class to contain whole component of {@link SatelliteAccessControllerParams} atom.
      * Refer to {@link #onSatelliteAccessControllerMetrics(SatelliteAccessControllerParams)}.
      */
-    public class SatelliteAccessControllerParams {
+    public static class SatelliteAccessControllerParams {
         private final @SatelliteConstants.AccessControlType int mAccessControlType;
         private final long mLocationQueryTimeMillis;
         private final long mOnDeviceLookupTimeMillis;
@@ -3787,8 +3793,7 @@ public class SatelliteStats {
              * {@link SatelliteAccessController} atom
              */
             public SatelliteAccessControllerParams build() {
-                return new SatelliteStats()
-                        .new SatelliteAccessControllerParams(this);
+                return new SatelliteAccessControllerParams(this);
             }
         }
 
@@ -4030,7 +4035,7 @@ public class SatelliteStats {
     }
 
     /**  Create a new atom for CarrierRoamingSatelliteSession metrics */
-    public synchronized  void onCarrierRoamingSatelliteControllerStatsMetrics(
+    public synchronized void onCarrierRoamingSatelliteControllerStatsMetrics(
             CarrierRoamingSatelliteControllerStatsParams param) {
         CarrierRoamingSatelliteControllerStats proto = new CarrierRoamingSatelliteControllerStats();
         proto.configDataSource = param.mConfigDataSource;
@@ -4049,7 +4054,8 @@ public class SatelliteStats {
         proto.countOfSessionConnectionModeAutomatic =
                 param.getCountOfSessionConnectionModeAutomatic();
         proto.countOfSessionConnectionModeManual = param.getCountOfSessionConnectionModeManual();
-        proto.serviceDataPolicy = param.mServiceDataPolicy;
+        proto.serviceDataPolicy = param.getServiceDataPolicy();
+        proto.totalSessionDurationSec = param.getSessionDurationSec();
         if (DBG) logd("onCarrierRoamingSatelliteControllerStatsMetrics: " + param);
         mAtomsStorage.addCarrierRoamingSatelliteControllerStats(proto);
     }
