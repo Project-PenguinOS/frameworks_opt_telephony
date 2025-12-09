@@ -783,6 +783,11 @@ message SatelliteSession {
     optional int32 supported_connection_mode = 21;
     optional int32 session_connection_mode = 22;
     optional string plmn = 23;
+    optional int32 screen_on_time_sec = 24;
+    optional int32 battery_level_drop_percent = 25;
+    optional bool was_charging_during_session = 26;
+    optional int32 battery_design_capacity_mah = 27;
+    optional int64 energy_consumed_nwh = 28;
 }
 
 message SatelliteIncomingDatagram {
@@ -888,6 +893,11 @@ message CarrierRoamingSatelliteSession {
     optional bool is_wifi_enabled = 38;
     optional bool is_wfc_enabled = 39;
     optional bool is_wfc_registered = 40;
+    optional int32 screen_on_time_sec = 41;
+    optional int32 battery_level_drop_percent = 42;
+    optional bool was_charging_during_session = 43;
+    optional int32 battery_design_capacity_mah = 44;
+    optional int64 energy_consumed_nwh = 45;
 }
 
 message CarrierRoamingSatelliteControllerStats {

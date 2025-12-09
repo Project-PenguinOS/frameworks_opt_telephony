@@ -1590,7 +1590,12 @@ public class MetricsCollector implements StatsManager.StatsPullAtomCallback {
                 satelliteSession.maxInactivityDurationSec,
                 satelliteSession.supportedConnectionMode,
                 satelliteSession.sessionConnectionMode,
-                satelliteSession.plmn);
+                satelliteSession.plmn,
+                satelliteSession.screenOnTimeSec,
+                satelliteSession.batteryLevelDropPercent,
+                satelliteSession.wasChargingDuringSession,
+                satelliteSession.batteryDesignCapacityMah,
+                satelliteSession.energyConsumedNwh);
     }
 
     private static StatsEvent buildStatsEvent(SatelliteIncomingDatagram stats) {
@@ -1707,7 +1712,12 @@ public class MetricsCollector implements StatsManager.StatsPullAtomCallback {
                 stats.plmn,
                 stats.isWifiEnabled,
                 stats.isWfcEnabled,
-                stats.isWfcRegistered);
+                stats.isWfcRegistered,
+                stats.screenOnTimeSec,
+                stats.batteryLevelDropPercent,
+                stats.wasChargingDuringSession,
+                stats.batteryDesignCapacityMah,
+                stats.energyConsumedNwh);
     }
 
     private static StatsEvent buildStatsEvent(CarrierRoamingSatelliteControllerStats stats) {
