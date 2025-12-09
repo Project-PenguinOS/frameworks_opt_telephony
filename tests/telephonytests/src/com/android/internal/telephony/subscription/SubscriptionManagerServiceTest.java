@@ -3025,7 +3025,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
         assertThat(subInfo.getIccId()).isEqualTo(FAKE_MAC_ADDRESS1);
         assertThat(subInfo.getDisplayName()).isEqualTo(FAKE_CARRIER_NAME1);
         assertThat(subInfo.getSimSlotIndex()).isEqualTo(
-                SubscriptionManager.INVALID_SIM_SLOT_INDEX);
+                SubscriptionManager.SLOT_INDEX_FOR_REMOTE_SIM_SUB);
         assertThat(subInfo.getSubscriptionType()).isEqualTo(
                 SubscriptionManager.SUBSCRIPTION_TYPE_REMOTE_SIM);
 
