@@ -3457,14 +3457,35 @@ public class SubscriptionManagerService extends ISub.Stub {
             subId = getDefaultDataSubId();
         }
 
-        // If the subId is not active, use the fist active subscription's subId.
-        if (!mSlotIndexToSubId.containsValue(subId)) {
-            int[] activeSubIds = getActiveSubIdList(true);
-            if (activeSubIds.length > 0) {
-                subId = activeSubIds[0];
-                log("updateDefaultSubId: First available active sub = " + subId);
-            } else {
-                subId = SubscriptionManager.INVALID_SUBSCRIPTION_ID;
+        if (mFeatureFlags.remoteSimSubIdSet()) {
+            // Check whether the subId is active
+            if (!mSlotIndexToSubId.containsValue(subId) && !mRemoteSubIds.contains(subId)) {
+                int[] activeLocalSubIds = getActiveLocalSubIdList();
+                int[] activeRemoteSubIds = getActiveRemoteSubIdList();
+                if (activeLocalSubIds.length > 0) {
+                    // If the subId is not active, use the first active local subscription's subId.
+                    subId = activeLocalSubIds[0];
+                    log("updateDefaultSubId: First available active sub = " + subId
+                            + ", type = local");
+                } else if (activeRemoteSubIds.length > 0) {
+                    // Otherwise, use the first active remote subscription's subId.
+                    subId = activeRemoteSubIds[0];
+                    log("updateDefaultSubId: First available active sub = " + subId
+                            + ", type = remote");
+                } else {
+                    subId = SubscriptionManager.INVALID_SUBSCRIPTION_ID;
+                }
+            }
+        } else {
+            // If the subId is not active, use the first active subscription's subId.
+            if (!mSlotIndexToSubId.containsValue(subId)) {
+                int[] activeSubIds = getActiveSubIdList(true);
+                if (activeSubIds.length > 0) {
+                    subId = activeSubIds[0];
+                    log("updateDefaultSubId: First available active sub = " + subId);
+                } else {
+                    subId = SubscriptionManager.INVALID_SUBSCRIPTION_ID;
+                }
             }
         }
 
@@ -3744,7 +3765,7 @@ public class SubscriptionManagerService extends ISub.Stub {
      *
      * @param visibleOnly {@code true} if only includes user visible subscription's sub id.
      *
-     * @return List of the active subscription ids.
+     * @return Array of the active subscription ids.
      *
      * @throws SecurityException if callers do not hold the required permission.
      */
@@ -3763,12 +3784,62 @@ public class SubscriptionManagerService extends ISub.Stub {
     }
 
     /**
+     * Get the active local subscription id list.
+     *
+     * @return Array of the active local subscription ids.
+     */
+    @NonNull private int[] getActiveLocalSubIdList() {
+        if (!mFeatureFlags.remoteSimSubIdSet()) {
+            // This method was added with and is only used with mFeatureFlags.remoteSimSubIdSet()
+            return new int[]{};
+        }
+        return filterSubIdStreamVisibilityAsUser(
+                mSlotIndexToSubId.values().stream(),
+                true,
+                UserHandle.ALL);
+    }
+
+    /**
+     * Get the active remote subscription id list.
+     *
+     * @return Array of the active remote subscription ids.
+     */
+    @NonNull private int[] getActiveRemoteSubIdList() {
+        if (!mFeatureFlags.remoteSimSubIdSet()) {
+            // This method was added with and is only used with mFeatureFlags.remoteSimSubIdSet()
+            return new int[]{};
+        }
+        return filterSubIdStreamVisibilityAsUser(
+                mRemoteSubIds.stream(),
+                true,
+                UserHandle.ALL);
+    }
+
+    /**
+     * Filter a subscription id stream for visibility as user.
+     *
+     * @param subIdStream Stream of subscription ids.
+     * @param visibleOnly {@code true} if only includes user visible subscription's sub id.
+     * @param user The user handle used to judge which subscriptions are accessible.
+     * @return Array of the filtered subscription ids.
+     */
+    @NonNull private int[] filterSubIdStreamVisibilityAsUser(
+            Stream<Integer> subIdStream, boolean visibleOnly, @NonNull final UserHandle user) {
+        return subIdStream.filter(subId -> {
+            SubscriptionInfoInternal subInfo = mSubscriptionDatabaseManager
+                            .getSubscriptionInfoInternal(subId);
+            return subInfo != null && (!visibleOnly || subInfo.isVisible())
+                            && isSubscriptionAssociatedWithUserInternal(
+                            subInfo, user.getIdentifier());
+        }).mapToInt(x -> x).toArray();
+    }
+
+    /**
      * Get the active subscription id list as user.
      * Must be used before clear Binder identity.
      *
      * @param visibleOnly {@code true} if only includes user visible subscription's sub id.
-     * @param user If {@code null}, uses the calling user handle to judge which subscriptions are
-     *             accessible to the caller.
+     * @param user The user handle used to judge which subscriptions are accessible.
      * @return Array of the active subscription ids.
      */
     @NonNull private int[] getActiveSubIdListAsUser(
@@ -3783,15 +3854,7 @@ public class SubscriptionManagerService extends ISub.Stub {
             // due to a bug that was fixed with mFeatureFlags.remoteSimSubIdSet()
             activeSubIdStream = mSlotIndexToSubId.values().stream();
         }
-        return activeSubIdStream.filter(subId -> {
-                    SubscriptionInfoInternal subInfo = mSubscriptionDatabaseManager
-                            .getSubscriptionInfoInternal(subId);
-                    return subInfo != null && (!visibleOnly || subInfo.isVisible())
-                            && isSubscriptionAssociatedWithUserInternal(
-                            subInfo, user.getIdentifier());
-                })
-                .mapToInt(x -> x)
-                .toArray();
+        return filterSubIdStreamVisibilityAsUser(activeSubIdStream, visibleOnly, user);
     }
 
     /**
