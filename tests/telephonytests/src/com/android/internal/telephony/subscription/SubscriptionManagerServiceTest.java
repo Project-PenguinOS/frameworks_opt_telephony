@@ -3762,8 +3762,8 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
                 SubscriptionManager.SLOT_INDEX_FOR_REMOTE_SIM_SUB,
                 SubscriptionManager.SUBSCRIPTION_TYPE_REMOTE_SIM);
         assertThat(mSubscriptionManagerServiceUT.getSubId(
-                SubscriptionManager.SLOT_INDEX_FOR_REMOTE_SIM_SUB)).isEqualTo(1);
-        assertThat(mSubscriptionManagerServiceUT.getSlotIndex(/* subId= */ 1)).isEqualTo(
+                SubscriptionManager.SLOT_INDEX_FOR_REMOTE_SIM_SUB)).isEqualTo(2);
+        assertThat(mSubscriptionManagerServiceUT.getSlotIndex(/* subId= */ 2)).isEqualTo(
                 SubscriptionManager.SLOT_INDEX_FOR_REMOTE_SIM_SUB);
         assertThat(mSubscriptionManagerServiceUT.getActiveSubIdList(/* visibleOnly= */
                 false)).isNotEmpty();
@@ -3814,8 +3814,8 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
                 SubscriptionManager.SLOT_INDEX_FOR_REMOTE_SIM_SUB,
                 SubscriptionManager.SUBSCRIPTION_TYPE_REMOTE_SIM);
         assertThat(mSubscriptionManagerServiceUT.getSubId(
-                SubscriptionManager.SLOT_INDEX_FOR_REMOTE_SIM_SUB)).isEqualTo(1);
-        assertThat(mSubscriptionManagerServiceUT.getSlotIndex(/* subId= */ 1)).isEqualTo(
+                SubscriptionManager.SLOT_INDEX_FOR_REMOTE_SIM_SUB)).isEqualTo(2);
+        assertThat(mSubscriptionManagerServiceUT.getSlotIndex(/* subId= */ 2)).isEqualTo(
                 SubscriptionManager.SLOT_INDEX_FOR_REMOTE_SIM_SUB);
         assertThat(mSubscriptionManagerServiceUT.getActiveSubIdList(/* visibleOnly= */
                 false)).isNotEmpty();
@@ -3867,8 +3867,8 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
                 SubscriptionManager.SLOT_INDEX_FOR_REMOTE_SIM_SUB,
                 SubscriptionManager.SUBSCRIPTION_TYPE_REMOTE_SIM);
         assertThat(mSubscriptionManagerServiceUT.getSubId(
-                SubscriptionManager.SLOT_INDEX_FOR_REMOTE_SIM_SUB)).isEqualTo(1);
-        assertThat(mSubscriptionManagerServiceUT.getSlotIndex(/* subId= */ 1)).isEqualTo(
+                SubscriptionManager.SLOT_INDEX_FOR_REMOTE_SIM_SUB)).isEqualTo(2);
+        assertThat(mSubscriptionManagerServiceUT.getSlotIndex(/* subId= */ 2)).isEqualTo(
                 SubscriptionManager.SLOT_INDEX_FOR_REMOTE_SIM_SUB);
         assertThat(mSubscriptionManagerServiceUT.getActiveSubIdList(/* visibleOnly= */
                 false)).isNotEmpty();
