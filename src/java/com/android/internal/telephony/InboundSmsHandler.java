@@ -1434,7 +1434,6 @@ public abstract class InboundSmsHandler extends StateMachine {
      * @param user user to deliver the intent to
      */
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
-    @SuppressLint("MissingPermission")
     public void dispatchIntent(Intent intent, String permission, String appOp,
             Bundle opts, SmsBroadcastReceiver resultReceiver, UserHandle user, int subId) {
         intent.addFlags(Intent.FLAG_RECEIVER_NO_ABORT);
@@ -1459,6 +1458,20 @@ public abstract class InboundSmsHandler extends StateMachine {
             SubscriptionManager.putSubscriptionIdExtra(intent, subId);
         }
 
+        Collection<TextLinks.TextLink> textLinks;
+        if (shouldCheckForOtp(intent)) {
+            textLinks = getOtpLinksAndLogMetrics(intent);
+        } else {
+            textLinks = null;
+        }
+
+        dispatchSmsToUsers(intent, permission, appOp, opts, resultReceiver, user, textLinks);
+    }
+
+    @SuppressLint("MissingPermission")
+    private void dispatchSmsToUsers(Intent intent, String permission, String appOp,
+            Bundle opts, SmsBroadcastReceiver resultReceiver, UserHandle user,
+            @Nullable Collection<TextLinks.TextLink> textLinks) {
         if (user.equals(UserHandle.ALL)) {
             // Get a list of currently started users.
             int[] users = null;
@@ -1503,10 +1516,10 @@ public abstract class InboundSmsHandler extends StateMachine {
                 }
                 // Only pass in the resultReceiver when the MAIN user is processed.
                 sendBroadcast(intent, permission, appOp, opts,
-                        isMainUser(users[i]) ? resultReceiver : null, targetUser);
+                        isMainUser(users[i]) ? resultReceiver : null, targetUser, textLinks);
             }
         } else {
-            sendBroadcast(intent, permission, appOp, opts, resultReceiver, user);
+            sendBroadcast(intent, permission, appOp, opts, resultReceiver, user, textLinks);
         }
     }
 
@@ -1530,14 +1543,15 @@ public abstract class InboundSmsHandler extends StateMachine {
     }
 
     private void sendBroadcast(Intent intent, String permission, String appOp,
-            Bundle opts, SmsBroadcastReceiver resultReceiver, UserHandle user) {
+            Bundle opts, SmsBroadcastReceiver resultReceiver, UserHandle user,
+            @Nullable Collection<TextLinks.TextLink> textLinks) {
         if (resultReceiver != null) {
             // Set the intent that the result receiver is waiting for, so that it can be handled
             // correctly when the broadcast is received. This is needed to wait for the main user
             // broadcast to complete before continuing with the next message.
             resultReceiver.setWaitingForIntent(intent);
         }
-        if (!shouldCheckForOtp(intent)) {
+        if (textLinks == null) {
             try {
                 mContext.createPackageContextAsUser(mContext.getPackageName(), 0, user)
                         .sendOrderedBroadcast(intent, Activity.RESULT_OK, permission, appOp,
@@ -1551,52 +1565,55 @@ public abstract class InboundSmsHandler extends StateMachine {
             evaluationEvent.redactionTimeMs = -1;
             mAtomsStorage.addOtpEvaluationEvent(evaluationEvent);
         } else {
-            checkOtpAndSendBroadcast(intent, permission, appOp, opts, resultReceiver, user);
-        }
-    }
-
-    private void checkOtpAndSendBroadcast(Intent intent, String permission, String appOp,
-            Bundle opts, SmsBroadcastReceiver resultReceiver, UserHandle user) {
-        final long start = SystemClock.elapsedRealtime();
-        mBackgroundExecutor.execute(() -> {
-            AtomicBoolean sentBroadcast = new AtomicBoolean(false);
-            mMainThreadHandler.postDelayed(() -> {
-                if (!sentBroadcast.getAndSet(true)) {
-                    // If we've waited the maximum time, and still haven't classified, send the
-                    // broadcast.
-                    sendBroadcastWithStandardPermissions(intent, permission, appOp, opts,
-                            resultReceiver, user);
-                }
-            }, MAXIMUM_BROADCAST_DELAY_TIME_MS);
-            Collection<TextLinks.TextLink> textLinks = generateOtpTextLinks(intent);
-            boolean containsOtp = containsOtp(textLinks);
-            int classificationTime = (int)
-                    (Math.min(SystemClock.elapsedRealtime() - start, Integer.MAX_VALUE));
-            if (sentBroadcast.getAndSet(true)) {
-                // Broadcast was already sent, don't re-send
-                return;
-            }
-            int result;
-            if (containsOtp) {
+            if (containsOtp(textLinks)) {
                 String smsRetrieverHashMatchedPackageName = getSmsRetrieverTargetPackageName(
                         textLinks);
                 sendBroadcastToTrustedPackages(intent, permission, appOp, opts,
                         resultReceiver, user, smsRetrieverHashMatchedPackageName);
-                result = SMS_OTP_EVALUATION__RESULT__EVALUATION_RESULT_HAS_OTP;
             } else {
                 sendBroadcastWithStandardPermissions(intent, permission, appOp, opts,
                         resultReceiver, user);
-                result = SMS_OTP_EVALUATION__RESULT__EVALUATION_RESULT_NO_OTP;
             }
+        }
+    }
+
+    private Collection<TextLinks.TextLink> getOtpLinksAndLogMetrics(Intent intent) {
+        Collection<TextLinks.TextLink> textLinks;
+        int classificationTime = -1;
+        try {
+            final long start = SystemClock.elapsedRealtime();
+            textLinks =
+                    java.util.concurrent.CompletableFuture.supplyAsync(
+                            () -> generateOtpTextLinks(intent), mBackgroundExecutor)
+                    .get(MAXIMUM_BROADCAST_DELAY_TIME_MS,
+                            java.util.concurrent.TimeUnit.MILLISECONDS);
+            classificationTime = (int)
+                    (Math.min(SystemClock.elapsedRealtime() - start, Integer.MAX_VALUE));
+        } catch (Exception e) {
+            Rlog.e(getName(), "Unable to get OTP links", e);
+            textLinks = Collections.emptyList();
+        }
+
+        // Only log atom if classification was performed successfully.
+        if (classificationTime != -1) {
             PersistAtomsProto.OtpEvaluationEvent evaluationEvent =
                     new PersistAtomsProto.OtpEvaluationEvent();
+            int result;
+            if (containsOtp(textLinks)) {
+                result = SMS_OTP_EVALUATION__RESULT__EVALUATION_RESULT_HAS_OTP;
+            } else {
+                result = SMS_OTP_EVALUATION__RESULT__EVALUATION_RESULT_NO_OTP;
+            }
             evaluationEvent.result = result;
             evaluationEvent.redactionTimeMs = classificationTime;
             mAtomsStorage.addOtpEvaluationEvent(evaluationEvent);
-        });
+        }
+
+        return textLinks;
     }
 
     @WorkerThread
+    @NonNull
     private Collection<TextLinks.TextLink> generateOtpTextLinks(Intent intent) {
         SmsMessage[] messages = Telephony.Sms.Intents.getMessagesFromIntent(intent);
         if (messages == null) {
@@ -1620,7 +1637,7 @@ public abstract class InboundSmsHandler extends StateMachine {
         return getTextClassifier().generateLinks(request).getLinks();
     }
 
-    private boolean containsOtp(Collection<TextLinks.TextLink> links) {
+    private boolean containsOtp(@NonNull Collection<TextLinks.TextLink> links) {
         for (TextLinks.TextLink link : links) {
             for (int i = 0; i < link.getEntityCount(); i++) {
                 if (link.getEntity(i).equals(TextClassifier.TYPE_SMS_RETRIEVER_OTP)
@@ -1639,7 +1656,7 @@ public abstract class InboundSmsHandler extends StateMachine {
     // was matched to a specific app. This method extracts and returns the package name for that
     // intended app from the TextClassifier response.
     @Nullable
-    private String getSmsRetrieverTargetPackageName(Collection<TextLinks.TextLink> links) {
+    private String getSmsRetrieverTargetPackageName(@NonNull Collection<TextLinks.TextLink> links) {
         for (TextLinks.TextLink link : links) {
             for (int i = 0; i < link.getEntityCount(); i++) {
                 if (link.getEntity(i).equals(TextClassifier.TYPE_SMS_RETRIEVER_OTP)) {
