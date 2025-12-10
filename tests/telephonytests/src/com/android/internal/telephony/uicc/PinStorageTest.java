@@ -115,9 +115,6 @@ public class PinStorageTest extends TelephonyTest {
         when(mKeyguardManager.isDeviceSecure()).thenReturn(false);
         when(mKeyguardManager.isDeviceLocked()).thenReturn(false);
 
-        // Force PinStorage to use the Handler thread for KeyStore operations
-        doReturn(true).when(mFeatureFlags).useWorkerThreadForPinstorageKeystoreApis();
-
         createPinStorageAndCaptureListener();
     }
 
