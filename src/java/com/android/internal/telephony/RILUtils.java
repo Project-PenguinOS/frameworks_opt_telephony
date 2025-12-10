@@ -185,7 +185,6 @@ import static com.android.internal.telephony.RILConstants.RIL_REQUEST_SET_PREFER
 import static com.android.internal.telephony.RILConstants.RIL_REQUEST_SET_PREFERRED_NETWORK_TYPE;
 import static com.android.internal.telephony.RILConstants.RIL_REQUEST_SET_RADIO_CAPABILITY;
 import static com.android.internal.telephony.RILConstants.RIL_REQUEST_SET_SATELLITE_ENABLED_FOR_CARRIER;
-import static com.android.internal.telephony.RILConstants.RIL_REQUEST_SET_SATELLITE_NETWORK_INFO;
 import static com.android.internal.telephony.RILConstants.RIL_REQUEST_SET_SATELLITE_PLMN;
 import static com.android.internal.telephony.RILConstants.RIL_REQUEST_SET_SECURITY_ALGORITHMS_UPDATED_ENABLED;
 import static com.android.internal.telephony.RILConstants.RIL_REQUEST_SET_SIGNAL_STRENGTH_REPORTING_CRITERIA;
@@ -216,7 +215,6 @@ import static com.android.internal.telephony.RILConstants.RIL_REQUEST_START_IMS_
 import static com.android.internal.telephony.RILConstants.RIL_REQUEST_START_KEEPALIVE;
 import static com.android.internal.telephony.RILConstants.RIL_REQUEST_START_LCE;
 import static com.android.internal.telephony.RILConstants.RIL_REQUEST_START_NETWORK_SCAN;
-import static com.android.internal.telephony.RILConstants.RIL_REQUEST_START_PRIORITIZED_NETWORK_SCAN;
 import static com.android.internal.telephony.RILConstants.RIL_REQUEST_STK_GET_PROFILE;
 import static com.android.internal.telephony.RILConstants.RIL_REQUEST_STK_HANDLE_CALL_SETUP_REQUESTED_FROM_SIM;
 import static com.android.internal.telephony.RILConstants.RIL_REQUEST_STK_SEND_ENVELOPE_COMMAND;
@@ -227,7 +225,6 @@ import static com.android.internal.telephony.RILConstants.RIL_REQUEST_STOP_IMS_T
 import static com.android.internal.telephony.RILConstants.RIL_REQUEST_STOP_KEEPALIVE;
 import static com.android.internal.telephony.RILConstants.RIL_REQUEST_STOP_LCE;
 import static com.android.internal.telephony.RILConstants.RIL_REQUEST_STOP_NETWORK_SCAN;
-import static com.android.internal.telephony.RILConstants.RIL_REQUEST_STOP_PRIORITIZED_NETWORK_SCAN;
 import static com.android.internal.telephony.RILConstants.RIL_REQUEST_SWITCH_DUAL_SIM_CONFIG;
 import static com.android.internal.telephony.RILConstants.RIL_REQUEST_SWITCH_WAITING_OR_HOLDING_AND_ACTIVE;
 import static com.android.internal.telephony.RILConstants.RIL_REQUEST_TRIGGER_EMERGENCY_NETWORK_SCAN;
@@ -274,7 +271,6 @@ import static com.android.internal.telephony.RILConstants.RIL_UNSOL_ON_USSD;
 import static com.android.internal.telephony.RILConstants.RIL_UNSOL_ON_USSD_REQUEST;
 import static com.android.internal.telephony.RILConstants.RIL_UNSOL_PCO_DATA;
 import static com.android.internal.telephony.RILConstants.RIL_UNSOL_PHYSICAL_CHANNEL_CONFIG;
-import static com.android.internal.telephony.RILConstants.RIL_UNSOL_PRIORITIZED_SCAN_MODE_CHANGED;
 import static com.android.internal.telephony.RILConstants.RIL_UNSOL_RADIO_CAPABILITY;
 import static com.android.internal.telephony.RILConstants.RIL_UNSOL_REGISTRATION_FAILED;
 import static com.android.internal.telephony.RILConstants.RIL_UNSOL_RESEND_INCALL_MUTE;
@@ -5522,12 +5518,6 @@ public class RILUtils {
                 return "SET_SIM_TYPE";
             case RIL_REQUEST_GET_SIM_TYPE_INFO:
                 return "GET_SIM_TYPE_INFO";
-            case RIL_REQUEST_SET_SATELLITE_NETWORK_INFO:
-                return "SET_SATELLITE_NETWORK_INFO";
-            case RIL_REQUEST_START_PRIORITIZED_NETWORK_SCAN:
-                return "START_PRIORITIZED_NETWORK_SCAN";
-            case RIL_REQUEST_STOP_PRIORITIZED_NETWORK_SCAN:
-                return "STOP_PRIORITIZED_NETWORK_SCAN";
             case RIL_REQUEST_GET_SUPPORTED_NETWORK_ALERT_CATEGORIES:
                 return "GET_SUPPORTED_NETWORK_ALERT_CATEGORIES";
             default:
@@ -5681,8 +5671,6 @@ public class RILUtils {
                 return "UNSOL_IMEI_MAPPING_CHANGED";
             case RIL_UNSOL_SIMULTANEOUS_CALLING_SUPPORT_CHANGED:
                 return "UNSOL_SIMULTANEOUS_CALLING_SUPPORT_CHANGED";
-            case RIL_UNSOL_PRIORITIZED_SCAN_MODE_CHANGED:
-                return "UNSOL_PRIORITIZED_SCAN_MODE_CHANGED";
             case RIL_UNSOL_NETWORK_SECURITY_EVENTS:
                 return "UNSOL_NETWORK_SECURITY_EVENTS";
             default:

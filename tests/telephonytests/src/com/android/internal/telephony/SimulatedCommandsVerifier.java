@@ -1180,14 +1180,6 @@ public class SimulatedCommandsVerifier implements CommandsInterface {
     }
 
     @Override
-    public void registerForPrioritizedScanModeChanged(Handler h, int what, Object obj){
-    }
-
-    @Override
-    public void unregisterForPrioritizedScanModeChanged(Handler h){
-    }
-
-    @Override
     public void notifyImsDataNetwork(int accessNetwork, int dataNetworkState,
             int physicalTransportType, int physicalNetworkSlotIndex, Message result) {
     }
