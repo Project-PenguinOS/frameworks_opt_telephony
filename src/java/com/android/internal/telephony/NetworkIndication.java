@@ -28,7 +28,6 @@ import static com.android.internal.telephony.RILConstants.RIL_UNSOL_NETWORK_SCAN
 import static com.android.internal.telephony.RILConstants.RIL_UNSOL_NETWORK_SECURITY_EVENTS;
 import static com.android.internal.telephony.RILConstants.RIL_UNSOL_NITZ_TIME_RECEIVED;
 import static com.android.internal.telephony.RILConstants.RIL_UNSOL_PHYSICAL_CHANNEL_CONFIG;
-import static com.android.internal.telephony.RILConstants.RIL_UNSOL_PRIORITIZED_SCAN_MODE_CHANGED;
 import static com.android.internal.telephony.RILConstants.RIL_UNSOL_REGISTRATION_FAILED;
 import static com.android.internal.telephony.RILConstants.RIL_UNSOL_RESPONSE_IMS_NETWORK_STATE_CHANGED;
 import static com.android.internal.telephony.RILConstants.RIL_UNSOL_RESPONSE_NETWORK_STATE_CHANGED;
@@ -478,22 +477,6 @@ public class NetworkIndication extends IRadioNetworkIndication.Stub {
 
         mRil.mDisplayNetworkTypeChangedRegistrants.notifyRegistrants(
                 new AsyncResult(null, networkType, null));
-    }
-
-    /**
-     * Indicates that the prioritized scan mode in the modem has changed.
-     * @param type Type of radio indication.
-     * @param prioritized Whether prioritized network scan is enabled.
-     */
-    public void prioritizedScanModeChanged(int type, boolean prioritized) {
-        mRil.processIndication(HAL_SERVICE_NETWORK, type);
-
-        if (mRil.isLogOrTrace()) {
-            mRil.unsljLogRet(RIL_UNSOL_PRIORITIZED_SCAN_MODE_CHANGED, prioritized);
-        }
-
-        mRil.mPrioritizedScanModeChangedRegistrants.notifyRegistrants(
-                new AsyncResult(null, prioritized, null));
     }
 
     /**
