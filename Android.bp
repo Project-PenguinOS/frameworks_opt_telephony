@@ -104,6 +104,7 @@ java_library {
         "PlatformProperties",
         "net-utils-framework-common",
         "telephony-protos",
+        "modules-utils-binary-xml",
         "modules-utils-build_system",
         "modules-utils-fastxmlserializer",
         "modules-utils-statemachine",
