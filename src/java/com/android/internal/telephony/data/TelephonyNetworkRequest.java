@@ -34,8 +34,10 @@ import android.telephony.data.DataProfile;
 import android.telephony.data.TrafficDescriptor;
 import android.telephony.data.TrafficDescriptor.OsAppId;
 
+import com.android.internal.telephony.HalVersion;
 import com.android.internal.telephony.Phone;
 import com.android.internal.telephony.PhoneFactory;
+import com.android.internal.telephony.RIL;
 import com.android.internal.telephony.flags.FeatureFlags;
 import com.android.internal.telephony.flags.Flags;
 
@@ -497,14 +499,25 @@ public class TelephonyNetworkRequest {
     @NonNull
     @NetCapability
     public static List<Integer> getAllSupportedNetworkCapabilities() {
+        HalVersion halVersion = PhoneFactory.getDefaultPhone().getHalVersion();
+        boolean useApnOnly = halVersion != null
+                && halVersion.lessOrEqual(RIL.RADIO_HAL_VERSION_1_5);
         if (Flags.unsupportedNetworkCapabilitiesPerCarrier()) {
-            return CAPABILITY_ATTRIBUTE_MAP.keySet().stream().toList();
+            return CAPABILITY_ATTRIBUTE_MAP.entrySet().stream()
+                    .filter(entry -> !useApnOnly
+                            || (entry.getValue() & CAPABILITY_ATTRIBUTE_APN_SETTING) != 0)
+                    .map(Map.Entry::getKey)
+                    .toList();
         }
         Set<Integer> unsupportedCaps = PhoneFactory.getDefaultPhone()
                 .getDataNetworkController().getDataConfigManager()
                 .getUnsupportedNetworkCapabilities();
-        return CAPABILITY_ATTRIBUTE_MAP.keySet().stream()
-                .filter(cap -> !unsupportedCaps.contains(cap)).toList();
+        return CAPABILITY_ATTRIBUTE_MAP.entrySet().stream()
+                .filter(entry -> !unsupportedCaps.contains(entry.getKey()))
+                .filter(entry -> !useApnOnly
+                        || (entry.getValue() & CAPABILITY_ATTRIBUTE_APN_SETTING) != 0)
+                .map(Map.Entry::getKey)
+                .toList();
     }
 
     /**
