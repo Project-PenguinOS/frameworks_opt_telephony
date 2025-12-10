@@ -52,6 +52,7 @@ import android.testing.AndroidTestingRunner;
 import android.testing.TestableLooper;
 
 import com.android.internal.telephony.IccCardConstants;
+import com.android.internal.telephony.RIL;
 import com.android.internal.telephony.TelephonyTest;
 import com.android.internal.telephony.data.DataConfigManager.DataConfigManagerCallback;
 import com.android.internal.telephony.data.DataNetworkController.DataNetworkControllerCallback;
@@ -1034,6 +1035,18 @@ public class DataProfileManagerTest extends TelephonyTest {
         assertThat(osAppId.getOsId()).isEqualTo(OsAppId.ANDROID_OS_ID);
         assertThat(osAppId.getAppId()).isEqualTo("PRIORITIZE_BANDWIDTH");
         assertThat(osAppId.getDifferentiator()).isEqualTo(1);
+    }
+
+    @Test
+    public void testGetDataProfileForEmbbNetworkRequestOldHal() {
+        doReturn(RIL.RADIO_HAL_VERSION_1_5).when(mPhone).getHalVersion();
+        TelephonyNetworkRequest tnr = new TelephonyNetworkRequest(
+                new NetworkRequest.Builder()
+                        .addCapability(NetworkCapabilities.NET_CAPABILITY_PRIORITIZE_BANDWIDTH)
+                        .build(), mPhone, mFeatureFlags);
+        DataProfile dataProfile = mDataProfileManagerUT.getDataProfileForNetworkRequest(
+                tnr, TelephonyManager.NETWORK_TYPE_LTE, false, false, false);
+        assertThat(dataProfile).isNull();
     }
 
     @Test
