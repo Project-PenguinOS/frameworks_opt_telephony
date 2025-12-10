@@ -1728,7 +1728,8 @@ public class MetricsCollector implements StatsManager.StatsPullAtomCallback {
                 stats.supportedConnectionMode,
                 stats.countOfSessionConnectionModeAutomatic,
                 stats.countOfSessionConnectionModeManual,
-                stats.serviceDataPolicy);
+                stats.serviceDataPolicy,
+                stats.totalSessionDurationSec);
     }
 
     private static StatsEvent buildStatsEvent(SatelliteEntitlement stats) {
