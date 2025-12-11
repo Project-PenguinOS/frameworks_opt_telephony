@@ -6037,11 +6037,14 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
      *        a specific direction by NW.
      */
     public void triggerNotifyAnbr(int mediaType, int direction, int bitsPerSecond) {
-        ImsCall activeCall = mForegroundCall.getFirstConnection().getImsCall();
+        // Execute the received bitrate change for the current foreground call.
+        if (mForegroundCall.hasConnections()) {
+            ImsCall activeCall = mForegroundCall.getFirstConnection().getImsCall();
 
-        if (activeCall != null) {
-            if (DBG) log("triggerNotifyAnbr - mediaType=" + mediaType);
-            activeCall.callSessionNotifyAnbr(mediaType, direction, bitsPerSecond);
+            if (activeCall != null) {
+                if (DBG) log("triggerNotifyAnbr - mediaType=" + mediaType);
+                activeCall.callSessionNotifyAnbr(mediaType, direction, bitsPerSecond);
+            }
         }
     }
 

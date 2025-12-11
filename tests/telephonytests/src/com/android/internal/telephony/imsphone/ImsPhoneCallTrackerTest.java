@@ -1557,6 +1557,19 @@ public class ImsPhoneCallTrackerTest extends TelephonyTest {
                 new ImsReasonInfo(ImsReasonInfo.CODE_USER_TERMINATED, 0));
     }
 
+    @Test
+    @SmallTest
+    public void testTriggerNotifyAnbrNoActiveCall() throws Exception {
+        logd("ImsPhoneCallTracker testTriggerNotifyAnbrNoActiveCall");
+
+        // Ensure no calls are active
+        assertEquals(PhoneConstants.State.IDLE, mCTUT.getState());
+
+        mCTUT.triggerNotifyAnbr(1, 1, 24400);
+
+        verify(mImsCall, never()).callSessionNotifyAnbr(anyInt(), anyInt(), anyInt());
+    }
+
     /**
      * Verifies that a remote hold tone is played when the call is remotely held and the media
      * direction is inactive (i.e. the audio stream is not playing, so we should play the tone).
@@ -2985,4 +2998,3 @@ public class ImsPhoneCallTrackerTest extends TelephonyTest {
         verify(mImsManager, times(1)).setWfcModeInternal(anyInt());
     }
 }
-
