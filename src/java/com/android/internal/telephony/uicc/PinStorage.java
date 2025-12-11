@@ -218,29 +218,14 @@ public class PinStorage extends Handler {
         String alias = (!mIsDeviceSecure || mIsDeviceLocked)
                 ? KEYSTORE_ALIAS_LONG_TERM_ALWAYS : KEYSTORE_ALIAS_LONG_TERM_USER_AUTH;
         // This is the main thread, so accessing keystore in a separate thread to prevent ANR.
-        if (mFeatureFlags.useWorkerThreadForPinstorageKeystoreApis()) {
-            post(() -> {
-                mKeyStore = initializeKeyStore();
-                mLongTermSecretKey = initializeSecretKey(
-                        alias, /*createIfAbsent=*/ true);
 
-                // If the device is not secured or is unlocked, we can start logic. Otherwise we
-                // need to wait for the device to be unlocked and store any temporary PIN in RAM.
-                if (!mIsDeviceSecure || !mIsDeviceLocked) {
-                    mRamStorage = null;
-                    onDeviceReady();
-                } else {
-                    logd("Device is locked - Postponing initialization");
-                    mRamStorage = new SparseArray<>();
-                }
-            });
-        } else {
+        post(() -> {
             mKeyStore = initializeKeyStore();
-            WorkerThread.getExecutor().execute(() ->
-                    mLongTermSecretKey = initializeSecretKey(alias, /*createIfAbsent=*/ true));
+            mLongTermSecretKey = initializeSecretKey(
+                    alias, /*createIfAbsent=*/ true);
 
-            // If the device is not secured or is unlocked, we can start logic. Otherwise we need to
-            // wait for the device to be unlocked and store any temporary PIN in RAM.
+            // If the device is not secured or is unlocked, we can start logic. Otherwise we
+            // need to wait for the device to be unlocked and store any temporary PIN in RAM.
             if (!mIsDeviceSecure || !mIsDeviceLocked) {
                 mRamStorage = null;
                 onDeviceReady();
@@ -248,13 +233,12 @@ public class PinStorage extends Handler {
                 logd("Device is locked - Postponing initialization");
                 mRamStorage = new SparseArray<>();
             }
-        }
+        });
     }
 
     /** return the {@link KeyStore}. */
     private KeyStore getKeyStore() {
-        if (mFeatureFlags.useWorkerThreadForPinstorageKeystoreApis()
-                && Looper.myLooper() == Looper.getMainLooper()) {
+        if (Looper.myLooper() == Looper.getMainLooper()) {
             String message = "PinStorage keyStore invoked on main thread";
             AnomalyReporter.reportAnomaly(mAnomalyUUID, message);
         }
