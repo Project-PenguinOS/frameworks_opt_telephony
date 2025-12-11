@@ -205,6 +205,14 @@ public class CarrierRoamingSatelliteControllerStats {
                         .build());
     }
 
+    /** Add session duration time in seconds  to the corresponding controller's stats. */
+    public void addSessionDurationSec(int sessionDurationSec) {
+        mSatelliteStats.onCarrierRoamingSatelliteControllerStatsMetrics(
+                new SatelliteStats.CarrierRoamingSatelliteControllerStatsParams.Builder()
+                        .setSessionDurationSec(sessionDurationSec)
+                        .build());
+    }
+
     /** Atom is pulled once per day. Reset session gap lists after the atom is pulled. */
     public void resetSessionGapLists() {
         mSessionStartTimeMap = new HashMap<>();

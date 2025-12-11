@@ -2644,6 +2644,19 @@ public interface CommandsInterface {
     default void isSecurityAlgorithmsUpdatedEnabled(Message result) {}
 
     /**
+     * Get the list of supported network security alerts.
+     *
+     * @param result Callback message to receive the result.
+     */
+    default void getSupportedNetworkAlertCategories(Message result) {}
+
+    /**
+     * Registers for network security events.
+     */
+    default void registerForNetworkSecurityEvents(
+            @NonNull Handler h, int what, @Nullable Object obj) {}
+
+    /**
      * Registers for cellular identifier disclosure events.
      */
     default void registerForCellularIdentifierDisclosures(
