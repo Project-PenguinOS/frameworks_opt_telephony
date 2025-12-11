@@ -18,10 +18,15 @@ package com.android.internal.telephony;
 import static android.telephony.CellularIdentifierDisclosure.CELLULAR_IDENTIFIER_IMSI;
 import static android.telephony.CellularIdentifierDisclosure.NAS_PROTOCOL_MESSAGE_ATTACH_REQUEST;
 import static android.telephony.PhysicalChannelConfig.PHYSICAL_CELL_ID_UNKNOWN;
+import static android.telephony.NetworkSecurityEvent.ALERT_CATEGORY_DOWNGRADE;
+import static android.telephony.NetworkSecurityEvent.ALERT_STATUS_DETECTED;
+import static android.telephony.NetworkSecurityEvent.REASON_CODE_DOWNGRADE_FORCED_HANDOVER;
+import static android.telephony.SecurityAlgorithmUpdate.CONNECTION_EVENT_VOLTE_SIP;
 import static android.telephony.SecurityAlgorithmUpdate.CONNECTION_EVENT_VOLTE_SIP;
 import static android.telephony.SecurityAlgorithmUpdate.SECURITY_ALGORITHM_EEA2;
 import static android.telephony.SecurityAlgorithmUpdate.SECURITY_ALGORITHM_HMAC_SHA1_96;
 import static android.telephony.ServiceState.FREQUENCY_RANGE_LOW;
+import static android.telephony.ServiceState.RIL_RADIO_TECHNOLOGY_LTE;
 import static android.telephony.SubscriptionManager.ACTION_DEFAULT_SUBSCRIPTION_CHANGED;
 import static android.telephony.SubscriptionManager.INVALID_SUBSCRIPTION_ID;
 import static android.telephony.TelephonyManager.ACTION_MULTI_SIM_CONFIG_CHANGED;
@@ -66,6 +71,7 @@ import android.telephony.CellLocation;
 import android.telephony.CellularIdentifierDisclosure;
 import android.telephony.LinkCapacityEstimate;
 import android.telephony.NetworkRegistrationInfo;
+import android.telephony.NetworkSecurityEvent;
 import android.telephony.PhoneCapability;
 import android.telephony.PhysicalChannelConfig;
 import android.telephony.PreciseDataConnectionState;
@@ -231,10 +237,12 @@ public class TelephonyRegistryTest extends TelephonyTest {
                     TelephonyCallback.SecurityAlgorithmsListener,
                     TelephonyCallback.CellularIdentifierDisclosedListener,
                     TelephonyCallback.CallAttributesListener,
-                    TelephonyCallback.DomainSelectionEmergencyModeListener {
+                    TelephonyCallback.DomainSelectionEmergencyModeListener,
+                    TelephonyCallback.NetworkSecurityEventsListener {
         // This class isn't mockable to get invocation counts because the IBinder is null and
         // crashes the TelephonyRegistry. Make a cheesy verify(times()) alternative.
         public AtomicInteger invocationCount = new AtomicInteger(0);
+        public Set<NetworkSecurityEvent> mNetworkSecurityEvents;
 
         @Override
         public void onSrvccStateChanged(int srvccState) {
@@ -409,6 +417,12 @@ public class TelephonyRegistryTest extends TelephonyTest {
                 int slotIndex, int subscriptionId) {
             invocationCount.incrementAndGet();
             mDomainSelectionEmergencyModeType = type;
+        }
+
+        @Override
+        public void onNetworkSecurityEvents(Set<NetworkSecurityEvent> events) {
+            invocationCount.incrementAndGet();
+            mNetworkSecurityEvents = events;
         }
     }
 
@@ -2158,5 +2172,44 @@ public class TelephonyRegistryTest extends TelephonyTest {
 
         assertEquals(invocationCount + 1, mTelephonyCallback.invocationCount.get());
         assertEquals(emergencyModeType, mDomainSelectionEmergencyModeType);
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_NETWORK_SECURITY_EVENT_INDICATIONS)
+    public void testNotifyNetworkSecurityEvents() {
+        int subId = 1;
+        doReturn(mMockSubInfo).when(mSubscriptionManager).getActiveSubscriptionInfo(anyInt());
+        doReturn(0/*slotIndex*/).when(mMockSubInfo).getSimSlotIndex();
+        int[] events = {TelephonyCallback.EVENT_NETWORK_SECURITY_EVENTS};
+
+        List<NetworkSecurityEvent> eventsList = new ArrayList<>();
+        eventsList.add(new NetworkSecurityEvent(
+                ALERT_CATEGORY_DOWNGRADE,
+                ALERT_STATUS_DETECTED,
+                new int[]{REASON_CODE_DOWNGRADE_FORCED_HANDOVER},
+                123, 456, 789, "101112",
+                RIL_RADIO_TECHNOLOGY_LTE,
+                false));
+
+        mTelephonyRegistry.listenWithEventList(false, false, subId, mContext.getOpPackageName(),
+                mContext.getAttributionTag(), mTelephonyCallback.callback, events, true);
+        processAllMessages();
+
+        // The callback should be triggered with the initial empty list.
+        assertEquals(1, mTelephonyCallback.invocationCount.get());
+        assertTrue(mTelephonyCallback.mNetworkSecurityEvents.isEmpty());
+
+        // Notify with a new list of events.
+        mTelephonyRegistry.notifyNetworkSecurityEvents(0, 1,
+                eventsList);
+        processAllMessages();
+        assertEquals(2, mTelephonyCallback.invocationCount.get());
+        assertEquals(new HashSet<>(eventsList), mTelephonyCallback.mNetworkSecurityEvents);
+
+        // Notify with the same list of events should not trigger callback.
+        mTelephonyRegistry.notifyNetworkSecurityEvents(0, 1,
+                eventsList);
+        processAllMessages();
+        assertEquals(2, mTelephonyCallback.invocationCount.get());
     }
 }

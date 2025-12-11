@@ -28,6 +28,7 @@ import android.telephony.CellInfo;
 import android.telephony.CellularIdentifierDisclosure;
 import android.telephony.LinkCapacityEstimate;
 import android.telephony.NetworkRegistrationInfo;
+import android.telephony.NetworkSecurityEvent;
 import android.telephony.PhoneCapability;
 import android.telephony.PhysicalChannelConfig;
 import android.telephony.PreciseDataConnectionState;
@@ -192,4 +193,7 @@ public interface PhoneNotifier {
     /** Notify emergency mode has been exited when AP domain selection is enabled. */
     void notifyDomainSelectionEmergencyModeExited(Phone sender,
             @DomainSelectionEmergencyType int type);
+
+    /** Notify of a network security event. */
+    void notifyNetworkSecurityEvents(Phone sender, Set<NetworkSecurityEvent> events);
 }
