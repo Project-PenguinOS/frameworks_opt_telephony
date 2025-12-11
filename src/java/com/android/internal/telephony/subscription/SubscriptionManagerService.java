@@ -3744,7 +3744,7 @@ public class SubscriptionManagerService extends ISub.Stub {
      *
      * @param visibleOnly {@code true} if only includes user visible subscription's sub id.
      *
-     * @return List of the active subscription id.
+     * @return List of the active subscription ids.
      *
      * @throws SecurityException if callers do not hold the required permission.
      */
@@ -3769,17 +3769,26 @@ public class SubscriptionManagerService extends ISub.Stub {
      * @param visibleOnly {@code true} if only includes user visible subscription's sub id.
      * @param user If {@code null}, uses the calling user handle to judge which subscriptions are
      *             accessible to the caller.
-     * @return Array of the active subscription id.
+     * @return Array of the active subscription ids.
      */
     @NonNull private int[] getActiveSubIdListAsUser(
             boolean visibleOnly, @NonNull final UserHandle user) {
-        return mSlotIndexToSubId.values().stream()
-                .filter(subId -> {
+        Stream<Integer> activeSubIdStream;
+        if (mFeatureFlags.remoteSimSubIdSet()) {
+            activeSubIdStream = Stream.concat(
+                    mSlotIndexToSubId.values().stream(),
+                    mRemoteSubIds.stream());
+        } else {
+            // Only includes the most recently inserted remote SIM, which might actually be missing
+            // due to a bug that was fixed with mFeatureFlags.remoteSimSubIdSet()
+            activeSubIdStream = mSlotIndexToSubId.values().stream();
+        }
+        return activeSubIdStream.filter(subId -> {
                     SubscriptionInfoInternal subInfo = mSubscriptionDatabaseManager
                             .getSubscriptionInfoInternal(subId);
                     return subInfo != null && (!visibleOnly || subInfo.isVisible())
                             && isSubscriptionAssociatedWithUserInternal(
-                                    subInfo, user.getIdentifier());
+                            subInfo, user.getIdentifier());
                 })
                 .mapToInt(x -> x)
                 .toArray();
