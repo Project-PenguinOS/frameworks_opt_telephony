@@ -3352,16 +3352,6 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
             return;
         }
 
-// QTI_BEGIN: 2025-03-16: Telephony: IMS: Exchange the execution order for media capabilities and extras
-        // For CRBT/UVS call, video state is arriving earlier to call object than the extra,
-        // that is setVideoState and onVideoStateChanged are invoked earlier than putExtras
-        // in Call.java, it will lead that call audio manager enables the speaker for CRBT/UVS
-        // call since the onVideoStateChanged comes but the CRBT/UVS extra is not arrived yet.
-        // So exchange the execution order for media capabilities and extras.
-        if (ignoreState) {
-            conn.updateExtras(imsCall);
-        }
-// QTI_END: 2025-03-16: Telephony: IMS: Exchange the execution order for media capabilities and extras
         // processCallStateChange is triggered for onCallUpdated as well.
         // onCallUpdated should not modify the state of the call
         // It should modify only other capabilities of call through updateMediaCapabilities
@@ -3370,6 +3360,7 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
         conn.updateMediaCapabilities(imsCall);
         if (ignoreState) {
             conn.updateAddressDisplay(imsCall);
+            conn.updateExtras(imsCall);
             // Some devices will change the audio direction between major call state changes, so we
             // need to check whether to start or stop ringback
             conn.maybeChangeRingbackState();
