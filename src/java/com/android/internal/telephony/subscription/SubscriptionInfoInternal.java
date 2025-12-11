@@ -43,6 +43,7 @@ import android.telephony.SubscriptionManager.ProfileClass;
 import android.telephony.SubscriptionManager.SimDisplayNameSource;
 import android.telephony.SubscriptionManager.SubscriptionType;
 import android.telephony.SubscriptionManager.UsageSetting;
+import android.telephony.SubscriptionPlan;
 import android.telephony.TelephonyManager;
 import android.telephony.UiccAccessRule;
 import android.telephony.ims.ImsMmTelManager;
@@ -547,6 +548,26 @@ public class SubscriptionInfoInternal {
     private final int mIsPrivateNetwork;
 
     /**
+     * The maximum downlink data rate in Kilobits per second (Kbps) for streaming applications
+     * defined in GSMA TS.43 9.1.3.
+     * <p>
+     * This value represents the data rate that the carrier has allocated for streaming
+     * applications. It can be used by streaming apps to select an appropriate media quality
+     * that matches the available bandwidth, helping to avoid buffering.
+     */
+    private final int mStreamingAppMaxDownlinkKbps;
+
+    /**
+     * The maximum uplink data rate in Kilobits per second (Kbps) for streaming applications
+     * defined in GSMA TS.43 9.1.3.
+     * <p>
+     * This value represents the data rate that the carrier has allocated for streaming
+     * applications to upload data. It can be used by streaming apps to select an appropriate
+     * media quality for outgoing streams, helping to avoid buffering or connection issues.
+     */
+    private final int mStreamingAppMaxUplinkKbps;
+
+    /**
      * Constructor from builder.
      *
      * @param builder Builder of {@link SubscriptionInfoInternal}.
@@ -635,6 +656,8 @@ public class SubscriptionInfoInternal {
         this.mSatellitePlmnsDataServicePolicy = builder.mSatellitePlmnsDataServicePolicy;
         this.mSatellitePlmnsVoiceServicePolicy = builder.mSatellitePlmnsVoiceServicePolicy;
         this.mIsPrivateNetwork = builder.mIsPrivateNetwork;
+        this.mStreamingAppMaxDownlinkKbps = builder.mStreamingAppMaxDownlinkKbps;
+        this.mStreamingAppMaxUplinkKbps = builder.mStreamingAppMaxUplinkKbps;
     }
 
     /**
@@ -1412,6 +1435,22 @@ public class SubscriptionInfoInternal {
         return mIsPrivateNetwork;
     }
 
+    /**
+     * @return The maximum downlink data rate in Kbps for streaming applications defined in
+     * GSMA TS.43 9.1.3.
+     */
+    public int getStreamingAppMaxDownlinkKbps() {
+        return mStreamingAppMaxDownlinkKbps;
+    }
+
+    /**
+     * @return The maximum uplink data rate in Kbps for streaming applications defined in GSMA
+     * TS.43 9.1.3.
+     */
+    public int getStreamingAppMaxUplinkKbps() {
+        return mStreamingAppMaxUplinkKbps;
+    }
+
     /** @return converted {@link SubscriptionInfo}. */
     @NonNull
     public SubscriptionInfo toSubscriptionInfo() {
@@ -1453,6 +1492,8 @@ public class SubscriptionInfoInternal {
                 .setTransferStatus(mTransferStatus)
                 .setSatelliteESOSSupported(mIsSatelliteESOSSupported == 1)
                 .setIsPrivateNetwork(mIsPrivateNetwork == 1)
+                .setStreamingAppMaxDownlinkKbps(mStreamingAppMaxDownlinkKbps)
+                .setStreamingAppMaxUplinkKbps(mStreamingAppMaxUplinkKbps)
                 .build();
     }
 
@@ -1526,6 +1567,8 @@ public class SubscriptionInfoInternal {
                 + " mSatellitePlmnsDataServicePolicy=" + mSatellitePlmnsDataServicePolicy
                 + " mSatellitePlmnsVoiceServicePolicy=" + mSatellitePlmnsVoiceServicePolicy
                 + " isPrivateNetwork=" + mIsPrivateNetwork
+                + " streamingAppMaxDownlinkKbps=" + mStreamingAppMaxDownlinkKbps
+                + " streamingAppMaxUplinkKbps=" + mStreamingAppMaxUplinkKbps
                 + "]";
     }
 
@@ -1601,7 +1644,9 @@ public class SubscriptionInfoInternal {
                 that.mSatelliteEntitlementServicesForPlmn)
                 && mSatellitePlmnsDataServicePolicy.equals(that.mSatellitePlmnsDataServicePolicy)
                 && mSatellitePlmnsVoiceServicePolicy.equals(that.mSatellitePlmnsVoiceServicePolicy)
-                && mIsPrivateNetwork == that.mIsPrivateNetwork;
+                && mIsPrivateNetwork == that.mIsPrivateNetwork
+                && mStreamingAppMaxDownlinkKbps == that.mStreamingAppMaxDownlinkKbps
+                && mStreamingAppMaxUplinkKbps == that.mStreamingAppMaxUplinkKbps;
     }
 
     @Override
@@ -1638,7 +1683,7 @@ public class SubscriptionInfoInternal {
                 mIsSatelliteProvisionedForNonIpDatagram, mSatelliteEntitlementBarredPlmnsList,
                 mSatelliteEntitlementDataPlanForPlmn, mSatelliteEntitlementServicesForPlmn,
                 mSatellitePlmnsDataServicePolicy, mSatellitePlmnsVoiceServicePolicy,
-                mIsPrivateNetwork);
+                mIsPrivateNetwork, mStreamingAppMaxDownlinkKbps, mStreamingAppMaxUplinkKbps);
         result = 31 * result + Arrays.hashCode(mNativeAccessRules);
         result = 31 * result + Arrays.hashCode(mCarrierConfigAccessRules);
         result = 31 * result + Arrays.hashCode(mRcsConfig);
@@ -2101,6 +2146,17 @@ public class SubscriptionInfoInternal {
          */
         private int mIsPrivateNetwork = 0;
 
+        /**
+         * The maximum downlink data rate in Kbps for streaming applications defined in GSMA
+         * TS.43 9.1.3.
+         */
+        private int mStreamingAppMaxDownlinkKbps = SubscriptionPlan.BITRATE_UNKNOWN;
+
+        /**
+         * The maximum uplink data rate in Kbps for streaming applications defined in GSMA TS.43
+         * 9.1.3.
+         */
+        private int mStreamingAppMaxUplinkKbps = SubscriptionPlan.BITRATE_UNKNOWN;
 
         /**
          * Default constructor.
@@ -2193,6 +2249,8 @@ public class SubscriptionInfoInternal {
             mSatellitePlmnsDataServicePolicy = info.mSatellitePlmnsDataServicePolicy;
             mSatellitePlmnsVoiceServicePolicy = info.mSatellitePlmnsVoiceServicePolicy;
             mIsPrivateNetwork = info.mIsPrivateNetwork;
+            mStreamingAppMaxDownlinkKbps = info.mStreamingAppMaxDownlinkKbps;
+            mStreamingAppMaxUplinkKbps = info.mStreamingAppMaxUplinkKbps;
         }
 
         /**
@@ -3199,6 +3257,32 @@ public class SubscriptionInfoInternal {
         public Builder setIsSatelliteProvisionedForNonIpDatagram(
                 int isSatelliteProvisionedForNonIpDatagram) {
             mIsSatelliteProvisionedForNonIpDatagram = isSatelliteProvisionedForNonIpDatagram;
+            return this;
+        }
+
+        /**
+         * Set the maximum downlink data rate in Kbps for streaming applications defined in GSMA
+         * TS.43 9.1.3.
+         *
+         * @param maxDownlinkDataRate The maximum downlink data rate in Kbps.
+         * @return The builder.
+         */
+        @NonNull
+        public Builder setStreamingAppMaxDownlinkKbps(int maxDownlinkDataRate) {
+            mStreamingAppMaxDownlinkKbps = maxDownlinkDataRate;
+            return this;
+        }
+
+        /**
+         * Set the maximum uplink data rate in Kbps for streaming applications defined in GSMA
+         * TS.43 9.1.3.
+         *
+         * @param maxUplinkDataRate The maximum uplink data rate in Kbps.
+         * @return The builder.
+         */
+        @NonNull
+        public Builder setStreamingAppMaxUplinkKbps(int maxUplinkDataRate) {
+            mStreamingAppMaxUplinkKbps = maxUplinkDataRate;
             return this;
         }
 
