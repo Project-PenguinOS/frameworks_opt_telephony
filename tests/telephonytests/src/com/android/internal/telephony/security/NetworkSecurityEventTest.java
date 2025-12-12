@@ -35,7 +35,7 @@ public class NetworkSecurityEventTest {
     private static final int[] REASON_CODES = {
         NetworkSecurityEvent.REASON_CODE_DOWNGRADE_FORCED_HANDOVER
     };
-    private static final int CELL_ID = 123;
+    private static final long CELL_ID = 123;
     private static final int PHYS_CELL_ID = 456;
     private static final int ARFCN = 789;
     private static final String PLMN = "101112";
