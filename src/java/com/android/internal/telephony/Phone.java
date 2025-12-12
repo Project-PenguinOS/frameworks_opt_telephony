@@ -16,6 +16,7 @@
 
 package com.android.internal.telephony;
 
+import static android.telephony.TelephonyManager.HAL_SERVICE_NETWORK;
 import static android.telephony.TelephonyManager.HAL_SERVICE_RADIO;
 import static android.telephony.ims.ImsService.CAPABILITY_SUPPORTS_SIMULTANEOUS_CALLING;
 
@@ -5132,8 +5133,18 @@ public abstract class Phone extends Handler implements PhoneInternalInterface {
      */
     public void setSatelliteNetworkInfo(int simSlot,
             @NonNull SatelliteNetworkInfo satelliteNetworkInfo, Message result) {
-        logd("setSatellitePlmn: simSlot=" + simSlot
-                + " satelliteNetworkInfo=" + satelliteNetworkInfo.toString());
+        if (getHalVersion(HAL_SERVICE_NETWORK).less(RIL.RADIO_HAL_VERSION_2_4)) {
+            logd("setSatelliteNetworkInfo: request not supported because HAL version is less "
+                    + "than 2.4");
+            CommandException ex = new CommandException(
+                    CommandException.Error.REQUEST_NOT_SUPPORTED);
+            AsyncResult.forMessage(result, null, ex);
+            result.sendToTarget();
+            return;
+        }
+
+        logd("setSatelliteNetworkInfo: simSlot=" + simSlot
+                + " satelliteNetworkInfo=" + satelliteNetworkInfo);
         mCi.setSatelliteNetworkInfo(simSlot, satelliteNetworkInfo, result);
     }
 

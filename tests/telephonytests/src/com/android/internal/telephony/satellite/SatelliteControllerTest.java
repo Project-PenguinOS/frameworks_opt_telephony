@@ -233,6 +233,7 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -8694,6 +8695,222 @@ public class SatelliteControllerTest extends TelephonyTest {
                 eq(SatelliteConstants.SATELLITE_ELIGIBILITY_SOURCE_ENTITLEMENT));
         assertEquals(SatelliteConstants.SATELLITE_ELIGIBILITY_SOURCE_ENTITLEMENT,
                 mSatelliteControllerUT.getSatelliteEligibilitySource(SUB_ID));
+    }
+
+    @Test
+    public void testIsDtcSatelliteTechnologySupported() throws Exception {
+        logd("testIsDtcSatelliteTechnologySupported");
+        doReturn(false).when(mFeatureFlags).nrNtn();
+        invokeCarrierConfigChanged();
+        verify(mSubscriptionManagerService, never()).getActiveSubIdList(anyBoolean());
+
+        doReturn(true).when(mFeatureFlags).nrNtn();
+        replaceInstance(SatelliteController.class, "mSatellitePlmnListFromOverlayConfig",
+                mSatelliteControllerUT, List.of("11111", "22222"));
+        replaceInstance(SatelliteController.class, "mIgnorePlmnListFromStorage",
+                mSatelliteControllerUT, new AtomicBoolean(true));
+
+        int subId1 = SUB_ID;
+        String satellitePlmn = "11111";
+        doReturn(new int[]{subId1}).when(mMockSubscriptionManagerService).getActiveSubIdList(true);
+
+        String nonSatellitePlmn = "99999";
+        assertFalse(
+                mSatelliteControllerUT.isDtcSatelliteTechnologySupported(subId1, nonSatellitePlmn));
+
+        logd("Test bundle with null data");
+        assertTrue(mSatelliteControllerUT.isDtcSatelliteTechnologySupported(subId1, satellitePlmn));
+
+        logd("Test bundle with satellite technology DTC list data");
+        PersistableBundle rootBundle = new PersistableBundle();
+        PersistableBundle configsBundle = new PersistableBundle();
+        PersistableBundle plmnBundle = new PersistableBundle();
+
+        doReturn(rootBundle).when(mCarrierConfigManager).getConfigForSubId(anyInt());
+        doReturn(rootBundle).when(mCarrierConfigManager).getConfigForSubId(anyInt(), any());
+
+        plmnBundle.putIntArray(CarrierConfigManager.KEY_SATELLITE_TECHNOLOGY_INT_ARRAY,
+                new int[] {SatelliteManager.NT_RADIO_TECHNOLOGY_LTE_DTC});
+        configsBundle.putPersistableBundle(satellitePlmn, plmnBundle);
+        rootBundle.putPersistableBundle(
+                CarrierConfigManager.KEY_SATELLITE_CONFIGS_PER_PLMN_BUNDLE, configsBundle);
+
+        invokeCarrierConfigChanged();
+        assertTrue(mSatelliteControllerUT.isDtcSatelliteTechnologySupported(subId1, satellitePlmn));
+
+        logd("Test bundle with satellite technology NR_NTN list data");
+        rootBundle.clear();
+        configsBundle.clear();
+        plmnBundle.clear();
+        plmnBundle.putIntArray(CarrierConfigManager.KEY_SATELLITE_TECHNOLOGY_INT_ARRAY,
+                new int[] {SatelliteManager.NT_RADIO_TECHNOLOGY_NR_NTN});
+        configsBundle.putPersistableBundle(satellitePlmn, plmnBundle);
+        rootBundle.putPersistableBundle(
+                CarrierConfigManager.KEY_SATELLITE_CONFIGS_PER_PLMN_BUNDLE, configsBundle);
+
+        invokeCarrierConfigChanged();
+        assertFalse(
+                mSatelliteControllerUT.isDtcSatelliteTechnologySupported(subId1, satellitePlmn));
+
+        logd("Test bundle with empty data");
+        rootBundle.clear();
+        configsBundle.clear();
+        plmnBundle.clear();
+        plmnBundle.putIntArray(CarrierConfigManager.KEY_SATELLITE_TECHNOLOGY_INT_ARRAY,
+                new int[] {});
+        configsBundle.putPersistableBundle(satellitePlmn, plmnBundle);
+        rootBundle.putPersistableBundle(
+                CarrierConfigManager.KEY_SATELLITE_CONFIGS_PER_PLMN_BUNDLE, configsBundle);
+
+        invokeCarrierConfigChanged();
+        assertTrue(mSatelliteControllerUT.isDtcSatelliteTechnologySupported(subId1, satellitePlmn));
+    }
+
+    @Test
+    public void testSetSatelliteNetworkInfo_multipleTechnologies() throws Exception {
+        doReturn(true).when(mFeatureFlags).nrNtn();
+        replaceInstance(SatelliteController.class, "sInstance", null, mSatelliteControllerUT);
+
+        int subId = SUB_ID;
+        int phoneId = mPhone.getPhoneId();
+        String plmn = "12345";
+        doReturn(new int[]{subId}).when(mMockSubscriptionManagerService)
+                .getActiveSubIdList(true);
+
+        logd("CarrierConfig data configuration");
+        PersistableBundle rootBundle = new PersistableBundle();
+        PersistableBundle satelliteProviderBundle = new PersistableBundle();
+        PersistableBundle configsBundle = new PersistableBundle();
+        PersistableBundle plmnBundle = new PersistableBundle();
+
+        satelliteProviderBundle.putIntArray(plmn, new int[]{3, 5, 6});
+        rootBundle.putPersistableBundle(
+                CarrierConfigManager.KEY_CARRIER_SUPPORTED_SATELLITE_SERVICES_PER_PROVIDER_BUNDLE,
+                satelliteProviderBundle);
+
+        plmnBundle.putIntArray(CarrierConfigManager.KEY_SATELLITE_TECHNOLOGY_INT_ARRAY,
+                new int[] {
+                        SatelliteManager.NT_RADIO_TECHNOLOGY_NR_NTN,
+                        SatelliteManager.NT_RADIO_TECHNOLOGY_NR_DTC,
+                        SatelliteManager.NT_RADIO_TECHNOLOGY_LTE_DTC
+                });
+        configsBundle.putPersistableBundle(plmn, plmnBundle);
+        rootBundle.putPersistableBundle(
+                CarrierConfigManager.KEY_SATELLITE_CONFIGS_PER_PLMN_BUNDLE, configsBundle);
+
+        doReturn(rootBundle).when(mCarrierConfigManager).getConfigForSubId(anyInt());
+        doReturn(rootBundle).when(mCarrierConfigManager)
+                .getConfigForSubId(anyInt(), any());
+
+        logd("Prepare condition check with the latch");
+        CountDownLatch latch = new CountDownLatch(1);
+        doAnswer(invocation -> {
+            logd("Argument capture, 1st one is a SatelliteNetworkInfo");
+            android.hardware.radio.network.SatelliteNetworkInfo info = invocation.getArgument(1);
+
+            if (info != null && info.allowedPlmns != null) {
+                logd("Verify if the number of NetworkInfo and plmn is the same with expected");
+                logd("info.allowedPlmns.length=" + info.allowedPlmns.length);
+                if (info.allowedPlmns.length == 3) {
+                    boolean allPlmnMatch = true;
+                    for (android.hardware.radio.network.NetworkInfo plmnInfo : info.allowedPlmns) {
+                        logd("allowePlmn=" + plmnInfo.plmn);
+                        if (!plmn.equals(plmnInfo.plmn)) {
+                            allPlmnMatch = false;
+                            break;
+                        }
+                    }
+
+                    if (allPlmnMatch) {
+                        logd("Extract HAL technology types into a Set for verification");
+                        Set<Integer> capturedHalTechs = Arrays.stream(info.allowedPlmns)
+                                .map(pInfo -> pInfo.satelliteTechnology)
+                                .collect(Collectors.toSet());
+                        logd("capturedHalTechs=" + capturedHalTechs);
+                        logd("Verify that both 3GPP_NTN and DTC technologies are present");
+                        boolean hasRequiredTechs = capturedHalTechs.contains(
+                                android.hardware.radio.network
+                                        .SatelliteTechnology.SAT_TECH_3GPP_NTN)
+                                && capturedHalTechs.contains(
+                                android.hardware.radio.network.SatelliteTechnology.SAT_TECH_DTC);
+
+                        logd("Only countdown if all data(Length, PLMN, and SatTechs) are correct");
+                        if (hasRequiredTechs) {
+                            latch.countDown();
+                        }
+                    }
+                }
+            }
+            return null; // Return null as it is a void method
+        }).when(mPhone).setSatelliteNetworkInfo(eq(phoneId), any(), any());
+
+        logd("Trigger carrier config update");
+        invokeCarrierConfigChanged();
+
+        logd("Wait for the expected result within timer");
+        assertTrue("Timed out waiting for setSatelliteNetworkInfo with expected PLMN and satTechs",
+                latch.await(TIMEOUT, TimeUnit.MILLISECONDS));
+    }
+
+    @Test
+    public void testUpdateSatelliteTechPerPlmnForActiveSubscriptions() throws Exception {
+        doReturn(false).when(mFeatureFlags).nrNtn();
+        invokeCarrierConfigChanged();
+        verify(mSubscriptionManagerService, never()).getActiveSubIdList(anyBoolean());
+
+        doReturn(true).when(mFeatureFlags).nrNtn();
+
+        int subId1 = SUB_ID;
+        int subId2 = SUB_ID1;
+        doReturn(new int[]{subId1, subId2}).when(mMockSubscriptionManagerService)
+                .getActiveSubIdList(true);
+
+        logd("Prepare bundle data");
+        String plmn = "12345";
+        PersistableBundle plmnConfig1 = new PersistableBundle();
+        plmnConfig1.putIntArray(CarrierConfigManager.KEY_SATELLITE_TECHNOLOGY_INT_ARRAY,
+                new int[] {SatelliteManager.NT_RADIO_TECHNOLOGY_NB_IOT_NTN,
+                        SatelliteManager.NT_RADIO_TECHNOLOGY_EMTC_NTN});
+
+        PersistableBundle configsBundle1 = new PersistableBundle();
+        configsBundle1.putPersistableBundle(plmn, plmnConfig1);
+
+        PersistableBundle rootBundle1 = new PersistableBundle();
+        rootBundle1.putBoolean(CarrierConfigManager.KEY_SATELLITE_ATTACH_SUPPORTED_BOOL, true);
+        rootBundle1.putPersistableBundle(
+                CarrierConfigManager.KEY_SATELLITE_CONFIGS_PER_PLMN_BUNDLE, configsBundle1);
+
+        logd("Mocking carrier config manager per subId");
+        doReturn(rootBundle1).when(mCarrierConfigManager).getConfigForSubId(eq(subId1));
+        doReturn(rootBundle1).when(mCarrierConfigManager).getConfigForSubId(eq(subId1), any());
+
+        PersistableBundle rootBundle2 = new PersistableBundle();
+        rootBundle2.putBoolean(CarrierConfigManager.KEY_SATELLITE_ATTACH_SUPPORTED_BOOL, true);
+        doReturn(rootBundle2).when(mCarrierConfigManager).getConfigForSubId(eq(subId2));
+        doReturn(rootBundle2).when(mCarrierConfigManager).getConfigForSubId(eq(subId2), any());
+
+        logd("Execute the target test method");
+        invokeCarrierConfigChanged();
+
+        logd("Verify all the data is correct");
+        Map<String, Integer> resultSub1 = getPlmnSatelliteTechForCarrier(subId1);
+        assertNotNull("Map should not be null", resultSub1);
+        assertEquals("Map should have 1 entry", 1, resultSub1.size());
+        assertEquals(List.of(SatelliteManager.NT_RADIO_TECHNOLOGY_NB_IOT_NTN),
+                mSatelliteControllerUT.getSupportedSatelliteTechnologies(subId1, plmn));
+
+        Map<String, Integer> resultSub2 = getPlmnSatelliteTechForCarrier(subId2);
+        assertTrue("Unknown technology should be filtered out", resultSub2.isEmpty());
+        assertTrue(
+                mSatelliteControllerUT.getSupportedSatelliteTechnologies(subId2, plmn).isEmpty());
+    }
+
+    private Map<String, Integer> getPlmnSatelliteTechForCarrier(int subId)
+            throws Exception {
+        Method method = SatelliteController.class.getDeclaredMethod(
+                "getPlmnSatelliteTechForCarrier", int.class);
+        method.setAccessible(true);
+        return (Map<String, Integer>) method.invoke(mSatelliteControllerUT, subId);
     }
 
     @Test
