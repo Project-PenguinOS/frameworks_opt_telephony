@@ -112,3 +112,14 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+# OWNER=hyeinyu TARGET=26Q2
+flag {
+    name: "update_mcc_mnc_configuration_fix"
+    namespace: "telephony"
+    description: "This flag controls to update mccmncconfiguration only in case of default subscription."
+    bug:"468114043"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
