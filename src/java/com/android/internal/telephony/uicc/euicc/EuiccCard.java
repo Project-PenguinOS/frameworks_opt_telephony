@@ -194,5 +194,4 @@ public class EuiccCard extends UiccCard {
         pw.println("mEid=" + mEid);
         pw.decreaseIndent();
     }
-// QTI_BEGIN: 2024-07-23: Telephony: AOSP: using correct index to get uicc port instance.
-}// QTI_END: 2024-07-23: Telephony: AOSP: using correct index to get uicc port instance.
+}
