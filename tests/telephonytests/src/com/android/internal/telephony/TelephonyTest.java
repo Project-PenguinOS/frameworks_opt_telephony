@@ -573,6 +573,7 @@ public abstract class TelephonyTest {
                 .enableTrafficDescriptorConnectionCapability();
         lenient().doReturn(true).when(mFeatureFlags).supportPsimToEsimConversion();
         lenient().doReturn(true).when(mFeatureFlags).getPhoneNumberTs43Api();
+        lenient().doReturn(true).when(mFeatureFlags).subscriptionPlanEnhancement();
 
         WorkerThread.reset();
         TelephonyManager.disableServiceHandleCaching();
