@@ -326,7 +326,13 @@ public class SubscriptionDatabaseManager extends Handler {
                     SubscriptionInfoInternal::getSatellitePlmnsDataServicePolicy),
             new AbstractMap.SimpleImmutableEntry<>(
                     SimInfo.COLUMN_SATELLITE_ENTITLEMENT_VOICE_SERVICE_POLICY,
-                    SubscriptionInfoInternal::getSatellitePlmnsVoiceServicePolicy)
+                    SubscriptionInfoInternal::getSatellitePlmnsVoiceServicePolicy),
+            new AbstractMap.SimpleImmutableEntry<>(
+                    SimInfo.COLUMN_STREAMING_APP_MAX_DOWNLINK_KBPS,
+                    SubscriptionInfoInternal::getStreamingAppMaxDownlinkKbps),
+            new AbstractMap.SimpleImmutableEntry<>(
+                    SimInfo.COLUMN_STREAMING_APP_MAX_UPLINK_KBPS,
+                    SubscriptionInfoInternal::getStreamingAppMaxUplinkKbps)
     );
 
     /**
@@ -475,7 +481,13 @@ public class SubscriptionDatabaseManager extends Handler {
                     SubscriptionDatabaseManager::setIsSatelliteProvisionedForNonIpDatagram),
             new AbstractMap.SimpleImmutableEntry<>(
                     SimInfo.COLUMN_IS_PRIVATE_NETWORK,
-                    SubscriptionDatabaseManager::setIsPrivateNetwork)
+                    SubscriptionDatabaseManager::setIsPrivateNetwork),
+            new AbstractMap.SimpleImmutableEntry<>(
+                    SimInfo.COLUMN_STREAMING_APP_MAX_DOWNLINK_KBPS,
+                    SubscriptionDatabaseManager::setStreamingAppMaxDownlinkKbps),
+            new AbstractMap.SimpleImmutableEntry<>(
+                    SimInfo.COLUMN_STREAMING_APP_MAX_UPLINK_KBPS,
+                    SubscriptionDatabaseManager::setStreamingAppMaxUplinkKbps)
     );
 
     /**
@@ -607,7 +619,9 @@ public class SubscriptionDatabaseManager extends Handler {
             SimInfo.COLUMN_NR_ADVANCED_CALLING_ENABLED,
             SimInfo.COLUMN_USER_HANDLE,
             SimInfo.COLUMN_SATELLITE_ENABLED,
-            SimInfo.COLUMN_SATELLITE_ATTACH_ENABLED_FOR_CARRIER
+            SimInfo.COLUMN_SATELLITE_ATTACH_ENABLED_FOR_CARRIER,
+            SimInfo.COLUMN_STREAMING_APP_MAX_DOWNLINK_KBPS,
+            SimInfo.COLUMN_STREAMING_APP_MAX_UPLINK_KBPS
     );
 
     /**
@@ -2391,6 +2405,41 @@ public class SubscriptionDatabaseManager extends Handler {
     }
 
     /**
+     * Set the maximum downlink data rate in Kbps for streaming applications.
+     *
+     * @param subId Subscription id.
+     * @param streamingAppMaxDownlinkKbps The maximum downlink data rate in Kbps.
+     * @throws IllegalArgumentException if the subscription does not exist.
+     */
+    public void setStreamingAppMaxDownlinkKbps(int subId,
+            int streamingAppMaxDownlinkKbps) {
+        if (mFeatureFlags.subscriptionPlanEnhancement()) {
+            writeDatabaseAndCacheHelper(subId,
+                    SimInfo.COLUMN_STREAMING_APP_MAX_DOWNLINK_KBPS,
+                    streamingAppMaxDownlinkKbps,
+                    SubscriptionInfoInternal
+                            .Builder::setStreamingAppMaxDownlinkKbps);
+        }
+    }
+
+    /**
+     * Set the maximum uplink data rate in Kbps for streaming applications.
+     *
+     * @param subId Subscription id.
+     * @param streamingAppMaxUplinkKbps The maximum uplink data rate in Kbps.
+     * @throws IllegalArgumentException if the subscription does not exist.
+     */
+    public void setStreamingAppMaxUplinkKbps(int subId, int streamingAppMaxUplinkKbps) {
+        if (mFeatureFlags.subscriptionPlanEnhancement()) {
+            writeDatabaseAndCacheHelper(subId,
+                    SimInfo.COLUMN_STREAMING_APP_MAX_UPLINK_KBPS,
+                    streamingAppMaxUplinkKbps,
+                    SubscriptionInfoInternal
+                            .Builder::setStreamingAppMaxUplinkKbps);
+        }
+    }
+
+    /**
      * Reload the database from content provider to the cache. This must be a synchronous operation
      * to prevent cache/database out-of-sync. Callers should be cautious to call this method because
      * it might take longer time to complete.
@@ -2662,6 +2711,15 @@ public class SubscriptionDatabaseManager extends Handler {
                 cursor.getColumnIndexOrThrow(SimInfo.COLUMN_SATELLITE_ESOS_SUPPORTED)));
         builder.setIsPrivateNetwork(cursor.getInt(
                 cursor.getColumnIndexOrThrow(SimInfo.COLUMN_IS_PRIVATE_NETWORK)));
+        if (mFeatureFlags.subscriptionPlanEnhancement()) {
+            builder.setStreamingAppMaxDownlinkKbps(
+                    cursor.getInt(cursor.getColumnIndexOrThrow(
+                            SimInfo.COLUMN_STREAMING_APP_MAX_DOWNLINK_KBPS)))
+                    .setStreamingAppMaxUplinkKbps(
+                            cursor.getInt(cursor.getColumnIndexOrThrow(
+                                    SimInfo.COLUMN_STREAMING_APP_MAX_UPLINK_KBPS))
+                    );
+        }
         return builder.build();
     }
 

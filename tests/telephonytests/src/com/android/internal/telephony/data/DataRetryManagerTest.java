@@ -33,6 +33,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import android.app.AlarmManager;
+import android.net.ConnectivityManager;
 import android.net.NetworkCapabilities;
 import android.net.NetworkRequest;
 import android.os.AsyncResult;
@@ -877,6 +878,42 @@ public class DataRetryManagerTest extends TelephonyTest {
                 AccessNetworkConstants.TRANSPORT_TYPE_WWAN)).isTrue();
         assertThat(mDataRetryManagerUT.isSimilarNetworkRequestRetryScheduled(tnr,
                 AccessNetworkConstants.TRANSPORT_TYPE_WLAN)).isFalse();
+    }
+
+    @Test
+    public void testSimilarEnterpriseNetworkRequestRetry() {
+        DataSetupRetryRule retryRule = new DataSetupRetryRule(
+                "capabilities=enterprise, retry_interval=2000, maximum_retries=2");
+        doReturn(Collections.singletonList(retryRule)).when(mDataConfigManager)
+                .getDataSetupRetryRules();
+        mDataConfigManagerCallback.onCarrierConfigChanged();
+        processAllMessages();
+
+        TelephonyNetworkRequest tnr = new TelephonyNetworkRequest(new NetworkRequest(
+                new NetworkCapabilities()
+                        .addCapability(NetworkCapabilities.NET_CAPABILITY_ENTERPRISE)
+                        .addEnterpriseId(1), ConnectivityManager.TYPE_NONE,
+                0, NetworkRequest.Type.REQUEST), mPhone, mFeatureFlags);
+        DataNetworkController.NetworkRequestList
+                networkRequestList = new DataNetworkController.NetworkRequestList(tnr);
+
+        // failed and retry.
+        mDataRetryManagerUT.evaluateDataSetupRetry(mDataProfile1,
+                AccessNetworkConstants.TRANSPORT_TYPE_WWAN, networkRequestList, 123,
+                DataCallResponse.RETRY_DURATION_UNDEFINED);
+        processAllFutureMessages();
+
+        assertThat(mDataRetryManagerUT.isSimilarNetworkRequestRetryScheduled(tnr,
+                AccessNetworkConstants.TRANSPORT_TYPE_WWAN)).isTrue();
+
+        tnr = new TelephonyNetworkRequest(new NetworkRequest(
+                new NetworkCapabilities()
+                        .addCapability(NetworkCapabilities.NET_CAPABILITY_ENTERPRISE)
+                        .addEnterpriseId(2), ConnectivityManager.TYPE_NONE,
+                0, NetworkRequest.Type.REQUEST), mPhone, mFeatureFlags);
+
+        assertThat(mDataRetryManagerUT.isSimilarNetworkRequestRetryScheduled(tnr,
+                AccessNetworkConstants.TRANSPORT_TYPE_WWAN)).isFalse();
     }
 
     @Test
