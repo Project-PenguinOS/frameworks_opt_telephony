@@ -4557,4 +4557,47 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
                                 subId, CALLING_PACKAGE))
                 .isNull();
     }
+
+    /**
+     * Tests that expiration timers are rescheduled when the system time changes.
+     * Simulates a scenario where the system time jumps forward past the expiration time.
+     */
+    @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
+    public void testEnrollablePlans_RescheduleOnTimeChange() throws Exception {
+        setupPackageManagerMocks(CALLING_PACKAGE, Process.myUid());
+        // Grant Permission
+        setManageSubscriptionPlansPermission(true);
+        mContextFixture.addCallingOrSelfPermission(
+                android.Manifest.permission.READ_PRIVILEGED_PHONE_STATE);
+
+        int subId = 1;
+        SubscriptionPlan plan = createTestSubscriptionPlan("Time Change Test");
+        long duration = 3600 * 1000; // an hour
+
+        // Act set plan with an hour expiration.
+        mSubscriptionManagerServiceUT.setEnrollableSubscriptionPlans(
+                subId, new SubscriptionPlan[]{plan}, duration, CALLING_PACKAGE);
+        processAllMessages();
+
+        // Verify that plan was set properly
+        assertThat(mSubscriptionManagerServiceUT
+                .getEnrollableSubscriptionPlans(subId, CALLING_PACKAGE)).isNotEmpty();
+
+        // Time Change Simulation (Expiration Time Manipulation)
+        // Change the saved expiration time to '10 seconds ago'.
+        Field expirationMapField = SubscriptionManagerService.class
+                .getDeclaredField("mEnrollablePlanExpirationTime");
+        expirationMapField.setAccessible(true);
+        Map<Integer, Long> expirationMap =
+                (Map<Integer, Long>) expirationMapField.get(mSubscriptionManagerServiceUT);
+        expirationMap.put(subId, System.currentTimeMillis() - 10000);
+
+        mContext.sendBroadcast(new Intent(Intent.ACTION_TIME_CHANGED));
+        processAllMessages();
+
+        processAllMessages();
+        assertThat(mSubscriptionManagerServiceUT
+                .getEnrollableSubscriptionPlans(subId, CALLING_PACKAGE)).isNull();
+    }
 }

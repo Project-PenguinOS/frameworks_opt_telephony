@@ -853,6 +853,13 @@ public class SubscriptionManagerService extends ISub.Stub {
             mEnrollablePlansFile = null;
         }
         mHandler.post(this::readEnrollableSubscriptionPlans);
+        // Register for time change for plan expiration.
+        mContext.registerReceiver(new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                mHandler.post(() -> rescheduleAllPlanExpirations());
+            }
+        }, new IntentFilter(Intent.ACTION_TIME_CHANGED));
 
         SubscriptionManager.invalidateSubscriptionManagerServiceCaches();
 
@@ -5013,37 +5020,19 @@ public class SubscriptionManagerService extends ISub.Stub {
                         ? System.currentTimeMillis() + expirationDurationMillis
                         : 0;
 
+        log("set enrollable SubscriptionPlans for subid:"
+                + subId + " duration:" + expirationDurationMillis + "ms");
+
         // 1. Store the plans, owner and expiration time.
         mEnrollableSubscriptionPlans.put(subId, plans);
         mEnrollableSubscriptionPlansOwner.put(subId, callingPackage);
         mEnrollablePlanExpirationTime.put(subId, expirationTime);
 
+        // Set a timer and perform expired data cleanup.
+        rescheduleAllPlanExpirations();
+
         // Write plans to persist the state to disk.
         writeEnrollableSubscriptionPlans();
-
-        // 2. Manage Expiration Timer
-        // Cancel any existing expiration task for this subId
-        Runnable oldRunnable = mEnrollablePlanExpirationRunnables.remove(subId);
-        if (oldRunnable != null) {
-            mHandler.removeCallbacks(oldRunnable);
-        }
-
-        // 3. Schedule new expiration if duration > 0
-        if (expirationDurationMillis > 0) {
-            Runnable expirationRunnable = () -> {
-                // Check if the owner is still the same before clearing (handling race conditions)
-                String currentOwner = mEnrollableSubscriptionPlansOwner.get(subId);
-                if (Objects.equals(callingPackage, currentOwner)) {
-                    logl("Clearing expired enrollable plans for subId=" + subId);
-                    mEnrollableSubscriptionPlans.remove(subId);
-                    mEnrollableSubscriptionPlansOwner.remove(subId);
-                    mEnrollablePlanExpirationRunnables.remove(subId);
-                    broadcastEnrollableSubscriptionPlansChanged(subId);
-                }
-            };
-            mEnrollablePlanExpirationRunnables.put(subId, expirationRunnable);
-            mHandler.postDelayed(expirationRunnable, expirationDurationMillis);
-        }
 
         // 3. Notify Listeners
         broadcastEnrollableSubscriptionPlansChanged(subId);
@@ -5199,6 +5188,91 @@ public class SubscriptionManagerService extends ISub.Stub {
     }
 
     /**
+     * Reschedules expiration timers based on the current system time.
+     * Uses mEnrollableSubscriptionPlans as the source of truth to avoid synchronization issues.
+     */
+    private void rescheduleAllPlanExpirations() {
+        log("reschedule all enrollable SubscriptionPlans");
+
+        long currentTime = System.currentTimeMillis();
+        List<Integer> expiredSubIds = new ArrayList<>();
+
+        // Cancel all existing timers and clear the map. (Clean Slate)
+        // Prevent zombie timers (timers that run without a plan) from occurring.
+        for (Runnable r : mEnrollablePlanExpirationRunnables.values()) {
+            mHandler.removeCallbacks(r);
+        }
+        mEnrollablePlanExpirationRunnables.clear();
+
+        // Reset the timer by iterating based on the SubscriptionPlans.
+        for (int subId : mEnrollableSubscriptionPlans.keySet()) {
+            // Skip if it is a permanent plan with no expiration time
+            Long expirationTime = mEnrollablePlanExpirationTime.get(subId);
+            if (expirationTime == null || expirationTime == 0) {
+                continue;
+            }
+
+            long remainingDuration = expirationTime - currentTime;
+            if (remainingDuration <= 0) {
+                // Already expired -> get rid of plans
+                logl("Plan for subId=" + subId + " expired (duration=" + remainingDuration + ")");
+                removeEnrollablePlansInMemory(subId);
+                expiredSubIds.add(subId);
+            } else {
+                // Still valid -> Register a new timer
+                logl("Rescheduling expiration for subId="
+                        + subId + " in " + remainingDuration + "ms");
+                Runnable newRunnable = () -> handlePlanExpiration(subId);
+                mEnrollablePlanExpirationRunnables.put(subId, newRunnable);
+                mHandler.postDelayed(newRunnable, remainingDuration);
+            }
+        }
+
+        // If found expired plans, update xml and broadcast them.
+        if (!expiredSubIds.isEmpty()) {
+            writeEnrollableSubscriptionPlans();
+
+            // Broadcast 전송
+            for (int subId : expiredSubIds) {
+                broadcastEnrollableSubscriptionPlansChanged(subId);
+            }
+        }
+    }
+
+    /**
+     * Handles the expiration of plans for a single subscription.
+     * Invoked by the Handler when the expiration time is reached.
+     */
+    private void handlePlanExpiration(int subId) {
+        if (removeEnrollablePlansInMemory(subId)) {
+            logl("Plan for subId=" + subId + " expired.");
+            writeEnrollableSubscriptionPlans();
+            broadcastEnrollableSubscriptionPlansChanged(subId);
+        }
+    }
+
+    /**
+     * Removes enrollable plans from memory maps and cancels the timer.
+     * <p>This method does NOT write to disk or send broadcasts.
+     *
+     * @return {@code true} if plans existed and were removed, {@code false} otherwise.
+     */
+    private boolean removeEnrollablePlansInMemory(int subId) {
+        if (!mEnrollableSubscriptionPlans.containsKey(subId)) {
+            return false;
+        }
+        logl("removing enrollable SubscriptionPlans for subId=" + subId);
+        mEnrollableSubscriptionPlans.remove(subId);
+        mEnrollableSubscriptionPlansOwner.remove(subId);
+        mEnrollablePlanExpirationTime.remove(subId);
+        Runnable runnable = mEnrollablePlanExpirationRunnables.remove(subId);
+        if (runnable != null) {
+            mHandler.removeCallbacks(runnable);
+        }
+        return true;
+    }
+
+    /**
      * Returns the device protected storage directory.
      *
      * <p>This directory is used to store configuration files that need to persist across reboots.
@@ -5256,6 +5330,10 @@ public class SubscriptionManagerService extends ISub.Stub {
             } catch (Exception e) {
                 loge("Failed to read enrollable plans: " + e);
             }
+
+            // After all loads are complete, set a timer and perform expired data cleanup. If any of
+            // the read data is expired, it will be automatically deleted and the file updated.
+            rescheduleAllPlanExpirations();
         }
     }
 
@@ -5273,12 +5351,14 @@ public class SubscriptionManagerService extends ISub.Stub {
      */
     private void readEnrollableSubscriptionPlansForSubscriptionLocked(TypedXmlPullParser in)
             throws IOException, XmlPullParserException {
+        long currentTime = System.currentTimeMillis();
         int subId = in.getAttributeInt(null, ATTR_SUB_ID);
         String owner = in.getAttributeValue(null, ATTR_OWNER);
         long expirationTime = in.getAttributeLong(null, ATTR_EXPIRATION_TIME, 0);
+        long duration = expirationTime - currentTime;
 
         // Check for expiration.
-        if (expirationTime > 0 && expirationTime < System.currentTimeMillis()) {
+        if (expirationTime > 0 && duration <= 0) {
             logl("Skipping expired plans for subId=" + subId);
             return;
         }
@@ -5305,28 +5385,8 @@ public class SubscriptionManagerService extends ISub.Stub {
             if (owner != null) mEnrollableSubscriptionPlansOwner.put(subId, owner);
 
             if (expirationTime > 0) {
+                // Runnable registration will be done in the reschedule function.
                 mEnrollablePlanExpirationTime.put(subId, expirationTime);
-
-                // Restore the expiration timer.
-                // We calculate the remaining duration. If time has passed (duration <= 0),
-                // the timer isn't needed (handled by logic above or immediate expiration).
-                long duration = expirationTime - System.currentTimeMillis();
-                if (duration > 0) {
-                    Runnable expirationRunnable =
-                            () -> {
-                                String currentOwner = mEnrollableSubscriptionPlansOwner.get(subId);
-                                if (Objects.equals(owner, currentOwner)) {
-                                    mEnrollableSubscriptionPlans.remove(subId);
-                                    mEnrollableSubscriptionPlansOwner.remove(subId);
-                                    mEnrollablePlanExpirationRunnables.remove(subId);
-                                    mEnrollablePlanExpirationTime.remove(subId);
-                                    writeEnrollableSubscriptionPlans(); // Sync removal
-                                    broadcastEnrollableSubscriptionPlansChanged(subId);
-                                }
-                            };
-                    mEnrollablePlanExpirationRunnables.put(subId, expirationRunnable);
-                    mHandler.postDelayed(expirationRunnable, duration);
-                }
             }
         }
     }
