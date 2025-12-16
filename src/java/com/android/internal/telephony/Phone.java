@@ -2716,14 +2716,7 @@ public abstract class Phone extends Handler implements PhoneInternalInterface {
      * @param response Callback message.
      */
     public void rebootModem(Message response) {
-        RadioConfig radioConfig = RadioConfig.getInstance();
-        RadioConfigProxy radioConfigProxy = radioConfig.getRadioConfigProxy(null);
-        if (radioConfigProxy != null
-                && radioConfigProxy.getVersion().greaterOrEqual(RIL.RADIO_HAL_VERSION_2_4)) {
-            radioConfig.rebootModem(response);
-        } else {
-            mCi.nvResetConfig(1/* 1: reload NV reset, trigger a modem reboot */, response);
-        }
+        mCi.nvResetConfig(1/* 1: reload NV reset, trigger a modem reboot */, response);
     }
 
     /**
