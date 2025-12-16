@@ -1902,16 +1902,30 @@ public class ServiceStateTracker extends Handler {
                 String[] opNames = (String[]) ar.result;
 
                 if (opNames != null && opNames.length >= 3) {
-                    mNewSS.setOperatorAlphaLongRaw(opNames[0]);
-                    mNewSS.setOperatorAlphaShortRaw(opNames[1]);
-                    // FIXME: Giving brandOverride higher precedence, is this desired?
-                    String brandOverride = getOperatorBrandOverride();
-                    mCdnr.updateEfForBrandOverride(brandOverride);
-                    if (brandOverride != null) {
-                        log("EVENT_POLL_STATE_OPERATOR: use brandOverride=" + brandOverride);
-                        mNewSS.setOperatorName(brandOverride, brandOverride, opNames[2]);
+                    // Check if the carrier config has been loaded
+                    if (showOperatorName()) {
+                        // If the config IS loaded, we proceed with the normal logic.
+                        log("EVENT_POLL_STATE_OPERATOR: carrier config loaded, "
+                                + "setting network name");
+                        mNewSS.setOperatorAlphaLongRaw(opNames[0]);
+                        mNewSS.setOperatorAlphaShortRaw(opNames[1]);
+                        // FIXME: Giving brandOverride higher precedence, is this desired?
+                        String brandOverride = getOperatorBrandOverride();
+                        mCdnr.updateEfForBrandOverride(brandOverride);
+                        if (brandOverride != null) {
+                            log("EVENT_POLL_STATE_OPERATOR: use brandOverride=" + brandOverride);
+                            mNewSS.setOperatorName(brandOverride, brandOverride, opNames[2]);
+                        } else {
+                            mNewSS.setOperatorName(opNames[0], opNames[1], opNames[2]);
+                        }
                     } else {
-                        mNewSS.setOperatorName(opNames[0], opNames[1], opNames[2]);
+                        // If the config is NOT loaded, we intentionally discard the network name.
+                        // Poll State will be triggered again when the config is loaded.
+                        // This prevents the default operator name from ever being set in the
+                        // ServiceState that gets broadcast to the System UI.
+                        mNewSS.setOperatorName(null, null, opNames[2]);
+                        log("EVENT_POLL_STATE_OPERATOR: carrier config not loaded, "
+                                + "discarding network name");
                     }
                 }
                 break;
@@ -4303,7 +4317,6 @@ public class ServiceStateTracker extends Handler {
 
     private void onCarrierConfigurationChanged(int slotIndex) {
         if (slotIndex != mPhone.getPhoneId()) return;
-
         mCarrierConfig = getCarrierConfig();
         log("CarrierConfigChange " + mCarrierConfig);
 
@@ -4784,6 +4797,40 @@ public class ServiceStateTracker extends Handler {
             }
         }
         return regState;
+    }
+
+    /**
+     * Checks if we should wait for carrier config to be loaded.
+     *
+     * <p>For some carriers, we need to wait for carrier config to be loaded before displaying the
+     * operator name. This is controlled by a resource overlay {@code
+     * config_update_operator_name_after_carrier_config_loaded}.
+     *
+     * @return {@code true} if we can proceed with setting operator name, {@code false} if we need
+     * to wait for carrier config to be loaded.
+     */
+    @VisibleForTesting
+    public boolean showOperatorName() {
+        // Allows overriding the carrier config loaded check via device overlay for
+        // specific operators.
+        // If config_update_operator_name_after_carrier_config_loaded is true then
+        // only use this configuration.
+        boolean forceWaitForCarrierConfig = mPhone.getContext().getResources()
+                .getBoolean(com.android.internal.R.bool
+                        .config_update_operator_name_after_carrier_config_loaded);
+
+        return !forceWaitForCarrierConfig || isCarrierConfigApplied();
+    }
+
+    /**
+     * @return {@code true} if carrier config is applied.
+     */
+    private boolean isCarrierConfigApplied() {
+        if (mCarrierConfig == null) {
+            return false;
+        }
+        return mCarrierConfig.getBoolean(
+                CarrierConfigManager.KEY_CARRIER_CONFIG_APPLIED_BOOL, false);
     }
 
     /**
