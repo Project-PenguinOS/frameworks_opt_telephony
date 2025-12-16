@@ -146,7 +146,6 @@ import static com.android.internal.telephony.RILConstants.RIL_REQUEST_QUERY_FACI
 import static com.android.internal.telephony.RILConstants.RIL_REQUEST_QUERY_NETWORK_SELECTION_MODE;
 import static com.android.internal.telephony.RILConstants.RIL_REQUEST_QUERY_TTY_MODE;
 import static com.android.internal.telephony.RILConstants.RIL_REQUEST_RADIO_POWER;
-import static com.android.internal.telephony.RILConstants.RIL_REQUEST_REBOOT_MODEM;
 import static com.android.internal.telephony.RILConstants.RIL_REQUEST_RELEASE_PDU_SESSION_ID;
 import static com.android.internal.telephony.RILConstants.RIL_REQUEST_REPORT_SMS_MEMORY_STATUS;
 import static com.android.internal.telephony.RILConstants.RIL_REQUEST_REPORT_STK_SERVICE_IS_RUNNING;
@@ -5531,8 +5530,6 @@ public class RILUtils {
                 return "STOP_PRIORITIZED_NETWORK_SCAN";
             case RIL_REQUEST_GET_SUPPORTED_NETWORK_ALERT_CATEGORIES:
                 return "GET_SUPPORTED_NETWORK_ALERT_CATEGORIES";
-            case RIL_REQUEST_REBOOT_MODEM:
-                return "REBOOT_MODEM";
             default:
                 return "<unknown request " + request + ">";
         }

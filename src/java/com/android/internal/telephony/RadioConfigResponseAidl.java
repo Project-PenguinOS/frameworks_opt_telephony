@@ -259,24 +259,6 @@ public class RadioConfigResponseAidl extends
             loge("setSimTypeResponse: Error " + info.toString());
         }
     }
-
-    @Override
-    public void rebootModemResponse(RadioResponseInfo info) throws RemoteException {
-        RILRequest rr = mRadioConfig.processResponse(info);
-        if (rr != null) {
-            if (info.error == android.hardware.radio.RadioError.NONE) {
-                // send response
-                RadioResponse.sendMessageResponse(rr.mResult, null);
-                logd(rr, RILUtils.requestToString(rr.mRequest));
-            } else {
-                rr.onError(info.error, null);
-                loge(rr, RILUtils.requestToString(rr.mRequest) + " error " + info.error);
-            }
-        } else {
-            loge("rebootModemResponse: Error " + info.toString());
-        }
-    }
-
     private static void logd(String log) {
         Rlog.d(TAG, log);
     }
