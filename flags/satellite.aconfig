@@ -262,3 +262,14 @@ flag {
     purpose: PURPOSE_FEATURE
   }
 }
+
+# OWNER=youngtaecha TARGET=26Q2
+flag {
+  name: "nr_ntn"
+  namespace: "telephony"
+  description: "This flag controls the changes for nr_ntn"
+  bug: "469263921"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}
