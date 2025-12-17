@@ -477,7 +477,6 @@ public class CellularNetworkService extends NetworkService {
                     RILUtils.convertHalCellIdentity(regResult.cellIdentity);
             final String rplmn = regResult.registeredPlmn;
             final int reasonForDenial = regResult.reasonForDenial;
-            final boolean isNonTerrestrialNetwork = regResult.isNonTerrestrialNetwork;
 
             if (regState == NetworkRegistrationInfo.REGISTRATION_STATE_DENIED
                     && reasonForDenial
@@ -529,6 +528,11 @@ public class CellularNetworkService extends NetworkService {
                             info.getNgranNrVopsInfo().emcSupported,
                             info.getNgranNrVopsInfo().emfSupported);
                     break;
+                case android.hardware.radio.network.AccessTechnologySpecificInfo.nrInfo:
+                    vopsInfo = new NrVopsSupportInfo(info.getNrInfo().nrVopsInfo.vopsSupported,
+                            info.getNrInfo().nrVopsInfo.emcSupported,
+                            info.getNrInfo().nrVopsInfo.emfSupported);
+                    break;
                 case android.hardware.radio.network.AccessTechnologySpecificInfo.geranDtmSupported:
                     cssSupported = info.getGeranDtmSupported();
                     break;
@@ -558,7 +562,6 @@ public class CellularNetworkService extends NetworkService {
                         .setAvailableServices(availableServices)
                         .setCellIdentity(cellIdentity)
                         .setRegisteredPlmn(rplmn)
-                        .setIsNonTerrestrialNetwork(isNonTerrestrialNetwork)
                         .setDataSpecificInfo(
                                 new DataSpecificRegistrationInfo.Builder(MAX_DATA_CALLS)
                                      .setDcNrRestricted(isDcNrRestricted)

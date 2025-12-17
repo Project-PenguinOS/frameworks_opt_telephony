@@ -38,6 +38,7 @@ import android.os.RegistrantList;
 import android.os.SystemClock;
 import android.telephony.CellIdentity;
 import android.telephony.SubscriptionInfo;
+import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyManager;
 import android.text.TextUtils;
 import android.util.Log;
@@ -47,6 +48,7 @@ import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.telephony.CommandException;
 import com.android.internal.telephony.CommandsInterface;
 import com.android.internal.telephony.MccTable;
+import com.android.internal.telephony.flags.Flags;
 import com.android.internal.telephony.gsm.SimTlv;
 import com.android.internal.telephony.util.ArrayUtils;
 import com.android.telephony.Rlog;
@@ -759,13 +761,49 @@ public abstract class IccRecords extends Handler implements IccConstants {
             }
 
             if (mMncLength != UNKNOWN && mMncLength != UNINITIALIZED
-                    && imsi.length() >= 3 + mMncLength) {
-                log("update mccmnc=" + imsi.substring(0, 3 + mMncLength));
+                    && imsi.length() >= 3 + mMncLength && mParentApp != null) {
                 // finally have both the imsi and the mncLength and
                 // can parse the imsi properly
-                MccTable.updateMccMncConfiguration(mContext, imsi.substring(0, 3 + mMncLength));
+                int subId = getSubscriptionId(mParentApp.getPhoneId());
+                int defaultSubId = getDefaultSubscriptionId();
+                if (!Flags.updateMccMncConfigurationFix()
+                        || (SubscriptionManager.isValidSubscriptionId(subId)
+                                && subId == defaultSubId)) {
+                    log("update mccmnc=" + imsi.substring(0, 3 + mMncLength));
+                    updateMccMncConfiguration(mContext, imsi.substring(0, 3 + mMncLength));
+                } else {
+                    log("MccMnc config update skipped: subId=" + subId
+                            + " is not default (def=" + defaultSubId + ")");
+                }
             }
         }
+    }
+
+    /**
+     * Wrapper method for SubscriptionManager.getSubscriptionId(phoneId).
+     * Can be mocked/spied in tests to return a desired subId.
+     */
+    @VisibleForTesting
+    public int getSubscriptionId(int phoneId) {
+        return SubscriptionManager.getSubscriptionId(phoneId);
+    }
+
+    /**
+     * Wrapper method for SubscriptionManager.getDefaultSubscriptionId().
+     * Can be mocked/spied in tests to return a desired defaultSubId.
+     */
+    @VisibleForTesting
+    public int getDefaultSubscriptionId() {
+        return SubscriptionManager.getDefaultSubscriptionId();
+    }
+
+    /**
+     * Wrapper method for MccTable.updateMccMncConfiguration(...).
+     * Allows verification in tests to check if this method was called.
+     */
+    @VisibleForTesting
+    public void updateMccMncConfiguration(Context context, String mccmnc) {
+        MccTable.updateMccMncConfiguration(context, mccmnc);
     }
 
     /**

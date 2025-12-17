@@ -1775,10 +1775,24 @@ public class DataRetryManager extends Handler {
                                 mPhone.getCarrierId());
                         continue;
                     }
-                    if (entry.networkRequestList.get(0)
+                    TelephonyNetworkRequest retryRequest = entry.networkRequestList.get(0);
+                    int retryCapability = retryRequest
+                            .getHighestPrioritySupportedNetworkCapability();
+                    if (retryCapability == networkRequest
                             .getHighestPrioritySupportedNetworkCapability()
-                            == networkRequest.getHighestPrioritySupportedNetworkCapability()
                             && entry.transport == transport) {
+                        // For enterprise retry, only same enterprise ids would be treated as same
+                        // retry.
+                        if (retryCapability == NetworkCapabilities.NET_CAPABILITY_ENTERPRISE) {
+                            // getEnterpriseIds() is guaranteed to be in the same order. Just
+                            // directly comparing the array is fine.
+                            if (!Arrays.equals(
+                                    retryRequest.getNativeNetworkRequest().getEnterpriseIds(),
+                                    networkRequest.getNativeNetworkRequest().getEnterpriseIds())) {
+                                continue;
+                            }
+                        }
+                        log("Found similar request to be retried. " + retryRequest);
                         return true;
                     }
                 }

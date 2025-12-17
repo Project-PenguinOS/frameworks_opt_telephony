@@ -113,6 +113,7 @@ public abstract class BaseCommands implements CommandsInterface {
     protected RegistrantList mCellularIdentifierDisclosedRegistrants = new RegistrantList();
     protected RegistrantList mSecurityAlgorithmUpdatedRegistrants = new RegistrantList();
     protected RegistrantList mDisplayNetworkTypeChangedRegistrants = new RegistrantList();
+    protected RegistrantList mPrioritizedScanModeChangedRegistrants = new RegistrantList();
     protected RegistrantList mNetworkSecurityEventsRegistrants = new RegistrantList();
 
     @UnsupportedAppUsage
@@ -749,6 +750,16 @@ public abstract class BaseCommands implements CommandsInterface {
     @Override
     public void registerForDisplayNetworkTypeChanged(Handler h, int what, Object obj) {
         mDisplayNetworkTypeChangedRegistrants.addUnique(h, what, obj);
+    }
+
+    @Override
+    public void unregisterForPrioritizedScanModeChanged(Handler h) {
+        mPrioritizedScanModeChangedRegistrants.remove(h);
+    }
+
+    @Override
+    public void registerForPrioritizedScanModeChanged(Handler h, int what, Object obj) {
+        mPrioritizedScanModeChangedRegistrants.addUnique(h, what, obj);
     }
 
     @Override

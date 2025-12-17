@@ -3078,6 +3078,37 @@ public class ServiceStateTrackerTest extends TelephonyTest {
         assertThat(b.getBoolean(TelephonyManager.EXTRA_SHOW_PLMN)).isTrue();
     }
 
+    @Test
+    public void testShowOperatorName() throws Exception {
+        // Test case 1: config_update_operator_name_after_carrier_config_loaded is false.
+        // showOperatorName() should be true regardless of carrier config loaded state.
+        mContextFixture.putBooleanResource(
+                com.android.internal.R.bool.config_update_operator_name_after_carrier_config_loaded,
+                false);
+        mBundle.putBoolean(CarrierConfigManager.KEY_CARRIER_CONFIG_APPLIED_BOOL, false);
+        sendCarrierConfigUpdate(PHONE_ID);
+
+        assertTrue(sst.showOperatorName());
+
+        // Test case 2: config_update_operator_name_after_carrier_config_loaded is true, and
+        // carrier config is not applied. showOperatorName() should be false.
+        mContextFixture.putBooleanResource(
+                com.android.internal.R.bool.config_update_operator_name_after_carrier_config_loaded,
+                true);
+        mBundle.putBoolean(CarrierConfigManager.KEY_CARRIER_CONFIG_APPLIED_BOOL, false);
+        sendCarrierConfigUpdate(PHONE_ID);
+        assertFalse(sst.showOperatorName());
+
+        // Test case 3: config_update_operator_name_after_carrier_config_loaded is true, and carrier
+        // config is applied. showOperatorName() should be true.
+        mContextFixture.putBooleanResource(
+                com.android.internal.R.bool.config_update_operator_name_after_carrier_config_loaded,
+                true);
+        mBundle.putBoolean(CarrierConfigManager.KEY_CARRIER_CONFIG_APPLIED_BOOL, true);
+        sendCarrierConfigUpdate(PHONE_ID);
+        assertTrue(sst.showOperatorName());
+    }
+
     private Bundle getExtrasFromLastSpnUpdateIntent() {
         // Verify the spn update notification was sent
         ArgumentCaptor<Intent> intentArgumentCaptor = ArgumentCaptor.forClass(Intent.class);
