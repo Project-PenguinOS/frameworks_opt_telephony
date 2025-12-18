@@ -874,6 +874,8 @@ public class CarrierRoamingSatelliteSessionStats {
                         .setIsWifiEnabled(mIsWifiEnabled)
                         .setIsWfcEnabled(mIsWfcEnabled)
                         .setIsWfcRegistered(mIsWfcRegistered)
+                        .setEligibilitySource(
+                                SatelliteServiceUtils.getSatelliteEligibilitySource(subId))
                         .build();
         SatelliteStats.getInstance().onCarrierRoamingSatelliteSessionMetrics(params);
         // Add session duration time to session controller atom when session ends.
