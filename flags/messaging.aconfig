@@ -93,3 +93,12 @@ flag {
         purpose: PURPOSE_FEATURE
     }
 }
+
+# OWNER=nishantpanwar TARGET=26Q2
+flag {
+  name: "message_promotion"
+  namespace: "telephony"
+  description: "Include the Default Messaging App in outgoing message flows to support sending RCS messages"
+  bug: "469744736"
+}
+
