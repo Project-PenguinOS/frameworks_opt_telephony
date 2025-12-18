@@ -81,3 +81,14 @@ flag {
    }
 }
 
+
+# OWNER=braydenhass TARGET=26Q2
+flag {
+    name: "sms_network_security_events"
+    namespace: "telephony"
+    description: "Guard system API for SMS network security events."
+    bug: "407790397"
+    metadata {
+        purpose: PURPOSE_FEATURE
+    }
+}
