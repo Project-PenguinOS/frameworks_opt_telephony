@@ -575,6 +575,8 @@ public abstract class TelephonyTest {
         lenient().doReturn(true).when(mFeatureFlags).supportPsimToEsimConversion();
         lenient().doReturn(true).when(mFeatureFlags).getPhoneNumberTs43Api();
         lenient().doReturn(true).when(mFeatureFlags).subscriptionPlanEnhancement();
+        lenient().doReturn(true).when(mFeatureFlags)
+                .removeTetheringConditionWhenEnablingIndications();
 
         WorkerThread.reset();
         TelephonyManager.disableServiceHandleCaching();

@@ -171,3 +171,11 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+# OWNER=hongbozeng TARGET=26Q2
+flag {
+  name: "remove_tethering_condition_when_enabling_indications"
+  namespace: "telephony"
+  description: "Remove tethering condition when enabling indications"
+  bug:"455450987"
+}
