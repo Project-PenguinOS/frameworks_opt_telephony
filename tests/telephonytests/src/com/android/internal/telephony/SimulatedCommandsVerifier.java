@@ -188,6 +188,16 @@ public class SimulatedCommandsVerifier implements CommandsInterface {
     }
 
     @Override
+    public void registerForDataCallListUpdated(Handler h, int what, Object obj) {
+
+    }
+
+    @Override
+    public void unregisterForDataCallListUpdated(Handler h) {
+
+    }
+
+    @Override
     public void registerForHardwareConfigChanged(Handler h, int what, Object obj) {
 
     }

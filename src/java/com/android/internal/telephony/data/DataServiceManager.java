@@ -55,6 +55,7 @@ import android.telephony.data.IDataServiceCallback;
 import android.telephony.data.NetworkSliceInfo;
 import android.telephony.data.TrafficDescriptor;
 import android.text.TextUtils;
+import android.util.Pair;
 
 import com.android.internal.telephony.IIntegerConsumer;
 import com.android.internal.telephony.Phone;
@@ -137,7 +138,7 @@ public class DataServiceManager extends Handler {
             // Tear down all connections
             mLastDataCallResponseList = new ArrayList<>();
             mDataCallListChangedRegistrants.notifyRegistrants(
-                    new AsyncResult(null, Collections.EMPTY_LIST, null));
+                    new AsyncResult(null, new Pair<>(Collections.EMPTY_LIST, false), null));
         }
     }
 
@@ -318,10 +319,24 @@ public class DataServiceManager extends Handler {
 
         @Override
         public void onDataCallListChanged(List<DataCallResponse> dataCallList) {
-            mLastDataCallResponseList =
-                    dataCallList != null ? dataCallList : new ArrayList<>();
+            mLastDataCallResponseList = dataCallList != null ? dataCallList : new ArrayList<>();
+
+            // Bundle List and Boolean into a Pair
+            // Notify DataNetwork via AsyncResult
             mDataCallListChangedRegistrants.notifyRegistrants(
-                    new AsyncResult(null, dataCallList, null));
+                    new AsyncResult(null,
+                            new Pair<>(dataCallList, false), null));
+        }
+
+        @Override
+        public void onDataCallListUpdated(List<DataCallResponse> dataCallList) {
+            mLastDataCallResponseList = dataCallList != null ? dataCallList : new ArrayList<>();
+
+            // Bundle List and Boolean into a Pair
+            // Notify DataNetwork via AsyncResult
+            mDataCallListChangedRegistrants.notifyRegistrants(
+                    new AsyncResult(null,
+                            new Pair<>(dataCallList, true), null));
         }
 
         @Override
