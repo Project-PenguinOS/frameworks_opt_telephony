@@ -172,6 +172,7 @@ flag {
   metadata {
     purpose: PURPOSE_FEATURE
   }
+  is_exported: true
 }
 
 # OWNER=arunvoddu TARGET=26Q2
@@ -183,6 +184,7 @@ flag {
   metadata {
     purpose: PURPOSE_FEATURE
   }
+  is_exported: true
 }
 
 # OWNER=tnd TARGET=26Q1

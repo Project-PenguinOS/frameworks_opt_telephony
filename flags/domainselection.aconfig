@@ -32,6 +32,7 @@ flag {
     namespace: "telephony"
     description: "This flag controls the addition of EMERGENCY_REDIAL_ON_IMS and EMERGENCY_REDIAL_ON_VOWIFI redial codes for normal routed emergency calls."
     bug:"357980439"
+    is_exported: true
 }
 
 # OWNER=hwangoo TARGET=25Q2

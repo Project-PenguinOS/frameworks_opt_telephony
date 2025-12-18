@@ -79,9 +79,8 @@ flag {
  bug: "350569741"
  metadata {
      purpose: PURPOSE_BUGFIX
-   }
+ }
 }
-
 
 # OWNER=braydenhass TARGET=26Q2
 flag {
