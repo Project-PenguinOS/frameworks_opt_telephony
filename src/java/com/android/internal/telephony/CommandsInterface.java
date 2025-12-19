@@ -252,6 +252,12 @@ public interface CommandsInterface {
     /** Single Radio Voice Call State progress notifications */
     void registerForSrvccStateChanged(Handler h, int what, Object obj);
 
+    /** register for Data Call List updated events */
+    void registerForDataCallListUpdated(Handler h, int what, Object obj);
+
+    /** Unregister from data call list updated event */
+    void unregisterForDataCallListUpdated(Handler h);
+
     /**
      * fires on any change in hardware configuration.
      */

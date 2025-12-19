@@ -104,6 +104,7 @@ import android.telephony.ims.stub.ImsRegistrationImplBase;
 import android.testing.AndroidTestingRunner;
 import android.testing.TestableLooper;
 import android.util.ArraySet;
+import android.util.Pair;
 import android.util.SparseArray;
 
 import com.android.internal.telephony.ISub;
@@ -523,8 +524,9 @@ public class DataNetworkControllerTest extends TelephonyTest {
             msg.sendToTarget();
 
             mDataCallListChangedRegistrants.get(transport).notifyRegistrants(
-                    new AsyncResult(transport, new ArrayList<>(mDataCallResponses.get(
-                            transport).values()), null));
+                    new AsyncResult(transport,
+                            new Pair<>(new ArrayList<>(mDataCallResponses.get(transport).values()),
+                                    true), null));
             return null;
         }).when(dsm).setupDataCall(anyInt(), any(DataProfile.class), anyBoolean(),
                 anyBoolean(), anyInt(), any(), anyInt(), any(), any(), anyBoolean(),
@@ -561,10 +563,9 @@ public class DataNetworkControllerTest extends TelephonyTest {
 
             final int t = transport;
             msg.getTarget().postDelayed(() -> {
-                mDataCallListChangedRegistrants.get(t).notifyRegistrants(
-                        new AsyncResult(t, new ArrayList<>(mDataCallResponses.get(
-                                t).values()), null));
-
+                mDataCallListChangedRegistrants.get(t).notifyRegistrants(new AsyncResult(t,
+                        new Pair<>(new ArrayList<>(mDataCallResponses.get(t).values()), true),
+                        null));
             }, delay + 100);
             logd("setup data call successful. cid=" + cid);
             return null;
@@ -914,10 +915,24 @@ public class DataNetworkControllerTest extends TelephonyTest {
                 int cid = (int) invocation.getArguments()[0];
                 Message msg = (Message) invocation.getArguments()[2];
                 msg.sendToTarget();
+                DataCallResponse response = createDataCallResponse(cid,
+                        DataCallResponse.LINK_STATUS_INACTIVE);
+                mDataCallResponses.get(transport).put(cid, response);
+                mDataCallListChangedRegistrants.get(transport)
+                        .notifyRegistrants(new AsyncResult(
+                                transport,
+                                new Pair<>(
+                                        new ArrayList<>(mDataCallResponses.get(transport).values()),
+                                        true), null)
+                        );
                 mDataCallResponses.get(transport).remove(cid);
-                mDataCallListChangedRegistrants.get(transport).notifyRegistrants(
-                        new AsyncResult(transport, new ArrayList<>(mDataCallResponses.get(
-                                transport).values()), null));
+                mDataCallListChangedRegistrants.get(transport)
+                        .notifyRegistrants(new AsyncResult(
+                                transport,
+                                new Pair<>(
+                                        new ArrayList<>(mDataCallResponses.get(transport).values()),
+                                        true), null)
+                        );
                 return null;
             }).when(mMockedDataServiceManagers.get(transport)).deactivateDataCall(
                     anyInt(), anyInt(), any(Message.class));
@@ -3037,7 +3052,7 @@ public class DataNetworkControllerTest extends TelephonyTest {
         DataCallResponse response = createDataCallResponse(1, DataCallResponse.LINK_STATUS_DORMANT);
         dataNetwork.obtainMessage(8 /*EVENT_DATA_STATE_CHANGED */,
                 new AsyncResult(AccessNetworkConstants.TRANSPORT_TYPE_WWAN,
-                        List.of(response), null)).sendToTarget();
+                        new Pair<>(List.of(response), false), null)).sendToTarget();
 
         processAllMessages();
         verify(mMockedDataNetworkControllerCallback).onPhysicalLinkStatusChanged(
@@ -5710,8 +5725,9 @@ public class DataNetworkControllerTest extends TelephonyTest {
                 createDataCallResponse(1, DataCallResponse.LINK_STATUS_ACTIVE, tdList));
         mDataCallListChangedRegistrants.get(AccessNetworkConstants.TRANSPORT_TYPE_WWAN)
                 .notifyRegistrants(new AsyncResult(AccessNetworkConstants.TRANSPORT_TYPE_WWAN,
-                        List.of(createDataCallResponse(1, DataCallResponse.LINK_STATUS_ACTIVE,
-                                tdList)), null));
+                        new Pair<>(List.of(createDataCallResponse(1,
+                                DataCallResponse.LINK_STATUS_ACTIVE,
+                                tdList)), true), null));
 
         tdList = List.of(new TrafficDescriptor.Builder()
                 .setOsAppId(new OsAppId(OsAppId.ANDROID_OS_ID, "PRIORITIZE_LATENCY", 1).getBytes())

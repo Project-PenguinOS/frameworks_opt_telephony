@@ -179,3 +179,14 @@ flag {
   description: "Remove tethering condition when enabling indications"
   bug:"455450987"
 }
+
+# OWNER=navaldubey TARGET=26Q2
+flag {
+    name: "support_explicit_data_disconnect"
+    namespace: "telephony"
+    description: "Controls if explicit disconnect HAL behaviour should be supported or not."
+    bug: "438335285"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
