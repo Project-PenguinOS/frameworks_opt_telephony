@@ -91,3 +91,15 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+# OWNER=yomna TARGET=26Q2
+flag {
+    name: "drb_security_transparency"
+    is_exported: true
+    namespace: "telephony"
+    description: "Guard system API for DRB-specific security updates"
+    bug:"452486608"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
