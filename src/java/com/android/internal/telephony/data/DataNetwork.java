@@ -534,7 +534,7 @@ public class DataNetwork extends StateMachine {
 
     /** The phone instance. */
     @NonNull
-    private final Phone mPhone;
+    protected final Phone mPhone;
 
     /** Feature flags */
     @NonNull
@@ -2783,7 +2783,7 @@ public class DataNetwork extends StateMachine {
             }
         }
 
-        NetworkCapabilities nc = builder.build();
+        NetworkCapabilities nc = adjustNetworkCapabilities(builder.build());
         if (mNetworkCapabilities == null || mNetworkAgent == null) {
             // This is the first time when network capabilities is created. The agent is not created
             // at this time. Just return here. The network capabilities will be used when network
@@ -2827,6 +2827,16 @@ public class DataNetwork extends StateMachine {
         } else {
             log("updateNetworkCapabilities: Capabilities not changed.");
         }
+    }
+
+    /*
+     * Adjust network capabilites
+     *
+     * @param nc the network capabilites need to be adjusted.
+     * @return the adjusted network capabilites.
+     */
+    protected NetworkCapabilities adjustNetworkCapabilities(NetworkCapabilities nc) {
+        return nc;
     }
 
     /**

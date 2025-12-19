@@ -61,6 +61,7 @@ import com.android.internal.telephony.data.AutoDataSwitchController.AutoDataSwit
 // QTI_END: 2025-02-06: Telephony: Telephony-Data: Decouple Qualcomm value adds.
 // QTI_BEGIN: 2022-03-04: Telephony: Add support for injecting data sub modules
 import com.android.internal.telephony.data.DataConfigManager;
+import com.android.internal.telephony.data.DataEvaluation;
 import com.android.internal.telephony.data.DataNetwork;
 // QTI_END: 2022-03-04: Telephony: Add support for injecting data sub modules
 import com.android.internal.telephony.data.DataNetworkController;
@@ -759,4 +760,32 @@ public class TelephonyComponentFactory {
             featureFlags, phoneSwitcherCallback);
     }
 // QTI_END: 2025-02-06: Telephony: Telephony-Data: Decouple Qualcomm value adds.
+
+    /**
+     * Create a new {@link DataNetwork}.
+     *
+     * @param phone The phone instance.
+     * @param featureFlags The feature flags.
+     * @param looper The looper to be used by the state machine.
+     * @param dataServiceManagers Data service managers.
+     * @param dataProfile The data profile for establishing the data network.
+     * @param networkRequestList The initial network requests attached to this data network.
+     * @param transport The initial transport of the data network.
+     * @param isSatellite {@code true} if the network is initially setup on satellite.
+     * @param dataAllowedReason The reason that why setting up this data network is allowed.
+     * @param callback The callback to receives data network state update.
+     * @return The data network instance.
+     */
+    public DataNetwork makeDataNetwork(@NonNull Phone phone, @NonNull FeatureFlags featureFlags,
+            @NonNull Looper looper,
+            @NonNull SparseArray<DataServiceManager> dataServiceManagers,
+            @NonNull android.telephony.data.DataProfile dataProfile,
+            @NonNull DataNetworkController.NetworkRequestList networkRequestList,
+            @TransportType int transport, boolean isSatellite,
+            @NonNull DataEvaluation.DataAllowedReason dataAllowedReason,
+            @NonNull DataNetwork.DataNetworkCallback callback) {
+        return new DataNetwork(phone, featureFlags, looper, dataServiceManagers,
+                dataProfile, networkRequestList, transport, isSatellite,
+                dataAllowedReason, callback);
+    }
 }
