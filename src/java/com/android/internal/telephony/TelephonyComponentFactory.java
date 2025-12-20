@@ -61,7 +61,11 @@ import com.android.internal.telephony.data.AutoDataSwitchController.AutoDataSwit
 // QTI_END: 2025-02-06: Telephony: Telephony-Data: Decouple Qualcomm value adds.
 // QTI_BEGIN: 2022-03-04: Telephony: Add support for injecting data sub modules
 import com.android.internal.telephony.data.DataConfigManager;
+// QTI_END: 2022-03-04: Telephony: Add support for injecting data sub modules
+// QTI_BEGIN: 2025-12-18: Telephony: Inject DataNetwork and add data restriction
 import com.android.internal.telephony.data.DataEvaluation;
+// QTI_END: 2025-12-18: Telephony: Inject DataNetwork and add data restriction
+// QTI_BEGIN: 2022-03-04: Telephony: Add support for injecting data sub modules
 import com.android.internal.telephony.data.DataNetwork;
 // QTI_END: 2022-03-04: Telephony: Add support for injecting data sub modules
 import com.android.internal.telephony.data.DataNetworkController;
@@ -760,6 +764,7 @@ public class TelephonyComponentFactory {
             featureFlags, phoneSwitcherCallback);
     }
 // QTI_END: 2025-02-06: Telephony: Telephony-Data: Decouple Qualcomm value adds.
+// QTI_BEGIN: 2025-12-18: Telephony: Inject DataNetwork and add data restriction
 
     /**
      * Create a new {@link DataNetwork}.
@@ -788,4 +793,5 @@ public class TelephonyComponentFactory {
                 dataProfile, networkRequestList, transport, isSatellite,
                 dataAllowedReason, callback);
     }
+// QTI_END: 2025-12-18: Telephony: Inject DataNetwork and add data restriction
 }
