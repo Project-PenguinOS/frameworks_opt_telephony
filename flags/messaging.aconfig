@@ -96,6 +96,7 @@ flag {
 # OWNER=nishantpanwar TARGET=26Q2
 flag {
   name: "message_promotion"
+  is_exported: true
   namespace: "telephony"
   description: "Include the Default Messaging App in outgoing message flows to support sending RCS messages"
   bug: "469744736"
