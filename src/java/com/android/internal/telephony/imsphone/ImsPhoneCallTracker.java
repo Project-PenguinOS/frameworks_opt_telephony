@@ -816,9 +816,6 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
     private long mThresholdRtpInactivityTime;
     private final List<Integer> mSrvccTypeSupported = new ArrayList<>();
     private final SrvccStartedCallback mSrvccStartedCallback = new SrvccStartedCallback();
-// QTI_BEGIN: 2018-04-03: Telephony: IMS: UT status from AP keep same as Modem after reset capability
-    private boolean mIgnoreResetUtCapability = false;
-// QTI_END: 2018-04-03: Telephony: IMS: UT status from AP keep same as Modem after reset capability
     // Tracks the state of our background/foreground calls while a call hold/swap operation is
     // in progress. Values listed above.
     private HoldSwapState mHoldSwitchingState = HoldSwapState.INACTIVE;
@@ -2125,10 +2122,6 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
                         .KEY_VOICE_RTP_INACTIVITY_TIME_THRESHOLD_MILLIS_LONG);
         mThresholdRtpJitter = carrierConfig.getInt(
                 CarrierConfigManager.ImsVoice.KEY_VOICE_RTP_JITTER_THRESHOLD_MILLIS_INT);
-// QTI_BEGIN: 2018-04-03: Telephony: IMS: UT status from AP keep same as Modem after reset capability
-        mIgnoreResetUtCapability =  carrierConfig.getBoolean(
-                CarrierConfigManager.KEY_IGNORE_RESET_UT_CAPABILITY_BOOL);
-// QTI_END: 2018-04-03: Telephony: IMS: UT status from AP keep same as Modem after reset capability
 // QTI_BEGIN: 2019-10-03: Telephony: IMS: Fix call cannot be resumed for few operators
         mAllowHoldingCall = carrierConfig.getBoolean(
                 CarrierConfigManager.KEY_ALLOW_HOLD_IN_IMS_CALL_BOOL);
@@ -6309,21 +6302,7 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
     private void resetImsCapabilities() {
         log("Resetting Capabilities...");
         boolean tmpIsVideoCallEnabled = isVideoCallEnabled();
-
-// QTI_BEGIN: 2018-04-03: Telephony: IMS: UT status from AP keep same as Modem after reset capability
-        if (mIgnoreResetUtCapability) {
-            //UT capability should not be reset (for IMS deregistration and for IMS feature state
-            //not ready) and it should always depend on the modem indication for UT capability
-            mMmTelCapabilities.removeCapabilities(
-                    MmTelFeature.MmTelCapabilities.CAPABILITY_TYPE_VOICE);
-            mMmTelCapabilities.removeCapabilities(
-                    MmTelFeature.MmTelCapabilities.CAPABILITY_TYPE_VIDEO);
-            mMmTelCapabilities.removeCapabilities(
-                    MmTelFeature.MmTelCapabilities.CAPABILITY_TYPE_SMS);
-        } else {
-            mMmTelCapabilities = new MmTelFeature.MmTelCapabilities();
-        }
-// QTI_END: 2018-04-03: Telephony: IMS: UT status from AP keep same as Modem after reset capability
+        mMmTelCapabilities = new MmTelFeature.MmTelCapabilities();
         mPhone.setServiceState(ServiceState.STATE_OUT_OF_SERVICE);
         mPhone.resetImsRegistrationState();
         mPhone.processDisconnectReason(new ImsReasonInfo(ImsReasonInfo.CODE_LOCAL_IMS_SERVICE_DOWN,

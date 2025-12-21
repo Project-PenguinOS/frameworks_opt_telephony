@@ -534,7 +534,9 @@ public class DataNetwork extends StateMachine {
 
     /** The phone instance. */
     @NonNull
+// QTI_BEGIN: 2025-12-18: Telephony: Inject DataNetwork and add data restriction
     protected final Phone mPhone;
+// QTI_END: 2025-12-18: Telephony: Inject DataNetwork and add data restriction
 
     /** Feature flags */
     @NonNull
@@ -2783,7 +2785,9 @@ public class DataNetwork extends StateMachine {
             }
         }
 
+// QTI_BEGIN: 2025-12-18: Telephony: Inject DataNetwork and add data restriction
         NetworkCapabilities nc = adjustNetworkCapabilities(builder.build());
+// QTI_END: 2025-12-18: Telephony: Inject DataNetwork and add data restriction
         if (mNetworkCapabilities == null || mNetworkAgent == null) {
             // This is the first time when network capabilities is created. The agent is not created
             // at this time. Just return here. The network capabilities will be used when network
@@ -2829,6 +2833,7 @@ public class DataNetwork extends StateMachine {
         }
     }
 
+// QTI_BEGIN: 2025-12-18: Telephony: Inject DataNetwork and add data restriction
     /*
      * Adjust network capabilites
      *
@@ -2839,6 +2844,7 @@ public class DataNetwork extends StateMachine {
         return nc;
     }
 
+// QTI_END: 2025-12-18: Telephony: Inject DataNetwork and add data restriction
     /**
      * @return The network capabilities of this data network.
      */

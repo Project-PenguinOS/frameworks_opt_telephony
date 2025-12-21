@@ -3225,11 +3225,13 @@ public class DataNetworkController extends Handler {
         boolean isSatellite = (transport == AccessNetworkConstants.TRANSPORT_TYPE_WWAN)
                 && nri != null && nri.isNonTerrestrialNetwork();
 
+// QTI_BEGIN: 2025-12-18: Telephony: Inject DataNetwork and add data restriction
         mDataNetworkList.add(TelephonyComponentFactory.getInstance().inject(
                 DataNetwork.class.getName())
                 .makeDataNetwork(mPhone, mFeatureFlags, getLooper(),
                 mDataServiceManagers, dataProfile, networkRequestList, transport,
                 isSatellite, allowedReason, new DataNetworkCallback(this::post) {
+// QTI_END: 2025-12-18: Telephony: Inject DataNetwork and add data restriction
                     @Override
                     public void onSetupDataFailed(@NonNull DataNetwork dataNetwork,
                             @NonNull NetworkRequestList requestList, @DataFailureCause int cause,

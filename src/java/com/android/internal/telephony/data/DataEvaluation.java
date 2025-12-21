@@ -376,8 +376,10 @@ public class DataEvaluation {
         /** Device is in Secure Mode. */
 // QTI_END: 2022-04-27: Telephony: Make Secure Mode related changes
         DATA_RESTRICTED_BY_SECURE_MODE(true),
+// QTI_BEGIN: 2025-12-18: Telephony: Inject DataNetwork and add data restriction
         /** Data restricted on a network type. */
         DATA_RESTRICTED_BY_NETWORK_TYPE(true),
+// QTI_END: 2025-12-18: Telephony: Inject DataNetwork and add data restriction
         /** Handover max retry stopped but network is not on the preferred transport. */
         HANDOVER_RETRY_STOPPED(true),
         /** BootStrap sim data limit reached. */
