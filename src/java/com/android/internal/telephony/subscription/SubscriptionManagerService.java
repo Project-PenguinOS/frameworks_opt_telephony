@@ -4895,9 +4895,18 @@ public class SubscriptionManagerService extends ISub.Stub {
                 .collect(Collectors.toList());
         for (SubscriptionInfo oppSubInfo : getOpportunisticSubscriptions(
                 mContext.getOpPackageName(), mContext.getFeatureId())) {
-            boolean groupDisabled = activeSubscriptions.stream()
-                    .noneMatch(subInfo -> !subInfo.isOpportunistic()
-                            && Objects.equals(oppSubInfo.getGroupUuid(), subInfo.getGroupUuid()));
+            boolean groupDisabled;
+            if (mFeatureFlags.preventDisablingUngroupedOppSub()) {
+                groupDisabled = oppSubInfo.getGroupUuid() != null
+                        && activeSubscriptions.stream().noneMatch(subInfo ->
+                        !subInfo.isOpportunistic() && Objects.equals(oppSubInfo.getGroupUuid(),
+                                subInfo.getGroupUuid()));
+            } else {
+                groupDisabled = activeSubscriptions.stream()
+                        .noneMatch(subInfo -> !subInfo.isOpportunistic()
+                                && Objects.equals(oppSubInfo.getGroupUuid(),
+                                subInfo.getGroupUuid()));
+            }
             mSubscriptionDatabaseManager.setGroupDisabled(
                     oppSubInfo.getSubscriptionId(), groupDisabled);
         }
