@@ -107,6 +107,7 @@ flag {
     metadata {
         purpose: PURPOSE_FEATURE
     }
+    is_exported: true
 }
 
 # OWNER=shashannk TARGET=26Q2
@@ -115,6 +116,7 @@ flag {
     namespace: "telephony"
     description: "This flag exposes sms memory availability notification related APIs"
     bug:"428178177"
+    is_exported: true
 }
 
 # OWNER=gwenlin TARGET=26Q2
@@ -123,6 +125,7 @@ flag {
     namespace: "telephony"
     description: "This flag adds P-CSCF address in IMS registration attributes"
     bug:"433593483"
+    is_exported: true
 }
 
 # OWNER=donaldahn TARGET=26Q2

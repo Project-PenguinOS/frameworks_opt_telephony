@@ -58,6 +58,7 @@ flag {
   namespace: "telephony"
   description: "Support notify data services when user data and user data roaming is toggled."
   bug:"389120182"
+  is_exported: true
 }
 
 # OWNER=rambowang TARGET=25Q4
@@ -75,6 +76,7 @@ flag {
   namespace: "telephony"
   description: "Support notifying IMS data network"
   bug:"389103112"
+  is_exported: true
 }
 
 # OWNER=melhuishj TARGET=25Q4
@@ -147,6 +149,7 @@ flag {
   namespace: "telephony"
   description: "Enables support for including Connection Capabilities in the TrafficDescriptor for URSP (UE Route Selection Policy) matching, as defined in 3GPP TS 24.526."
   bug:"417753705"
+  is_exported: true
 }
 
 # OWNER=navaldubey TARGET=26Q2
