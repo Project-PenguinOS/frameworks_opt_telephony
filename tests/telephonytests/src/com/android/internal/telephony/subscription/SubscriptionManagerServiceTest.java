@@ -4274,6 +4274,14 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
                 .setTitle(title)
                 .setDataLimit(SubscriptionPlan.BYTES_UNLIMITED,
                         SubscriptionPlan.LIMIT_BEHAVIOR_THROTTLED)
+                .setId(1001)
+                .setTypes(new int[] {
+                        SubscriptionPlan.PLAN_TYPE_CELLULAR,
+                        SubscriptionPlan.PLAN_TYPE_PREPAID
+                })
+                .setDataUsageResetTime(ZonedDateTime.parse("2025-01-15T00:00:00.000Z"))
+                .setStreamingAppMaxDownlinkKbps(5000)
+                .setStreamingAppMaxUplinkKbps(1000)
                 .build();
     }
 
@@ -4300,6 +4308,14 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
         assertThat(storedPlans).isNotNull();
         assertThat(storedPlans).hasLength(1);
         assertThat(storedPlans[0]).isEqualTo(plan);
+        assertThat(storedPlans[0].getId()).isEqualTo(1001);
+        assertThat(storedPlans[0].getTypes()).containsExactly(
+                SubscriptionPlan.PLAN_TYPE_CELLULAR,
+                SubscriptionPlan.PLAN_TYPE_PREPAID);
+        assertThat(storedPlans[0].getDataUsageResetTime())
+                .isEqualTo(ZonedDateTime.parse("2025-01-15T00:00:00.000Z"));
+        assertThat(storedPlans[0].getStreamingAppMaxDownlinkKbps()).isEqualTo(5000);
+        assertThat(storedPlans[0].getStreamingAppMaxUplinkKbps()).isEqualTo(1000);
 
         try {
             // Verify that owner was set properly
@@ -4433,7 +4449,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
 
         // 2. Action: Set plans (This should trigger XML write)
         mSubscriptionManagerServiceUT.setEnrollableSubscriptionPlans(
-                subId, plans, 0, CALLING_PACKAGE);
+                subId, plans, 10000, CALLING_PACKAGE);
         processAllMessages();
 
         // 3. Verify: Plans are available in memory
@@ -4469,6 +4485,16 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
         Map<Integer, String> ownerMap =
                 (Map<Integer, String>) ownerMapField.get(mSubscriptionManagerServiceUT);
         assertThat(ownerMap.get(subId)).isEqualTo(CALLING_PACKAGE);
+
+        SubscriptionPlan restoredPlan = restoredPlans[0];
+        assertThat(restoredPlan.getId()).isEqualTo(1001);
+        assertThat(restoredPlan.getTypes()).containsExactly(
+                SubscriptionPlan.PLAN_TYPE_CELLULAR,
+                SubscriptionPlan.PLAN_TYPE_PREPAID);
+        assertThat(restoredPlan.getDataUsageResetTime())
+                .isEqualTo(ZonedDateTime.parse("2025-01-15T00:00:00.000Z"));
+        assertThat(restoredPlan.getStreamingAppMaxDownlinkKbps()).isEqualTo(5000);
+        assertThat(restoredPlan.getStreamingAppMaxUplinkKbps()).isEqualTo(1000);
     }
 
     /**
@@ -4556,6 +4582,36 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
                         mSubscriptionManagerServiceUT.getEnrollableSubscriptionPlans(
                                 subId, CALLING_PACKAGE))
                 .isNull();
+    }
+
+    /**
+     * Tests that plans with 0 expiration (volatile) are NOT persisted to disk.
+     */
+    @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
+    public void testEnrollableSubscriptionPlans_Volatility() throws Exception {
+        setupPackageManagerMocks(CALLING_PACKAGE, Process.myUid());
+        setManageSubscriptionPlansPermission(true);
+        mContextFixture.addCallingOrSelfPermission(
+                android.Manifest.permission.READ_PRIVILEGED_PHONE_STATE);
+
+        int subId = 1;
+        SubscriptionPlan plan = createTestSubscriptionPlan("Volatile Plan");
+
+        mSubscriptionManagerServiceUT.setEnrollableSubscriptionPlans(
+                subId, new SubscriptionPlan[]{plan}, 0 /* volatile */, CALLING_PACKAGE);
+        processAllMessages();
+
+        assertThat(mSubscriptionManagerServiceUT.getEnrollableSubscriptionPlans(
+                subId, CALLING_PACKAGE)).isNotEmpty();
+
+        mSubscriptionManagerServiceUT =
+                new SubscriptionManagerService(mContext, Looper.myLooper(), mFeatureFlags);
+        processAllMessages();
+
+        setupPackageManagerMocks(CALLING_PACKAGE, Process.myUid());
+        assertThat(mSubscriptionManagerServiceUT.getEnrollableSubscriptionPlans(
+                subId, CALLING_PACKAGE)).isNull();
     }
 
     /**
