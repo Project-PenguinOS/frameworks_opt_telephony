@@ -286,3 +286,14 @@ flag {
     purpose: PURPOSE_FEATURE
   }
 }
+
+# OWNER=tnd TARGET=26Q2
+flag {
+  name: "system_selection_specifier_enhancement"
+  namespace: "telephony"
+  description: "This flag controls the enhancement for SystemSelectionSpecifier"
+  bug: "471059941"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}
