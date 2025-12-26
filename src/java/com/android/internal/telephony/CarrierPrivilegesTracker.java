@@ -72,6 +72,7 @@ import com.android.internal.telephony.uicc.UiccPort;
 import com.android.internal.telephony.uicc.UiccProfile;
 import com.android.internal.telephony.util.WorkerThread;
 import com.android.telephony.Rlog;
+import com.android.internal.telephony.TelephonyStatsLog;
 
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
@@ -777,6 +778,9 @@ public class CarrierPrivilegesTracker extends Handler {
         Set<String> carrierServiceEligiblePackages = new ArraySet<>();
         Set<String> privilegedPackageNames = new ArraySet<>();
         Set<Integer> privilegedUids = new ArraySet<>();
+        int simPrivilegedPackageCount = 0;
+        int configPrivilegedPackageCount = 0;
+
         for (Map.Entry<String, Set<Integer>> e : mInstalledPackageCertHashes.entrySet()) {
             if (!isPackageMaybePrivileged(e.getKey(), e.getValue())) continue;
 
@@ -784,16 +788,27 @@ public class CarrierPrivilegesTracker extends Handler {
 
             final int priv = getPackagePrivilegedStatus(e.getKey(), fullCerts);
             switch (priv) {
-                case PACKAGE_PRIVILEGED_FROM_SIM:
-                case PACKAGE_PRIVILEGED_FROM_CARRIER_SERVICE_TEST_OVERRIDE: // fallthrough
+                case PACKAGE_PRIVILEGED_FROM_SIM: // fallthrough
+                case PACKAGE_PRIVILEGED_FROM_CARRIER_SERVICE_TEST_OVERRIDE:
                     carrierServiceEligiblePackages.add(e.getKey());
-                    // fallthrough
+                    simPrivilegedPackageCount++;
+                    break;
                 case PACKAGE_PRIVILEGED_FROM_CARRIER_CONFIG:
-                    privilegedPackageNames.add(e.getKey());
-                    privilegedUids.addAll(
-                            getUidsForPackage(e.getKey(), /* invalidateCache= */ false));
+                    configPrivilegedPackageCount++;
+                    break;
+                default:
+                    continue;
             }
+
+            privilegedPackageNames.add(e.getKey());
+            privilegedUids.addAll(
+                    getUidsForPackage(e.getKey(), /* invalidateCache= */ false));
         }
+
+        TelephonyStatsLog.write(TelephonyStatsLog.CARRIER_PRIVILEGES_REPORTED,
+                mPhone.getSpecificCarrierId(),
+                simPrivilegedPackageCount,
+                configPrivilegedPackageCount);
 
         return new PrivilegedPackageInfo(
                 privilegedPackageNames,
