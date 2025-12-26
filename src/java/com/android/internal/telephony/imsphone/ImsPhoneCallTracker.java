@@ -254,8 +254,7 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
     private Optional<Integer> mCurrentlyConnectedSubId = Optional.empty();
 
     private final MmTelFeatureListener mMmTelFeatureListener = new MmTelFeatureListener();
-    private com.android.server.telecom.flags.FeatureFlags mTelecomFlags =
-            new com.android.server.telecom.flags.FeatureFlagsImpl();
+
     private class MmTelFeatureListener extends MmTelFeature.Listener {
 
         private IImsCallSessionListener processIncomingCall(@NonNull IImsCallSession c,
@@ -3127,7 +3126,7 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
         hangup(call, android.telecom.Call.REJECT_REASON_DECLINED);
     }
 
-    public void hangup (ImsPhoneCall call, @android.telecom.Call.RejectReason int rejectReason)
+    public void hangup (ImsPhoneCall call, /*@android.telecom.Call.RejectReason*/ int rejectReason)
             throws CallStateException {
         if (DBG) log("hangup call - reason=" + rejectReason);
 
@@ -3144,7 +3143,8 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
         if (imsCall != null && imsCall.isCallSessionMergePending()) {
             if (DBG) log("hangup call failed during call merge");
             // Notify Telecom that the disconnect failed due to an ongoing call merge.
-            if (conn != null && mTelecomFlags.revertDisconnectingDuringMerge()) {
+            if (conn != null
+                    && com.android.server.telecom.flags.Flags.revertDisconnectingDuringMerge()) {
                 conn.onConnectionEvent(android.telecom.Connection.EVENT_DISCONNECT_FAILED,
                         null);
             }

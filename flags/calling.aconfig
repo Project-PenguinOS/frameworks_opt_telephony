@@ -1,14 +1,6 @@
 package: "com.android.internal.telephony.flags"
 container: "system"
 
-# OWNER=breadley TARGET=24Q3
-flag {
-  name: "simultaneous_calling_indications"
-  namespace: "telephony"
-  description: "APIs that are used to notify simultaneous calling changes to other applications."
-  bug: "297446980"
-  is_exported: true
-}
 
 # OWNER=tgunn TARGET=25Q2
 flag {
@@ -55,17 +47,6 @@ flag {
     }
 }
 
-# OWNER=tjstuart TARGET=25Q2
-flag {
-    name: "vvm_async_sim_state_handling"
-    namespace: "telephony"
-    description: "Prevent ANRs in the VvmSimStateTracker by moving tasks to the background"
-    bug:"433343546"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
 # OWNER=pmadapurmath TARGET=26Q2
 flag {
     name: "support_auto_unhold"
@@ -89,6 +70,17 @@ flag {
     namespace: "telephony"
     description: "Do not process in-call MMI codes when there is an active emergency call."
     bug:"444515076"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+# OWNER=tgunn TARGET=26Q1
+flag {
+    name: "initialize_telecom_account_registry_async"
+    namespace: "telephony"
+    description: "Move setup of telecom account registry out of the onCreate."
+    bug:"454329792"
     metadata {
         purpose: PURPOSE_BUGFIX
     }

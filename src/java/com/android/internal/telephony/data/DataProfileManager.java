@@ -200,8 +200,13 @@ public class DataProfileManager extends Handler {
         mPhone.getContext().getContentResolver().registerContentObserver(
                 Telephony.Carriers.CONTENT_URI, true, new ContentObserver(this) {
                     @Override
-                    public void onChange(boolean selfChange) {
-                        super.onChange(selfChange);
+                    public void onChange(boolean selfChange, Uri uri) {
+                        final Uri restoreUri =
+                                Uri.withAppendedPath(Telephony.Carriers.CONTENT_URI, "restore");
+                        if (uri != null && uri.toString().startsWith(restoreUri.toString())) {
+                            log("Received APN settings reset notification. Clearing cache.");
+                            mLastInternetDataProfiles.evictAll();
+                        }
                         sendEmptyMessage(EVENT_APN_DATABASE_CHANGED);
                     }
                 });
@@ -711,6 +716,22 @@ public class DataProfileManager extends Handler {
             TrafficDescriptor.OsAppId osAppId = networkRequest.getOsAppId();
             if (osAppId != null) {
                 trafficDescriptorBuilder.setOsAppId(osAppId.getBytes());
+            }
+        }
+
+        if (mFeatureFlags.enableTrafficDescriptorConnectionCapability()) {
+            if (networkRequest.hasAttribute(
+                    TelephonyNetworkRequest
+                            .CAPABILITY_ATTRIBUTE_TRAFFIC_DESCRIPTOR_CONNECTION_CAPABILITY)) {
+                // Get the highest priority capability from the request.
+                int highestPriorityCapability =
+                        networkRequest.getHighestPrioritySupportedNetworkCapability();
+                // Convert it to ConnectionCapability using the utility method.
+                int connectionCapability = DataUtils.networkCapabilityToConnectionCapability(
+                        highestPriorityCapability);
+                if (connectionCapability != TrafficDescriptor.CONNECTION_CAPABILITY_UNKNOWN) {
+                    trafficDescriptorBuilder.setConnectionCapability(connectionCapability);
+                }
             }
         }
 

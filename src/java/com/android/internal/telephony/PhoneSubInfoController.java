@@ -78,18 +78,20 @@ public class PhoneSubInfoController extends IPhoneSubInfo.Stub {
     }
 
     public PhoneSubInfoController(Context context, FeatureFlags featureFlags) {
-        ServiceRegisterer phoneSubServiceRegisterer = TelephonyFrameworkInitializer
-                .getTelephonyServiceManager()
-                .getPhoneSubServiceRegisterer();
-        if (phoneSubServiceRegisterer.get() == null) {
-            phoneSubServiceRegisterer.register(this);
-        }
         mAppOps = context.getSystemService(AppOpsManager.class);
         mContext = context;
         mPackageManager = context.getPackageManager();
         mFeatureFlags = featureFlags;
         mVendorApiLevel = SystemProperties.getInt(
                 "ro.vendor.api_level", Build.VERSION.DEVICE_INITIAL_SDK_INT);
+        ServiceRegisterer phoneSubServiceRegisterer = TelephonyFrameworkInitializer
+                .getTelephonyServiceManager()
+                .getPhoneSubServiceRegisterer();
+        // b/458134449 This registration needs to happen last, but ideally it should happen
+        // outside the constructor.
+        if (phoneSubServiceRegisterer.get() == null) {
+            phoneSubServiceRegisterer.register(this);
+        }
     }
 
     @Deprecated
@@ -505,13 +507,15 @@ public class PhoneSubInfoController extends IPhoneSubInfo.Stub {
         IsimRecords isimRecords = phone.getIsimRecords();
         if (isimRecords != null) {
             String[] impus = isimRecords.getIsimImpu();
-            List<Uri> impuList = new ArrayList<>();
-            for (String impu : impus) {
-                if (impu != null && impu.trim().length() > 0) {
-                    impuList.add(Uri.parse(impu));
+            if (impus != null) {
+                List<Uri> impuList = new ArrayList<>();
+                for (String impu : impus) {
+                    if (impu != null && impu.trim().length() > 0) {
+                        impuList.add(Uri.parse(impu));
+                    }
                 }
+                return impuList;
             }
-            return impuList;
         }
         throw new IllegalStateException("ISIM is not loaded");
     }
@@ -560,9 +564,6 @@ public class PhoneSubInfoController extends IPhoneSubInfo.Stub {
      * @throws SecurityException if the caller does not have the required permission
      */
     public List<String> getImsPcscfAddresses(int subId, String callingPackage) {
-        if (!mFeatureFlags.supportIsimRecord()) {
-            return new ArrayList<>();
-        }
         if (!SubscriptionManager.isValidSubscriptionId(subId)) {
             throw new IllegalArgumentException("Invalid subscription: " + subId);
         }
@@ -578,12 +579,14 @@ public class PhoneSubInfoController extends IPhoneSubInfo.Stub {
         IsimRecords isimRecords = phone.getIsimRecords();
         if (isimRecords != null) {
             String[] pcscfs = isimRecords.getIsimPcscf();
-            List<String> pcscfList = Arrays.stream(pcscfs)
-                    .filter(u -> u != null)
-                    .map(u -> u.trim())
-                    .filter(u -> u.length() > 0)
-                    .collect(Collectors.toList());
-            return pcscfList;
+            if (pcscfs != null) {
+                List<String> pcscfList = Arrays.stream(pcscfs)
+                        .filter(u -> u != null)
+                        .map(u -> u.trim())
+                        .filter(u -> u.length() > 0)
+                        .collect(Collectors.toList());
+                return pcscfList;
+            }
         }
         throw new IllegalStateException("ISIM is not loaded");
     }

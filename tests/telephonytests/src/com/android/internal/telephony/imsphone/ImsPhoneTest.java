@@ -1348,8 +1348,8 @@ public class ImsPhoneTest extends TelephonyTest {
         mImsPhoneUT.setPhoneNumberForSourceIms(associatedUris);
 
         verify(mPhoneNumberManager).parsePhoneNumber(any(), eq("gb"));
-        // PhoneNumberManager returns error, but existing implementation should be performed.
-        verify(mSubscriptionManagerService).setNumberFromIms(subId, "+447539447777");
+        // PhoneNumberManager returns error, do not save the number
+        verify(mSubscriptionManagerService, never()).setNumberFromIms(subId, "+447539447777");
         clearInvocations(mPhoneNumberManager);
         clearInvocations(mSubscriptionManagerService);
 

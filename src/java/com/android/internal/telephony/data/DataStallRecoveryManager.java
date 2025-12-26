@@ -220,6 +220,8 @@ public class DataStallRecoveryManager extends Handler {
 
     private int mActiveDataSubId = SubscriptionManager.INVALID_SUBSCRIPTION_ID;
 
+    private ActiveDataSubscriptionIdChangedCallback mActiveDataSubscriptionIdChangedCallback;
+
     /**
      * The content URI for the DSRM recovery actions.
      *
@@ -378,15 +380,16 @@ public class DataStallRecoveryManager extends Handler {
         mPhone.getContext().getContentResolver().registerContentObserver(
                 CONTENT_URL_DSRM_DURATION_MILLIS, false, mContentObserver);
 
-        // This does not require a TM with any particular subscription.
-        mTelephonyManager.registerTelephonyCallback(
-                this::post,
+        mActiveDataSubscriptionIdChangedCallback =
                 new ActiveDataSubscriptionIdChangedCallback() {
                     @Override
                     public void onActiveDataSubscriptionIdChanged(int subId) {
                         mActiveDataSubId = subId;
                     }
-                });
+                };
+        // This does not require a TM with any particular subscription.
+        mTelephonyManager.registerTelephonyCallback(
+                this::post, mActiveDataSubscriptionIdChangedCallback);
     }
 
     @Override

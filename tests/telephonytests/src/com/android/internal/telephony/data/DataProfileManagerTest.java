@@ -35,6 +35,8 @@ import android.net.NetworkRequest;
 import android.net.Uri;
 import android.os.Looper;
 import android.os.SystemClock;
+import android.platform.test.annotations.EnableFlags;
+import android.platform.test.flag.junit.SetFlagsRule;
 import android.provider.Telephony;
 import android.telephony.AccessNetworkConstants;
 import android.telephony.NetworkRegistrationInfo;
@@ -54,9 +56,11 @@ import com.android.internal.telephony.TelephonyTest;
 import com.android.internal.telephony.data.DataConfigManager.DataConfigManagerCallback;
 import com.android.internal.telephony.data.DataNetworkController.DataNetworkControllerCallback;
 import com.android.internal.telephony.data.DataProfileManager.DataProfileManagerCallback;
+import com.android.internal.telephony.flags.Flags;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
@@ -93,6 +97,9 @@ public class DataProfileManagerTest extends TelephonyTest {
     private static final int DEFAULT_APN_SET_ID = Telephony.Carriers.NO_APN_SET_ID;
     private static final int APN_SET_ID_1 = 1;
     private static final int MATCH_ALL_APN_SET_ID = Telephony.Carriers.MATCH_ALL_APN_SET_ID;
+
+    @Rule
+    public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
 
     // Mocked classes
     private DataProfileManagerCallback mDataProfileManagerCallback;
@@ -2064,4 +2071,34 @@ public class DataProfileManagerTest extends TelephonyTest {
         assertThat(dataProfile.getApnSetting().getApnName()).isEqualTo(RCS_APN1);
     }
 
+    @Test
+    @EnableFlags(Flags.FLAG_ENABLE_TRAFFIC_DESCRIPTOR_CONNECTION_CAPABILITY)
+    public void testGetDataProfileForRequest_withConnectionCapability() {
+        // Set priority of IMS capability to return a non-zero value (the actual value is 40).
+        doReturn(40).when(mDataConfigManager)
+                .getNetworkCapabilityPriority(NetworkCapabilities.NET_CAPABILITY_IMS);
+
+        // IMS TNR
+        NetworkRequest nr = new NetworkRequest.Builder()
+                .addCapability(NetworkCapabilities.NET_CAPABILITY_IMS).build();
+        TelephonyNetworkRequest telephonyNetworkRequest =
+                new TelephonyNetworkRequest(nr, mPhone, mFeatureFlags);
+
+        // create DataProfile
+        DataProfile dataProfile = mDataProfileManagerUT.getDataProfileForNetworkRequest(
+                telephonyNetworkRequest, TelephonyManager.NETWORK_TYPE_LTE, false, false, false);
+
+        // Verify that dataProfile has a TrafficDescriptor
+        assertThat(dataProfile).isNotNull();
+        TrafficDescriptor td = dataProfile.getTrafficDescriptor();
+        assertThat(td).isNotNull();
+
+        // and has CONNECTION_CAPABILITY_IMS
+        assertThat(td.getConnectionCapability())
+                .isEqualTo(TrafficDescriptor.CONNECTION_CAPABILITY_IMS);
+
+        // Check apns
+        assertThat(dataProfile.getApnSetting().getApnName()).isEqualTo(IMS_APN);
+        assertThat(td.getDataNetworkName()).isEqualTo(IMS_APN);
+    }
 }

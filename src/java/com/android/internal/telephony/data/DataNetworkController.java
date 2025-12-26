@@ -1761,6 +1761,15 @@ public class DataNetworkController extends Handler {
                     DataDisallowedReason.DATA_NETWORK_TRANSPORT_NOT_ALLOWED);
         }
 
+        if (mFeatureFlags.unsupportedNetworkCapabilitiesPerCarrier()) {
+            // Check if there is any unsupported network capabilities.
+            if (Arrays.stream(networkRequest.getCapabilities())
+                    .anyMatch(mDataConfigManager.getUnsupportedNetworkCapabilities()::contains)) {
+                evaluation.addDataDisallowedReason(
+                        DataDisallowedReason.UNSUPPORTED_NETWORK_CAPABILITIES);
+            }
+        }
+
         // Bypass all checks for emergency network request.
         if (networkRequest.hasCapability(NetworkCapabilities.NET_CAPABILITY_EIMS)) {
             DataProfile emergencyProfile = mDataProfileManager.getDataProfileForNetworkRequest(
@@ -2200,6 +2209,15 @@ public class DataNetworkController extends Handler {
             return evaluation;
         }
 
+        if (mFeatureFlags.unsupportedNetworkCapabilitiesPerCarrier()) {
+            // Check if there is any unsupported network capabilities.
+            if (Arrays.stream(dataNetwork.getNetworkCapabilities().getCapabilities())
+                    .anyMatch(mDataConfigManager.getUnsupportedNetworkCapabilities()::contains)) {
+                evaluation.addDataDisallowedReason(
+                        DataDisallowedReason.UNSUPPORTED_NETWORK_CAPABILITIES);
+            }
+        }
+
         // Check SIM state
 // QTI_BEGIN: 2025-02-07: Telephony: Telephony-Data: Decouple Qualcomm value adds.
         if (mSimState != TelephonyManager.SIM_STATE_LOADED) {
@@ -2223,16 +2241,6 @@ public class DataNetworkController extends Handler {
                 evaluation.addDataDisallowedReason(
                         DataDisallowedReason.SERVICE_OPTION_NOT_SUPPORTED);
             }
-        }
-
-        // If the network is satellite, then the network must be restricted.
-        // The IWLAN data network should remain intact even when satellite is connected.
-        if (dataNetwork.getTransport() != AccessNetworkConstants.TRANSPORT_TYPE_WLAN
-                && mServiceState.isUsingNonTerrestrialNetwork() != dataNetwork.isSatellite()) {
-            // Since we don't support satellite/cellular network handover, we should always
-            // tear down the network when transport changes.
-            evaluation.addDataDisallowedReason(
-                    DataDisallowedReason.DATA_NETWORK_TRANSPORT_NOT_ALLOWED);
         }
 
         // Check whether data limit reached for bootstrap sim, else re-evaluate based on the timer
@@ -2348,20 +2356,29 @@ public class DataNetworkController extends Handler {
             dataDisabled = !mDataSettingsManager.isDataEnabled(
                     DataUtils.networkCapabilityToApnType(
                             dataNetwork.getApnTypeNetworkCapability()));
-
+            ApnSetting apnSetting = dataProfile.getApnSetting();
             // Sometimes network temporarily OOS and network type becomes UNKNOWN. We don't
             // tear down network in that case.
             if (networkType != TelephonyManager.NETWORK_TYPE_UNKNOWN
-                    && !dataProfile.getApnSetting().canSupportLingeringNetworkType(networkType)) {
+                    && !apnSetting.canSupportLingeringNetworkType(networkType)) {
                 log("networkType=" + TelephonyManager.getNetworkTypeName(networkType)
                         + ", networkTypeBitmask="
                         + TelephonyManager.convertNetworkTypeBitmaskToString(
-                                dataProfile.getApnSetting().getNetworkTypeBitmask())
-                        + ", lingeringNetworkTypeBitmask="
+                        apnSetting.getNetworkTypeBitmask()) + ", lingeringNetworkTypeBitmask="
                         + TelephonyManager.convertNetworkTypeBitmaskToString(
-                                dataProfile.getApnSetting().getLingeringNetworkTypeBitmask()));
+                        apnSetting.getLingeringNetworkTypeBitmask()));
                 evaluation.addDataDisallowedReason(
                         DataDisallowedReason.DATA_NETWORK_TYPE_NOT_ALLOWED);
+            }
+
+            // Check if the APN can only be used on cellular, or only on satellite.
+            if (((apnSetting.getInfrastructureBitmask() & ApnSetting.INFRASTRUCTURE_CELLULAR) == 0
+                    && !mServiceState.isUsingNonTerrestrialNetwork())
+                    || ((apnSetting.getInfrastructureBitmask()
+                            & ApnSetting.INFRASTRUCTURE_SATELLITE) == 0
+                            && mServiceState.isUsingNonTerrestrialNetwork())) {
+                evaluation.addDataDisallowedReason(
+                        DataDisallowedReason.DATA_NETWORK_TRANSPORT_NOT_ALLOWED);
             }
         }
 
@@ -2749,6 +2766,8 @@ public class DataNetworkController extends Handler {
                     return DataNetwork.TEAR_DOWN_REASON_DATA_LIMIT_REACHED;
                 case DATA_NETWORK_TRANSPORT_NOT_ALLOWED:
                     return DataNetwork.TEAR_DOWN_REASON_DATA_NETWORK_TRANSPORT_NOT_ALLOWED;
+                case UNSUPPORTED_NETWORK_CAPABILITIES:
+                    return DataNetwork.TEAR_DOWN_REASON_UNSUPPORTED_NETWORK_CAPABILITIES;
             }
         }
         return DataNetwork.TEAR_DOWN_REASON_NONE;
@@ -2861,6 +2880,22 @@ public class DataNetworkController extends Handler {
                         || dataNetwork.isDisconnected()))
                 .filter(dataNetwork -> interfaceName.equals(
                         dataNetwork.getLinkProperties().getInterfaceName()))
+                .findFirst()
+                .orElse(null);
+    }
+
+    /**
+     * Get data network by connection id.
+     *
+     * @param cid The network connection id.
+     * @return The data network if found.
+     */
+    @Nullable
+    public DataNetwork getDataNetworkByCid(int cid) {
+        return mDataNetworkList.stream()
+                .filter(dataNetwork -> !(dataNetwork.isDisconnecting()
+                        || dataNetwork.isDisconnected()))
+                .filter(dataNetwork -> dataNetwork.getId() == cid)
                 .findFirst()
                 .orElse(null);
     }
@@ -3070,7 +3105,10 @@ public class DataNetworkController extends Handler {
                 + "carrier specific. mSimState="
                 + TelephonyManager.simStateToString(mSimState));
         updateNetworkRequestsPriority();
-        onReevaluateUnsatisfiedNetworkRequests(DataEvaluationReason.DATA_CONFIG_CHANGED);
+        sendMessage(obtainMessage(EVENT_REEVALUATE_UNSATISFIED_NETWORK_REQUESTS,
+                DataEvaluationReason.DATA_CONFIG_CHANGED));
+        sendMessage(obtainMessage(EVENT_REEVALUATE_EXISTING_DATA_NETWORKS,
+                DataEvaluationReason.DATA_CONFIG_CHANGED));
     }
 
     /**

@@ -3368,10 +3368,17 @@ public class SatelliteController extends Handler {
             @NonNull IIntegerConsumer errorCallback,
             @NonNull ISatelliteTransmissionUpdateCallback callback) {
         plogd("handleRequestStopSatelliteTransmissionUpdates");
-        Consumer<Integer> result = FunctionalUtils.ignoreRemoteException(errorCallback::accept);
+        Consumer<Integer> internalResult = new Consumer<Integer>() {
+            @Override
+            public void accept(Integer result) {
+                plogd("handleRequestStopSatelliteTransmissionUpdates: "
+                        + "unregisterForSatelliteTransmissionUpdates result=" + result);
+            }
+        };
         mPointingAppController.unregisterForSatelliteTransmissionUpdates(
-                getSelectedSatelliteSubId(), result, callback);
+                getSelectedSatelliteSubId(), internalResult, callback);
 
+        Consumer<Integer> result = FunctionalUtils.ignoreRemoteException(errorCallback::accept);
         // Even if handler is null - which means there are no listeners, the modem command to stop
         // satellite transmission updates might have failed. The callers might want to retry
         // sending the command. Thus, we always need to send this command to the modem.
@@ -5264,8 +5271,15 @@ public class SatelliteController extends Handler {
             mPointingAppController.setStartedSatelliteTransmissionUpdates(false);
             // We need to remove the callback from our listener list since the caller might not call
             // stopSatelliteTransmissionUpdates to unregister the callback in case of failure.
+            Consumer<Integer> internalResult = new Consumer<Integer>() {
+                @Override
+                public void accept(Integer result) {
+                    plogd("handleStartSatelliteTransmissionUpdatesDone: "
+                            + "unregisterForSatelliteTransmissionUpdates result=" + result);
+                }
+            };
             mPointingAppController.unregisterForSatelliteTransmissionUpdates(arg.subId,
-                    arg.errorCallback, arg.callback);
+                    internalResult, arg.callback);
         } else {
             mPointingAppController.setStartedSatelliteTransmissionUpdates(true);
         }

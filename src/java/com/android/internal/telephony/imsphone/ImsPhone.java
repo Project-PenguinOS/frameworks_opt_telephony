@@ -2643,33 +2643,13 @@ public class ImsPhone extends ImsPhoneBase {
                 }
                 mRegLocalLog.log("handleImsUnregistered: onImsMmTelDisconnected imsRadioTech="
                         + imsReasonInfo);
-    // QTI_BEGIN: 2022-02-01: Telephony: IMS: Fix if outgoing Ims voice call is allowed
-                int extraCode = imsReasonInfo.getExtraCode();
                 /*
                 * If lower layer passes extraCode with information that UE is
-    // QTI_END: 2022-02-01: Telephony: IMS: Fix if outgoing Ims voice call is allowed
-    // QTI_BEGIN: 2023-12-06: Telephony: Allow IMS dial when UE is PS attached
                 * PS attached or not, we update mIsOutgoingImsVoiceAllowed
-    // QTI_END: 2023-12-06: Telephony: Allow IMS dial when UE is PS attached
-    // QTI_BEGIN: 2022-02-01: Telephony: IMS: Fix if outgoing Ims voice call is allowed
                 * and return as we expect lower layer to invoke this function
                 * again with updated ImsReasonInfo.
                 */
-    // QTI_END: 2022-02-01: Telephony: IMS: Fix if outgoing Ims voice call is allowed
-    // QTI_BEGIN: 2023-12-06: Telephony: Allow IMS dial when UE is PS attached
-                if (extraCode == QtiImsUtils.CODE_IS_PS_ATTACHED ||
-                    extraCode == QtiImsUtils.CODE_IS_NOT_PS_ATTACHED) {
-    // QTI_END: 2023-12-06: Telephony: Allow IMS dial when UE is PS attached
-    // QTI_BEGIN: 2022-02-01: Telephony: IMS: Fix if outgoing Ims voice call is allowed
-                    mIsOutgoingImsVoiceAllowed =
-    // QTI_END: 2022-02-01: Telephony: IMS: Fix if outgoing Ims voice call is allowed
-    // QTI_BEGIN: 2023-12-06: Telephony: Allow IMS dial when UE is PS attached
-                            extraCode == QtiImsUtils.CODE_IS_PS_ATTACHED;
-    // QTI_END: 2023-12-06: Telephony: Allow IMS dial when UE is PS attached
-    // QTI_BEGIN: 2022-02-01: Telephony: IMS: Fix if outgoing Ims voice call is allowed
-                    return;
-                }
-    // QTI_END: 2022-02-01: Telephony: IMS: Fix if outgoing Ims voice call is allowed
+                if (setIsOutgoingImsVoiceAllowed(imsReasonInfo)) return;
                 setServiceState(ServiceState.STATE_OUT_OF_SERVICE);
                 processDisconnectReason(imsReasonInfo);
                 getDefaultPhone().setImsRegistrationState(false);
@@ -2750,6 +2730,7 @@ public class ImsPhone extends ImsPhoneBase {
         }
         mRegLocalLog.log("handleImsUnregistered: onImsMmTelDisconnected imsRadioTech="
                 + imsReasonInfo);
+        if (setIsOutgoingImsVoiceAllowed(imsReasonInfo)) return;
         setServiceState(ServiceState.STATE_OUT_OF_SERVICE);
         processDisconnectReason(imsReasonInfo);
         getDefaultPhone().setImsRegistrationState(false);
@@ -2790,6 +2771,19 @@ public class ImsPhone extends ImsPhoneBase {
         mImsRegistrationUpdateRegistrants.notifyRegistrants(ar);
     }
 
+    /** Helper function to set mIsOutgoingImsVoiceAllowed based on imsReasonInfo extra code */
+    private boolean setIsOutgoingImsVoiceAllowed(ImsReasonInfo imsReasonInfo) {
+        int extraCode = imsReasonInfo.getExtraCode();
+        if (extraCode == QtiImsUtils.CODE_IS_PS_ATTACHED ||
+            extraCode == QtiImsUtils.CODE_IS_NOT_PS_ATTACHED) {
+            mIsOutgoingImsVoiceAllowed =
+                    extraCode == QtiImsUtils.CODE_IS_PS_ATTACHED;
+            logi("mIsOutgoingImsVoiceAllowed= " + mIsOutgoingImsVoiceAllowed);
+            return true;
+        }
+        return false;
+    }
+
     /** Clear the IMS phone number from IMS associated Uris when IMS registration is lost. */
     @VisibleForTesting
     public void clearPhoneNumberForSourceIms() {
@@ -2820,7 +2814,6 @@ public class ImsPhone extends ImsPhoneBase {
             mSubscriptionManagerService.clearImsNumberUpdateStatus(getSubId());
         }
 
-        String phoneNumber = extractPhoneNumberFromAssociatedUris(uris, /*isGlobalFormat*/true);
 // QTI_BEGIN: 2023-11-10: Telephony: Remove legacy subscription code
 
         SubscriptionInfoInternal subInfo = mSubscriptionManagerService
@@ -2851,50 +2844,43 @@ public class ImsPhone extends ImsPhoneBase {
                     } else {
                         loge("setPhoneNumberForSourceIms: PhoneNumberManager return error "
                                 + result.getErrorCode());
-                        // try to run existing implementation.
                     }
                 } catch (IllegalArgumentException e) {
                     loge("setPhoneNumberForSourceIms: failed to parse phone number, " + e);
-                    // Fall through to the existing implementation
                 }
             } else {
                 logi("setPhoneNumberForSourceIms: can't access PhoneNumberManager");
             }
-        }
-
-        // When flag enablePhoneNumberParsingApi is not enabled, PhoneNumberManager is unavailable
-        // or parsePhoneNumber() return error, existing implementation is performed.
-        if (phoneNumber != null) {
-            phoneNumber = PhoneNumberUtils.formatNumberToE164(phoneNumber,
-                    subInfo.getCountryIso());
-            if (phoneNumber == null) {
-// QTI_END: 2023-11-10: Telephony: Remove legacy subscription code
-                return;
-            }
-// QTI_BEGIN: 2023-11-10: Telephony: Remove legacy subscription code
-            mSubscriptionManagerService.setNumberFromIms(subId, phoneNumber);
-            if (mFeatureFlags.lastKnownPhoneNumber()) {
-                mSubscriptionManagerService.setImsNumberUpdateStatus(subId, true);
-            }
-        } else if (isAllowNonGlobalNumberFormat()) {
-            // If carrier config has true for KEY_IGNORE_GLOBAL_PHONE_NUMBER_FORMAT_BOOL and
-            // P-Associated-Uri does not have global number,
-            // try to find phone number excluding '+' one more time.
-            phoneNumber = extractPhoneNumberFromAssociatedUris(uris, /*isGlobalFormat*/false);
-// QTI_END: 2023-11-10: Telephony: Remove legacy subscription code
-            if (phoneNumber == null) {
-// QTI_BEGIN: 2023-11-10: Telephony: Remove legacy subscription code
-                loge("extract phone number without '+' failed");
-// QTI_END: 2023-11-10: Telephony: Remove legacy subscription code
-                return;
-            }
-// QTI_BEGIN: 2023-11-10: Telephony: Remove legacy subscription code
-            mSubscriptionManagerService.setNumberFromIms(subId, phoneNumber);
-            if (mFeatureFlags.lastKnownPhoneNumber()) {
-                mSubscriptionManagerService.setImsNumberUpdateStatus(subId, true);
-            }
         } else {
-            logd("extract phone number failed");
+            // When flag enablePhoneNumberParsingApi is not enabled,
+            // existing implementation is performed.
+            String phoneNumber = extractPhoneNumberFromAssociatedUris(uris, /*isGlobalFormat*/true);
+            if (phoneNumber != null) {
+                phoneNumber = PhoneNumberUtils.formatNumberToE164(phoneNumber, subCountryIso);
+                if (phoneNumber == null) {
+                    loge("format to E164 failed");
+                    return;
+                }
+                mSubscriptionManagerService.setNumberFromIms(subId, phoneNumber);
+                if (mFeatureFlags.lastKnownPhoneNumber()) {
+                    mSubscriptionManagerService.setImsNumberUpdateStatus(subId, true);
+                }
+            } else if (isAllowNonGlobalNumberFormat()) {
+                // If carrier config has true for KEY_IGNORE_GLOBAL_PHONE_NUMBER_FORMAT_BOOL and
+                // P-Associated-Uri does not have global number,
+                // try to find phone number excluding '+' one more time.
+                phoneNumber = extractPhoneNumberFromAssociatedUris(uris, /*isGlobalFormat*/false);
+                if (phoneNumber == null) {
+                    loge("extract phone number without '+' failed");
+                    return;
+                }
+                mSubscriptionManagerService.setNumberFromIms(subId, phoneNumber);
+                if (mFeatureFlags.lastKnownPhoneNumber()) {
+                    mSubscriptionManagerService.setImsNumberUpdateStatus(subId, true);
+                }
+            } else {
+                logd("extract phone number failed");
+            }
 // QTI_END: 2023-11-10: Telephony: Remove legacy subscription code
         }
     }
