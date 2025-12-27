@@ -69,3 +69,15 @@ flag {
   description: "Introduces access restrictions to reading and writing restricted RCS messages in the messaging database."
   bug: "459576374"
 }
+
+# OWNER=paulsoumyadeep TARGET=26q2
+flag {
+ name: "cache_sms_application_data"
+ namespace: "telephony"
+ description: "Caches the result of getApplicationCollectionInternal to reduce PackageManager queries."
+ bug: "350569741"
+ metadata {
+     purpose: PURPOSE_BUGFIX
+   }
+}
+

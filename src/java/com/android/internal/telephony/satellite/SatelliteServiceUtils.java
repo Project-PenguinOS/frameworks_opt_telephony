@@ -790,6 +790,37 @@ public class SatelliteServiceUtils {
         return phone != null ? phone.getCarrierId() : TelephonyManager.UNKNOWN_CARRIER_ID;
     }
 
+    /**
+     * Check if the device is entitled for satellite services for a given subscription.
+     *
+     * @param subId The subscription ID to check.
+     * @return {@code true} if entitled, {@code false} otherwise, or if SatelliteController is
+     * not available.
+     */
+    public static boolean isDeviceEntitledForSubscription(int subId) {
+        SatelliteController satelliteController = SatelliteController.getInstance();
+        if (satelliteController != null) {
+            return satelliteController.isDeviceEntitledForSubscription(subId);
+        }
+        loge("isDeviceEntitledForSubscription: SatelliteController instance is null");
+        return false;
+    }
+
+    /**
+     * Returns the global connect type for given satellite subscription.
+     *
+     * @param subId The subscription ID to check.
+     */
+    public static @SatelliteConstants.SatelliteGlobalConnectType int getSupportedConnectTypeMetrics(
+            int subId) {
+        SatelliteController satelliteController = SatelliteController.getInstance();
+        if (satelliteController != null) {
+            return satelliteController.getSupportedConnectTypeMetrics(subId);
+        }
+        loge("getSupportedConnectTypeMetrics: SatelliteController instance is null");
+        return SatelliteConstants.GLOBAL_NTN_CONNECT_TYPE_UNKNOWN;
+    }
+
     private static void logd(@NonNull String log) {
         Log.d(TAG, log);
     }

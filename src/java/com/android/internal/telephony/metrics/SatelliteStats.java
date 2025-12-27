@@ -19,8 +19,10 @@ package com.android.internal.telephony.metrics;
 import static android.telephony.TelephonyManager.UNKNOWN_CARRIER_ID;
 import static android.telephony.satellite.NtnSignalStrength.NTN_SIGNAL_STRENGTH_NONE;
 
+import static com.android.internal.telephony.metrics.PersistAtomsStorage.SATELLITE_SESSION_GAP_INVALID_SEC;
 import static com.android.internal.telephony.satellite.SatelliteConstants.TRIGGERING_EVENT_UNKNOWN;
 
+import android.telephony.TelephonyManager;
 import android.telephony.satellite.NtnSignalStrength;
 import android.telephony.satellite.SatelliteManager;
 
@@ -3096,15 +3098,15 @@ public class SatelliteStats {
         private final int mCountOfEntitlementStatusQueryRequest;
         private final int mCountOfSatelliteConfigUpdateRequest;
         private final int mCountOfSatelliteNotificationDisplayed;
-        private static int sSatelliteSessionGapMinSec;
-        private static int sSatelliteSessionGapAvgSec;
-        private static int sSatelliteSessionGapMaxSec;
-        private static int sCarrierId;
-        private static boolean sIsDeviceEntitled;
-        private static boolean sIsMultiSim;
+        private final int mSatelliteSessionGapMinSec;
+        private final int mSatelliteSessionGapAvgSec;
+        private final int mSatelliteSessionGapMaxSec;
+        private final int mCarrierId;
+        private final boolean mIsDeviceEntitled;
+        private final boolean mIsMultiSim;
         private final int mCountOfSatelliteSessions;
-        private static boolean sIsNbIotNtn;
-        private static @SatelliteConstants.SatelliteGlobalConnectType int sSupportedConnectionMode;
+        private final boolean mIsNbIotNtn;
+        private final @SatelliteConstants.SatelliteGlobalConnectType int mSupportedConnectionMode;
         private final int mCountOfSessionConnectionModeAutomatic;
         private final int mCountOfSessionConnectionModeManual;
         private final int mServiceDataPolicy;
@@ -3122,48 +3124,20 @@ public class SatelliteStats {
                     builder.mCountOfSessionConnectionModeAutomatic;
             this.mCountOfSessionConnectionModeManual =
                     builder.mCountOfSessionConnectionModeManual;
-
-            // Update session gap params only when they are explicitly provided
-            if (builder.mSatelliteSessionGapMinSec.isPresent()) {
-                sSatelliteSessionGapMinSec = builder.mSatelliteSessionGapMinSec.get();
-            }
-            if (builder.mSatelliteSessionGapAvgSec.isPresent()) {
-                sSatelliteSessionGapAvgSec = builder.mSatelliteSessionGapAvgSec.get();
-            }
-            if (builder.mSatelliteSessionGapMaxSec.isPresent()) {
-                sSatelliteSessionGapMaxSec = builder.mSatelliteSessionGapMaxSec.get();
-            }
-
-            // Carrier ID value should be updated only when it is meaningful.
-            if (builder.mCarrierId.isPresent()) {
-                sCarrierId = builder.mCarrierId.get();
-            }
-
-            // isDeviceEntitled value should be updated only when it is meaningful.
-            if (builder.mIsDeviceEntitled.isPresent()) {
-                sIsDeviceEntitled = builder.mIsDeviceEntitled.get();
-            }
-
-            // isMulti value should be updated only when it is meaningful.
-            if (builder.mIsMultiSim.isPresent()) {
-                sIsMultiSim = builder.mIsMultiSim.get();
-            }
-
+            this.mSatelliteSessionGapMinSec = builder.mSatelliteSessionGapMinSec.orElse(
+                    SATELLITE_SESSION_GAP_INVALID_SEC);
+            this.mSatelliteSessionGapAvgSec = builder.mSatelliteSessionGapAvgSec.orElse(
+                    SATELLITE_SESSION_GAP_INVALID_SEC);
+            this.mSatelliteSessionGapMaxSec = builder.mSatelliteSessionGapMaxSec.orElse(
+                    SATELLITE_SESSION_GAP_INVALID_SEC);
+            this.mCarrierId = builder.mCarrierId;
+            this.mIsDeviceEntitled = builder.mIsDeviceEntitled;
+            this.mIsMultiSim = builder.mIsMultiSim;
             this.mCountOfSatelliteSessions = builder.mCountOfSatelliteSessions;
-
-            // isNbIotNtn value should be updated only when it is meaningful.
-            if (builder.mIsNbIotNtn.isPresent()) {
-                sIsNbIotNtn = builder.mIsNbIotNtn.get();
-            }
-
-            // supportedConnectionMode value should be updated only when it is meaningful.
-            if (builder.mSupportedConnectionMode.isPresent()) {
-                sSupportedConnectionMode = builder.mSupportedConnectionMode.get();
-            }
-
+            this.mIsNbIotNtn = builder.mIsNbIotNtn;
+            this.mSupportedConnectionMode = builder.mSupportedConnectionMode;
             this.mServiceDataPolicy = builder.mServiceDataPolicy;
             this.mSessionDurationSec = builder.mSessionDurationSec;
-
         }
 
         public int getConfigDataSource() {
@@ -3183,27 +3157,27 @@ public class SatelliteStats {
         }
 
         public int getSatelliteSessionGapMinSec() {
-            return sSatelliteSessionGapMinSec;
+            return mSatelliteSessionGapMinSec;
         }
 
         public int getSatelliteSessionGapAvgSec() {
-            return sSatelliteSessionGapAvgSec;
+            return mSatelliteSessionGapAvgSec;
         }
 
         public int getSatelliteSessionGapMaxSec() {
-            return sSatelliteSessionGapMaxSec;
+            return mSatelliteSessionGapMaxSec;
         }
 
         public int getCarrierId() {
-            return sCarrierId;
+            return mCarrierId;
         }
 
         public boolean isDeviceEntitled() {
-            return sIsDeviceEntitled;
+            return mIsDeviceEntitled;
         }
 
         public boolean isMultiSim() {
-            return sIsMultiSim;
+            return mIsMultiSim;
         }
 
         public int getCountOfSatelliteSessions() {
@@ -3211,11 +3185,11 @@ public class SatelliteStats {
         }
 
         public boolean isNbIotNtn() {
-            return sIsNbIotNtn;
+            return mIsNbIotNtn;
         }
 
         public int getSupportedConnectionMode() {
-            return sSupportedConnectionMode;
+            return mSupportedConnectionMode;
         }
 
         public int getCountOfSessionConnectionModeAutomatic() {
@@ -3246,12 +3220,13 @@ public class SatelliteStats {
             private Optional<Integer> mSatelliteSessionGapMinSec = Optional.empty();
             private Optional<Integer> mSatelliteSessionGapAvgSec = Optional.empty();
             private Optional<Integer> mSatelliteSessionGapMaxSec = Optional.empty();
-            private Optional<Integer> mCarrierId = Optional.empty();
-            private Optional<Boolean> mIsDeviceEntitled = Optional.empty();
-            private Optional<Boolean> mIsMultiSim = Optional.empty();
+            private int mCarrierId;
+            private boolean mIsDeviceEntitled;
+            private boolean mIsMultiSim;
             private int mCountOfSatelliteSessions = 0;
-            private Optional<Boolean> mIsNbIotNtn = Optional.empty();
-            private Optional<Integer> mSupportedConnectionMode = Optional.empty();
+            private boolean mIsNbIotNtn;
+            private @SatelliteConstants.SatelliteGlobalConnectType int mSupportedConnectionMode =
+                    SatelliteConstants.GLOBAL_NTN_CONNECT_TYPE_UNKNOWN;
             private int mCountOfSessionConnectionModeAutomatic = 0;
             private int mCountOfSessionConnectionModeManual = 0;
             private int mServiceDataPolicy =
@@ -3326,19 +3301,19 @@ public class SatelliteStats {
 
             /** Sets the currently active NB-IoT NTN carrier ID. */
             public Builder setCarrierId(int carrierId) {
-                this.mCarrierId = Optional.of(carrierId);
+                this.mCarrierId = carrierId;
                 return this;
             }
 
             /** Sets whether the device is currently entitled or not. */
             public Builder setIsDeviceEntitled(boolean isDeviceEntitled) {
-                this.mIsDeviceEntitled = Optional.of(isDeviceEntitled);
+                this.mIsDeviceEntitled = isDeviceEntitled;
                 return this;
             }
 
             /** Sets whether the device is in DSDS state or not. */
             public Builder setIsMultiSim(boolean isMultiSim) {
-                this.mIsMultiSim = Optional.of(isMultiSim);
+                this.mIsMultiSim = isMultiSim;
                 return this;
             }
 
@@ -3377,13 +3352,13 @@ public class SatelliteStats {
 
             /** Sets whether the device is in NB-NoT-NTN state or not. */
             public Builder setIsNbIotNtn(boolean isNbIotNtn) {
-                this.mIsNbIotNtn = Optional.of(isNbIotNtn);
+                this.mIsNbIotNtn = isNbIotNtn;
                 return this;
             }
 
             /** Sets whether the global connect type is hybrid or auto or manual. */
             public Builder setSupportedConnectionMode(int supportedConnectionMode) {
-                this.mSupportedConnectionMode = Optional.of(supportedConnectionMode);
+                this.mSupportedConnectionMode = supportedConnectionMode;
                 return this;
             }
 
@@ -3424,15 +3399,15 @@ public class SatelliteStats {
                     == that.getCountOfSatelliteConfigUpdateRequest()
                     && mCountOfSatelliteNotificationDisplayed
                     == that.getCountOfSatelliteNotificationDisplayed()
-                    && sSatelliteSessionGapMinSec == that.getSatelliteSessionGapMinSec()
-                    && sSatelliteSessionGapAvgSec == that.getSatelliteSessionGapAvgSec()
-                    && sSatelliteSessionGapMaxSec == that.getSatelliteSessionGapMaxSec()
-                    && sCarrierId == that.getCarrierId()
-                    && sIsDeviceEntitled == that.isDeviceEntitled()
-                    && sIsMultiSim == that.isMultiSim()
+                    && mSatelliteSessionGapMinSec == that.getSatelliteSessionGapMinSec()
+                    && mSatelliteSessionGapAvgSec == that.getSatelliteSessionGapAvgSec()
+                    && mSatelliteSessionGapMaxSec == that.getSatelliteSessionGapMaxSec()
+                    && mCarrierId == that.getCarrierId()
+                    && mIsDeviceEntitled == that.isDeviceEntitled()
+                    && mIsMultiSim == that.isMultiSim()
                     && mCountOfSatelliteSessions == that.getCountOfSatelliteSessions()
-                    && sIsNbIotNtn == that.isNbIotNtn()
-                    && sSupportedConnectionMode == that.getSupportedConnectionMode()
+                    && mIsNbIotNtn == that.isNbIotNtn()
+                    && mSupportedConnectionMode == that.getSupportedConnectionMode()
                     && mCountOfSessionConnectionModeAutomatic == that
                     .getCountOfSessionConnectionModeAutomatic()
                     && mCountOfSessionConnectionModeManual == that
@@ -3445,9 +3420,9 @@ public class SatelliteStats {
         public int hashCode() {
             return Objects.hash(mConfigDataSource, mCountOfEntitlementStatusQueryRequest,
                     mCountOfSatelliteConfigUpdateRequest, mCountOfSatelliteNotificationDisplayed,
-                    sSatelliteSessionGapMinSec, sSatelliteSessionGapAvgSec,
-                    sSatelliteSessionGapMaxSec, sCarrierId, sIsDeviceEntitled, sIsMultiSim,
-                    mCountOfSatelliteSessions, sIsNbIotNtn, sSupportedConnectionMode,
+                    mSatelliteSessionGapMinSec, mSatelliteSessionGapAvgSec,
+                    mSatelliteSessionGapMaxSec, mCarrierId, mIsDeviceEntitled, mIsMultiSim,
+                    mCountOfSatelliteSessions, mIsNbIotNtn, mSupportedConnectionMode,
                     mCountOfSessionConnectionModeAutomatic, mCountOfSessionConnectionModeManual,
                     mSessionDurationSec);
         }
@@ -3462,15 +3437,15 @@ public class SatelliteStats {
                     + mCountOfSatelliteConfigUpdateRequest
                     + ", countOfSatelliteNotificationDisplayed="
                     + mCountOfSatelliteNotificationDisplayed
-                    + ", satelliteSessionGapMinSec=" + sSatelliteSessionGapMinSec
-                    + ", satelliteSessionGapAvgSec=" + sSatelliteSessionGapAvgSec
-                    + ", satelliteSessionGapMaxSec=" + sSatelliteSessionGapMaxSec
-                    + ", carrierId=" + sCarrierId
-                    + ", isDeviceEntitled=" + sIsDeviceEntitled
-                    + ", isMultiSim=" + sIsMultiSim
+                    + ", satelliteSessionGapMinSec=" + mSatelliteSessionGapMinSec
+                    + ", satelliteSessionGapAvgSec=" + mSatelliteSessionGapAvgSec
+                    + ", satelliteSessionGapMaxSec=" + mSatelliteSessionGapMaxSec
+                    + ", carrierId=" + mCarrierId
+                    + ", isDeviceEntitled=" + mIsDeviceEntitled
+                    + ", isMultiSim=" + mIsMultiSim
                     + ", countOfSatelliteSession=" + mCountOfSatelliteSessions
-                    + ", isNbIotNtn=" + sIsNbIotNtn
-                    + ", supportedConnectionMode=" + sSupportedConnectionMode
+                    + ", isNbIotNtn=" + mIsNbIotNtn
+                    + ", supportedConnectionMode=" + mSupportedConnectionMode
                     + ", countOfSessionConnectionModeAutomatic="
                     + mCountOfSessionConnectionModeAutomatic
                     + ", countOfSessionConnectionModeManual="
@@ -4252,9 +4227,26 @@ public class SatelliteStats {
         mAtomsStorage.addCarrierRoamingSatelliteSessionStats(proto);
     }
 
-    /**  Create a new atom for CarrierRoamingSatelliteSession metrics */
+    /**  Create a new atom for CarrierRoamingSatelliteSession metrics
+     *
+     * <p>Note: When building the {@link CarrierRoamingSatelliteControllerStatsParams} to pass to
+     * this method, the following base dimensions should always be fetched and set, typically for
+     * the current subId:
+     * <ul>
+     *   <li>{@code CarrierId}
+     *   <li>{@code IsDeviceEntitled}
+     *   <li>{@code IsMultiSim}
+     *   <li>{@code IsNbIotNtn}
+     *   <li>{@code SupportedConnectionMode}
+     * </ul>
+     */
     public synchronized void onCarrierRoamingSatelliteControllerStatsMetrics(
             CarrierRoamingSatelliteControllerStatsParams param) {
+        if (param.getCarrierId() == TelephonyManager.UNKNOWN_CARRIER_ID) {
+            logd("onCarrierRoamingSatelliteControllerStatsMetrics: carrier id is -1, ignore.");
+            return;
+        }
+
         CarrierRoamingSatelliteControllerStats proto = new CarrierRoamingSatelliteControllerStats();
         proto.configDataSource = param.mConfigDataSource;
         proto.countOfEntitlementStatusQueryRequest = param.mCountOfEntitlementStatusQueryRequest;

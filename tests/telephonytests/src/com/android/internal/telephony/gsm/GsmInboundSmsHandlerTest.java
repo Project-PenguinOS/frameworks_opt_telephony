@@ -1364,8 +1364,8 @@ public class GsmInboundSmsHandlerTest extends TelephonyTest {
     }
 
     @Test
-    @EnableFlags(com.android.internal.telephony.flags.Flags.FLAG_REDACT_WEBOTP_SMS)
-    @DisableFlags(com.android.internal.telephony.flags.Flags.FLAG_REDACT_GENERIC_OTP_SMS)
+    @EnableFlags(android.view.flags.Flags.FLAG_REDACT_WEB_OTP_SMS_API)
+    @DisableFlags(android.view.flags.Flags.FLAG_REDACT_OTP_APP_COMPAT_API)
     public void testGetIncludedTextClassifierTypes_enableWebOtpRedaction_containsWebOtpType() {
         transitionFromStartupToIdle();
         assertThat(InboundSmsHandler.getIncludedTextClassifierTypes())
