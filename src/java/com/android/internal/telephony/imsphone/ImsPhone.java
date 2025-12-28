@@ -2544,8 +2544,7 @@ public class ImsPhone extends ImsPhoneBase {
             setServiceState(ServiceState.STATE_IN_SERVICE);
             getDefaultPhone().setImsRegistrationState(true);
             mImsStats.onImsRegistered(attributes);
-            mImsNrSaModeHandler.onImsRegistered(
-                    attributes.getRegistrationTechnology(), attributes.getFeatureTags());
+            mImsNrSaModeHandler.onImsRegistered(attributes.getRegistrationTechnology());
             updateImsRegistrationInfo(REGISTRATION_STATE_REGISTERED,
                     attributes.getRegistrationTechnology(), SUGGESTED_ACTION_NONE,
                     imsTransportType);
@@ -2641,6 +2640,8 @@ public class ImsPhone extends ImsPhoneBase {
             new ImsRegistrationCallbackHelper.ImsRegistrationUpdate() {
                 @Override
                 public void handleImsRegistered(@NonNull ImsRegistrationAttributes attributes) {
+                    mImsNrSaModeHandler.onImsEmergencyRegistered(
+                            attributes.getRegistrationTechnology());
                 }
 
                 @Override
@@ -2651,6 +2652,7 @@ public class ImsPhone extends ImsPhoneBase {
                 public void handleImsUnregistered(ImsReasonInfo imsReasonInfo,
                         @RegistrationManager.SuggestedAction int suggestedAction,
                         @ImsRegistrationImplBase.ImsRegistrationTech int imsRadioTech) {
+                    mImsNrSaModeHandler.onImsEmergencyUnregistered(imsRadioTech);
                 }
 
                 @Override
@@ -2658,6 +2660,7 @@ public class ImsPhone extends ImsPhoneBase {
                         @RegistrationManager.SuggestedAction int suggestedAction,
                         @ImsRegistrationImplBase.ImsRegistrationTech int imsRadioTech,
                         int throttlingTimeSec) {
+                    mImsNrSaModeHandler.onImsEmergencyUnregistered(imsRadioTech);
                 }
 
                 @Override
