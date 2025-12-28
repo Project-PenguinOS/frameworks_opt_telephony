@@ -464,10 +464,16 @@ public class DeviceStateMonitor extends Handler {
         // is true:
         // 1. The device is charging.
         // 2. When the screen is on.
-        // 3. When the tethering is on.
+        // 3. When the tethering is on(if removeTetheringConditionWhenEnablingIndications is false).
         // 4. When automotive projection (Android Auto) is on.
-        return (mIsCharging || mIsScreenOn || mIsTetheringOn || mIsAutomotiveProjectionActive)
-                && mIsRadioOn;
+        if (mFeatureFlags.removeTetheringConditionWhenEnablingIndications()) {
+            // Exclude tethering when flag is enabled
+            return (mIsCharging || mIsScreenOn || mIsAutomotiveProjectionActive) && mIsRadioOn;
+        } else {
+            // Default behavior: Include tethering
+            return (mIsCharging || mIsScreenOn || mIsTetheringOn || mIsAutomotiveProjectionActive)
+                    && mIsRadioOn;
+        }
     }
 
     /**

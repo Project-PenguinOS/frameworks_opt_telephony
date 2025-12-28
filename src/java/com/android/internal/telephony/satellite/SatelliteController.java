@@ -8038,8 +8038,7 @@ public class SatelliteController extends Handler {
 
         mIsNotificationShowing.set(true);
         mCarrierRoamingSatelliteControllerStats.reportCountOfSatelliteNotificationDisplayed(subId);
-        mCarrierRoamingSatelliteControllerStats.reportCarrierId(getSatelliteCarrierId(),
-                getSupportedConnectTypeMetrics());
+        mCarrierRoamingSatelliteControllerStats.reportCarrierId(subId, getSatelliteCarrierId());
         mSessionMetricsStats.addCountOfSatelliteNotificationDisplayed();
     }
 
@@ -10709,5 +10708,11 @@ public class SatelliteController extends Handler {
     @VisibleForTesting
     public boolean isWifiConnected() {
         return mIsWifiConnected.get();
+    }
+
+    /** Returns whether the device is entitled for given subscription. */
+    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
+    public boolean isDeviceEntitledForSubscription(int subId) {
+        return mSatelliteEntitlementStatusPerCarrier.getOrDefault(subId, false);
     }
 }

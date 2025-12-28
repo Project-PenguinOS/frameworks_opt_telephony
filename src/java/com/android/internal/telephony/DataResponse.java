@@ -21,6 +21,7 @@ import static android.telephony.TelephonyManager.HAL_SERVICE_DATA;
 import android.hardware.radio.RadioError;
 import android.hardware.radio.RadioResponseInfo;
 import android.hardware.radio.data.IRadioDataResponse;
+import android.os.AsyncResult;
 import android.telephony.data.DataCallResponse;
 import android.telephony.data.NetworkSlicingConfig;
 
@@ -259,5 +260,26 @@ public class DataResponse extends IRadioDataResponse.Stub {
     @Override
     public int getInterfaceVersion() {
         return IRadioDataResponse.VERSION;
+    }
+
+    /**
+     * Indicates data call contexts have changed.
+     *
+     * @param indicationType Type of radio indication
+     * @param dcList Array of SetupDataCallResult identical to that returned by
+     *        IRadioData.getDataCallList().
+     */
+    public void dataCallListUpdated(int indicationType,
+            android.hardware.radio.data.SetupDataCallResult[] dcList) {
+        // Log the event or process indication type if necessary
+        mRil.processIndication(HAL_SERVICE_DATA, indicationType);
+
+        ArrayList<DataCallResponse> response = RILUtils.convertHalDataCallResultList(dcList);
+
+        // Notify the registrants in RIL.
+        if (mRil.mDataCallListUpdatedRegistrants != null) {
+            mRil.mDataCallListUpdatedRegistrants.notifyRegistrants(
+                    new AsyncResult(null, response, null));
+        }
     }
 }
