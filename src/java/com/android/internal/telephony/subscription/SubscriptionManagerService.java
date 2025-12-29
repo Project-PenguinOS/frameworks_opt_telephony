@@ -3736,7 +3736,7 @@ public class SubscriptionManagerService extends ISub.Stub {
         try {
             Object value = mSubscriptionDatabaseManager.getSubscriptionProperty(subId, columnName);
             // The raw types of subscription database should only have 3 different types.
-            if (value instanceof Integer) {
+            if (value instanceof Integer || value instanceof Long) {
                 return String.valueOf(value);
             } else if (value instanceof String) {
                 return (String) value;
@@ -5459,12 +5459,12 @@ public class SubscriptionManagerService extends ISub.Stub {
             }
 
             // Read Streaming Bandwidth
-            int downlink = in.getAttributeInt(null, ATTR_DOWNLINK_KBPS,
+            long downlink = in.getAttributeLong(null, ATTR_DOWNLINK_KBPS,
                     SubscriptionPlan.BITRATE_UNKNOWN);
             if (downlink != SubscriptionPlan.BITRATE_UNKNOWN) {
                 builder.setStreamingAppMaxDownlinkKbps(downlink);
             }
-            int uplink = in.getAttributeInt(null, ATTR_UPLINK_KBPS,
+            long uplink = in.getAttributeLong(null, ATTR_UPLINK_KBPS,
                     SubscriptionPlan.BITRATE_UNKNOWN);
             if (uplink != SubscriptionPlan.BITRATE_UNKNOWN) {
                 builder.setStreamingAppMaxUplinkKbps(uplink);
@@ -5621,10 +5621,10 @@ public class SubscriptionManagerService extends ISub.Stub {
 
         // 9. Write Streaming Bandwidth
         if (plan.getStreamingAppMaxDownlinkKbps() != SubscriptionPlan.BITRATE_UNKNOWN) {
-            out.attributeInt(null, ATTR_DOWNLINK_KBPS, plan.getStreamingAppMaxDownlinkKbps());
+            out.attributeLong(null, ATTR_DOWNLINK_KBPS, plan.getStreamingAppMaxDownlinkKbps());
         }
         if (plan.getStreamingAppMaxUplinkKbps() != SubscriptionPlan.BITRATE_UNKNOWN) {
-            out.attributeInt(null, ATTR_UPLINK_KBPS, plan.getStreamingAppMaxUplinkKbps());
+            out.attributeLong(null, ATTR_UPLINK_KBPS, plan.getStreamingAppMaxUplinkKbps());
         }
 
         out.endTag(null, TAG_PLAN);
