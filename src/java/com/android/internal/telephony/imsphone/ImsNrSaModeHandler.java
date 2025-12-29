@@ -41,6 +41,7 @@ import android.os.PersistableBundle;
 import android.telephony.CarrierConfigManager;
 import android.util.Log;
 
+import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.telephony.Call;
 
 import java.util.ArrayList;
@@ -118,9 +119,15 @@ public class ImsNrSaModeHandler extends Handler {
     private NrSaDisableCriteria mNormalCriteria = null;
     private NrSaDisableCriteria mEmergencyCriteria = null;
 
+    // TODO(b/479137418): Consider state machine because there are too many boolean variables.
     private boolean mIsNrSaDisabledForWfc;
     private boolean mIsNrSaSupported;
     private boolean mIsVoiceCapable;
+
+    /** Flag indicating an asynchronous operation is in progress with the modem. */
+    private boolean mIsWaitingResponseFromModem = false;
+    /** Flag indicating a re-evaluation is needed after the current async operation completes. */
+    private boolean mPendingReevaluationForModemResponse = false;
 
     private final CarrierConfigManager.CarrierConfigChangeListener mCarrierConfigChangeListener =
             (slotIndex, subId, carrierId, specificCarrierId) -> setNrSaDisablePolicy(subId);
@@ -265,45 +272,56 @@ public class ImsNrSaModeHandler extends Handler {
 
     @Override
     public void handleMessage(Message msg) {
-        AsyncResult ar = (AsyncResult) msg.obj;
-
         switch (msg.what) {
             case MSG_PRECISE_CALL_STATE_CHANGED :
                 onPreciseCallStateChanged();
                 break;
             case MSG_RESULT_IS_VONR_ENABLED :
-                if (ar == null) {
-                    return;
+                mIsWaitingResponseFromModem = false;
+
+                try {
+                    AsyncResult ar = (AsyncResult) msg.obj;
+                    if (ar != null && ar.result != null && ar.result instanceof Boolean) {
+                        boolean vonrEnabled = (Boolean) ar.result;
+                        Log.d(TAG, "result of isVoNrEnabled = " + vonrEnabled);
+
+                        if (!vonrEnabled) {
+                            setNrSaMode(false);
+                        }
+                    } else {
+                        Log.e(TAG, "isVoNrEnabled query failed : " + ar.exception);
+                    }
+                } finally {
+                    handlePendingRequest();
                 }
 
-                if (ar.result == null) {
-                    Log.e(TAG, "isVoNrEnabled query failed : " + ar.exception);
-                    return;
-                }
-
-                boolean vonrEnabled = ((Boolean) ar.result).booleanValue();
-                Log.d(TAG, "result of isVoNrEnabled = " + vonrEnabled);
-
-                if (!vonrEnabled) {
-                    setNrSaMode(false);
-                }
                 break;
             case MSG_RESULT_SET_N1_MODE_ENABLED:
-                if (ar == null || ar.userObj == null) {
-                    return;
+                mIsWaitingResponseFromModem = false;
+
+                try {
+                    AsyncResult ar = (AsyncResult) msg.obj;
+                    if (ar != null && ar.userObj != null && ar.userObj instanceof Boolean
+                            && ar.exception == null) {
+                        boolean requestedOn = (Boolean) ar.userObj;
+                        mIsNrSaDisabledForWfc = !requestedOn;
+                        Log.d(TAG, "result of setN1ModeEnabled = " + requestedOn);
+                    } else {
+                        Log.e(TAG, "setN1ModeEnabled request failed : " + ar.exception);
+                    }
+                } finally {
+                    handlePendingRequest();
                 }
 
-                if (ar.exception == null) {
-                    boolean requestedOn = (Boolean) ar.userObj;
-                    mIsNrSaDisabledForWfc = !requestedOn;
-                    Log.d(TAG, "result of setN1ModeEnabled = " + requestedOn);
-                } else {
-                    Log.e(TAG, "setN1ModeEnabled request failed : " + ar.exception);
-                }
                 break;
             default :
                 break;
         }
+    }
+
+    @VisibleForTesting
+    public boolean isNrSaDisabledForWfc() {
+        return mIsNrSaDisabledForWfc;
     }
 
     /**
@@ -398,13 +416,10 @@ public class ImsNrSaModeHandler extends Handler {
             return;
         }
 
+        mIsWaitingResponseFromModem = true;
         mPhone.getDefaultPhone().setN1ModeEnabled(
                 enable, obtainMessage(MSG_RESULT_SET_N1_MODE_ENABLED, enable));
-        Log.i(TAG, "setNrSaMode : " + enable);
-    }
-
-    private boolean isNrSaDisabledForWfc() {
-        return mIsNrSaDisabledForWfc;
+        Log.i(TAG, "try setNrSaMode : " + enable);
     }
 
     private boolean updateCallState(@NonNull NrSaDisableCriteria criteria) {
@@ -448,6 +463,12 @@ public class ImsNrSaModeHandler extends Handler {
      * controls NR SA mode based on carrier-defined policies.
      */
     private void calculateAndControlNrSa() {
+        if (mIsWaitingResponseFromModem) {
+            mPendingReevaluationForModemResponse = true;
+            Log.d(TAG, "calculateAndControlNrSa: waiting for async result, set pending flag");
+            return;
+        }
+
         List<Integer> policiesToDisable = new ArrayList<>();
 
         // 1. Check if NR SA needs to be disabled for Normal criteria
@@ -471,6 +492,7 @@ public class ImsNrSaModeHandler extends Handler {
             Log.d(TAG, "calculateAndControlNrSa: selectedPolicy = " + selectedPolicy);
 
             if (selectedPolicy == NR_SA_DISABLE_POLICY_WFC_ESTABLISHED_WHEN_VONR_DISABLED) {
+                mIsWaitingResponseFromModem = true;
                 // For policies dependent on VoNR status, perform an asynchronous query to the modem
                 mPhone.getDefaultPhone().isVoNrEnabled(
                         obtainMessage(MSG_RESULT_IS_VONR_ENABLED), null);
@@ -481,6 +503,14 @@ public class ImsNrSaModeHandler extends Handler {
         } else {
             // 4. If no policies require disabling, attempt to re-enable NR SA
             setNrSaMode(true); // Trigger NR SA enable
+        }
+    }
+
+    private void handlePendingRequest() {
+        if (mPendingReevaluationForModemResponse) {
+            mPendingReevaluationForModemResponse = false;
+            Log.d(TAG, "handlePendingRequest: processing deferred re-evaluation");
+            calculateAndControlNrSa();
         }
     }
 

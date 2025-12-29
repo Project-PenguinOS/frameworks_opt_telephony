@@ -385,6 +385,7 @@ public final class ImsNrSaModeHandlerTest extends TelephonyTest {
         mTestImsNrSaModeHandler.updateImsCapability(IMS_MMTEL_CAPABILITY_VOICE);
         mTestImsNrSaModeHandler.onImsRegistered(REGISTRATION_TECH_IWLAN);
         setForegroundCallStatus(Call.State.ACTIVE, false);
+        // It triggers a failure for the request.
         mSimulatedCommands.setRilRequestErrorCode(
                 RIL_REQUEST_IS_VONR_ENABLED, RIL_ERRNO_INVALID_RESPONSE);
         mTestImsNrSaModeHandler.onPreciseCallStateChanged();
@@ -403,10 +404,42 @@ public final class ImsNrSaModeHandlerTest extends TelephonyTest {
         assertTrue(mSimulatedCommands.isN1ModeEnabled());
 
         setForegroundCallStatus(Call.State.ACTIVE, true);
+        // It triggers a failure for the request.
         mSimulatedCommands.setRilRequestErrorCode(
                 RIL_REQUEST_SET_N1_MODE_ENABLED, RIL_ERRNO_INVALID_RESPONSE);
         mTestImsNrSaModeHandler.onPreciseCallStateChanged();
         processAllMessages();
         assertTrue(mSimulatedCommands.isN1ModeEnabled());
+    }
+
+    @Test
+    public void testAsynchronousResponseHandling() {
+        sendCarrierConfigChanged(NR_SA_DISABLE_POLICY_WFC_ESTABLISHED_WHEN_VONR_DISABLED,
+                NR_SA_DISABLE_POLICY_NONE, true);
+        mSimulatedCommands.setVonrEnabled(false);
+
+        mTestImsNrSaModeHandler.updateImsCapability(IMS_MMTEL_CAPABILITY_VOICE);
+        mTestImsNrSaModeHandler.onImsRegistered(REGISTRATION_TECH_IWLAN);
+        setForegroundCallStatus(Call.State.ACTIVE, false);
+        mTestImsNrSaModeHandler.onPreciseCallStateChanged();
+
+        // This part causes a change while waiting for the asynchronous response.
+        // Ultimately, it will enable NR SA.
+        mTestImsNrSaModeHandler.updateImsCapability(0);
+        assertTrue(mSimulatedCommands.isN1ModeEnabled());
+
+        // sends an asynchronous response for isVoNrEnabled query
+        mTestableLooper.processMessages(1);
+        assertFalse(mTestImsNrSaModeHandler.isNrSaDisabledForWfc());
+
+        // sends an asynchronous response for setN1ModeEnabled request(false)
+        mTestableLooper.processMessages(1);
+        assertTrue(mTestImsNrSaModeHandler.isNrSaDisabledForWfc());
+
+        // After completing the ongoing operation, it handles the changes
+        // that occurred while waiting for the asynchronous response.
+        // sends an asynchronous response for setN1ModeEnabled request(true))
+        mTestableLooper.processMessages(1);
+        assertFalse(mTestImsNrSaModeHandler.isNrSaDisabledForWfc());
     }
 }
