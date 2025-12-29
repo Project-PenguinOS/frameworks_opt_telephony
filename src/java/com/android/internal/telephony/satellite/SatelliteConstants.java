@@ -176,4 +176,36 @@ public class SatelliteConstants {
     public @interface SatelliteSessionConnectType {}
 
     public static final String DEFAULT_PLMN = "UNKNOWN";
+
+    // Entitlement refresh trigger event is unknown
+    public static final int SATELLITE_ENTITLEMENT_QUERY_TRIGGER_UNKNOWN = 0;
+    // Entitlement refresh triggered on boot up
+    public static final int SATELLITE_ENTITLEMENT_QUERY_TRIGGER_BOOTUP = 1;
+    // Entitlement refresh triggered on daily timer
+    public static final int SATELLITE_ENTITLEMENT_QUERY_TRIGGER_REFRESH_TIMER = 2;
+    // Entitlement refresh triggered on internet status change
+    public static final int SATELLITE_ENTITLEMENT_QUERY_TRIGGER_INTERNET_CONNECTED = 3;
+    // Entitlement refresh triggered on carrier config
+    public static final int SATELLITE_ENTITLEMENT_QUERY_TRIGGER_CARRIER_CONFIG_CHANGED = 4;
+    // Entitlement refresh triggered on FCM tickle
+    public static final int SATELLITE_ENTITLEMENT_QUERY_TRIGGER_FCM_TICKLE = 5;
+    // Entitlement refresh triggered on SIM refresh
+    public static final int SATELLITE_ENTITLEMENT_QUERY_TRIGGER_SIM_REFRESH = 6;
+    // Entitlement refresh triggered on toggling airplane mode
+    public static final int SATELLITE_ENTITLEMENT_QUERY_TRIGGER_AIRPLANE_MODE_TOGGLE = 7;
+    // Entitlement query retry
+    public static final int SATELLITE_ENTITLEMENT_QUERY_TRIGGER_RETRY = 8;
+    @IntDef(prefix = {"SATELLITE_ENTITLEMENT_QUERY_"}, value = {
+            SATELLITE_ENTITLEMENT_QUERY_TRIGGER_UNKNOWN,
+            SATELLITE_ENTITLEMENT_QUERY_TRIGGER_BOOTUP,
+            SATELLITE_ENTITLEMENT_QUERY_TRIGGER_REFRESH_TIMER,
+            SATELLITE_ENTITLEMENT_QUERY_TRIGGER_INTERNET_CONNECTED,
+            SATELLITE_ENTITLEMENT_QUERY_TRIGGER_CARRIER_CONFIG_CHANGED,
+            SATELLITE_ENTITLEMENT_QUERY_TRIGGER_FCM_TICKLE,
+            SATELLITE_ENTITLEMENT_QUERY_TRIGGER_SIM_REFRESH,
+            SATELLITE_ENTITLEMENT_QUERY_TRIGGER_AIRPLANE_MODE_TOGGLE,
+            SATELLITE_ENTITLEMENT_QUERY_TRIGGER_RETRY
+    })
+    @Retention(RetentionPolicy.SOURCE)
+    public @interface SatelliteEntitlementQueryTrigger {}
 }

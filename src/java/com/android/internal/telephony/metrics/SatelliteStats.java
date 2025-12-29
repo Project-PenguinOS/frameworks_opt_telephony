@@ -3471,6 +3471,7 @@ public class SatelliteStats {
         private final int mEntitlementDataPolicy;
         private final @SatelliteConstants.SatelliteGlobalConnectType int mSupportedConnectionMode;
         private final int mHttpStatusCode;
+        private final @SatelliteConstants.SatelliteEntitlementQueryTrigger int mTriggerEvent;
 
         private SatelliteEntitlementParams(Builder builder) {
             this.mCarrierId = builder.mCarrierId;
@@ -3483,6 +3484,7 @@ public class SatelliteStats {
             this.mEntitlementDataPolicy = builder.mEntitlementDataPolicy;
             this.mSupportedConnectionMode = builder.mSupportedConnectionMode;
             this.mHttpStatusCode = builder.mHttpStatusCode;
+            this.mTriggerEvent = builder.mTriggerEvent;
         }
 
         public int getCarrierId() {
@@ -3525,6 +3527,10 @@ public class SatelliteStats {
             return mHttpStatusCode;
         }
 
+        public int getTriggerEvent() {
+            return mTriggerEvent;
+        }
+
         /**
          * A builder class to create {@link SatelliteEntitlementParams} data structure class
          */
@@ -3541,6 +3547,8 @@ public class SatelliteStats {
             private @SatelliteConstants.SatelliteGlobalConnectType int mSupportedConnectionMode =
                     SatelliteConstants.GLOBAL_NTN_CONNECT_TYPE_UNKNOWN;
             private int mHttpStatusCode = 0;
+            private @SatelliteConstants.SatelliteEntitlementQueryTrigger int mTriggerEvent =
+                    SatelliteConstants.SATELLITE_ENTITLEMENT_QUERY_TRIGGER_UNKNOWN;
 
             /**
              * Sets carrierId value of {@link SatelliteEntitlement} atom
@@ -3634,6 +3642,15 @@ public class SatelliteStats {
             }
 
             /**
+             * Sets triggerEvent value of {@link SatelliteEntitlement} atom
+             * then returns Builder class.
+             */
+            public Builder setTriggerEvent(int triggerEvent) {
+                this.mTriggerEvent = triggerEvent;
+                return this;
+            }
+
+            /**
              * Returns SatelliteEntitlementParams, which contains whole component of
              * {@link SatelliteEntitlement} atom
              */
@@ -3655,6 +3672,7 @@ public class SatelliteStats {
                     + ", entitlementServicePolicy=" + mEntitlementDataPolicy
                     + ", supportedConnectionMode=" + mSupportedConnectionMode
                     + ", HttpStatusCode=" + mHttpStatusCode
+                    + ", TriggerEvent=" + mTriggerEvent
                     + ")";
         }
     }
@@ -4291,6 +4309,7 @@ public class SatelliteStats {
         proto.entitlementDataPolicy = param.getEntitlementDataPolicy();
         proto.supportedConnectionMode = param.getSupportedConnectionMode();
         proto.httpStatusCode = param.getHttpStatusCode();
+        proto.triggerEvent = param.getTriggerEvent();
         if (DBG) logd("onSatelliteEntitlementMetrics: " + param);
         mAtomsStorage.addSatelliteEntitlementStats(proto);
     }
