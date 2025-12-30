@@ -1671,16 +1671,28 @@ public class DataNetwork extends StateMachine {
             mRegStateWhenSetup = nri != null
                     ? nri.getNetworkRegistrationState()
                     : NetworkRegistrationInfo.REGISTRATION_STATE_UNKNOWN;
+            ServiceState serviceState = mPhone.getServiceState();
             // We need to use the actual modem roaming state instead of the framework roaming state
             // here. This flag is only passed down to ril_service for picking the correct protocol
             // (for old modem backward compatibility).
-            boolean isModemRoaming = mPhone.getServiceState().getDataRoamingFromRegistration();
+            boolean isModemRoaming = serviceState.getDataRoamingFromRegistration();
+
+            // Indicates whether satellite data is allowed even when the device is roaming
+            // and data roaming is disabled by the user. This applies when the device is on a
+            // satellite network and the carrier config permits ignoring the roaming setting.
+            boolean allowSatelliteWhenRoamingDisabled = serviceState.getDataRoaming()
+                && !mPhone.getDataRoamingEnabled()
+                && serviceState.isUsingNonTerrestrialNetwork()
+                && mDataConfigManager.isDataRoamingAllowedOnSatellite()
+                && mSatellite;
 
             // Set this flag to true if the user turns on data roaming. Or if we override the
             // roaming state in framework, we should set this flag to true as well so the modem will
             // not reject the data call setup (because the modem thinks the device is roaming).
-            boolean allowRoaming = mPhone.getDataRoamingEnabled()
-                    || (isModemRoaming && (!mPhone.getServiceState().getDataRoaming()
+            boolean allowRoaming =
+                mPhone.getDataRoamingEnabled()
+                    || (isModemRoaming  && (!serviceState.getDataRoaming()
+                    || allowSatelliteWhenRoamingDisabled
                     /*|| isUnmeteredUseOnly()*/));
 
             TrafficDescriptor trafficDescriptor = mDataProfile.getTrafficDescriptor();
