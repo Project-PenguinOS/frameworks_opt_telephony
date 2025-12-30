@@ -99,6 +99,16 @@ flag {
   bug:"448973795"
 }
 
+# OWNER=willycwhu TARGET=26Q2
+flag {
+  name: "enable_data_stall_recovery_randomization"
+  namespace: "telephony"
+  description: "Enables adding a random offset to data stall recovery timers to prevent network overload issues."
+  bug: "478980391"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}
 
 # OWNER=sewookseo TARGET=26Q2
 flag {
