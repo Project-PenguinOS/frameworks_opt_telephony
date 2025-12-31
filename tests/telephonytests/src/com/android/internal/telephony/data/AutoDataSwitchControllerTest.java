@@ -406,7 +406,7 @@ public class AutoDataSwitchControllerTest extends TelephonyTest {
     public void testRoaming_satellite_bypass_settings() {
         prepareIdealUsesNonDdsCondition();
 
-        doReturn(true).when(mDataConfigManager).isIgnoringDataRoamingSettingForSatellite();
+        doReturn(true).when(mDataConfigManager).isDataRoamingAllowedOnSatellite();
         doReturn(false).when(mPhone).getDataRoamingEnabled();
 
         mIsNonTerrestrialNetwork = true;
