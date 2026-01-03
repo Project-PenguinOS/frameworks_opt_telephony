@@ -90,6 +90,7 @@ java_library {
         "android.hardware.radio.network-V5-java",
         "android.hardware.radio.sim-V5-java",
         "android.hardware.radio.voice-V5-java",
+        "error_prone_annotations",
         "voip-common",
         "ims-common",
         "unsupportedappusage",
