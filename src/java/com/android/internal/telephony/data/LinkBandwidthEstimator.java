@@ -14,14 +14,14 @@
  * limitations under the License.
  */
 
-// QTI_BEGIN: 2025-02-26: Telephony: Fix license marking
+// QTI_BEGIN: 2025-02-25: Telephony: Fix license marking
 /*
  * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
  * Copyright (c) 2025 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
-// QTI_END: 2025-02-26: Telephony: Fix license marking
+// QTI_END: 2025-02-25: Telephony: Fix license marking
 package com.android.internal.telephony.data;
 
 import static android.net.NetworkCapabilities.TRANSPORT_CELLULAR;
@@ -94,9 +94,9 @@ public class LinkBandwidthEstimator extends Handler {
     @VisibleForTesting
     static final int MSG_SCREEN_STATE_CHANGED = 1;
     @VisibleForTesting
-// QTI_BEGIN: 2025-02-07: Telephony: Telephony-Data: Decouple Qualcomm value adds.
+// QTI_BEGIN: 2025-02-06: Telephony: Telephony-Data: Decouple Qualcomm value adds.
     protected static final int MSG_TRAFFIC_STATS_POLL = 2;
-// QTI_END: 2025-02-07: Telephony: Telephony-Data: Decouple Qualcomm value adds.
+// QTI_END: 2025-02-06: Telephony: Telephony-Data: Decouple Qualcomm value adds.
     @VisibleForTesting
     static final int MSG_MODEM_ACTIVITY_RETURNED = 3;
     @VisibleForTesting
@@ -116,9 +116,9 @@ public class LinkBandwidthEstimator extends Handler {
     static final int UNKNOWN_TAC = CellInfo.UNAVAILABLE;
 
     // TODO: move the following parameters to xml file
-// QTI_BEGIN: 2025-02-07: Telephony: Telephony-Data: Decouple Qualcomm value adds.
+// QTI_BEGIN: 2025-02-06: Telephony: Telephony-Data: Decouple Qualcomm value adds.
     protected static final int TRAFFIC_STATS_POLL_INTERVAL_MS = 1_000;
-// QTI_END: 2025-02-07: Telephony: Telephony-Data: Decouple Qualcomm value adds.
+// QTI_END: 2025-02-06: Telephony: Telephony-Data: Decouple Qualcomm value adds.
     private static final int MODEM_POLL_MIN_INTERVAL_MS = 5_000;
     private static final int TRAFFIC_MODEM_POLL_BYTE_RATIO = 8;
     private static final int TRAFFIC_POLL_BYTE_THRESHOLD_MAX = 20_000;
@@ -183,17 +183,17 @@ public class LinkBandwidthEstimator extends Handler {
 // QTI_END: 2023-04-27: Telephony: Update data activity on each SIM
 
     // One common timestamp for all sim to avoid frequent modem polling
-// QTI_BEGIN: 2025-02-07: Telephony: Telephony-Data: Decouple Qualcomm value adds.
+// QTI_BEGIN: 2025-02-06: Telephony: Telephony-Data: Decouple Qualcomm value adds.
     protected final Phone mPhone;
-// QTI_END: 2025-02-07: Telephony: Telephony-Data: Decouple Qualcomm value adds.
+// QTI_END: 2025-02-06: Telephony: Telephony-Data: Decouple Qualcomm value adds.
     private final TelephonyFacade mTelephonyFacade;
     private final TelephonyManager mTelephonyManager;
     private final LocalLog mLocalLog = new LocalLog(512);
-// QTI_BEGIN: 2025-02-07: Telephony: Telephony-Data: Decouple Qualcomm value adds.
+// QTI_BEGIN: 2025-02-06: Telephony: Telephony-Data: Decouple Qualcomm value adds.
     protected boolean mScreenOn = false;
     protected boolean mIsOnDefaultRoute = false;
     protected boolean mIsOnActiveData = false;
-// QTI_END: 2025-02-07: Telephony: Telephony-Data: Decouple Qualcomm value adds.
+// QTI_END: 2025-02-06: Telephony: Telephony-Data: Decouple Qualcomm value adds.
     private long mLastModemPollTimeMs;
     private boolean mLastTrafficValid = true;
     private long mLastMobileTxBytes;
@@ -221,15 +221,15 @@ public class LinkBandwidthEstimator extends Handler {
     private long mLastPlmnOrRatChangeTimeMs;
     private long mLastDrsOrRatChangeTimeMs;
 
-// QTI_BEGIN: 2025-02-07: Telephony: Telephony-Data: Decouple Qualcomm value adds.
+// QTI_BEGIN: 2025-02-06: Telephony: Telephony-Data: Decouple Qualcomm value adds.
     protected int mDataActivity = TelephonyManager.DATA_ACTIVITY_NONE;
-// QTI_END: 2025-02-07: Telephony: Telephony-Data: Decouple Qualcomm value adds.
+// QTI_END: 2025-02-06: Telephony: Telephony-Data: Decouple Qualcomm value adds.
 
     /** Link bandwidth estimator callbacks. */
     @NonNull
-// QTI_BEGIN: 2025-02-07: Telephony: Telephony-Data: Decouple Qualcomm value adds.
+// QTI_BEGIN: 2025-02-06: Telephony: Telephony-Data: Decouple Qualcomm value adds.
     protected final Set<LinkBandwidthEstimatorCallback> mLinkBandwidthEstimatorCallbacks =
-// QTI_END: 2025-02-07: Telephony: Telephony-Data: Decouple Qualcomm value adds.
+// QTI_END: 2025-02-06: Telephony: Telephony-Data: Decouple Qualcomm value adds.
             new ArraySet<>();
 
     /**
@@ -478,15 +478,15 @@ public class LinkBandwidthEstimator extends Handler {
         mLastDrsOrRatChangeTimeMs = mTelephonyFacade.getElapsedSinceBootMillis();
     }
 
-// QTI_BEGIN: 2025-02-07: Telephony: Telephony-Data: Decouple Qualcomm value adds.
+// QTI_BEGIN: 2025-02-06: Telephony: Telephony-Data: Decouple Qualcomm value adds.
     protected void handleTrafficStatsPollConditionChanged() {
-// QTI_END: 2025-02-07: Telephony: Telephony-Data: Decouple Qualcomm value adds.
+// QTI_END: 2025-02-06: Telephony: Telephony-Data: Decouple Qualcomm value adds.
         removeMessages(MSG_TRAFFIC_STATS_POLL);
-// QTI_BEGIN: 2025-02-07: Telephony: Telephony-Data: Decouple Qualcomm value adds.
+// QTI_BEGIN: 2025-02-06: Telephony: Telephony-Data: Decouple Qualcomm value adds.
         if (mScreenOn && mIsOnDefaultRoute && mIsOnActiveData) {
             updateDataRatCellIdentityBandwidth();
             handleTrafficStatsPoll();
-// QTI_END: 2025-02-07: Telephony: Telephony-Data: Decouple Qualcomm value adds.
+// QTI_END: 2025-02-06: Telephony: Telephony-Data: Decouple Qualcomm value adds.
         } else {
             logd("Traffic status poll stopped");
             if (mDataActivity != TelephonyManager.DATA_ACTIVITY_NONE) {
@@ -497,16 +497,16 @@ public class LinkBandwidthEstimator extends Handler {
         }
     }
 
-// QTI_BEGIN: 2025-02-07: Telephony: Telephony-Data: Decouple Qualcomm value adds.
+// QTI_BEGIN: 2025-02-06: Telephony: Telephony-Data: Decouple Qualcomm value adds.
     protected void handleTrafficStatsPoll() {
-// QTI_END: 2025-02-07: Telephony: Telephony-Data: Decouple Qualcomm value adds.
+// QTI_END: 2025-02-06: Telephony: Telephony-Data: Decouple Qualcomm value adds.
         invalidateTxRxSamples();
         long mobileTxBytes = mTelephonyFacade.getMobileTxBytes();
         long mobileRxBytes = mTelephonyFacade.getMobileRxBytes();
         long txBytesDelta = mobileTxBytes - mLastMobileTxBytes;
         long rxBytesDelta = mobileRxBytes - mLastMobileRxBytes;
 
-// QTI_BEGIN: 2025-02-07: Telephony: Telephony-Data: Decouple Qualcomm value adds.
+// QTI_BEGIN: 2025-02-06: Telephony: Telephony-Data: Decouple Qualcomm value adds.
         int dataActivity;
         if (txBytesDelta > 0 && rxBytesDelta > 0) {
             dataActivity = TelephonyManager.DATA_ACTIVITY_INOUT;
@@ -529,7 +529,7 @@ public class LinkBandwidthEstimator extends Handler {
             sendEmptyMessageDelayed(MSG_TRAFFIC_STATS_POLL, TRAFFIC_STATS_POLL_INTERVAL_MS);
         }
 
-// QTI_END: 2025-02-07: Telephony: Telephony-Data: Decouple Qualcomm value adds.
+// QTI_END: 2025-02-06: Telephony: Telephony-Data: Decouple Qualcomm value adds.
         mLastMobileTxBytes = mobileTxBytes;
         mLastMobileRxBytes = mobileRxBytes;
         // Sometimes TrafficStats byte counts return invalid values
@@ -1081,9 +1081,9 @@ public class LinkBandwidthEstimator extends Handler {
                 NetworkRegistrationInfo.DOMAIN_PS, AccessNetworkConstants.TRANSPORT_TYPE_WWAN);
     }
 
-// QTI_BEGIN: 2025-02-07: Telephony: Telephony-Data: Decouple Qualcomm value adds.
+// QTI_BEGIN: 2025-02-06: Telephony: Telephony-Data: Decouple Qualcomm value adds.
     protected boolean updateDataRatCellIdentityBandwidth() {
-// QTI_END: 2025-02-07: Telephony: Telephony-Data: Decouple Qualcomm value adds.
+// QTI_END: 2025-02-06: Telephony: Telephony-Data: Decouple Qualcomm value adds.
         final ServiceState ss = mPhone.getServiceState();
         final CellIdentity cellIdentity = mPhone.getCurrentCellIdentity();
 
@@ -1324,10 +1324,10 @@ public class LinkBandwidthEstimator extends Handler {
         pw.println();
         pw.flush();
     }
-// QTI_BEGIN: 2025-02-07: Telephony: Telephony-Data: Decouple Qualcomm value adds.
+// QTI_BEGIN: 2025-02-06: Telephony: Telephony-Data: Decouple Qualcomm value adds.
 
     protected boolean isDataPacketsCaluclationOnEachSimSeperately() {
         return false;
     }
-// QTI_END: 2025-02-07: Telephony: Telephony-Data: Decouple Qualcomm value adds.
+// QTI_END: 2025-02-06: Telephony: Telephony-Data: Decouple Qualcomm value adds.
 }

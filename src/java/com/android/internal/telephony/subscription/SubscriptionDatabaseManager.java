@@ -268,6 +268,9 @@ public class SubscriptionDatabaseManager extends Handler {
                     SimInfo.COLUMN_PHONE_NUMBER_SOURCE_IMS,
                     SubscriptionInfoInternal::getNumberFromIms),
             new AbstractMap.SimpleImmutableEntry<>(
+                    SimInfo.COLUMN_PHONE_NUMBER_SOURCE_TS43,
+                    SubscriptionInfoInternal::getNumberFromTs43),
+            new AbstractMap.SimpleImmutableEntry<>(
                     SimInfo.COLUMN_PORT_INDEX,
                     SubscriptionInfoInternal::getPortIndex),
             new AbstractMap.SimpleImmutableEntry<>(
@@ -306,6 +309,9 @@ public class SubscriptionDatabaseManager extends Handler {
             new AbstractMap.SimpleImmutableEntry<>(
                     SimInfo.COLUMN_IS_SATELLITE_PROVISIONED_FOR_NON_IP_DATAGRAM,
                     SubscriptionInfoInternal::getIsSatelliteProvisionedForNonIpDatagram),
+            new AbstractMap.SimpleImmutableEntry<>(
+                    SimInfo.COLUMN_IS_PRIVATE_NETWORK,
+                    SubscriptionInfoInternal::getIsPrivateNetwork),
             new AbstractMap.SimpleImmutableEntry<>(
                     SimInfo.COLUMN_SATELLITE_ENTITLEMENT_BARRED_PLMNS,
                     SubscriptionInfoInternal::getSatelliteEntitlementBarredPlmnsList),
@@ -466,7 +472,10 @@ public class SubscriptionDatabaseManager extends Handler {
                     SubscriptionDatabaseManager::setSatelliteESOSSupported),
             new AbstractMap.SimpleImmutableEntry<>(
                     SimInfo.COLUMN_IS_SATELLITE_PROVISIONED_FOR_NON_IP_DATAGRAM,
-                    SubscriptionDatabaseManager::setIsSatelliteProvisionedForNonIpDatagram)
+                    SubscriptionDatabaseManager::setIsSatelliteProvisionedForNonIpDatagram),
+            new AbstractMap.SimpleImmutableEntry<>(
+                    SimInfo.COLUMN_IS_PRIVATE_NETWORK,
+                    SubscriptionDatabaseManager::setIsPrivateNetwork)
     );
 
     /**
@@ -529,6 +538,9 @@ public class SubscriptionDatabaseManager extends Handler {
             new AbstractMap.SimpleImmutableEntry<>(
                     SimInfo.COLUMN_PHONE_NUMBER_SOURCE_IMS,
                     SubscriptionDatabaseManager::setNumberFromIms),
+            new AbstractMap.SimpleImmutableEntry<>(
+                    SimInfo.COLUMN_PHONE_NUMBER_SOURCE_TS43,
+                    SubscriptionDatabaseManager::setNumberFromTs43),
             new AbstractMap.SimpleImmutableEntry<>(
                     SimInfo.COLUMN_SATELLITE_ENTITLEMENT_PLMNS,
                     SubscriptionDatabaseManager::setSatelliteEntitlementPlmns),
@@ -2015,6 +2027,20 @@ public class SubscriptionDatabaseManager extends Handler {
     }
 
     /**
+     * Set the phone number retrieved from TS43.
+     *
+     * @param subId Subscription id.
+     * @param numberFromTs43 The phone number retrieved from TS43.
+     *
+     * @throws IllegalArgumentException if the subscription does not exist.
+     */
+    public void setNumberFromTs43(int subId, @NonNull String numberFromTs43) {
+        Objects.requireNonNull(numberFromTs43);
+        writeDatabaseAndCacheHelper(subId, SimInfo.COLUMN_PHONE_NUMBER_SOURCE_TS43,
+                numberFromTs43, SubscriptionInfoInternal.Builder::setNumberFromTs43);
+    }
+
+    /**
      * Set the port index of the Uicc card.
      *
      * @param subId Subscription id.
@@ -2272,6 +2298,21 @@ public class SubscriptionDatabaseManager extends Handler {
                 SimInfo.COLUMN_IS_SATELLITE_PROVISIONED_FOR_NON_IP_DATAGRAM,
                 isSatelliteProvisionedForNonIpDatagram,
                 SubscriptionInfoInternal.Builder::setIsSatelliteProvisionedForNonIpDatagram);
+    }
+
+    /**
+     * Set whether the subscription is for private network.
+     *
+     * @param subId Subscription id.
+     * @param isPrivateNetwork {@code 1} if the subscription is for private network.
+     *
+     * @throws IllegalArgumentException if the subscription does not exist.
+     */
+    public void setIsPrivateNetwork(int subId, int isPrivateNetwork) {
+        if (mFeatureFlags.enableIsPrivateNetworkApi()) {
+            writeDatabaseAndCacheHelper(subId, SimInfo.COLUMN_IS_PRIVATE_NETWORK, isPrivateNetwork,
+                    SubscriptionInfoInternal.Builder::setIsPrivateNetwork);
+        }
     }
 
     /**
@@ -2612,8 +2653,15 @@ public class SubscriptionDatabaseManager extends Handler {
             builder.setTransferStatus(cursor.getInt(cursor.getColumnIndexOrThrow(
                     SimInfo.COLUMN_TRANSFER_STATUS)));
         }
+        if (mFeatureFlags.getPhoneNumberTs43Api()) {
+            builder.setNumberFromTs43(TextUtils.emptyIfNull(cursor.getString(
+                    cursor.getColumnIndexOrThrow(
+                            SimInfo.COLUMN_PHONE_NUMBER_SOURCE_TS43))));
+        }
         builder.setSatelliteESOSSupported(cursor.getInt(
                 cursor.getColumnIndexOrThrow(SimInfo.COLUMN_SATELLITE_ESOS_SUPPORTED)));
+        builder.setIsPrivateNetwork(cursor.getInt(
+                cursor.getColumnIndexOrThrow(SimInfo.COLUMN_IS_PRIVATE_NETWORK)));
         return builder.build();
     }
 

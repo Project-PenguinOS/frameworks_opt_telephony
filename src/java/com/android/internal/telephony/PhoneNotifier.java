@@ -35,6 +35,7 @@ import android.telephony.SecurityAlgorithmUpdate;
 import android.telephony.ServiceState;
 import android.telephony.TelephonyDisplayInfo;
 import android.telephony.TelephonyManager.DataEnabledReason;
+import android.telephony.TelephonyManager.DomainSelectionEmergencyType;
 import android.telephony.TelephonyManager.EmergencyCallbackModeStopReason;
 import android.telephony.TelephonyManager.EmergencyCallbackModeType;
 import android.telephony.emergency.EmergencyNumber;
@@ -183,4 +184,12 @@ public interface PhoneNotifier {
 
     /** Notify of a security algorithm update change. */
     void notifySecurityAlgorithmsChanged(Phone sender, SecurityAlgorithmUpdate update);
+
+    /** Notify emergency mode has been entered when AP domain selection is enabled. */
+    void notifyDomainSelectionEmergencyModeEntered(Phone sender,
+            @DomainSelectionEmergencyType int type);
+
+    /** Notify emergency mode has been exited when AP domain selection is enabled. */
+    void notifyDomainSelectionEmergencyModeExited(Phone sender,
+            @DomainSelectionEmergencyType int type);
 }

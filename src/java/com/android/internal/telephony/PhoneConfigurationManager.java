@@ -75,9 +75,9 @@ public class PhoneConfigurationManager {
     public static final String DSDA = "dsda";
     public static final String DSDS = "dsds";
     public static final String TSTS = "tsts";
-// QTI_BEGIN: 2021-05-11: Telephony: Inject RIL instance when notified of sim switch
+// QTI_BEGIN: 2021-05-10: Telephony: Inject RIL instance when notified of sim switch
     public static final String SSSS = "ssss";
-// QTI_END: 2021-05-11: Telephony: Inject RIL instance when notified of sim switch
+// QTI_END: 2021-05-10: Telephony: Inject RIL instance when notified of sim switch
     /** DeviceConfig key for whether Virtual DSDA is enabled. */
     private static final String KEY_ENABLE_VIRTUAL_DSDA = "enable_virtual_dsda";
     private static final String LOG_TAG = "PhoneCfgMgr";
@@ -150,9 +150,9 @@ public class PhoneConfigurationManager {
             "com.qti.permission.RECEIVE_MSIM_VOICE_CAPABILITY";
     private final String EXTRAS_MSIM_VOICE_CAPABILITY = "MsimVoiceCapability";
 // QTI_END: 2021-07-12: Telephony: IMS: Update multi sim voice capability property
-// QTI_BEGIN: 2023-03-17: Telephony: DSDS Transition: Introduce new property
+// QTI_BEGIN: 2023-03-16: Telephony: DSDS Transition: Introduce new property
     private final String EXTRAS_DSDS_TRANSITION_SUPPORTED = "DsdsTransitionSupported";
-// QTI_END: 2023-03-17: Telephony: DSDS Transition: Introduce new property
+// QTI_END: 2023-03-16: Telephony: DSDS Transition: Introduce new property
 
     /**
      * Init method to instantiate the object
@@ -205,9 +205,9 @@ public class PhoneConfigurationManager {
         mContext.registerReceiver(mConcurrentCallsReceiver,
                 new IntentFilter(ACTION_MSIM_VOICE_CAPABILITY), PERMISSION_MSIM_VOICE_CAPABILITY,
 // QTI_END: 2021-07-12: Telephony: IMS: Update multi sim voice capability property
-// QTI_BEGIN: 2024-11-06: Telephony: IMS: Add RECEIVER_EXPORTED flag for MSIM_VOICE_CAPABILITY receiver. am: 362c42d9d4 am: ac3a84a0f1 am: ac3a84a0f1
+// QTI_BEGIN: 2024-11-05: Telephony: IMS: Add RECEIVER_EXPORTED flag for MSIM_VOICE_CAPABILITY receiver. am: 362c42d9d4 am: ac3a84a0f1 am: ac3a84a0f1
                 null, Context.RECEIVER_EXPORTED);
-// QTI_END: 2024-11-06: Telephony: IMS: Add RECEIVER_EXPORTED flag for MSIM_VOICE_CAPABILITY receiver. am: 362c42d9d4 am: ac3a84a0f1 am: ac3a84a0f1
+// QTI_END: 2024-11-05: Telephony: IMS: Add RECEIVER_EXPORTED flag for MSIM_VOICE_CAPABILITY receiver. am: 362c42d9d4 am: ac3a84a0f1 am: ac3a84a0f1
     }
 
 // QTI_BEGIN: 2021-07-12: Telephony: IMS: Update multi sim voice capability property
@@ -216,22 +216,22 @@ public class PhoneConfigurationManager {
         public void onReceive(Context context, Intent intent) {
             int voiceCapability = intent.getIntExtra(EXTRAS_MSIM_VOICE_CAPABILITY,
 // QTI_END: 2021-07-12: Telephony: IMS: Update multi sim voice capability property
-// QTI_BEGIN: 2025-02-19: Telephony: Don't use multi_sim_voice_capability when unset
+// QTI_BEGIN: 2025-02-18: Telephony: Don't use multi_sim_voice_capability when unset
                     TelephonyManager.MultiSimVoiceCapability.UNSUPPORTED);
-// QTI_END: 2025-02-19: Telephony: Don't use multi_sim_voice_capability when unset
-// QTI_BEGIN: 2023-03-17: Telephony: DSDS Transition: Introduce new property
+// QTI_END: 2025-02-18: Telephony: Don't use multi_sim_voice_capability when unset
+// QTI_BEGIN: 2023-03-16: Telephony: DSDS Transition: Introduce new property
             boolean isDsdsTransitionSupported =
                     intent.getBooleanExtra(EXTRAS_DSDS_TRANSITION_SUPPORTED,
                     false);
             log(" mConcurrentCallsReceiver: voiceCapability : " + voiceCapability +
                     " + isDsdsTransitionSupported : " + isDsdsTransitionSupported);
-// QTI_END: 2023-03-17: Telephony: DSDS Transition: Introduce new property
+// QTI_END: 2023-03-16: Telephony: DSDS Transition: Introduce new property
 // QTI_BEGIN: 2021-07-12: Telephony: IMS: Update multi sim voice capability property
             TelephonyProperties.multi_sim_voice_capability(voiceCapability);
 // QTI_END: 2021-07-12: Telephony: IMS: Update multi sim voice capability property
-// QTI_BEGIN: 2023-03-17: Telephony: DSDS Transition: Introduce new property
+// QTI_BEGIN: 2023-03-16: Telephony: DSDS Transition: Introduce new property
             TelephonyProperties.dsds_transition_supported(isDsdsTransitionSupported);
-// QTI_END: 2023-03-17: Telephony: DSDS Transition: Introduce new property
+// QTI_END: 2023-03-16: Telephony: DSDS Transition: Introduce new property
 // QTI_BEGIN: 2025-01-28: Telephony: Use MultiSimVoiceCapability to support simultaneous calling
             // in cases where multi_sim_voice_capability is still used and simultaneous
             // calling API(s) are not supported, generate the simultaneous calling info
@@ -449,19 +449,18 @@ public class PhoneConfigurationManager {
                         break;
                     }
                     ar = (AsyncResult) msg.obj;
-// QTI_BEGIN: 2025-02-19: Telephony: Don't use multi_sim_voice_capability when unset
+// QTI_BEGIN: 2025-02-18: Telephony: Don't use multi_sim_voice_capability when unset
                     // check if simultaneous calling values should be generated with property
                     // to ensure that property values are used in cases where lower layers
                     // don't support simultaneous calling API(s)
-// QTI_END: 2025-02-19: Telephony: Don't use multi_sim_voice_capability when unset
+// QTI_END: 2025-02-18: Telephony: Don't use multi_sim_voice_capability when unset
 // QTI_BEGIN: 2025-01-28: Telephony: Use MultiSimVoiceCapability to support simultaneous calling
                     boolean generateSimultaneousCallingSupport =
                             TelephonyProperties.multi_sim_voice_capability().orElse(
 // QTI_END: 2025-01-28: Telephony: Use MultiSimVoiceCapability to support simultaneous calling
-// QTI_BEGIN: 2025-02-19: Telephony: Don't use multi_sim_voice_capability when unset
+// QTI_BEGIN: 2025-02-18: Telephony: Don't use multi_sim_voice_capability when unset
                             TelephonyManager.MultiSimVoiceCapability.UNSUPPORTED) !=
-// QTI_END: 2025-02-19: Telephony: Don't use multi_sim_voice_capability when unset
-// QTI_BEGIN: 2025-01-28: Telephony: Use MultiSimVoiceCapability to support simultaneous calling
+// QTI_END: 2025-02-18: Telephony: Don't use multi_sim_voice_capability when unset
                             TelephonyManager.MultiSimVoiceCapability.UNSUPPORTED &&
                             // To support mockmodem tests, bypass multi_sim_voice_capability
                             // property and use the values from the radioconfig hal if RadioConfig
@@ -470,6 +469,7 @@ public class PhoneConfigurationManager {
                             (mRadioConfig != null && mRadioConfig.getRadioConfigProxy(null)
                             .getVersion().less(RIL.RADIO_HAL_VERSION_2_3));
 
+// QTI_BEGIN: 2025-01-28: Telephony: Use MultiSimVoiceCapability to support simultaneous calling
                     if ((ar != null && ar.exception == null) ||
                             generateSimultaneousCallingSupport) {
                         List<Integer> returnedArrayList = generateSimultaneousCallingSupport ?
@@ -761,9 +761,7 @@ public class PhoneConfigurationManager {
             // eg if we are going from 2 phones to 1 phone, we need to deregister RIL for the
             // second phone. This loop does nothing if numOfActiveModems is increasing.
             for (int phoneId = numOfActiveModems; phoneId < oldNumOfActiveModems; phoneId++) {
-// QTI_BEGIN: 2023-11-10: Telephony: Remove legacy subscription code
                 SubscriptionManagerService.getInstance().markSubscriptionsInactive(phoneId);
-// QTI_END: 2023-11-10: Telephony: Remove legacy subscription code
                 subInfoCleared = true;
                 mPhones[phoneId].mCi.onSlotActiveStatusChange(
                         SubscriptionManager.isValidPhoneId(phoneId));
@@ -809,10 +807,8 @@ public class PhoneConfigurationManager {
                         + "setting VOICE & SMS subId to -1 (No Preference)");
 
                 //Set the default VOICE subId to -1 ("No Preference")
-// QTI_BEGIN: 2023-11-10: Telephony: Remove legacy subscription code
                 SubscriptionManagerService.getInstance().setDefaultVoiceSubId(
                         SubscriptionManager.INVALID_SUBSCRIPTION_ID);
-// QTI_END: 2023-11-10: Telephony: Remove legacy subscription code
 
                 //TODO:: Set the default SMS sub to "No Preference". Tracking this bug (b/227386042)
             } else {

@@ -16,6 +16,7 @@
 
 package com.android.internal.telephony.satellite.metrics;
 
+import static android.telephony.ims.stub.ImsRegistrationImplBase.REGISTRATION_TECH_IWLAN;
 import static android.telephony.TelephonyManager.ACTION_DATA_STALL_DETECTED;
 
 import android.annotation.NonNull;
@@ -32,6 +33,7 @@ import android.net.Network;
 import android.net.NetworkCapabilities;
 import android.net.NetworkRequest;
 import android.net.NetworkTemplate;
+import android.net.wifi.WifiManager;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.HandlerThread;
@@ -124,6 +126,10 @@ public class CarrierRoamingSatelliteSessionStats {
     private int[] mSatelliteAppsUidArray = new int[MAX_SATELLITE_TOP_APPS_TRACKED];
     private @SatelliteConstants.SatelliteGlobalConnectType int mSupportedConnectionMode;
     private @SatelliteConstants.SatelliteSessionConnectType int mSessionConnectionMode;
+    private String mPlmn;
+    private boolean mIsWifiEnabled;
+    private boolean mIsWfcEnabled;
+    private boolean mIsWfcRegistered;
 
     private final ConnectivityManager.NetworkCallback mNetworkCallback =
             new ConnectivityManager.NetworkCallback() {
@@ -307,7 +313,7 @@ public class CarrierRoamingSatelliteSessionStats {
     public void onSessionStart(
             int carrierId, Phone phone, int[] supportedServices, int serviceDataPolicy,
             List<String> satelliteApps, int supportedConnectionMode, int sessionConnectionMode,
-            @NonNull FeatureFlags featureFlags) {
+            String plmn, @NonNull FeatureFlags featureFlags) {
         mPhone = phone;
         mContext = mPhone.getContext();
         mCarrierId = carrierId;
@@ -319,8 +325,19 @@ public class CarrierRoamingSatelliteSessionStats {
         mDataUsageOnSessionStartBytes = getDataUsage();
         logd("current data consumed: " + mDataUsageOnSessionStartBytes);
         mSupportedConnectionMode = supportedConnectionMode;
+        mPlmn = plmn;
         mSessionConnectionMode = sessionConnectionMode;
         mFeatureFlags = featureFlags;
+        WifiManager wifiManager = (WifiManager) mContext.getSystemService(Context.WIFI_SERVICE);
+        if (wifiManager != null) {
+            mIsWifiEnabled = wifiManager.isWifiEnabled();
+        }
+        mIsWfcEnabled = mPhone.isWifiCallingEnabled();
+        mIsWfcRegistered = mIsWfcEnabled
+                && mPhone.isImsRegistered()
+                && mPhone.getImsRegistrationTech() == REGISTRATION_TECH_IWLAN;
+        logd("mIsWifiEnabled: " + mIsWifiEnabled + ", mIsWfcEnabled: " + mIsWfcEnabled
+                + ", mIsWfcRegistered: " + mIsWfcRegistered);
         registerForSatelliteDataNetworkCallback();
         if (mFeatureFlags.satelliteDataMetrics()) {
             mPerAppDataUsageOnSessionStartMap = getPerAppSatelliteDataUsage(satelliteApps);
@@ -818,6 +835,7 @@ public class CarrierRoamingSatelliteSessionStats {
                 new SatelliteStats.CarrierRoamingSatelliteSessionParams.Builder()
                         .setCarrierId(mCarrierId)
                         .setSupportedConnectionMode(mSupportedConnectionMode)
+                        .setPlmn(mPlmn)
                         .setSessionConnectionMode(mSessionConnectionMode)
                         .setIsNtnRoamingInHomeCountry(mIsNtnRoamingInHomeCountry)
                         .setTotalSatelliteModeTimeSec(totalSatelliteModeTimeSec)
@@ -853,6 +871,9 @@ public class CarrierRoamingSatelliteSessionStats {
                         .setSatelliteSupportedApps(mSatelliteAppsPackageNameArray)
                         .setSatelliteSupportedUids(mSatelliteAppsUidArray)
                         .setPerAppSatelliteDataConsumedBytes(mPerAppSatelliteDataConsumedBytesArray)
+                        .setIsWifiEnabled(mIsWifiEnabled)
+                        .setIsWfcEnabled(mIsWfcEnabled)
+                        .setIsWfcRegistered(mIsWfcRegistered)
                         .build();
         SatelliteStats.getInstance().onCarrierRoamingSatelliteSessionMetrics(params);
         logd("Supported satellite services: " + Arrays.toString(mSupportedSatelliteServices));
@@ -865,6 +886,7 @@ public class CarrierRoamingSatelliteSessionStats {
         mCarrierId = TelephonyManager.UNKNOWN_CARRIER_ID;
         mSupportedConnectionMode = SatelliteConstants.GLOBAL_NTN_CONNECT_TYPE_UNKNOWN;
         mSessionConnectionMode = SatelliteConstants.SESSION_NTN_CONNECT_TYPE_UNKNOWN;
+        mPlmn = SatelliteConstants.DEFAULT_PLMN;
         mIsNtnRoamingInHomeCountry = false;
         mCountOfIncomingSms = 0;
         mCountOfOutgoingSms = 0;
@@ -877,6 +899,9 @@ public class CarrierRoamingSatelliteSessionStats {
         mSatelliteConnectionTimesList = new ArrayList<>();
         mRsrpList = new ArrayList<>();
         mRssnrList = new ArrayList<>();
+        mIsWifiEnabled = false;
+        mIsWfcEnabled = false;
+        mIsWfcRegistered = false;
         logd("initializeParams");
     }
 

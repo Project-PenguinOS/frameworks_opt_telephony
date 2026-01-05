@@ -818,9 +818,9 @@ public class ImsPhoneTest extends TelephonyTest {
     @Test
     @SmallTest
     public void testRoamingToAirplanModeIwlanInService() throws Exception {
-// QTI_BEGIN: 2023-06-13: Telephony: Revert "Removed IWLAN legacy mode support"
+// QTI_BEGIN: 2023-06-12: Telephony: Revert "Removed IWLAN legacy mode support"
         doReturn(true).when(mAccessNetworksManager).isInLegacyMode();
-// QTI_END: 2023-06-13: Telephony: Revert "Removed IWLAN legacy mode support"
+// QTI_END: 2023-06-12: Telephony: Revert "Removed IWLAN legacy mode support"
         doReturn(PhoneConstants.State.IDLE).when(mImsCT).getState();
         doReturn(true).when(mPhone).isRadioOn();
 
@@ -848,9 +848,9 @@ public class ImsPhoneTest extends TelephonyTest {
     @Test
     @SmallTest
     public void testRoamingToOutOfService() throws Exception {
-// QTI_BEGIN: 2023-06-13: Telephony: Revert "Removed IWLAN legacy mode support"
+// QTI_BEGIN: 2023-06-12: Telephony: Revert "Removed IWLAN legacy mode support"
         doReturn(true).when(mAccessNetworksManager).isInLegacyMode();
-// QTI_END: 2023-06-13: Telephony: Revert "Removed IWLAN legacy mode support"
+// QTI_END: 2023-06-12: Telephony: Revert "Removed IWLAN legacy mode support"
         doReturn(PhoneConstants.State.IDLE).when(mImsCT).getState();
         doReturn(true).when(mPhone).isRadioOn();
 
@@ -873,7 +873,7 @@ public class ImsPhoneTest extends TelephonyTest {
         verify(mImsManager, times(1)).setWfcMode(anyInt(), anyBoolean());
     }
 
-// QTI_BEGIN: 2023-06-13: Telephony: Revert "Removed IWLAN legacy mode support"
+// QTI_BEGIN: 2023-06-12: Telephony: Revert "Removed IWLAN legacy mode support"
     @Test
     @SmallTest
     public void testRoamingChangeForLteInLegacyMode() throws Exception {
@@ -951,7 +951,7 @@ public class ImsPhoneTest extends TelephonyTest {
         verify(mImsManager, times(1)).setWfcMode(anyInt(), anyBoolean());
     }
 
-// QTI_END: 2023-06-13: Telephony: Revert "Removed IWLAN legacy mode support"
+// QTI_END: 2023-06-12: Telephony: Revert "Removed IWLAN legacy mode support"
     @Test
     @SmallTest
     public void testSetWfcModeInRoaming() throws Exception {
@@ -1147,9 +1147,7 @@ public class ImsPhoneTest extends TelephonyTest {
         };
         mImsPhoneUT.setPhoneNumberForSourceIms(associatedUris);
 
-// QTI_BEGIN: 2023-11-10: Telephony: Remove legacy subscription code
         verify(mSubscriptionManagerService).setNumberFromIms(subId, "+447539447777");
-// QTI_END: 2023-11-10: Telephony: Remove legacy subscription code
 
         // 2. 1st invalid and 2nd valid: 2nd is set.
         associatedUris = new Uri[] {
@@ -1158,9 +1156,7 @@ public class ImsPhoneTest extends TelephonyTest {
         };
         mImsPhoneUT.setPhoneNumberForSourceIms(associatedUris);
 
-// QTI_BEGIN: 2023-11-10: Telephony: Remove legacy subscription code
         verify(mSubscriptionManagerService).setNumberFromIms(subId, "+447539446666");
-// QTI_END: 2023-11-10: Telephony: Remove legacy subscription code
 
         // 3. 1st sip-uri is not phone number and 2nd valid: 2nd is set.
         associatedUris = new Uri[] {
@@ -1170,9 +1166,7 @@ public class ImsPhoneTest extends TelephonyTest {
         };
         mImsPhoneUT.setPhoneNumberForSourceIms(associatedUris);
 
-// QTI_BEGIN: 2023-11-10: Telephony: Remove legacy subscription code
         verify(mSubscriptionManagerService).setNumberFromIms(subId, "+447539446677");
-// QTI_END: 2023-11-10: Telephony: Remove legacy subscription code
 
         // Clean up
         mContextFixture.addCallingOrSelfPermission("");
@@ -1198,32 +1192,24 @@ public class ImsPhoneTest extends TelephonyTest {
         };
         mImsPhoneUT.setPhoneNumberForSourceIms(associatedUris);
 
-// QTI_BEGIN: 2023-11-10: Telephony: Remove legacy subscription code
         verify(mSubscriptionManagerService, never()).setNumberFromIms(anyInt(), anyString());
-// QTI_END: 2023-11-10: Telephony: Remove legacy subscription code
 
         // 2. no URI; do not set
         associatedUris = new Uri[] {};
         mImsPhoneUT.setPhoneNumberForSourceIms(associatedUris);
 
-// QTI_BEGIN: 2023-11-10: Telephony: Remove legacy subscription code
         verify(mSubscriptionManagerService, never()).setNumberFromIms(anyInt(), anyString());
-// QTI_END: 2023-11-10: Telephony: Remove legacy subscription code
 
         // 3. null URI; do not set
         associatedUris = new Uri[] { null };
         mImsPhoneUT.setPhoneNumberForSourceIms(associatedUris);
 
-// QTI_BEGIN: 2023-11-10: Telephony: Remove legacy subscription code
         verify(mSubscriptionManagerService, never()).setNumberFromIms(anyInt(), anyString());
-// QTI_END: 2023-11-10: Telephony: Remove legacy subscription code
 
         // 4. null pointer; do not set
         mImsPhoneUT.setPhoneNumberForSourceIms(null);
 
-// QTI_BEGIN: 2023-11-10: Telephony: Remove legacy subscription code
         verify(mSubscriptionManagerService, never()).setNumberFromIms(anyInt(), anyString());
-// QTI_END: 2023-11-10: Telephony: Remove legacy subscription code
 
         // Clean up
         mContextFixture.addCallingOrSelfPermission("");
@@ -1851,6 +1837,23 @@ public class ImsPhoneTest extends TelephonyTest {
 
         assertTrue(mImsPhoneUT.canMakeWifiCall());
     }
+
+    @Test
+    public void updateRoamingState_idle_shouldOverrideNtn_updatesStateOnly() throws Exception {
+        doReturn(true).when(mImsManager).shouldOverrideWfcRoamingModeWhileUsingNTN();
+        doReturn(PhoneConstants.State.IDLE).when(mImsCT).getState();
+        doReturn(true).when(mPhone).isRadioOn();
+
+        //roaming - voice and data registration on LTE
+        Message m = getServiceStateChangedMessage(getServiceStateDataAndVoice(
+                ServiceState.RIL_RADIO_TECHNOLOGY_LTE, ServiceState.STATE_IN_SERVICE, true));
+        // Inject the message synchronously instead of waiting for the thread to do it.
+        mImsPhoneUT.handleMessage(m);
+
+        assertTrue(mImsPhoneUT.getLastKnownRoamingState());
+        verify(mImsManager, never()).setWfcMode(anyInt(), anyBoolean());
+    }
+
 
     private ServiceState getServiceStateDataAndVoice(int rat, int regState, boolean isRoaming) {
         ServiceState ss = new ServiceState();

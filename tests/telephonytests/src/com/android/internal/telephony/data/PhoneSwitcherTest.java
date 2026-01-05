@@ -17,16 +17,12 @@
 package com.android.internal.telephony.data;
 
 import static android.telephony.CarrierConfigManager.KEY_DATA_SWITCH_VALIDATION_TIMEOUT_LONG;
-// QTI_BEGIN: 2021-04-19: Telephony: Add support to retry for DDS switch failures
 import static android.telephony.TelephonyManager.ACTION_SIM_APPLICATION_STATE_CHANGED;
 import static android.telephony.TelephonyManager.EXTRA_SIM_STATE;
-// QTI_END: 2021-04-19: Telephony: Add support to retry for DDS switch failures
 import static android.telephony.TelephonyManager.SET_OPPORTUNISTIC_SUB_INACTIVE_SUBSCRIPTION;
 import static android.telephony.TelephonyManager.SET_OPPORTUNISTIC_SUB_SUCCESS;
 import static android.telephony.TelephonyManager.SET_OPPORTUNISTIC_SUB_VALIDATION_FAILED;
-// QTI_BEGIN: 2021-04-19: Telephony: Add support to retry for DDS switch failures
 import static android.telephony.TelephonyManager.SIM_STATE_LOADED;
-// QTI_END: 2021-04-19: Telephony: Add support to retry for DDS switch failures
 import static android.telephony.ims.RegistrationManager.REGISTRATION_STATE_NOT_REGISTERED;
 import static android.telephony.ims.RegistrationManager.REGISTRATION_STATE_REGISTERED;
 import static android.telephony.ims.stub.ImsRegistrationImplBase.REGISTRATION_TECH_CROSS_SIM;
@@ -69,9 +65,7 @@ import android.telephony.AccessNetworkConstants;
 import android.telephony.NetworkRegistrationInfo;
 import android.telephony.PhoneCapability;
 import android.telephony.ServiceState;
-// QTI_BEGIN: 2021-04-19: Telephony: Add support to retry for DDS switch failures
 import android.telephony.SubscriptionInfo;
-// QTI_END: 2021-04-19: Telephony: Add support to retry for DDS switch failures
 import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyDisplayInfo;
 import android.telephony.TelephonyManager;
@@ -109,9 +103,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 @TestableLooper.RunWithLooper
 public class PhoneSwitcherTest extends TelephonyTest {
     private static final int EVENT_RADIO_ON = 108;
-// QTI_BEGIN: 2021-04-19: Telephony: Add support to retry for DDS switch failures
     private static final int EVENT_MODEM_COMMAND_DONE = 112;
-// QTI_END: 2021-04-19: Telephony: Add support to retry for DDS switch failures
     private static final int EVENT_EVALUATE_AUTO_SWITCH = 111;
     private static final int EVENT_IMS_RADIO_TECH_CHANGED = 120;
     private static final int EVENT_MULTI_SIM_CONFIG_CHANGED = 117;
@@ -136,9 +128,7 @@ public class PhoneSwitcherTest extends TelephonyTest {
     private ISetOpportunisticDataCallback mSetOpptDataCallback2;
     PhoneSwitcher.ImsRegTechProvider mMockImsRegTechProvider;
     PhoneSwitcher.ImsRegisterCallback mMockImsRegisterCallback;
-// QTI_BEGIN: 2021-04-19: Telephony: Add support to retry for DDS switch failures
     private SubscriptionInfo mSubscriptionInfo;
-// QTI_END: 2021-04-19: Telephony: Add support to retry for DDS switch failures
     private ISub mMockedIsub;
     private AutoDataSwitchController mAutoDataSwitchController;
 
@@ -333,14 +323,10 @@ public class PhoneSwitcherTest extends TelephonyTest {
         // now start a higher priority connection on the other sub
         addMmsNetworkRequest(1);
 
-// QTI_BEGIN: 2021-04-19: Telephony: Add support to retry for DDS switch failures
         AsyncResult res = new AsyncResult(1, null,  null);
-// QTI_END: 2021-04-19: Telephony: Add support to retry for DDS switch failures
         Message.obtain(mPhoneSwitcherUT, EVENT_MODEM_COMMAND_DONE, res).sendToTarget();
-// QTI_BEGIN: 2021-04-19: Telephony: Add support to retry for DDS switch failures
         processAllMessages();
 
-// QTI_END: 2021-04-19: Telephony: Add support to retry for DDS switch failures
         assertFalse("data allowed", mDataAllowed[0]);
         assertTrue("data not allowed", mDataAllowed[1]);
     }
@@ -546,13 +532,9 @@ public class PhoneSwitcherTest extends TelephonyTest {
         setDefaultDataSubId(1);
         // Phone 0 (sub 1) should be preferred data phone as it has default data sub.
         verify(mMockRadioConfig).setPreferredDataModem(eq(0), any());
-// QTI_BEGIN: 2021-04-19: Telephony: Add support to retry for DDS switch failures
         AsyncResult res = new AsyncResult(1, null,  null);
-// QTI_END: 2021-04-19: Telephony: Add support to retry for DDS switch failures
         Message.obtain(mPhoneSwitcherUT, EVENT_MODEM_COMMAND_DONE, res).sendToTarget();
-// QTI_BEGIN: 2021-04-19: Telephony: Add support to retry for DDS switch failures
         processAllMessages();
-// QTI_END: 2021-04-19: Telephony: Add support to retry for DDS switch failures
         clearInvocations(mMockRadioConfig);
 
         // Notify phoneSwitcher about default data sub and default network request.
@@ -580,9 +562,7 @@ public class PhoneSwitcherTest extends TelephonyTest {
         processAllMessages();
         verify(mMockRadioConfig).setPreferredDataModem(eq(1), any());
         Message.obtain(mPhoneSwitcherUT, EVENT_MODEM_COMMAND_DONE, res).sendToTarget();
-// QTI_BEGIN: 2021-04-19: Telephony: Add support to retry for DDS switch failures
         processAllMessages();
-// QTI_END: 2021-04-19: Telephony: Add support to retry for DDS switch failures
         assertFalse(mPhoneSwitcherUT.shouldApplyNetworkRequest(
                 new TelephonyNetworkRequest(internetRequest, mPhone, mFeatureFlags), 0));
         assertFalse(mPhoneSwitcherUT.shouldApplyNetworkRequest(
@@ -603,9 +583,7 @@ public class PhoneSwitcherTest extends TelephonyTest {
 
         verify(mMockRadioConfig).setPreferredDataModem(eq(0), any());
         Message.obtain(mPhoneSwitcherUT, EVENT_MODEM_COMMAND_DONE, res).sendToTarget();
-// QTI_BEGIN: 2021-04-19: Telephony: Add support to retry for DDS switch failures
         processAllMessages();
-// QTI_END: 2021-04-19: Telephony: Add support to retry for DDS switch failures
         assertTrue(mPhoneSwitcherUT.shouldApplyNetworkRequest(
                 new TelephonyNetworkRequest(internetRequest, mPhone, mFeatureFlags), 0));
         assertFalse(mPhoneSwitcherUT.shouldApplyNetworkRequest(
@@ -1004,10 +982,8 @@ public class PhoneSwitcherTest extends TelephonyTest {
         processAllMessages();
         verify(mFuturePhone).complete(true);
 
-// QTI_BEGIN: 2021-05-11: Telephony: Fix DDS sub notify issue for SIM refresh
         // Make sure the correct broadcast is sent out for the overridden phone ID
         verify(mTelephonyRegistryManager).notifyActiveDataSubIdChanged(eq(2));
-// QTI_END: 2021-05-11: Telephony: Fix DDS sub notify issue for SIM refresh
     }
 
     @Test
@@ -1058,14 +1034,10 @@ public class PhoneSwitcherTest extends TelephonyTest {
         moveTimeForward(ECBM_DEFAULT_DATA_SWITCH_BASE_TIME_MS + 1000);
         processAllMessages();
         verify(mMockRadioConfig).setPreferredDataModem(eq(0), any());
-// QTI_BEGIN: 2021-04-19: Telephony: Add support to retry for DDS switch failures
         AsyncResult res = new AsyncResult(1, null,  null);
-// QTI_END: 2021-04-19: Telephony: Add support to retry for DDS switch failures
         Message.obtain(mPhoneSwitcherUT, EVENT_MODEM_COMMAND_DONE, res).sendToTarget();
-// QTI_BEGIN: 2021-04-19: Telephony: Add support to retry for DDS switch failures
         processAllMessages();
 
-// QTI_END: 2021-04-19: Telephony: Add support to retry for DDS switch failures
         // Make sure the correct broadcast is sent out for the phone ID
         verify(mTelephonyRegistryManager).notifyActiveDataSubIdChanged(eq(1));
     }
@@ -1101,10 +1073,8 @@ public class PhoneSwitcherTest extends TelephonyTest {
         moveTimeForward(ECBM_DEFAULT_DATA_SWITCH_BASE_TIME_MS + 2000);
         processAllMessages();
         verify(mMockRadioConfig, never()).setPreferredDataModem(eq(0), any());
-// QTI_BEGIN: 2021-05-11: Telephony: Fix DDS sub notify issue for SIM refresh
         // Make sure the correct broadcast is sent out for the phone ID
         verify(mTelephonyRegistryManager).notifyActiveDataSubIdChanged(eq(2));
-// QTI_END: 2021-05-11: Telephony: Fix DDS sub notify issue for SIM refresh
 
         // End ECBM
         clearInvocations(mTelephonyRegistryManager);
@@ -1114,13 +1084,9 @@ public class PhoneSwitcherTest extends TelephonyTest {
         moveTimeForward(1000);
         processAllMessages();
         verify(mMockRadioConfig).setPreferredDataModem(eq(0), any());
-// QTI_BEGIN: 2021-04-19: Telephony: Add support to retry for DDS switch failures
         AsyncResult res = new AsyncResult(1, null,  null);
-// QTI_END: 2021-04-19: Telephony: Add support to retry for DDS switch failures
         Message.obtain(mPhoneSwitcherUT, EVENT_MODEM_COMMAND_DONE, res).sendToTarget();
-// QTI_BEGIN: 2021-04-19: Telephony: Add support to retry for DDS switch failures
         processAllMessages();
-// QTI_END: 2021-04-19: Telephony: Add support to retry for DDS switch failures
         // Make sure the correct broadcast is sent out for the phone ID
         verify(mTelephonyRegistryManager).notifyActiveDataSubIdChanged(eq(1));
     }
@@ -1148,14 +1114,10 @@ public class PhoneSwitcherTest extends TelephonyTest {
         moveTimeForward(PhoneSwitcher.DEFAULT_DATA_OVERRIDE_TIMEOUT_MS);
         processAllMessages();
         verify(mMockRadioConfig).setPreferredDataModem(eq(0), any());
-// QTI_BEGIN: 2021-04-19: Telephony: Add support to retry for DDS switch failures
         AsyncResult res = new AsyncResult(1, null,  null);
-// QTI_END: 2021-04-19: Telephony: Add support to retry for DDS switch failures
         Message.obtain(mPhoneSwitcherUT, EVENT_MODEM_COMMAND_DONE, res).sendToTarget();
-// QTI_BEGIN: 2021-04-19: Telephony: Add support to retry for DDS switch failures
         processAllMessages();
 
-// QTI_END: 2021-04-19: Telephony: Add support to retry for DDS switch failures
         // Make sure the correct broadcast is sent out for the phone ID
         verify(mTelephonyRegistryManager).notifyActiveDataSubIdChanged(eq(1));
     }
@@ -1202,14 +1164,10 @@ public class PhoneSwitcherTest extends TelephonyTest {
         moveTimeForward(ECBM_DEFAULT_DATA_SWITCH_BASE_TIME_MS + 1000);
         processAllMessages();
         verify(mMockRadioConfig).setPreferredDataModem(eq(0), any());
-// QTI_BEGIN: 2021-04-19: Telephony: Add support to retry for DDS switch failures
         AsyncResult res = new AsyncResult(1, null,  null);
-// QTI_END: 2021-04-19: Telephony: Add support to retry for DDS switch failures
         Message.obtain(mPhoneSwitcherUT, EVENT_MODEM_COMMAND_DONE, res).sendToTarget();
-// QTI_BEGIN: 2021-04-19: Telephony: Add support to retry for DDS switch failures
         processAllMessages();
 
-// QTI_END: 2021-04-19: Telephony: Add support to retry for DDS switch failures
         // Make sure the correct broadcast is sent out for the phone ID
         verify(mTelephonyRegistryManager).notifyActiveDataSubIdChanged(eq(1));
     }
@@ -1495,7 +1453,6 @@ public class PhoneSwitcherTest extends TelephonyTest {
         verify(mMockRadioConfig).setPreferredDataModem(eq(1), any());
     }
 
-// QTI_BEGIN: 2021-04-19: Telephony: Add support to retry for DDS switch failures
     @Test
     public void testRetry_DDS_switch_Failure() throws Exception {
         doReturn(true).when(mMockRadioConfig).isSetPreferredDataCommandSupported();
@@ -1509,9 +1466,7 @@ public class PhoneSwitcherTest extends TelephonyTest {
         // modem retry not invoked.
         AsyncResult res1 = new AsyncResult(0, null,
                 new CommandException(CommandException.Error.INVALID_SIM_STATE));
-// QTI_END: 2021-04-19: Telephony: Add support to retry for DDS switch failures
         Message.obtain(mPhoneSwitcherUT, EVENT_MODEM_COMMAND_DONE, res1).sendToTarget();
-// QTI_BEGIN: 2021-04-19: Telephony: Add support to retry for DDS switch failures
         processAllMessages();
         moveTimeForward(5000);
         processAllMessages();
@@ -1519,9 +1474,7 @@ public class PhoneSwitcherTest extends TelephonyTest {
 
         AsyncResult res2 = new AsyncResult(0, null,
                 new CommandException(CommandException.Error.NETWORK_NOT_READY));
-// QTI_END: 2021-04-19: Telephony: Add support to retry for DDS switch failures
         Message.obtain(mPhoneSwitcherUT, EVENT_MODEM_COMMAND_DONE, res2).sendToTarget();
-// QTI_BEGIN: 2021-04-19: Telephony: Add support to retry for DDS switch failures
         processAllMessages();
         moveTimeForward(5000);
         processAllMessages();
@@ -1529,10 +1482,8 @@ public class PhoneSwitcherTest extends TelephonyTest {
         verify(mMockRadioConfig, times(1)).setPreferredDataModem(eq(0), any());
 
         clearInvocations(mMockRadioConfig);
-// QTI_END: 2021-04-19: Telephony: Add support to retry for DDS switch failures
         doReturn(mSubscriptionInfo).when(mSubscriptionManagerService)
                 .getActiveSubscriptionInfoForSimSlotIndex(eq(0), any(), any());
-// QTI_BEGIN: 2021-04-19: Telephony: Add support to retry for DDS switch failures
         doReturn(true).when(mSubscriptionInfo).areUiccApplicationsEnabled();
         doReturn(mIccCard).when(mPhone).getIccCard();
         doReturn(true).when(mIccCard).isEmptyProfile();
@@ -1554,7 +1505,6 @@ public class PhoneSwitcherTest extends TelephonyTest {
         verify(mMockRadioConfig, times(1)).setPreferredDataModem(eq(0), any());
     }
 
-// QTI_END: 2021-04-19: Telephony: Add support to retry for DDS switch failures
     @Test
     public void testScheduledRetryWhileMultiSimConfigChange() throws Exception {
         doReturn(true).when(mMockRadioConfig).isSetPreferredDataCommandSupported();

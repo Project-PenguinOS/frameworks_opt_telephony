@@ -151,6 +151,7 @@ import android.telephony.satellite.ISatelliteProvisionStateCallback;
 import android.telephony.satellite.ISatelliteTransmissionUpdateCallback;
 import android.telephony.satellite.ISelectedNbIotSatelliteSubscriptionCallback;
 import android.telephony.satellite.NtnSignalStrength;
+import android.telephony.satellite.PlmnSatelliteConfig;
 import android.telephony.satellite.SatelliteAccessConfiguration;
 import android.telephony.satellite.SatelliteCapabilities;
 import android.telephony.satellite.SatelliteCommunicationAccessStateCallback;
@@ -6753,10 +6754,13 @@ public class SatelliteController extends Handler {
      * @param subId : subscription Id.
      */
     public int getSupportedConnectTypeMetrics(int subId) {
-        if (subId == SubscriptionManager.INVALID_SUBSCRIPTION_ID) {
+        // Return UNKNOWN if the subId is invalid OR if satellite attach is not supported by the
+        // carrier
+        if (subId == SubscriptionManager.INVALID_SUBSCRIPTION_ID || !isSatelliteSupportedViaCarrier(
+                subId)) {
             return SatelliteConstants.GLOBAL_NTN_CONNECT_TYPE_UNKNOWN;
-
         }
+
         int globalNtnConnectType = getConfigForSubId(subId).getInt(
                 KEY_CARRIER_ROAMING_NTN_CONNECT_TYPE_INT);
         return SatelliteServiceUtils.fromSupportedConnectionMode(globalNtnConnectType);
@@ -6773,12 +6777,15 @@ public class SatelliteController extends Handler {
      * @param subId : subscription Id.
      */
     public int getSessionConnectTypeMetrics(int subId) {
-        if (subId == SubscriptionManager.INVALID_SUBSCRIPTION_ID) {
-            return SatelliteConstants.GLOBAL_NTN_CONNECT_TYPE_UNKNOWN;
-
+        // Return UNKNOWN if the subId is invalid OR if satellite attach is not supported by the
+        // carrier
+        if (subId == SubscriptionManager.INVALID_SUBSCRIPTION_ID || !isSatelliteSupportedViaCarrier(
+                subId)) {
+            return SatelliteConstants.SESSION_NTN_CONNECT_TYPE_UNKNOWN;
         }
+
         int connectType = getCarrierRoamingNtnConnectType(subId);
-        return SatelliteServiceUtils.fromSupportedConnectionMode(connectType);
+        return SatelliteServiceUtils.fromSessionConnectionMode(connectType);
     }
 
 
@@ -7351,18 +7358,20 @@ public class SatelliteController extends Handler {
             // Log satellite session start
             CarrierRoamingSatelliteSessionStats sessionStats =
                     CarrierRoamingSatelliteSessionStats.getInstance(subId);
+            String satellitePlmn = phone.getServiceState().getOperatorNumeric();
             int[] supported_satellite_services =
                     getSupportedSatelliteServicesOnSessionStart(
                             getSupportedSatelliteServicesForPlmn(subId,
-                                    phone.getServiceState().getOperatorNumeric()));
+                                    satellitePlmn));
             int dataPolicy = mapDataPolicyForMetrics(getSatelliteDataServicePolicyForPlmn(subId,
-                    phone.getServiceState().getOperatorNumeric()));
+                    satellitePlmn));
             satelliteApps = getSatelliteDataOptimizedApps(userId);
+
 
             sessionStats.onSessionStart(phone.getCarrierId(), phone,
                     supported_satellite_services, dataPolicy, satelliteApps,
                     getSupportedConnectTypeMetrics(subId), getSessionConnectTypeMetrics(subId),
-                    mFeatureFlags);
+                    satellitePlmn, mFeatureFlags);
             mCarrierRoamingSatelliteSessionStatsMap.put(subId, sessionStats);
             mCarrierRoamingSatelliteControllerStats.onSessionStart(subId);
         } else if (lastNotifiedNtnMode && !currNtnMode) {
@@ -9138,12 +9147,22 @@ public class SatelliteController extends Handler {
     }
 
     /** return satellite phone */
-    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
     @Nullable
-    protected Phone getSatellitePhone() {
+    public Phone getSatellitePhone() {
         synchronized (mSatellitePhoneLock) {
             return mSatellitePhone;
         }
+    }
+
+    /**
+     * return Satellite plmn value, empty string if satellite phone not available
+     */
+    public String getSatellitePlmnForMetrics() {
+        String satellitePlmn = Optional.ofNullable(getSatellitePhone())
+                .map(Phone::getServiceState)
+                .map(ServiceState::getOperatorNumeric)
+                .orElse(SatelliteConstants.DEFAULT_PLMN);
+        return satellitePlmn;
     }
 
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PRIVATE)
@@ -10575,6 +10594,24 @@ public class SatelliteController extends Handler {
         return getSatelliteDataServicePolicyForPlmn(subId, "");
     }
 
+
+    /**
+     * Get the satellite configuration for the given PLMN.
+     *
+     * @param subId current subscription id.
+     * @param plmn PLMN for which the satellite configuration is requested.
+     * @return {@link PlmnSatelliteConfig} object containing the satellite configuration for the
+     * given PLMN.
+     *
+     * @hide
+     */
+    @NonNull
+    public PlmnSatelliteConfig getPlmnSatelliteConfig(int subId, String plmn) {
+        PlmnSatelliteConfig plmnSatelliteConfig = new PlmnSatelliteConfig(new HashSet<>(
+                    getSupportedSatelliteServicesForPlmn(subId, plmn)));
+        return plmnSatelliteConfig;
+    }
+
     /**
      * This API can be used by only CTS to make the function {@link #getAllPlmnSet()} to exclude the
      * PLMN list from storage from the returned result.
@@ -10667,5 +10704,10 @@ public class SatelliteController extends Handler {
         synchronized (mSatelliteTokenProvisionedLock) {
             return mLastConfiguredIccId;
         }
+    }
+
+    @VisibleForTesting
+    public boolean isWifiConnected() {
+        return mIsWifiConnected.get();
     }
 }

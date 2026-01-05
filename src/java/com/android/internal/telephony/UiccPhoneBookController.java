@@ -18,14 +18,17 @@
 
 package com.android.internal.telephony;
 
+import android.annotation.NonNull;
 import android.compat.annotation.UnsupportedAppUsage;
-// QTI_BEGIN: 2018-03-08: Telephony: SimPhoneBook: Add ANR/EMAIL support for USIM phonebook.
+// QTI_BEGIN: 2018-03-07: Telephony: SimPhoneBook: Add ANR/EMAIL support for USIM phonebook.
 import android.content.ContentValues;
-// QTI_END: 2018-03-08: Telephony: SimPhoneBook: Add ANR/EMAIL support for USIM phonebook.
+// QTI_END: 2018-03-07: Telephony: SimPhoneBook: Add ANR/EMAIL support for USIM phonebook.
 import android.os.Build;
 import android.os.TelephonyServiceManager.ServiceRegisterer;
 import android.telephony.TelephonyFrameworkInitializer;
+import android.util.Log;
 
+import com.android.internal.telephony.flags.FeatureFlags;
 import com.android.internal.telephony.subscription.SubscriptionManagerService;
 import com.android.internal.telephony.uicc.AdnCapacity;
 import com.android.internal.telephony.uicc.AdnRecord;
@@ -35,15 +38,39 @@ import java.util.List;
 
 public class UiccPhoneBookController extends IIccPhoneBook.Stub {
     private static final String TAG = "UiccPhoneBookController";
+    private static UiccPhoneBookController sInstance;
+
+    /**
+     * Initialize the UiccPhoneBookController singleton instance and register to
+     * TelephonyServiceManager.
+     */
+    public static UiccPhoneBookController init(@NonNull FeatureFlags featureFlags) {
+        synchronized (UiccPhoneBookController.class) {
+            if (sInstance == null) {
+                sInstance = new UiccPhoneBookController(featureFlags);
+                ServiceRegisterer iccPhoneBookServiceRegisterer = TelephonyFrameworkInitializer
+                        .getTelephonyServiceManager()
+                        .getIccPhoneBookServiceRegisterer();
+                if (iccPhoneBookServiceRegisterer.get() == null) {
+                    iccPhoneBookServiceRegisterer.register(sInstance);
+                }
+            } else {
+                Log.wtf(TAG, "UiccPhoneBookController is already initialized.");
+            }
+        }
+        return sInstance;
+    }
 
     /* only one UiccPhoneBookController exists */
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
-    public UiccPhoneBookController() {
-        ServiceRegisterer iccPhoneBookServiceRegisterer = TelephonyFrameworkInitializer
-                .getTelephonyServiceManager()
-                .getIccPhoneBookServiceRegisterer();
-        if (iccPhoneBookServiceRegisterer.get() == null) {
-            iccPhoneBookServiceRegisterer.register(this);
+    public UiccPhoneBookController(@NonNull FeatureFlags featureFlags) {
+        if (!featureFlags.publishTelephonyServicesAfterConstruction()) {
+            ServiceRegisterer iccPhoneBookServiceRegisterer = TelephonyFrameworkInitializer
+                    .getTelephonyServiceManager()
+                    .getIccPhoneBookServiceRegisterer();
+            if (iccPhoneBookServiceRegisterer.get() == null) {
+                iccPhoneBookServiceRegisterer.register(this);
+            }
         }
     }
 
@@ -114,57 +141,57 @@ public class UiccPhoneBookController extends IIccPhoneBook.Stub {
         }
     }
 
-// QTI_BEGIN: 2018-03-08: Telephony: SimPhoneBook: Add ANR/EMAIL support for USIM phonebook.
+// QTI_BEGIN: 2018-03-07: Telephony: SimPhoneBook: Add ANR/EMAIL support for USIM phonebook.
     @Override
-// QTI_END: 2018-03-08: Telephony: SimPhoneBook: Add ANR/EMAIL support for USIM phonebook.
+// QTI_END: 2018-03-07: Telephony: SimPhoneBook: Add ANR/EMAIL support for USIM phonebook.
     public AdnCapacity getAdnRecordsCapacity() throws android.os.RemoteException {
-// QTI_BEGIN: 2018-03-08: Telephony: SimPhoneBook: Add ANR/EMAIL support for USIM phonebook.
+// QTI_BEGIN: 2018-03-07: Telephony: SimPhoneBook: Add ANR/EMAIL support for USIM phonebook.
         return getAdnRecordsCapacityForSubscriber(getDefaultSubscription());
     }
 
     @Override
-// QTI_END: 2018-03-08: Telephony: SimPhoneBook: Add ANR/EMAIL support for USIM phonebook.
+// QTI_END: 2018-03-07: Telephony: SimPhoneBook: Add ANR/EMAIL support for USIM phonebook.
     public AdnCapacity getAdnRecordsCapacityForSubscriber(int subId)
-// QTI_BEGIN: 2018-03-08: Telephony: SimPhoneBook: Add ANR/EMAIL support for USIM phonebook.
+// QTI_BEGIN: 2018-03-07: Telephony: SimPhoneBook: Add ANR/EMAIL support for USIM phonebook.
            throws android.os.RemoteException {
-// QTI_END: 2018-03-08: Telephony: SimPhoneBook: Add ANR/EMAIL support for USIM phonebook.
+// QTI_END: 2018-03-07: Telephony: SimPhoneBook: Add ANR/EMAIL support for USIM phonebook.
         IccPhoneBookInterfaceManager iccPbkIntMgr = getIccPhoneBookInterfaceManager(subId);
-// QTI_BEGIN: 2018-03-08: Telephony: SimPhoneBook: Add ANR/EMAIL support for USIM phonebook.
+// QTI_BEGIN: 2018-03-07: Telephony: SimPhoneBook: Add ANR/EMAIL support for USIM phonebook.
         if (iccPbkIntMgr != null) {
             return iccPbkIntMgr.getAdnRecordsCapacity();
         } else {
-// QTI_END: 2018-03-08: Telephony: SimPhoneBook: Add ANR/EMAIL support for USIM phonebook.
+// QTI_END: 2018-03-07: Telephony: SimPhoneBook: Add ANR/EMAIL support for USIM phonebook.
             Rlog.e(TAG, "getAdnRecordsCapacity iccPbkIntMgr is null for Subscription:" + subId);
-// QTI_BEGIN: 2018-03-08: Telephony: SimPhoneBook: Add ANR/EMAIL support for USIM phonebook.
+// QTI_BEGIN: 2018-03-07: Telephony: SimPhoneBook: Add ANR/EMAIL support for USIM phonebook.
             return null;
         }
     }
 
-// QTI_END: 2018-03-08: Telephony: SimPhoneBook: Add ANR/EMAIL support for USIM phonebook.
+// QTI_END: 2018-03-07: Telephony: SimPhoneBook: Add ANR/EMAIL support for USIM phonebook.
     @Override
-// QTI_BEGIN: 2018-03-08: Telephony: SimPhoneBook: Add ANR/EMAIL support for USIM phonebook.
+// QTI_BEGIN: 2018-03-07: Telephony: SimPhoneBook: Add ANR/EMAIL support for USIM phonebook.
     public boolean
-// QTI_END: 2018-03-08: Telephony: SimPhoneBook: Add ANR/EMAIL support for USIM phonebook.
+// QTI_END: 2018-03-07: Telephony: SimPhoneBook: Add ANR/EMAIL support for USIM phonebook.
     updateAdnRecordsInEfBySearchForSubscriber(int subId, int efid,
             ContentValues values, String pin2)
             throws android.os.RemoteException {
         IccPhoneBookInterfaceManager iccPbkIntMgr = getIccPhoneBookInterfaceManager(subId);
-// QTI_BEGIN: 2018-03-08: Telephony: SimPhoneBook: Add ANR/EMAIL support for USIM phonebook.
+// QTI_BEGIN: 2018-03-07: Telephony: SimPhoneBook: Add ANR/EMAIL support for USIM phonebook.
         if (iccPbkIntMgr != null) {
-// QTI_END: 2018-03-08: Telephony: SimPhoneBook: Add ANR/EMAIL support for USIM phonebook.
+// QTI_END: 2018-03-07: Telephony: SimPhoneBook: Add ANR/EMAIL support for USIM phonebook.
             return iccPbkIntMgr.updateAdnRecordsInEfBySearchForSubscriber(
-// QTI_BEGIN: 2018-03-08: Telephony: SimPhoneBook: Add ANR/EMAIL support for USIM phonebook.
+// QTI_BEGIN: 2018-03-07: Telephony: SimPhoneBook: Add ANR/EMAIL support for USIM phonebook.
                 efid, values, pin2);
         } else {
-// QTI_END: 2018-03-08: Telephony: SimPhoneBook: Add ANR/EMAIL support for USIM phonebook.
+// QTI_END: 2018-03-07: Telephony: SimPhoneBook: Add ANR/EMAIL support for USIM phonebook.
             Rlog.e(TAG,"updateAdnRecordsInEfBySearchForSubscriber " +
-// QTI_BEGIN: 2018-03-08: Telephony: SimPhoneBook: Add ANR/EMAIL support for USIM phonebook.
+// QTI_BEGIN: 2018-03-07: Telephony: SimPhoneBook: Add ANR/EMAIL support for USIM phonebook.
                 "iccPbkIntMgr is null for Subscription:"+subId);
             return false;
         }
     }
 
-// QTI_END: 2018-03-08: Telephony: SimPhoneBook: Add ANR/EMAIL support for USIM phonebook.
+// QTI_END: 2018-03-07: Telephony: SimPhoneBook: Add ANR/EMAIL support for USIM phonebook.
     /**
      * get phone book interface manager object based on subscription.
      **/
@@ -172,9 +199,7 @@ public class UiccPhoneBookController extends IIccPhoneBook.Stub {
     private IccPhoneBookInterfaceManager
             getIccPhoneBookInterfaceManager(int subId) {
 
-// QTI_BEGIN: 2023-11-10: Telephony: Remove legacy subscription code
         int phoneId = SubscriptionManagerService.getInstance().getPhoneId(subId);
-// QTI_END: 2023-11-10: Telephony: Remove legacy subscription code
         try {
             return PhoneFactory.getPhone(phoneId).getIccPhoneBookInterfaceManager();
         } catch (NullPointerException e) {

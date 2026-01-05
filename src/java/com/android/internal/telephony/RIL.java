@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-// QTI_BEGIN: 2022-09-20: Telephony: CAG and SNPN feature
+// QTI_BEGIN: 2022-09-19: Telephony: CAG and SNPN feature
 /*
  * Changes from Qualcomm Innovation Center are provided under the following license:
  *
@@ -22,7 +22,7 @@
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
-// QTI_END: 2022-09-20: Telephony: CAG and SNPN feature
+// QTI_END: 2022-09-19: Telephony: CAG and SNPN feature
 package com.android.internal.telephony;
 
 import static android.telephony.TelephonyManager.HAL_SERVICE_DATA;
@@ -60,9 +60,9 @@ import android.os.PowerManager.WakeLock;
 import android.os.RemoteException;
 import android.os.ServiceManager;
 import android.os.SystemClock;
-// QTI_BEGIN: 2021-02-25: Telephony: Fix isCellularSupported check in RIL
+// QTI_BEGIN: 2021-02-24: Telephony: Fix isCellularSupported check in RIL
 import android.os.SystemProperties;
-// QTI_END: 2021-02-25: Telephony: Fix isCellularSupported check in RIL
+// QTI_END: 2021-02-24: Telephony: Fix isCellularSupported check in RIL
 import android.os.Trace;
 import android.os.WorkSource;
 import android.provider.Settings;
@@ -1109,11 +1109,11 @@ public class RIL extends BaseCommands implements CommandsInterface {
 
         TelephonyManager tm = (TelephonyManager) context.getSystemService(
                 Context.TELEPHONY_SERVICE);
-// QTI_BEGIN: 2021-02-25: Telephony: Fix isCellularSupported check in RIL
+// QTI_BEGIN: 2021-02-24: Telephony: Fix isCellularSupported check in RIL
         boolean noRil = SystemProperties.getBoolean("ro.radio.noril", false);
         mIsCellularSupported = !noRil &&
                 (tm.isVoiceCapable() || tm.isSmsCapable() || tm.isDataCapable());
-// QTI_END: 2021-02-25: Telephony: Fix isCellularSupported check in RIL
+// QTI_END: 2021-02-24: Telephony: Fix isCellularSupported check in RIL
 
         mRadioResponse = new RadioResponse(this);
         mRadioIndication = new RadioIndication(this);
@@ -3209,9 +3209,7 @@ public class RIL extends BaseCommands implements CommandsInterface {
         });
     }
 
-// QTI_BEGIN: 2018-08-01: Telephony: CDMA MO SMS follow on DC feature
     @Override
-// QTI_END: 2018-08-01: Telephony: CDMA MO SMS follow on DC feature
     public void sendCdmaSMSExpectMore(byte[] pdu, Message result) {
     }
 

@@ -45,3 +45,27 @@ flag {
   description: "This flag controls the redirection of SMS_DELIVER AND WAP_PUSH_DELIVER broadcasts to the MAIN user."
   bug: "314321617"
 }
+
+# OWNER=prajogo TARGET=26Q2
+flag {
+  name: "redact_webotp_sms"
+  namespace: "telephony"
+  description: "Redact WebOTP SMS messages from untrusted packages"
+  bug: "437043173"
+}
+
+# OWNER=prajogo TARGET=26Q2
+flag {
+  name: "redact_generic_otp_sms"
+  namespace: "telephony"
+  description: "Redact Generic OTP SMS messages from untrusted packages"
+  bug: "437043173"
+}
+
+# OWNER=jferec TARGET=25Q4
+flag {
+  name: "secure_access_to_restricted_rcs_messages"
+  namespace: "telephony"
+  description: "Introduces access restrictions to reading and writing restricted RCS messages in the messaging database."
+  bug: "459576374"
+}

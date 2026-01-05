@@ -39,9 +39,9 @@ import android.os.Message;
 import android.os.Registrant;
 import android.os.RemoteException;
 import android.os.ServiceManager;
-// QTI_BEGIN: 2021-06-10: Telephony: Check if RIL is supported
+// QTI_BEGIN: 2021-06-09: Telephony: Check if RIL is supported
 import android.os.SystemProperties;
-// QTI_END: 2021-06-10: Telephony: Check if RIL is supported
+// QTI_END: 2021-06-09: Telephony: Check if RIL is supported
 import android.os.Trace;
 import android.os.WorkSource;
 import android.telephony.TelephonyManager;
@@ -86,11 +86,11 @@ public class RadioConfig extends Handler {
     protected Registrant mSimultaneousCallingSupportStatusRegistrant;
 
     private boolean isMobileDataCapable(Context context) {
-// QTI_BEGIN: 2021-06-10: Telephony: Check if RIL is supported
+// QTI_BEGIN: 2021-06-09: Telephony: Check if RIL is supported
         if(SystemProperties.getBoolean("ro.radio.noril", false)) {
             return false;
         }
-// QTI_END: 2021-06-10: Telephony: Check if RIL is supported
+// QTI_END: 2021-06-09: Telephony: Check if RIL is supported
         final TelephonyManager tm = context.getSystemService(TelephonyManager.class);
         return tm != null && tm.isDataCapable();
     }

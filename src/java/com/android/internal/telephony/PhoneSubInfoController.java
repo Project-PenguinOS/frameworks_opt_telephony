@@ -43,6 +43,7 @@ import android.telephony.TelephonyFrameworkInitializer;
 import android.telephony.TelephonyManager;
 import android.text.TextUtils;
 import android.util.EventLog;
+import android.util.Log;
 
 import com.android.internal.telephony.flags.FeatureFlags;
 import com.android.internal.telephony.flags.FeatureFlagsImpl;
@@ -72,6 +73,28 @@ public class PhoneSubInfoController extends IPhoneSubInfo.Stub {
     private FeatureFlags mFeatureFlags;
     private PackageManager mPackageManager;
     private final int mVendorApiLevel;
+    private static PhoneSubInfoController sInstance;
+
+    /**
+     * Initialize the PhoneSubInfoController singleton instance and register to
+     * TelephonyServiceManager
+     */
+    public static PhoneSubInfoController init(Context context) {
+        synchronized (PhoneSubInfoController.class) {
+            if (sInstance == null) {
+                sInstance = new PhoneSubInfoController(context);
+                ServiceRegisterer phoneSubServiceRegisterer = TelephonyFrameworkInitializer
+                        .getTelephonyServiceManager()
+                        .getPhoneSubServiceRegisterer();
+                if (phoneSubServiceRegisterer.get() == null) {
+                    phoneSubServiceRegisterer.register(sInstance);
+                }
+            } else {
+                Log.wtf(TAG, "PhoneSubInfoController is already initialized.");
+            }
+        }
+        return sInstance;
+    }
 
     public PhoneSubInfoController(Context context) {
         this(context, new FeatureFlagsImpl());
@@ -84,13 +107,13 @@ public class PhoneSubInfoController extends IPhoneSubInfo.Stub {
         mFeatureFlags = featureFlags;
         mVendorApiLevel = SystemProperties.getInt(
                 "ro.vendor.api_level", Build.VERSION.DEVICE_INITIAL_SDK_INT);
-        ServiceRegisterer phoneSubServiceRegisterer = TelephonyFrameworkInitializer
-                .getTelephonyServiceManager()
-                .getPhoneSubServiceRegisterer();
-        // b/458134449 This registration needs to happen last, but ideally it should happen
-        // outside the constructor.
-        if (phoneSubServiceRegisterer.get() == null) {
-            phoneSubServiceRegisterer.register(this);
+        if (!mFeatureFlags.publishTelephonyServicesAfterConstruction()) {
+            ServiceRegisterer phoneSubServiceRegisterer = TelephonyFrameworkInitializer
+                    .getTelephonyServiceManager()
+                    .getPhoneSubServiceRegisterer();
+            if (phoneSubServiceRegisterer.get() == null) {
+                phoneSubServiceRegisterer.register(this);
+            }
         }
     }
 

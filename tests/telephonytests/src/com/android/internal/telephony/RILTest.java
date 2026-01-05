@@ -2514,15 +2514,14 @@ public class RILTest extends TelephonyTest {
 
     @Test
     public void testAreUiccApplicationsEnabled_nullRadioProxy() throws Exception {
-        // Not supported on Radio 1.0.
-        doReturn(null).when(mRILUnderTest).getRadioProxy();
+        doReturn(null).when(mRILUnderTest).getRadioServiceProxy(eq(RadioSimProxy.class));
         Message message = obtainMessage();
         mRILUnderTest.areUiccApplicationsEnabled(message);
-        processAllMessages();
         verify(mSimProxy, never()).areUiccApplicationsEnabled(mSerialNumberCaptor.capture());
-        // Sending message is handled by getRadioProxy when proxy is null.
-        // areUiccApplicationsEnabled shouldn't explicitly send another callback.
-        assertNull(message.obj);
+        AsyncResult ar = (AsyncResult) message.obj;
+        Assert.assertNull(ar.result);
+        Assert.assertNotNull(ar.exception.getMessage());
+        Assert.assertEquals("RADIO_NOT_AVAILABLE", ar.exception.getMessage());
     }
 
     @Test

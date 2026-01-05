@@ -79,17 +79,6 @@ flag {
 
 # OWNER=melhuishj TARGET=25Q4
 flag {
-  name: "inactive_data_network_is_not_stalled"
-  namespace: "telephony"
-  description: "A DataNetwork that is not the active DataNetwork should not broadcast a data stall"
-  bug:"430976119"
-  metadata {
-    purpose: PURPOSE_BUGFIX
-  }
-}
-
-# OWNER=melhuishj TARGET=25Q4
-flag {
   name: "ignore_initial_data_stall_recovered"
   namespace: "telephony"
   description: "Prevent DataStallRecoveryManager from broadcasting a data stall event during initial setup when no data stall has occurred"
@@ -167,6 +156,17 @@ flag {
     namespace: "telephony"
     description: "If the APN contains a specific string that the carrier does not allow, show error message and prevents saving."
     bug: "192926118"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+# OWNER=navaldubey TARGET=26Q2
+flag {
+    name: "skip_connectivity_manager_captive_portal_check"
+    namespace: "telephony"
+    description: "Controls the removal of a deprecated API call in CarrierDefaultApp's CaptivePortalActivity."
+    bug: "451378239"
     metadata {
         purpose: PURPOSE_BUGFIX
     }

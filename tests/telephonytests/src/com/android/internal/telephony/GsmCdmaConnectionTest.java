@@ -24,6 +24,7 @@ import static org.mockito.Mockito.*;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.platform.test.flag.junit.SetFlagsRule;
 import android.telephony.DisconnectCause;
 import android.telephony.PhoneNumberUtils;
 import android.telephony.emergency.EmergencyNumber;
@@ -34,9 +35,11 @@ import androidx.test.filters.MediumTest;
 import androidx.test.filters.SmallTest;
 
 import com.android.internal.telephony.PhoneInternalInterface.DialArgs;
+import com.android.internal.telephony.flags.Flags;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -46,6 +49,9 @@ import java.util.Arrays;
 @RunWith(AndroidTestingRunner.class)
 @TestableLooper.RunWithLooper
 public class GsmCdmaConnectionTest extends TelephonyTest {
+
+    @Rule public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
+
     private GsmCdmaConnection connection;
 
     // Mocked classes
@@ -60,6 +66,7 @@ public class GsmCdmaConnectionTest extends TelephonyTest {
         mCT.mForegroundCall = new GsmCdmaCall(mCT);
         mCT.mBackgroundCall = new GsmCdmaCall(mCT);
         mCT.mRingingCall = new GsmCdmaCall(mCT);
+        mSetFlagsRule.disableFlags(Flags.FLAG_USE_EMERGENCY_ROUTING_CAUSE);
     }
 
     @After

@@ -433,6 +433,7 @@ message DataCallSession {
     optional bool is_satellite_transport = 25;
     optional bool is_provisioning_profile = 26;
     optional bool is_nb_iot_ntn = 27;
+    optional int32 slice_capability = 28;
 }
 
 message CellularServiceState {
@@ -531,6 +532,7 @@ message NetworkRequestsV2 {
         SATELLITE_XCAP_RESTRICTED = 8;
         SATELLITE_EIMS_RESTRICTED = 9;
         SATELLITE_SUPL_RESTRICTED =10;
+        PRIORITIZE_UNIFIED_COMMUNICATIONS = 11;
     }
     optional int32 carrier_id = 1;
     optional NetworkCapability capability = 2;
@@ -780,6 +782,7 @@ message SatelliteSession {
     optional int32 max_inactivity_duration_sec = 20;
     optional int32 supported_connection_mode = 21;
     optional int32 session_connection_mode = 22;
+    optional string plmn = 23;
 }
 
 message SatelliteIncomingDatagram {
@@ -791,6 +794,7 @@ message SatelliteIncomingDatagram {
     optional bool is_ntn_only_carrier = 6;
     optional int32 supported_connection_mode = 7;
     optional int32 session_connection_mode = 8;
+  optional string plmn = 9;
 }
 
 message SatelliteOutgoingDatagram {
@@ -803,6 +807,7 @@ message SatelliteOutgoingDatagram {
     optional bool is_ntn_only_carrier = 7;
     optional int32 supported_connection_mode = 8;
     optional int32 session_connection_mode = 9;
+  optional string plmn = 10;
 }
 
 message SatelliteProvision {
@@ -829,6 +834,7 @@ message SatelliteSosMessageRecommender {
     optional bool is_ntn_only_carrier = 11;
     optional int32 supported_connection_mode = 12;
     optional int32 session_connection_mode = 13;
+    optional string plmn = 14;
 }
 
 message DataNetworkValidation {
@@ -878,6 +884,10 @@ message CarrierRoamingSatelliteSession {
     repeated int64 per_app_satellite_data_consumed_bytes = 34;
     optional int32 supported_connection_mode = 35;
     optional int32 session_connection_mode = 36;
+    optional string plmn = 37;
+    optional bool is_wifi_enabled = 38;
+    optional bool is_wfc_enabled = 39;
+    optional bool is_wfc_registered = 40;
 }
 
 message CarrierRoamingSatelliteControllerStats {

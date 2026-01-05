@@ -74,23 +74,12 @@ flag {
     bug:"412747188"
 }
 
-# OWNER=aleksandermj TARGET=26Q1
+# OWNER=rambowang TARGET=26Q2
 flag {
-    name: "minimal_telephony_cdm_use_board_api_level"
+    name: "publish_telephony_services_after_construction"
     namespace: "telephony"
-    description: "Use ro.board.api_level for call/data/messaging feature checks"
-    bug:"395087895"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-# OWNER=peruboina TARGET=26Q1
-flag {
-    name: "use_relaxed_phone_id_match"
-    namespace: "telephony"
-    description: "This flag supports relaxed phone id match for radio state changes"
-    bug:"435278373"
+    description: "All telephony services are published after construction"
+    bug:"458134449"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
@@ -108,11 +97,11 @@ flag {
     }
 }
 
-# OWNER=aditimutagi TARGET=26Q2
+# OWNER=hyeinyu TARGET=26Q2
 flag {
-    name: "guard_identifier_and_network_country_apis"
-    is_exported: true
+    name: "get_phone_number_ts43_api"
     namespace: "telephony"
-    description: "Guards getSubscriberId and getNetworkCountryIso APIs with permission."
-    bug: "417788332"
+    description: "Get phone number from TS43 source"
+    bug:"435429723"
+    is_exported: true
 }

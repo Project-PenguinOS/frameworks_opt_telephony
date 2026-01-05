@@ -97,9 +97,9 @@ public class EuiccCardTest extends TelephonyTest {
                 0 /* phoneId */, new Object(), IccSlotStatus.MultipleEnabledProfilesMode.NONE) {
 
                 @Override
-// QTI_BEGIN: 2024-07-24: Telephony: AOSP: using correct index to get uicc port instance.
+// QTI_BEGIN: 2024-07-23: Telephony: AOSP: using correct index to get uicc port instance.
                 protected void loadEidAndNotifyRegistrants(int phoneId) {}
-// QTI_END: 2024-07-24: Telephony: AOSP: using correct index to get uicc port instance.
+// QTI_END: 2024-07-23: Telephony: AOSP: using correct index to get uicc port instance.
             };
         mHandler = new Handler(Looper.myLooper());
         processAllMessages();

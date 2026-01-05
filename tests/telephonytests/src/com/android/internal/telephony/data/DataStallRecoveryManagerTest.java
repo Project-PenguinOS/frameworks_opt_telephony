@@ -829,7 +829,6 @@ public class DataStallRecoveryManagerTest extends TelephonyTest {
 
     @Test
     public void testInactiveNetworkIsNotADataStall() {
-        when(mFeatureFlags.inactiveDataNetworkIsNotStalled()).thenReturn(true);
         sendValidationStatusCallback(NetworkAgent.VALIDATION_STATUS_VALID);
         sendOnInternetDataNetworkCallback(true);
         processAllMessages();

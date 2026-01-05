@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-// QTI_BEGIN: 2022-09-20: Telephony: CAG and SNPN feature
+// QTI_BEGIN: 2022-09-19: Telephony: CAG and SNPN feature
 /*
  * Changes from Qualcomm Innovation Center are provided under the following license:
  *
@@ -22,7 +22,7 @@
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
-// QTI_END: 2022-09-20: Telephony: CAG and SNPN feature
+// QTI_END: 2022-09-19: Telephony: CAG and SNPN feature
 package com.android.internal.telephony;
 
 import static android.telephony.TelephonyManager.HAL_SERVICE_RADIO;
@@ -48,9 +48,9 @@ import android.os.Message;
 import android.os.PersistableBundle;
 import android.os.Registrant;
 import android.os.RegistrantList;
-// QTI_BEGIN: 2020-05-22: Telephony: IMS: USSD over IMS
+// QTI_BEGIN: 2020-05-21: Telephony: IMS: USSD over IMS
 import android.os.ResultReceiver;
-// QTI_END: 2020-05-22: Telephony: IMS: USSD over IMS
+// QTI_END: 2020-05-21: Telephony: IMS: USSD over IMS
 import android.os.SystemClock;
 import android.os.SystemProperties;
 import android.os.UserHandle;
@@ -221,9 +221,9 @@ public abstract class Phone extends Handler implements PhoneInternalInterface {
     // Used to intercept the carrier selection calls so that
     // we can save the values.
     private static final int EVENT_SET_NETWORK_MANUAL_COMPLETE      = 16;
-// QTI_BEGIN: 2022-09-20: Telephony: CAG and SNPN feature
+// QTI_BEGIN: 2022-09-19: Telephony: CAG and SNPN feature
     public static final int EVENT_SET_NETWORK_AUTOMATIC_COMPLETE   = 17;
-// QTI_END: 2022-09-20: Telephony: CAG and SNPN feature
+// QTI_END: 2022-09-19: Telephony: CAG and SNPN feature
     protected static final int EVENT_SET_CLIR_COMPLETE              = 18;
     protected static final int EVENT_REGISTERED_TO_NETWORK          = 19;
     protected static final int EVENT_SET_VM_NUMBER_DONE             = 20;
@@ -284,7 +284,8 @@ public abstract class Phone extends Handler implements PhoneInternalInterface {
     protected static final int EVENT_SET_IDENTIFIER_DISCLOSURE_ENABLED_DONE = 73;
     protected static final int EVENT_SECURITY_ALGORITHM_UPDATE = 74;
     protected static final int EVENT_SET_SECURITY_ALGORITHMS_UPDATED_ENABLED_DONE = 75;
-    protected static final int EVENT_LAST = EVENT_SET_SECURITY_ALGORITHMS_UPDATED_ENABLED_DONE;
+    protected static final int EVENT_NETWORK_SECURITY_EVENTS = 76;
+    protected static final int EVENT_LAST = EVENT_NETWORK_SECURITY_EVENTS;
 
     // For shared prefs.
     private static final String GSM_ROAMING_LIST_OVERRIDE_PREFIX = "gsm_roaming_list_";
@@ -311,11 +312,11 @@ public abstract class Phone extends Handler implements PhoneInternalInterface {
     public static final String CF_ID = "cf_id_key";
 
     // Integer used to let the calling application know that the we are ignoring auto mode switch.
-// QTI_BEGIN: 2022-09-20: Telephony: CAG and SNPN feature
+// QTI_BEGIN: 2022-09-19: Telephony: CAG and SNPN feature
     public static final int ALREADY_IN_AUTO_SELECTION = 1;
-// QTI_END: 2022-09-20: Telephony: CAG and SNPN feature
+// QTI_END: 2022-09-19: Telephony: CAG and SNPN feature
 
-// QTI_BEGIN: 2021-10-26: Telephony: Add Support for Smart DDS switch during voice call
+// QTI_BEGIN: 2021-10-25: Telephony: Add Support for Smart DDS switch during voice call
     //Used to indicate smart DDS switch during voice call is supported or not.
     protected boolean mSmartTempDdsSwitchSupported = false;
 
@@ -323,7 +324,7 @@ public abstract class Phone extends Handler implements PhoneInternalInterface {
     //when smart DDS switch is enabled in modem.
     protected boolean mTelephonyTempDdsSwitch = true;
 
-// QTI_END: 2021-10-26: Telephony: Add Support for Smart DDS switch during voice call
+// QTI_END: 2021-10-25: Telephony: Add Support for Smart DDS switch during voice call
     public static final String PREF_NULL_CIPHER_AND_INTEGRITY_ENABLED =
             "pref_null_cipher_and_integrity_enabled";
     private final TelephonyAdminReceiver m2gAdminUpdater;
@@ -348,9 +349,9 @@ public abstract class Phone extends Handler implements PhoneInternalInterface {
      * if we are looking for automatic selection. operatorAlphaLong is the
      * corresponding operator name.
      */
-// QTI_BEGIN: 2022-09-20: Telephony: CAG and SNPN feature
+// QTI_BEGIN: 2022-09-19: Telephony: CAG and SNPN feature
     public static class NetworkSelectMessage {
-// QTI_END: 2022-09-20: Telephony: CAG and SNPN feature
+// QTI_END: 2022-09-19: Telephony: CAG and SNPN feature
         public Message message;
         public String operatorNumeric;
         public String operatorAlphaLong;
@@ -686,9 +687,9 @@ public abstract class Phone extends Handler implements PhoneInternalInterface {
         // Initialize SMS stats
         mSmsStats = new SmsStats(this);
 
-// QTI_BEGIN: 2023-11-10: Telephony: Remove legacy subscription code
+// QTI_BEGIN: 2023-11-09: Telephony: Remove legacy subscription code
         mSubscriptionManagerService = SubscriptionManagerService.getInstance();
-// QTI_END: 2023-11-10: Telephony: Remove legacy subscription code
+// QTI_END: 2023-11-09: Telephony: Remove legacy subscription code
         m2gAdminUpdater = new TelephonyAdminReceiver(context, this);
 
         if (getPhoneType() == PhoneConstants.PHONE_TYPE_IMS) {
@@ -1166,21 +1167,21 @@ public abstract class Phone extends Handler implements PhoneInternalInterface {
         return isInEmergencySmsMode;
     }
 
-// QTI_BEGIN: 2020-05-22: Telephony: IMS: USSD over IMS
+// QTI_BEGIN: 2020-05-21: Telephony: IMS: USSD over IMS
     public void migrateUssdFrom(Phone from, String num, ResultReceiver wrappedCallback)
             throws UnsupportedOperationException {
         try {
             notifyMigrateUssd(num, wrappedCallback);
             migrate(mMmiRegistrants, from.mMmiRegistrants);
         } catch (UnsupportedOperationException e) {
-// QTI_END: 2020-05-22: Telephony: IMS: USSD over IMS
+// QTI_END: 2020-05-21: Telephony: IMS: USSD over IMS
             Rlog.e(mLogTag, "Error: " + e);
-// QTI_BEGIN: 2020-05-22: Telephony: IMS: USSD over IMS
+// QTI_BEGIN: 2020-05-21: Telephony: IMS: USSD over IMS
             throw e;
         }
     }
 
-// QTI_END: 2020-05-22: Telephony: IMS: USSD over IMS
+// QTI_END: 2020-05-21: Telephony: IMS: USSD over IMS
     protected void migrateFrom(Phone from) {
         migrate(mHandoverRegistrants, from.mHandoverRegistrants);
         migrate(mPreciseCallStateRegistrants, from.mPreciseCallStateRegistrants);
@@ -1641,9 +1642,9 @@ public abstract class Phone extends Handler implements PhoneInternalInterface {
         mEmergencyCallToggledRegistrants.remove(h);
     }
 
-// QTI_BEGIN: 2022-09-20: Telephony: CAG and SNPN feature
+// QTI_BEGIN: 2022-09-19: Telephony: CAG and SNPN feature
     public void updateSavedNetworkOperator(NetworkSelectMessage nsm) {
-// QTI_END: 2022-09-20: Telephony: CAG and SNPN feature
+// QTI_END: 2022-09-19: Telephony: CAG and SNPN feature
         int subId = getSubId();
 // QTI_BEGIN: 2023-03-27: Telephony: Make SubscriptionManagerService related changes
         if (isActiveSubId(subId)) {
@@ -1678,9 +1679,9 @@ public abstract class Phone extends Handler implements PhoneInternalInterface {
     /**
      * Used to track the settings upon completion of the network change.
      */
-// QTI_BEGIN: 2022-09-20: Telephony: CAG and SNPN feature
+// QTI_BEGIN: 2022-09-19: Telephony: CAG and SNPN feature
     public void handleSetSelectNetwork(AsyncResult ar) {
-// QTI_END: 2022-09-20: Telephony: CAG and SNPN feature
+// QTI_END: 2022-09-19: Telephony: CAG and SNPN feature
         // look for our wrapper within the asyncresult, skip the rest if it
         // is null.
         if (!(ar.userObj instanceof NetworkSelectMessage)) {
@@ -2505,12 +2506,12 @@ public abstract class Phone extends Handler implements PhoneInternalInterface {
      */
     public void loadAllowedNetworksFromSubscriptionDatabase() {
         String result = null;
-// QTI_BEGIN: 2023-11-10: Telephony: Remove legacy subscription code
+// QTI_BEGIN: 2023-11-09: Telephony: Remove legacy subscription code
         SubscriptionInfoInternal subInfo = mSubscriptionManagerService
                 .getSubscriptionInfoInternal(getSubId());
         if (subInfo != null) {
             result = subInfo.getAllowedNetworkTypesForReasons();
-// QTI_END: 2023-11-10: Telephony: Remove legacy subscription code
+// QTI_END: 2023-11-09: Telephony: Remove legacy subscription code
         }
 
         // After fw load network type from DB, do unlock if subId is valid.
@@ -2905,14 +2906,14 @@ public abstract class Phone extends Handler implements PhoneInternalInterface {
         mNotifier.notifyCellInfo(this, cellInfo);
     }
 
-// QTI_BEGIN: 2020-05-22: Telephony: IMS: USSD over IMS
+// QTI_BEGIN: 2020-05-21: Telephony: IMS: USSD over IMS
     protected void notifyMigrateUssd(String num, ResultReceiver wrappedCallback)
             throws UnsupportedOperationException {
         // notifyMigrateUssd shall be overriden by GsmCdmaPhone
         throw new UnsupportedOperationException("notifyMigrateUssd: not supported");
     }
 
-// QTI_END: 2020-05-22: Telephony: IMS: USSD over IMS
+// QTI_END: 2020-05-21: Telephony: IMS: USSD over IMS
     /**
      * Registration point for PhysicalChannelConfig change.
      * @param h handler to notify
@@ -3799,7 +3800,7 @@ public abstract class Phone extends Handler implements PhoneInternalInterface {
     }
 
     /**
-// QTI_BEGIN: 2021-10-26: Telephony: Add Support for Smart DDS switch during voice call
+// QTI_BEGIN: 2021-10-25: Telephony: Add Support for Smart DDS switch during voice call
      * Sets smart DDS switch is supported.
      */
     public void setSmartTempDdsSwitchSupported(boolean smartDdsSwitch) {
@@ -3829,7 +3830,7 @@ public abstract class Phone extends Handler implements PhoneInternalInterface {
         return true;
     }
 
-// QTI_END: 2021-10-26: Telephony: Add Support for Smart DDS switch during voice call
+// QTI_END: 2021-10-25: Telephony: Add Support for Smart DDS switch during voice call
     /**
      * Deletes all the keys for a given Carrier from the device keystore.
      * @param carrierId : the carrier ID which needs to be matched in the delete query
@@ -3887,7 +3888,7 @@ public abstract class Phone extends Handler implements PhoneInternalInterface {
         return;
     }
 
-// QTI_BEGIN: 2021-02-03: Telephony: IMS: Allow dial when UE is PS only attached
+// QTI_BEGIN: 2021-02-02: Telephony: IMS: Allow dial when UE is PS only attached
     /**
      * Return if outgoing Ims voice allowed
      */
@@ -3898,7 +3899,7 @@ public abstract class Phone extends Handler implements PhoneInternalInterface {
         return false;
     }
 
-// QTI_END: 2021-02-03: Telephony: IMS: Allow dial when UE is PS only attached
+// QTI_END: 2021-02-02: Telephony: IMS: Allow dial when UE is PS only attached
     /**
      * Resets the Carrier Keys in the database. This involves 2 steps:
      * 1. Delete the keys from the database.
@@ -3947,7 +3948,7 @@ public abstract class Phone extends Handler implements PhoneInternalInterface {
     public void queryCLIP(Message onComplete) {
     }
 
-// QTI_BEGIN: 2024-01-12: Telephony: Add Support for MSIM CIWLAN feature
+// QTI_BEGIN: 2024-01-11: Telephony: Add Support for MSIM CIWLAN feature
     /**
      * Set C_IWLAN timer use to delay deactivating data call when mobile data UI is off or
      * roaming UI is off when device is in roaming.
@@ -3963,15 +3964,15 @@ public abstract class Phone extends Handler implements PhoneInternalInterface {
         return -1;
     }
 
-// QTI_END: 2024-01-12: Telephony: Add Support for MSIM CIWLAN feature
+// QTI_END: 2024-01-11: Telephony: Add Support for MSIM CIWLAN feature
     /*
      * Returns the subscription id.
      */
     @UnsupportedAppUsage
     public int getSubId() {
-// QTI_BEGIN: 2023-11-10: Telephony: Remove legacy subscription code
+// QTI_BEGIN: 2023-11-09: Telephony: Remove legacy subscription code
         return mSubscriptionManagerService.getSubId(mPhoneId);
-// QTI_END: 2023-11-10: Telephony: Remove legacy subscription code
+// QTI_END: 2023-11-09: Telephony: Remove legacy subscription code
     }
 
     /**
@@ -4303,12 +4304,12 @@ public abstract class Phone extends Handler implements PhoneInternalInterface {
 
     private int getResolvedUsageSetting(int subId) {
         SubscriptionInfo subInfo = null;
-// QTI_BEGIN: 2023-11-10: Telephony: Remove legacy subscription code
+// QTI_BEGIN: 2023-11-09: Telephony: Remove legacy subscription code
         SubscriptionInfoInternal subInfoInternal = mSubscriptionManagerService
                 .getSubscriptionInfoInternal(subId);
         if (subInfoInternal != null) {
             subInfo = subInfoInternal.toSubscriptionInfo();
-// QTI_END: 2023-11-10: Telephony: Remove legacy subscription code
+// QTI_END: 2023-11-09: Telephony: Remove legacy subscription code
         }
 
         if (subInfo == null) {
@@ -4559,7 +4560,7 @@ public abstract class Phone extends Handler implements PhoneInternalInterface {
         return null;
     }
 
-// QTI_BEGIN: 2021-06-09: Telephony: IMS: Get local SIM phone number from IMS registration message
+// QTI_BEGIN: 2021-06-08: Telephony: IMS: Get local SIM phone number from IMS registration message
     /**
      * Phone number of the current subscriber given by the IMS implementation.
      * Applicable only on IMS; used in absence of line1number.
@@ -4569,7 +4570,7 @@ public abstract class Phone extends Handler implements PhoneInternalInterface {
         return null;
     }
 
-// QTI_END: 2021-06-09: Telephony: IMS: Get local SIM phone number from IMS registration message
+// QTI_END: 2021-06-08: Telephony: IMS: Get local SIM phone number from IMS registration message
     public AppSmsManager getAppSmsManager() {
         return mAppSmsManager;
     }
@@ -5122,6 +5123,13 @@ public abstract class Phone extends Handler implements PhoneInternalInterface {
     }
 
     /**
+     * @return the supported network alert categories.
+     */
+    public int[] getSupportedNetworkAlertCategories() {
+        return new int[0];
+    }
+
+    /**
      * @return whether this Phone interacts with a modem that supports the null cipher
      * notification feature.
      */
@@ -5227,14 +5235,14 @@ public abstract class Phone extends Handler implements PhoneInternalInterface {
         mNotifier.notifyCallbackModeStopped(this, type, reason);
     }
 
-// QTI_BEGIN: 2023-04-10: Telephony: Fix data call set-up issue
+// QTI_BEGIN: 2023-04-09: Telephony: Fix data call set-up issue
     protected boolean isActiveSubId(int subId) {
-// QTI_END: 2023-04-10: Telephony: Fix data call set-up issue
-// QTI_BEGIN: 2023-11-10: Telephony: Remove legacy subscription code
+// QTI_END: 2023-04-09: Telephony: Fix data call set-up issue
+// QTI_BEGIN: 2023-11-09: Telephony: Remove legacy subscription code
         SubscriptionInfoInternal subInfo = SubscriptionManagerService.getInstance()
                 .getSubscriptionInfoInternal(subId);
         return (subInfo != null && subInfo.isActive());
-// QTI_END: 2023-11-10: Telephony: Remove legacy subscription code
+// QTI_END: 2023-11-09: Telephony: Remove legacy subscription code
 // QTI_BEGIN: 2023-03-27: Telephony: Make SubscriptionManagerService related changes
     }
 
@@ -5397,6 +5405,30 @@ public abstract class Phone extends Handler implements PhoneInternalInterface {
         Rlog.d(mLogTag, "clearAllowedImsServices");
         mAllowedImsServicesAny.clear();
         mAllowedImsServicesHomeOnly.clear();
+    }
+
+    /**
+     * Notify emergency mode has been entered when AP domain selection is enabled.
+     *
+     * @param type for the emergency mode entry
+     *             See {@link TelephonyManager.DomainSelectionEmergencyType}.
+     */
+    public void notifyDomainSelectionEmergencyModeEntered(
+            @TelephonyManager.DomainSelectionEmergencyType int type) {
+        logd("notifyDomainSelectionEmergencyModeEntered: type=" + type);
+        mNotifier.notifyDomainSelectionEmergencyModeEntered(this, type);
+    }
+
+    /**
+     * Notify emergency mode has been exited when AP domain selection is enabled.
+     *
+     * @param type for the emergency mode exit
+     *             See {@link TelephonyManager.DomainSelectionEmergencyType}.
+     */
+    public void notifyDomainSelectionEmergencyModeExited(
+            @TelephonyManager.DomainSelectionEmergencyType int type) {
+        logd("notifyDomainSelectionEmergencyModeExited: type=" + type);
+        mNotifier.notifyDomainSelectionEmergencyModeExited(this, type);
     }
 
     public void dump(FileDescriptor fd, PrintWriter pw, String[] args) {
@@ -5625,7 +5657,7 @@ public abstract class Phone extends Handler implements PhoneInternalInterface {
     }
 // QTI_END: 2018-03-07: Telephony: Emergency Number Implementation for SS & DS
 
-// QTI_BEGIN: 2021-12-29: Telephony: Add exit SCBM support
+// QTI_BEGIN: 2021-12-28: Telephony: Add exit SCBM support
     public void exitScbm() {
     }
 
@@ -5658,9 +5690,9 @@ public abstract class Phone extends Handler implements PhoneInternalInterface {
     public boolean isScbmTimerCanceledForEmergency() {
         return false;
     }
-// QTI_END: 2021-12-29: Telephony: Add exit SCBM support
-// QTI_BEGIN: 2022-03-07: Telephony: Use essential records loaded state for data call
+// QTI_END: 2021-12-28: Telephony: Add exit SCBM support
+// QTI_BEGIN: 2022-03-06: Telephony: Use essential records loaded state for data call
 
     public void onCarrierConfigLoadedForEssentialRecords() {}
-// QTI_END: 2022-03-07: Telephony: Use essential records loaded state for data call
+// QTI_END: 2022-03-06: Telephony: Use essential records loaded state for data call
 }

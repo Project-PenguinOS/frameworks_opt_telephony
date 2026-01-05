@@ -66,3 +66,33 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+#OWNER=jdyou TARGET=26Q2
+flag {
+    name: "use_emergency_routing_cause"
+    namespace: "telephony"
+    description: "Enables the use of emergency routing cause to determine accurate source modification."
+    bug:"411366306"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+# OWNER=hwangoo TARGET=26Q2
+flag {
+    name: "domain_selection_emergency_mode_notification"
+    namespace: "telephony"
+    description: "Used to notify the emergency mode for call/SMS to other applications when AP domain selection is enabled."
+    bug:"423761083"
+    metadata {
+        purpose: PURPOSE_FEATURE
+    }
+}
+
+#OWNER=jaesikkong TARGET=26Q2
+flag {
+    name: "emergency_over_nr_requires_vonr_enabled"
+    namespace: "telephony"
+    description: "This flag specifies whether emergency call over NR requires VoNR setting enabled."
+    bug:"461166509"
+}

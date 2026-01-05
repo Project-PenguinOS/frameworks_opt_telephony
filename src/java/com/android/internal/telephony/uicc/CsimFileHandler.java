@@ -1,3 +1,4 @@
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
 /*
  * Copyright (C) 2006, 2012 The Android Open Source Project
  *
@@ -14,17 +15,25 @@
  * limitations under the License.
  */
 
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
 package com.android.internal.telephony.uicc;
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
 
 import com.android.internal.telephony.CommandsInterface;
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
 import com.android.telephony.Rlog;
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
 
 /**
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
  * @hide
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
  * This class should be used to access files in CSIM ADF
  */
 public final class CsimFileHandler extends IccFileHandler implements IccConstants {
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
     static final String LOG_TAG = "CsimFH";
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
 
     public CsimFileHandler(UiccCardApplication app, String aid, CommandsInterface ci) {
         super(app, aid, ci);
@@ -43,6 +52,7 @@ public final class CsimFileHandler extends IccFileHandler implements IccConstant
         case EF_CSIM_IMSIM:
         case EF_CSIM_CDMAHOME:
         case EF_CSIM_EPRL:
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
 // QTI_BEGIN: 2018-03-14: Telephony: Define EF MSPL/MLPL/PRL values and paths
         case EF_CSIM_PRL:
 // QTI_END: 2018-03-14: Telephony: Define EF MSPL/MLPL/PRL values and paths
@@ -50,12 +60,15 @@ public final class CsimFileHandler extends IccFileHandler implements IccConstant
 // QTI_BEGIN: 2018-03-14: Telephony: Define EF MSPL/MLPL/PRL values and paths
         case EF_RUIM_ID:
 // QTI_END: 2018-03-14: Telephony: Define EF MSPL/MLPL/PRL values and paths
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
             return MF_SIM + DF_ADF;
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
 // QTI_BEGIN: 2018-03-14: Telephony: Define EF MSPL/MLPL/PRL values and paths
         case EF_CSIM_MSPL:
         case EF_CSIM_MLPL:
             return MF_SIM + DF_TELECOM + DF_MMSS;
 // QTI_END: 2018-03-14: Telephony: Define EF MSPL/MLPL/PRL values and paths
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
         }
         String path = getCommonIccEFPath(efid);
         if (path == null) {
@@ -69,11 +82,16 @@ public final class CsimFileHandler extends IccFileHandler implements IccConstant
 
     @Override
     protected void logd(String msg) {
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
         Rlog.d(LOG_TAG, msg);
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
     }
 
     @Override
     protected void loge(String msg) {
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
         Rlog.e(LOG_TAG, msg);
+// QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
     }
 }
+// QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects

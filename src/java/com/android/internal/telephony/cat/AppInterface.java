@@ -100,9 +100,7 @@ public interface AppInterface {
         SEND_USSD(0x12),
         @UnsupportedAppUsage
         SEND_SMS(0x13),
-// QTI_BEGIN: 2018-01-09: Telephony: Add RUN_AT command
         RUN_AT(0x34),
-// QTI_END: 2018-01-09: Telephony: Add RUN_AT command
         @UnsupportedAppUsage
         SEND_DTMF(0x14),
         @UnsupportedAppUsage

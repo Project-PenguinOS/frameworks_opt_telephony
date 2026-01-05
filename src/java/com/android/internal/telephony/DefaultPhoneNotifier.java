@@ -36,6 +36,7 @@ import android.telephony.SecurityAlgorithmUpdate;
 import android.telephony.ServiceState;
 import android.telephony.TelephonyDisplayInfo;
 import android.telephony.TelephonyManager.DataEnabledReason;
+import android.telephony.TelephonyManager.DomainSelectionEmergencyType;
 import android.telephony.TelephonyManager.EmergencyCallbackModeStopReason;
 import android.telephony.TelephonyManager.EmergencyCallbackModeType;
 import android.telephony.TelephonyRegistryManager;
@@ -367,6 +368,24 @@ public class DefaultPhoneNotifier implements PhoneNotifier {
 
         mTelephonyRegistryMgr.notifyCellularIdentifierDisclosedChanged(sender.getPhoneId(),
                 sender.getSubId(), disclosure);
+    }
+
+    @Override
+    public void notifyDomainSelectionEmergencyModeEntered(Phone sender,
+            @DomainSelectionEmergencyType int type) {
+        if (!mFeatureFlags.domainSelectionEmergencyModeNotification()) return;
+
+        mTelephonyRegistryMgr.notifyDomainSelectionEmergencyModeEntered(
+                sender.getPhoneId(), sender.getSubId(), type);
+    }
+
+    @Override
+    public void notifyDomainSelectionEmergencyModeExited(Phone sender,
+            @DomainSelectionEmergencyType int type) {
+        if (!mFeatureFlags.domainSelectionEmergencyModeNotification()) return;
+
+        mTelephonyRegistryMgr.notifyDomainSelectionEmergencyModeExited(
+                sender.getPhoneId(), sender.getSubId(), type);
     }
 
     /**

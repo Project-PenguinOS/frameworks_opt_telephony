@@ -278,9 +278,9 @@ public class DataEvaluation {
         UNSATISFIED_REQUEST_DETACHED(true),
         /** track bootstrap sim data usage */
         CHECK_DATA_USAGE(false),
-// QTI_BEGIN: 2022-09-10: Telephony: Add Secure Mode specific data evaluation reason
+// QTI_BEGIN: 2022-09-09: Telephony: Add Secure Mode specific data evaluation reason
         /** Secure Mode state changed. */
-// QTI_END: 2022-09-10: Telephony: Add Secure Mode specific data evaluation reason
+// QTI_END: 2022-09-09: Telephony: Add Secure Mode specific data evaluation reason
 // QTI_BEGIN: 2023-07-25: Telephony: Evaluate unsatisfied networks after DDS switch
         SECURE_MODE_STATE_CHANGED(true),
         /**
@@ -371,10 +371,10 @@ public class DataEvaluation {
         /** Only one data network is allowed at one time. */
         ONLY_ALLOWED_SINGLE_NETWORK(true),
         /** Data enabled settings are not ready. */
-// QTI_BEGIN: 2022-04-28: Telephony: Make Secure Mode related changes
+// QTI_BEGIN: 2022-04-27: Telephony: Make Secure Mode related changes
         DATA_SETTINGS_NOT_READY(true),
         /** Device is in Secure Mode. */
-// QTI_END: 2022-04-28: Telephony: Make Secure Mode related changes
+// QTI_END: 2022-04-27: Telephony: Make Secure Mode related changes
         DATA_RESTRICTED_BY_SECURE_MODE(true),
         /** Handover max retry stopped but network is not on the preferred transport. */
         HANDOVER_RETRY_STOPPED(true),

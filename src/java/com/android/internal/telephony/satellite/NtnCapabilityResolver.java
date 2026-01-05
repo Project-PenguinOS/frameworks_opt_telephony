@@ -42,14 +42,16 @@ public class NtnCapabilityResolver {
             @NonNull NetworkRegistrationInfo networkRegistrationInfo, int subId) {
         String registeredPlmn = networkRegistrationInfo.getRegisteredPlmn();
         if (TextUtils.isEmpty(registeredPlmn)) {
+            logd("Registered PLMN is empty, skip NTN capability resolution");
             return;
         }
 
         SatelliteController satelliteController = SatelliteController.getInstance();
         Set<String> allSatellitePlmns = satelliteController.getAllPlmnSet();
+        boolean isNtn = networkRegistrationInfo.isNonTerrestrialNetwork();
+        logd("isNonTerrestrialNetwork()=" + isNtn);
         for (String satellitePlmn : allSatellitePlmns) {
-            if (TextUtils.equals(satellitePlmn, registeredPlmn)
-                    && networkRegistrationInfo.isInService()) {
+            if ((TextUtils.equals(satellitePlmn, registeredPlmn) || isNtn)) {
                 List<Integer> supportedServices =
                         satelliteController.getSupportedSatelliteServicesForPlmn(
                                 subId, satellitePlmn);
@@ -57,7 +59,7 @@ public class NtnCapabilityResolver {
                 networkRegistrationInfo.setAvailableServices(supportedServices);
                 logd("Registered to satellite PLMN " + satellitePlmn
                         + ", supportedServices = " + supportedServices);
-                break;
+                return;
             }
         }
     }

@@ -143,6 +143,7 @@ public class TelephonyRegistryTest extends TelephonyTest {
     private int[] mCarrierRoamingNtnAvailableServices;
     private NtnSignalStrength mCarrierRoamingNtnSignalStrength;
     private boolean mIsSatelliteEnabled;
+    private int mDomainSelectionEmergencyModeType;
     private final List<List<CallState>> mCallStateList = new ArrayList<>();
 
     // All events contribute to TelephonyRegistry#isPhoneStatePermissionRequired
@@ -229,7 +230,8 @@ public class TelephonyRegistryTest extends TelephonyTest {
                     TelephonyCallback.CarrierRoamingNtnListener,
                     TelephonyCallback.SecurityAlgorithmsListener,
                     TelephonyCallback.CellularIdentifierDisclosedListener,
-                    TelephonyCallback.CallAttributesListener {
+                    TelephonyCallback.CallAttributesListener,
+                    TelephonyCallback.DomainSelectionEmergencyModeListener {
         // This class isn't mockable to get invocation counts because the IBinder is null and
         // crashes the TelephonyRegistry. Make a cheesy verify(times()) alternative.
         public AtomicInteger invocationCount = new AtomicInteger(0);
@@ -391,6 +393,22 @@ public class TelephonyRegistryTest extends TelephonyTest {
         public void onCallStatesChanged(List<CallState> callStateList) {
             invocationCount.incrementAndGet();
             mCallStateList.add(callStateList);
+        }
+
+        @Override
+        public void onDomainSelectionEmergencyModeEntered(
+                @TelephonyManager.DomainSelectionEmergencyType int type,
+                int slotIndex, int subscriptionId) {
+            invocationCount.incrementAndGet();
+            mDomainSelectionEmergencyModeType = type;
+        }
+
+        @Override
+        public void onDomainSelectionEmergencyModeExited(
+                @TelephonyManager.DomainSelectionEmergencyType int type,
+                int slotIndex, int subscriptionId) {
+            invocationCount.incrementAndGet();
+            mDomainSelectionEmergencyModeType = type;
         }
     }
 
@@ -2078,4 +2096,67 @@ public class TelephonyRegistryTest extends TelephonyTest {
         assertEquals(invocationCount + 1, mTelephonyCallback.invocationCount.get());
     }
 
+    @Test
+    @EnableFlags(Flags.FLAG_DOMAIN_SELECTION_EMERGENCY_MODE_NOTIFICATION)
+    public void testNotifyDomainSelectionEmergencyModeEntered() {
+        int[] events = {TelephonyCallback.EVENT_DOMAIN_SELECTION_EMERGENCY_MODE_CHANGED};
+
+        mTelephonyRegistry.listenWithEventList(false, false, 1 /*subId*/,
+                mContext.getOpPackageName(), mContext.getAttributionTag(),
+                mTelephonyCallback.callback, events, false);
+
+        // Call
+        int invocationCount = mTelephonyCallback.invocationCount.get();
+        int emergencyModeType = TelephonyManager.DOMAIN_SELECTION_EMERGENCY_TYPE_CALL;
+
+        mTelephonyRegistry.notifyDomainSelectionEmergencyModeChanged(
+                0 /*phoneId*/, 1 /*subId*/, emergencyModeType, true);
+        processAllMessages();
+
+        assertEquals(invocationCount + 1, mTelephonyCallback.invocationCount.get());
+        assertEquals(emergencyModeType, mDomainSelectionEmergencyModeType);
+
+        // SMS
+        invocationCount = mTelephonyCallback.invocationCount.get();
+        emergencyModeType = TelephonyManager.DOMAIN_SELECTION_EMERGENCY_TYPE_SMS;
+
+        mTelephonyRegistry.notifyDomainSelectionEmergencyModeChanged(
+                0 /*phoneId*/, 1 /*subId*/, emergencyModeType, true);
+        processAllMessages();
+
+        assertEquals(invocationCount + 1, mTelephonyCallback.invocationCount.get());
+        assertEquals(emergencyModeType, mDomainSelectionEmergencyModeType);
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_DOMAIN_SELECTION_EMERGENCY_MODE_NOTIFICATION)
+    public void testNotifyDomainSelectionEmergencyModeExited() {
+        int[] events = {TelephonyCallback.EVENT_DOMAIN_SELECTION_EMERGENCY_MODE_CHANGED};
+
+        mTelephonyRegistry.listenWithEventList(false, false, 1 /*subId*/,
+                mContext.getOpPackageName(), mContext.getAttributionTag(),
+                mTelephonyCallback.callback, events, false);
+
+        // Call
+        int invocationCount = mTelephonyCallback.invocationCount.get();
+        int emergencyModeType = TelephonyManager.DOMAIN_SELECTION_EMERGENCY_TYPE_CALL;
+
+        mTelephonyRegistry.notifyDomainSelectionEmergencyModeChanged(
+                0 /*phoneId*/, 1 /*subId*/, emergencyModeType, false);
+        processAllMessages();
+
+        assertEquals(invocationCount + 1, mTelephonyCallback.invocationCount.get());
+        assertEquals(emergencyModeType, mDomainSelectionEmergencyModeType);
+
+        // SMS
+        invocationCount = mTelephonyCallback.invocationCount.get();
+        emergencyModeType = TelephonyManager.DOMAIN_SELECTION_EMERGENCY_TYPE_SMS;
+
+        mTelephonyRegistry.notifyDomainSelectionEmergencyModeChanged(
+                0 /*phoneId*/, 1 /*subId*/, emergencyModeType, false);
+        processAllMessages();
+
+        assertEquals(invocationCount + 1, mTelephonyCallback.invocationCount.get());
+        assertEquals(emergencyModeType, mDomainSelectionEmergencyModeType);
+    }
 }

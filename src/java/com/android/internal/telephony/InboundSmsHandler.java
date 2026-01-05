@@ -89,6 +89,7 @@ import com.android.internal.telephony.SmsConstants.MessageClass;
 import com.android.internal.telephony.analytics.TelephonyAnalytics;
 import com.android.internal.telephony.analytics.TelephonyAnalytics.SmsMmsAnalytics;
 import com.android.internal.telephony.flags.FeatureFlags;
+import com.android.internal.telephony.flags.Flags;
 import com.android.internal.telephony.metrics.PersistAtomsStorage;
 import com.android.internal.telephony.nano.PersistAtomsProto;
 import com.android.internal.telephony.satellite.SatelliteController;
@@ -307,7 +308,7 @@ public abstract class InboundSmsHandler extends StateMachine {
 
     private static final TextClassifier.EntityConfig TC_REQUEST_CONFIG =
             new TextClassifier.EntityConfig.Builder()
-                    .setIncludedTypes(List.of(TextClassifier.TYPE_SMS_RETRIEVER_OTP))
+                    .setIncludedTypes(getIncludedTextClassifierTypes())
                     .includeTypesFromTextClassifier(false)
                     .build();
 
@@ -329,6 +330,19 @@ public abstract class InboundSmsHandler extends StateMachine {
     private List<SmsFilter> mSmsFilters;
 
     protected final @NonNull FeatureFlags mFeatureFlags;
+
+    @VisibleForTesting
+    public static List<String> getIncludedTextClassifierTypes() {
+      ArrayList<String> includedTypes = new ArrayList();
+      includedTypes.add(TextClassifier.TYPE_SMS_RETRIEVER_OTP);
+      if (Flags.redactWebotpSms()) {
+          includedTypes.add(TextClassifier.TYPE_SMS_WEB_OTP);
+      }
+      if (Flags.redactGenericOtpSms()) {
+          includedTypes.add(TextClassifier.TYPE_OTP);
+      }
+      return includedTypes;
+    }
 
     /**
      * Create a new SMS broadcast helper.
@@ -1609,7 +1623,11 @@ public abstract class InboundSmsHandler extends StateMachine {
     private boolean containsOtp(Collection<TextLinks.TextLink> links) {
         for (TextLinks.TextLink link : links) {
             for (int i = 0; i < link.getEntityCount(); i++) {
-                if (link.getEntity(i).equals(TextClassifier.TYPE_SMS_RETRIEVER_OTP)) {
+                if (link.getEntity(i).equals(TextClassifier.TYPE_SMS_RETRIEVER_OTP)
+                    || (Flags.redactWebotpSms()
+                           && link.getEntity(i).equals(TextClassifier.TYPE_SMS_WEB_OTP))
+                    || (Flags.redactGenericOtpSms()
+                           && link.getEntity(i).equals(TextClassifier.TYPE_OTP))) {
                     return true;
                 }
             }
@@ -1785,12 +1803,20 @@ public abstract class InboundSmsHandler extends StateMachine {
             intent.putExtra("messageId", messageId);
         }
 
-        UserHandle userHandle = null;
+        // Get the user handle associated with the subscription.
+        UserHandle userHandle = TelephonyUtils.getSubscriptionUserHandle(mContext, subId);
+
+        // In case of the  subscription association with default userId -1000, assume that the
+        // subscription is associated with the MAIN user which will be SYSTEM user in non-HSUM mode.
+        if (userHandle == null) {
+            userHandle = mUserManager.getMainUser();
+        }
+
         if (destPort == -1) {
             intent.setAction(Intents.SMS_DELIVER_ACTION);
+
             // Direct the intent to only the default SMS app. If we can't find a default SMS app
             // then sent it to all broadcast receivers.
-            userHandle = TelephonyUtils.getSubscriptionUserHandle(mContext, subId);
             ComponentName componentName = SmsApplication.getDefaultSmsApplicationAsUser(mContext,
                     true, userHandle);
             if (componentName != null) {
@@ -1816,13 +1842,6 @@ public abstract class InboundSmsHandler extends StateMachine {
             intent.setComponent(null);
         }
 
-        if (userHandle == null) {
-            if (mFeatureFlags.smsMmsDeliverBroadcastsRedirectToMainUser()) {
-                userHandle = mUserManager.getMainUser();
-            } else {
-                userHandle = UserHandle.SYSTEM;
-            }
-        }
         Bundle options = handleSmsWhitelisting(intent.getComponent(), isClass0);
         dispatchIntent(intent, android.Manifest.permission.RECEIVE_SMS,
                 AppOpsManager.OPSTR_RECEIVE_SMS, options, resultReceiver, userHandle, subId);

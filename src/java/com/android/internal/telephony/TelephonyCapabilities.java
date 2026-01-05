@@ -106,17 +106,11 @@ public class TelephonyCapabilities {
      * Returns true if Calling/Data/Messaging features should be checked on this device.
      */
     private static boolean minimalTelephonyCdmCheck(@NonNull FeatureFlags featureFlags) {
-        // If the 'minimal_telephony_cdm_use_board_api_level' flag is set, the
-        // check for calling/data/messaging features is done using the ro.board.api_level
+        // The check for calling/data/messaging features is done using the ro.board.api_level
         // value, which represents the API level of the current vendor partition. It is
         // therefore assumed that a vendor partition that has been upgraded from pre-VIC
         // to VIC must have also been updated to support the new C/D/M feature flags.
-        if (featureFlags.minimalTelephonyCdmUseBoardApiLevel()) {
-            return BOARD_API_LEVEL >= Build.VERSION_CODES.VANILLA_ICE_CREAM;
-        }
-        // Otherwise, fallback to using the API level of the vendor partition that was
-        // originally shipped when the device was first released.
-        return VENDOR_API_LEVEL >= Build.VERSION_CODES.VANILLA_ICE_CREAM;
+        return BOARD_API_LEVEL >= Build.VERSION_CODES.VANILLA_ICE_CREAM;
     }
 
     /**

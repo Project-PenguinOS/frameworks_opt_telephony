@@ -14,14 +14,16 @@
  * limitations under the License.
  */
 
-// QTI_BEGIN: 2025-02-26: Telephony: Fix license marking
+// QTI_BEGIN: 2025-02-25: Telephony: Fix license marking
 /*
- * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
- * Copyright (c) 2025 Qualcomm Innovation Center, Inc. All rights reserved.
+// QTI_END: 2025-02-25: Telephony: Fix license marking
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+// QTI_BEGIN: 2025-02-25: Telephony: Fix license marking
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
-// QTI_END: 2025-02-26: Telephony: Fix license marking
+// QTI_END: 2025-02-25: Telephony: Fix license marking
 package com.android.internal.telephony.subscription;
 
 import static android.content.pm.PackageManager.FEATURE_TELEPHONY_SUBSCRIPTION;
@@ -83,6 +85,7 @@ import android.telephony.SubscriptionManager.PhoneNumberSource;
 import android.telephony.SubscriptionManager.SimDisplayNameSource;
 import android.telephony.SubscriptionManager.SubscriptionType;
 import android.telephony.SubscriptionManager.UsageSetting;
+import android.telephony.SubscriptionPlan;
 import android.telephony.TelephonyFrameworkInitializer;
 import android.telephony.TelephonyManager;
 import android.telephony.TelephonyManager.SimState;
@@ -95,6 +98,7 @@ import android.util.Base64;
 import android.util.EventLog;
 import android.util.IndentingPrintWriter;
 import android.util.LocalLog;
+import android.util.Log;
 
 import com.android.internal.R;
 import com.android.internal.annotations.VisibleForTesting;
@@ -108,6 +112,7 @@ import com.android.internal.telephony.Phone;
 import com.android.internal.telephony.PhoneFactory;
 import com.android.internal.telephony.ProxyController;
 import com.android.internal.telephony.RILConstants;
+import com.android.internal.telephony.TelephonyComponentFactory;
 import com.android.internal.telephony.TelephonyIntents;
 import com.android.internal.telephony.TelephonyPermissions;
 import com.android.internal.telephony.data.PhoneSwitcher;
@@ -162,6 +167,7 @@ public class SubscriptionManagerService extends ISub.Stub {
     private static final String LOG_TAG = "SMSVC";
     private static final String ALLOW_MOCK_MODEM_PROPERTY = "persist.radio.allow_mock_modem";
     private static final String BOOT_ALLOW_MOCK_MODEM_PROPERTY = "ro.boot.radio.allow_mock_modem";
+    private static final String PRIVATE_NETWORK_MCC = "999";
 
     private static final int CHECK_BOOTSTRAP_TIMER_IN_MS = 20 * 60 * 1000; // 20 minutes
     private static CountDownTimer bootstrapProvisioningTimer;
@@ -366,6 +372,42 @@ public class SubscriptionManagerService extends ISub.Stub {
     private final Map<Integer, Boolean> mImsNumberUpdateStatus = new ConcurrentHashMap<>();
 
     /**
+     * Maps subscription ID to the list of enrollable subscription plans.
+     * <p>
+     * These plans represent purchasable offers or available subscriptions provided by the carrier
+     * application. The data is stored in memory.
+     * <p>
+     * The key is the subscription ID ({@link Integer}),
+     * <p>
+     * The value is an array of {@link SubscriptionPlan} objects.
+     */
+    @NonNull
+    private final Map<Integer, SubscriptionPlan[]> mEnrollableSubscriptionPlans =
+            new ConcurrentHashMap<>();
+
+    /**
+     * Maps subscription ID to the package name of the app that owns the enrollable plans.
+     * <p>
+     * The key is the subscription ID ({@link Integer}),
+     * <p>
+     * The value is a string of package name that set enrollable subscription plans.
+     */
+    @NonNull
+    private final Map<Integer, String> mEnrollableSubscriptionPlansOwner =
+            new ConcurrentHashMap<>();
+
+    /**
+     * Maps subscription ID to the pending runnable responsible for expiring the enrollable plans.
+     * <p>
+     * The key is the subscription ID ({@link Integer}),
+     * <p>
+     * The value is the Runnable that clears the plans
+     */
+    @NonNull
+    private final Map<Integer, Runnable> mEnrollablePlanExpirationRunnables =
+            new ConcurrentHashMap<>();
+
+    /**
      * Slot index/subscription map that automatically invalidate cache in
      * {@link SubscriptionManager}.
      *
@@ -501,6 +543,27 @@ public class SubscriptionManagerService extends ISub.Stub {
          * @param subId The subscription id.
          */
         public void onDefaultDataSubscriptionChanged(int subId) {}
+    }
+
+    /** Initialize the singleton instance and register to TelephonyServiceManager */
+    public static SubscriptionManagerService init(@NonNull Context context, @NonNull Looper looper,
+            @NonNull FeatureFlags featureFlags) {
+        synchronized (SubscriptionManagerService.class) {
+            if (sInstance == null) {
+                sInstance = TelephonyComponentFactory.getInstance().inject(
+                        SubscriptionManagerService.class.getName())
+                        .makeSubscriptionManagerService(context, looper, featureFlags);
+                TelephonyServiceManager.ServiceRegisterer serviceRegisterer =
+                        TelephonyFrameworkInitializer.getTelephonyServiceManager()
+                                .getSubscriptionServiceRegisterer();
+                if (serviceRegisterer.get() == null) {
+                    serviceRegisterer.register(sInstance);
+                }
+            } else {
+                Log.wtf(LOG_TAG, "SubscriptionManagerService is already initialized.");
+            }
+        }
+        return sInstance;
     }
 
     /**
@@ -653,12 +716,14 @@ public class SubscriptionManagerService extends ISub.Stub {
                 getDefaultSmsSubId());
         updateDefaultSubId();
 
-        TelephonyServiceManager.ServiceRegisterer subscriptionServiceRegisterer =
-                TelephonyFrameworkInitializer
-                        .getTelephonyServiceManager()
-                        .getSubscriptionServiceRegisterer();
-        if (subscriptionServiceRegisterer.get() == null) {
-            subscriptionServiceRegisterer.register(this);
+        if (!mFeatureFlags.publishTelephonyServicesAfterConstruction()) {
+            TelephonyServiceManager.ServiceRegisterer subscriptionServiceRegisterer =
+                    TelephonyFrameworkInitializer
+                            .getTelephonyServiceManager()
+                            .getSubscriptionServiceRegisterer();
+            if (subscriptionServiceRegisterer.get() == null) {
+                subscriptionServiceRegisterer.register(this);
+            }
         }
 
         mHandler.post(() -> {
@@ -898,27 +963,21 @@ public class SubscriptionManagerService extends ISub.Stub {
     }
 
     /**
-// QTI_BEGIN: 2024-02-09: Telephony: Revert "Fix deactivated eSIM disappearing from SIMs list"
      * @return The list of ICCIDs from the inserted physical SIMs.
-// QTI_END: 2024-02-09: Telephony: Revert "Fix deactivated eSIM disappearing from SIMs list"
      */
     @NonNull
-// QTI_BEGIN: 2024-02-09: Telephony: Revert "Fix deactivated eSIM disappearing from SIMs list"
     private List<String> getIccIdsOfInsertedPhysicalSims() {
-// QTI_END: 2024-02-09: Telephony: Revert "Fix deactivated eSIM disappearing from SIMs list"
         List<String> iccidList = new ArrayList<>();
         UiccSlot[] uiccSlots = mUiccController.getUiccSlots();
         if (uiccSlots == null) return iccidList;
 
         for (UiccSlot uiccSlot : uiccSlots) {
             if (uiccSlot != null && uiccSlot.getCardState() != null
-// QTI_BEGIN: 2024-02-09: Telephony: Revert "Fix deactivated eSIM disappearing from SIMs list"
                     && uiccSlot.getCardState().isCardPresent() && !uiccSlot.isEuicc()) {
                 // Non euicc slots will have single port, so use default port index.
                 String iccId = uiccSlot.getIccId(TelephonyManager.DEFAULT_PORT_INDEX);
                 if (!TextUtils.isEmpty(iccId)) {
                     iccidList.add(getStrippedIccid(iccId));
-// QTI_END: 2024-02-09: Telephony: Revert "Fix deactivated eSIM disappearing from SIMs list"
                 }
             }
         }
@@ -1504,16 +1563,12 @@ public class SubscriptionManagerService extends ISub.Stub {
 
             if (!isSatelliteEnabledOrBeingEnabled) {
               if (!isDsdsToSsConfigEnabled()) {
-// QTI_BEGIN: 2024-02-09: Telephony: Revert "Fix deactivated eSIM disappearing from SIMs list"
                 // Re-enable the pSIM when it's removed, so it will be in enabled state when it gets
-// QTI_END: 2024-02-09: Telephony: Revert "Fix deactivated eSIM disappearing from SIMs list"
-// QTI_BEGIN: 2023-06-12: Telephony: Add dsds_to_ss property check.
+// QTI_BEGIN: 2023-06-11: Telephony: Add dsds_to_ss property check.
                 // re-inserted again. (pre-U behavior)
-// QTI_END: 2023-06-12: Telephony: Add dsds_to_ss property check.
-// QTI_BEGIN: 2024-02-09: Telephony: Revert "Fix deactivated eSIM disappearing from SIMs list"
+// QTI_END: 2023-06-11: Telephony: Add dsds_to_ss property check.
                 List<String> iccIds = getIccIdsOfInsertedPhysicalSims();
-// QTI_END: 2024-02-09: Telephony: Revert "Fix deactivated eSIM disappearing from SIMs list"
-// QTI_BEGIN: 2023-06-12: Telephony: Add dsds_to_ss property check.
+// QTI_BEGIN: 2023-06-11: Telephony: Add dsds_to_ss property check.
                 mSubscriptionDatabaseManager.getAllSubscriptions().stream()
                         .filter(subInfo -> !iccIds.contains(subInfo.getIccId())
                                 && !subInfo.isEmbedded())
@@ -1526,11 +1581,11 @@ public class SubscriptionManagerService extends ISub.Stub {
                             mSubscriptionDatabaseManager.setPortIndex(subId,
                                     TelephonyManager.INVALID_PORT_INDEX);
                         });
-// QTI_END: 2023-06-12: Telephony: Add dsds_to_ss property check.
+// QTI_END: 2023-06-11: Telephony: Add dsds_to_ss property check.
               }
-// QTI_BEGIN: 2023-06-12: Telephony: Add dsds_to_ss property check.
+// QTI_BEGIN: 2023-06-11: Telephony: Add dsds_to_ss property check.
             }
-// QTI_END: 2023-06-12: Telephony: Add dsds_to_ss property check.
+// QTI_END: 2023-06-11: Telephony: Add dsds_to_ss property check.
 
             if (mSlotIndexToSubId.containsKey(phoneId)) {
                 markSubscriptionsInactive(phoneId);
@@ -1696,13 +1751,13 @@ public class SubscriptionManagerService extends ISub.Stub {
         if (areAllSubscriptionsLoaded()) {
             log("Notify all subscriptions loaded.");
             MultiSimSettingController.getInstance().notifyAllSubscriptionLoaded();
-// QTI_BEGIN: 2023-04-10: Telephony: Fix data call set-up issue
+// QTI_BEGIN: 2023-04-09: Telephony: Fix data call set-up issue
 
             PhoneSwitcher phoneSwitcher = PhoneSwitcher.getInstance();
             if (phoneSwitcher != null) {
                 phoneSwitcher.notifySubInfoReady();
             }
-// QTI_END: 2023-04-10: Telephony: Fix data call set-up issue
+// QTI_END: 2023-04-09: Telephony: Fix data call set-up issue
         }
 
         updateGroupDisabled();
@@ -1746,12 +1801,12 @@ public class SubscriptionManagerService extends ISub.Stub {
         }
     }
 
-// QTI_BEGIN: 2023-06-12: Telephony: Add dsds_to_ss property check.
+// QTI_BEGIN: 2023-06-11: Telephony: Add dsds_to_ss property check.
     public boolean isDsdsToSsConfigEnabled() {
         return false;
     }
 
-// QTI_END: 2023-06-12: Telephony: Add dsds_to_ss property check.
+// QTI_END: 2023-06-11: Telephony: Add dsds_to_ss property check.
     /**
      * Calculate the usage setting based on the carrier request.
      *
@@ -1940,6 +1995,12 @@ public class SubscriptionManagerService extends ISub.Stub {
             log("updateSubscriptionByCarrierConfig: serviceCapabilities updated from "
                     + subInfo.getServiceCapabilities() + " to " + serviceBitmasks);
             mSubscriptionDatabaseManager.setServiceCapabilities(subId, serviceBitmasks);
+        }
+
+        if (mFeatureFlags.enableIsPrivateNetworkApi()) {
+            boolean isPrivateNetwork = PRIVATE_NETWORK_MCC.equals(subInfo.getMcc()) || config
+                    .getBoolean(CarrierConfigManager.KEY_IS_PRIVATE_NETWORK_BOOL, false);
+            mSubscriptionDatabaseManager.setIsPrivateNetwork(subId, isPrivateNetwork ? 1 : 0);
         }
     }
 
@@ -2286,9 +2347,7 @@ public class SubscriptionManagerService extends ISub.Stub {
         // they are in inactive slot or programmatically disabled, they are still considered
         // available. In this case we get their iccid from slot info and include their
         // subscriptionInfos.
-// QTI_BEGIN: 2024-02-09: Telephony: Revert "Fix deactivated eSIM disappearing from SIMs list"
         List<String> iccIds = getIccIdsOfInsertedPhysicalSims();
-// QTI_END: 2024-02-09: Telephony: Revert "Fix deactivated eSIM disappearing from SIMs list"
 
         return mSubscriptionDatabaseManager.getAllSubscriptions().stream()
                 .filter(subInfo -> subInfo.isActive() || iccIds.contains(subInfo.getIccId())
@@ -2445,18 +2504,14 @@ public class SubscriptionManagerService extends ISub.Stub {
      * subscription type.
      * @param subscriptionType the type of subscription to be removed.
      *
-// QTI_BEGIN: 2023-11-10: Telephony: Remove legacy subscription code
      * @return {@code true} if succeeded, otherwise {@code false}.
-// QTI_END: 2023-11-10: Telephony: Remove legacy subscription code
      *
      * @throws NullPointerException if {@code uniqueId} is {@code null}.
      * @throws SecurityException if callers do not hold the required permission.
      */
     @Override
     @RequiresPermission(Manifest.permission.MODIFY_PHONE_STATE)
-// QTI_BEGIN: 2023-11-10: Telephony: Remove legacy subscription code
     public boolean removeSubInfo(@NonNull String uniqueId, int subscriptionType) {
-// QTI_END: 2023-11-10: Telephony: Remove legacy subscription code
         enforcePermissions("removeSubInfo", Manifest.permission.MODIFY_PHONE_STATE);
 
         logl("removeSubInfo: uniqueId=" + SubscriptionInfo.getPrintableId(uniqueId) + ", "
@@ -2474,21 +2529,15 @@ public class SubscriptionManagerService extends ISub.Stub {
                     .getSubscriptionInfoInternalByIccId(uniqueId);
             if (subInfo == null) {
                 loge("Cannot find subscription with uniqueId " + uniqueId);
-// QTI_BEGIN: 2023-11-10: Telephony: Remove legacy subscription code
                 return false;
-// QTI_END: 2023-11-10: Telephony: Remove legacy subscription code
             }
             if (subInfo.getSubscriptionType() != subscriptionType) {
                 loge("The subscription type does not match.");
-// QTI_BEGIN: 2023-11-10: Telephony: Remove legacy subscription code
                 return false;
-// QTI_END: 2023-11-10: Telephony: Remove legacy subscription code
             }
             mSlotIndexToSubId.remove(subInfo.getSimSlotIndex());
             mSubscriptionDatabaseManager.removeSubscriptionInfo(subInfo.getSubscriptionId());
-// QTI_BEGIN: 2023-11-10: Telephony: Remove legacy subscription code
             return true;
-// QTI_END: 2023-11-10: Telephony: Remove legacy subscription code
         } finally {
             Binder.restoreCallingIdentity(identity);
         }
@@ -3183,11 +3232,8 @@ public class SubscriptionManagerService extends ISub.Stub {
             logl("updateDefaultSubId: Default sub id updated from " + mDefaultSubId.get() + " to "
                     + subId + ", phoneId=" + phoneId);
             mDefaultSubId.set(subId);
-
-            if (mFeatureFlags.updateResourceConfiguration()) {
-                String mccMnc = mTelephonyManager.getSimOperatorNumeric(subId);
-                MccTable.updateMccMncConfiguration(mContext, mccMnc);
-            }
+            String mccMnc = mTelephonyManager.getSimOperatorNumeric(subId);
+            MccTable.updateMccMncConfiguration(mContext, mccMnc);
 
             Intent intent = new Intent(SubscriptionManager.ACTION_DEFAULT_SUBSCRIPTION_CHANGED);
             intent.addFlags(Intent.FLAG_RECEIVER_REPLACE_PENDING);
@@ -3523,9 +3569,7 @@ public class SubscriptionManagerService extends ISub.Stub {
      */
     @Override
     @RequiresPermission(Manifest.permission.MODIFY_PHONE_STATE)
-// QTI_BEGIN: 2023-11-10: Telephony: Remove legacy subscription code
     public void setSubscriptionProperty(int subId, @NonNull String columnName,
-// QTI_END: 2023-11-10: Telephony: Remove legacy subscription code
             @NonNull String value) {
         enforcePermissions("setSubscriptionProperty", Manifest.permission.MODIFY_PHONE_STATE);
 
@@ -3943,6 +3987,7 @@ public class SubscriptionManagerService extends ISub.Stub {
      * @see SubscriptionManager#PHONE_NUMBER_SOURCE_UICC
      * @see SubscriptionManager#PHONE_NUMBER_SOURCE_CARRIER
      * @see SubscriptionManager#PHONE_NUMBER_SOURCE_IMS
+     * @see SubscriptionManager#PHONE_NUMBER_SOURCE_TS43
      */
     @Override
     @NonNull
@@ -3996,7 +4041,9 @@ public class SubscriptionManagerService extends ISub.Stub {
     private void checkPhoneNumberSource(int source) {
         if (source == SubscriptionManager.PHONE_NUMBER_SOURCE_UICC
                 || source == SubscriptionManager.PHONE_NUMBER_SOURCE_CARRIER
-                || source == SubscriptionManager.PHONE_NUMBER_SOURCE_IMS) {
+                || source == SubscriptionManager.PHONE_NUMBER_SOURCE_IMS
+                || (mFeatureFlags.getPhoneNumberTs43Api()
+                && source == SubscriptionManager.PHONE_NUMBER_SOURCE_TS43)) {
             return;
         }
 
@@ -4038,6 +4085,8 @@ public class SubscriptionManagerService extends ISub.Stub {
                     }
                 }
                 return subInfo.getNumberFromIms();
+            case SubscriptionManager.PHONE_NUMBER_SOURCE_TS43:
+                return subInfo.getNumberFromTs43();
             default:
                 loge("No SubscriptionInfo found for subId=" + subId);
                 return "";
@@ -4047,7 +4096,8 @@ public class SubscriptionManagerService extends ISub.Stub {
     /**
      * Get phone number from first available source. The order would be
      * {@link SubscriptionManager#PHONE_NUMBER_SOURCE_CARRIER},
-     * {@link SubscriptionManager#PHONE_NUMBER_SOURCE_UICC}, then
+     * {@link SubscriptionManager#PHONE_NUMBER_SOURCE_UICC},
+     * {@link SubscriptionManager#PHONE_NUMBER_SOURCE_TS43}, then
      * {@link SubscriptionManager#PHONE_NUMBER_SOURCE_IMS}.
      *
      * @param subId The subscription ID.
@@ -4092,6 +4142,13 @@ public class SubscriptionManagerService extends ISub.Stub {
                     SubscriptionManager.PHONE_NUMBER_SOURCE_UICC, false);
             if (!TextUtils.isEmpty(number)) return number;
 
+            if (mFeatureFlags.getPhoneNumberTs43Api()) {
+                number = getPhoneNumberFromSourceInternal(
+                        subId,
+                        SubscriptionManager.PHONE_NUMBER_SOURCE_TS43, false);
+                if (!TextUtils.isEmpty(number)) return number;
+            }
+
             number = getPhoneNumberFromSourceInternal(
                     subId,
                     SubscriptionManager.PHONE_NUMBER_SOURCE_IMS, true);
@@ -4114,6 +4171,7 @@ public class SubscriptionManagerService extends ISub.Stub {
      * <ol>
      *   <li>{@link SubscriptionManager#PHONE_NUMBER_SOURCE_CARRIER}
      *   <li>{@link SubscriptionManager#PHONE_NUMBER_SOURCE_UICC}
+     *   <li>{@link SubscriptionManager#PHONE_NUMBER_SOURCE_TS43}
      *   <li>{@link SubscriptionManager#PHONE_NUMBER_SOURCE_IMS}
      * </ol>
      *
@@ -4155,6 +4213,12 @@ public class SubscriptionManagerService extends ISub.Stub {
                     SubscriptionManager.PHONE_NUMBER_SOURCE_UICC, false);
             if (!TextUtils.isEmpty(number)) return number;
 
+            if (mFeatureFlags.getPhoneNumberTs43Api()) {
+                number = getPhoneNumberFromSourceInternal(subId,
+                        SubscriptionManager.PHONE_NUMBER_SOURCE_TS43, false);
+                if (!TextUtils.isEmpty(number)) return number;
+            }
+
             number = getPhoneNumberFromSourceInternal(subId,
                     SubscriptionManager.PHONE_NUMBER_SOURCE_IMS, false);
             return TextUtils.emptyIfNull(number);
@@ -4190,21 +4254,33 @@ public class SubscriptionManagerService extends ISub.Stub {
      * @param callingFeatureId The feature in the package.
      *
      * @throws IllegalArgumentException {@code subId} is invalid, or {@code source} is not
-     * {@link SubscriptionManager#PHONE_NUMBER_SOURCE_CARRIER}.
+     * {@link SubscriptionManager#PHONE_NUMBER_SOURCE_CARRIER}
+     * and {@link SubscriptionManager#PHONE_NUMBER_SOURCE_TS43}.
      * @throws NullPointerException if {@code number} is {@code null}.
      */
     @Override
-    @RequiresPermission("carrier privileges")
+    @RequiresPermission(anyOf = {
+            Manifest.permission.MODIFY_PHONE_STATE,
+            "carrier privileges"
+    })
     public void setPhoneNumber(int subId, @PhoneNumberSource int source, @NonNull String number,
             @NonNull String callingPackage, @Nullable String callingFeatureId) {
-        logl("setPhoneNumber: subId=" + subId + ", number="
+        logl("setPhoneNumber: subId=" + subId + ", source=" + source + ", number="
                 + Rlog.pii(TelephonyUtils.IS_DEBUGGABLE, number)
                 + ", calling package=" + callingPackage);
-        if (!TelephonyPermissions.checkCarrierPrivilegeForSubId(mContext, subId)) {
+        if (source == SubscriptionManager.PHONE_NUMBER_SOURCE_CARRIER
+                && !TelephonyPermissions.checkCarrierPrivilegeForSubId(mContext, subId)) {
             throw new SecurityException("setPhoneNumber for CARRIER needs carrier privilege.");
         }
 
-        if (source != SubscriptionManager.PHONE_NUMBER_SOURCE_CARRIER) {
+        if (mFeatureFlags.getPhoneNumberTs43Api()
+                && source == SubscriptionManager.PHONE_NUMBER_SOURCE_TS43) {
+            enforcePermissions("setPhoneNumber", Manifest.permission.MODIFY_PHONE_STATE);
+        }
+
+        if (source != SubscriptionManager.PHONE_NUMBER_SOURCE_CARRIER
+                && !(mFeatureFlags.getPhoneNumberTs43Api()
+                && source == SubscriptionManager.PHONE_NUMBER_SOURCE_TS43)) {
             throw new IllegalArgumentException("setPhoneNumber doesn't accept source "
                     + SubscriptionManager.phoneNumberSourceToString(source));
         }
@@ -4215,7 +4291,12 @@ public class SubscriptionManagerService extends ISub.Stub {
 
         final long identity = Binder.clearCallingIdentity();
         try {
-            mSubscriptionDatabaseManager.setNumberFromCarrier(subId, number);
+            if (source == SubscriptionManager.PHONE_NUMBER_SOURCE_CARRIER) {
+                mSubscriptionDatabaseManager.setNumberFromCarrier(subId, number);
+            } else if (mFeatureFlags.getPhoneNumberTs43Api()
+                    && source == SubscriptionManager.PHONE_NUMBER_SOURCE_TS43) {
+                mSubscriptionDatabaseManager.setNumberFromTs43(subId, number);
+            }
         } finally {
             Binder.restoreCallingIdentity(identity);
         }
@@ -4772,6 +4853,219 @@ public class SubscriptionManagerService extends ISub.Stub {
         } finally {
             Binder.restoreCallingIdentity(token);
         }
+    }
+
+    /**
+     * Set the enrollable subscription plans for a specific subscription.
+     *
+     * @param subId the subscriber this relationship applies to.
+     * @param plans the array of the SubscriptionPlans.
+     * @param expirationDurationMillis the duration after which the plans will be automatically
+     *                                 cleared.
+     * @param callingPackage the package name that called this function
+     */
+    @Override
+    public void setEnrollableSubscriptionPlans(int subId, @NonNull SubscriptionPlan[] plans,
+            long expirationDurationMillis, @NonNull String callingPackage) {
+        // Check permissions (Modify Phone State or Carrier Privilege)
+        enforceEnrollableSubscriptionPlanAccess(subId, Binder.getCallingUid(), callingPackage,
+                "setEnrollableSubscriptionPlans", true /* isWrite */);
+
+        // Verify plans are not null and valid.
+        for (SubscriptionPlan plan : plans) {
+            Objects.requireNonNull(plan);
+        }
+
+        // 2. Post to Handler (Run on Main/Worker Thread)
+        mHandler.post(() -> {
+            setEnrollableSubscriptionPlansInternal(subId, plans, expirationDurationMillis,
+                    callingPackage);
+        });
+    }
+    /**
+     * Internal method to update enrollable plans, running on the handler thread.
+     */
+    private void setEnrollableSubscriptionPlansInternal(int subId,
+            @NonNull SubscriptionPlan[] plans, long expirationDurationMillis,
+            @NonNull String callingPackage) {
+        // 1. Store the plans and owner
+        mEnrollableSubscriptionPlans.put(subId, plans);
+        mEnrollableSubscriptionPlansOwner.put(subId, callingPackage);
+
+        // 2. Manage Expiration Timer
+        // Cancel any existing expiration task for this subId
+        Runnable oldRunnable = mEnrollablePlanExpirationRunnables.remove(subId);
+        if (oldRunnable != null) {
+            mHandler.removeCallbacks(oldRunnable);
+        }
+
+        // 3. Schedule new expiration if duration > 0
+        if (expirationDurationMillis > 0) {
+            Runnable expirationRunnable = () -> {
+                // Check if the owner is still the same before clearing (handling race conditions)
+                String currentOwner = mEnrollableSubscriptionPlansOwner.get(subId);
+                if (Objects.equals(callingPackage, currentOwner)) {
+                    logl("Clearing expired enrollable plans for subId=" + subId);
+                    mEnrollableSubscriptionPlans.remove(subId);
+                    mEnrollableSubscriptionPlansOwner.remove(subId);
+                    mEnrollablePlanExpirationRunnables.remove(subId);
+                    broadcastEnrollableSubscriptionPlansChanged(subId);
+                }
+            };
+            mEnrollablePlanExpirationRunnables.put(subId, expirationRunnable);
+            mHandler.postDelayed(expirationRunnable, expirationDurationMillis);
+        }
+
+        // 3. Notify Listeners
+        broadcastEnrollableSubscriptionPlansChanged(subId);
+    }
+
+    /**
+     * Get the enrollable subscription plans for the given subscription id.
+     *
+     * @param subId the subscriber to get the subscription plans for.
+     * @param callingPackage the name of the package making the call.
+     * @return the array of enrollable subscription plans, or null if not found or access denied.
+     */
+    @Override
+    @Nullable
+    public SubscriptionPlan[] getEnrollableSubscriptionPlans(
+            int subId, @NonNull String callingPackage) {
+        // Check permissions
+        enforceEnrollableSubscriptionPlanAccess(subId, Binder.getCallingUid(), callingPackage,
+                "getEnrollableSubscriptionPlans", false /* isWrite */);
+
+        return mEnrollableSubscriptionPlans.get(subId);
+    }
+
+    /**
+     * Get the package name of the app that owns the enrollable subscription plans.
+     *
+     * @param subId the subscriber to get the owner for.
+     * @return the package name of the app that owns the enrollable plans, or null if not found.
+     */
+    @Override
+    @Nullable
+    public String getEnrollableSubscriptionPlansOwner(int subId) {
+        if (UserHandle.getCallingAppId() != android.os.Process.SYSTEM_UID) {
+            throw new SecurityException();
+        }
+        return mEnrollableSubscriptionPlansOwner.get(subId);
+    }
+
+    /**
+     * Enforce permissions for accessing enrollable plans.
+     * <p>
+     * Access is granted if the caller meets ANY of the following criteria:
+     * <ol>
+     *     <li>Has Carrier Privileges for the subscription.</li>
+     *     <li>Is the delegated Carrier Service for the subscription.</li>
+     *     <li>Is the default Carrier Service for the device.</li>
+     *     <li>Is the current owner of the plans (i.e., the app that set them).</li>
+     *     <li>Holds the {@code MANAGE_SUBSCRIPTION_PLANS} permission.</li>
+     * </ol>
+     *
+     * @param subId The subscription ID.
+     * @param callingUid The UID of the caller.
+     * @param callingPackage The package name of the caller.
+     * @param message The message to include in any security exception.
+     */
+    private void enforceEnrollableSubscriptionPlanAccess(int subId, int callingUid,
+            @NonNull String callingPackage, @NonNull String message, boolean isWrite) {
+        // 0. Allow System and Phone (Radio) explicitly.
+        // They are trusted components and should always have access.
+        int appId = UserHandle.getAppId(callingUid);
+        if (appId == Process.SYSTEM_UID || appId == Process.PHONE_UID) {
+            return;
+        }
+
+        // 1. Verify the caller's package name matches their UID.
+        try {
+            int packageUid = mPackageManager.getPackageUid(callingPackage, 0);
+            // Use isSameApp to handle multi-user scenarios (ignores user ID, checks app ID)
+            if (!UserHandle.isSameApp(packageUid, callingUid)) {
+                throw new SecurityException("Package " + callingPackage + " does not belong to uid "
+                        + callingUid);
+            }
+        } catch (PackageManager.NameNotFoundException e) {
+            throw new SecurityException("Package " + callingPackage + " not found");
+        }
+
+        // 2. Check Carrier Privileges, Delegated Access, and Default Carrier Service.
+        long token = Binder.clearCallingIdentity();
+        try {
+            TelephonyManager tm = mContext.getSystemService(TelephonyManager.class)
+                    .createForSubscriptionId(subId);
+
+            // 2a. Check Carrier Privileges
+            if (tm != null && tm.checkCarrierPrivilegesForPackage(callingPackage)
+                    == TelephonyManager.CARRIER_PRIVILEGE_STATUS_HAS_ACCESS) {
+                return;
+            }
+
+            CarrierConfigManager configManager =
+                    mContext.getSystemService(CarrierConfigManager.class);
+            PersistableBundle config = (configManager != null)
+                    ? configManager.getConfigForSubId(
+                            subId, CarrierConfigManager.KEY_CONFIG_PLANS_PACKAGE_OVERRIDE_STRING)
+                    : null;
+
+            if (config != null) {
+                // 2b. Check Delegated Access
+                String overridePackage = config.getString(
+                        CarrierConfigManager.KEY_CONFIG_PLANS_PACKAGE_OVERRIDE_STRING, null);
+                if (!TextUtils.isEmpty(overridePackage)
+                        && Objects.equals(overridePackage, callingPackage)) {
+                    return;
+                }
+            }
+
+            // 2c. Check Default Carrier Service
+            if (configManager != null) {
+                String defaultPackage = configManager.getDefaultCarrierServicePackageName();
+                if (!TextUtils.isEmpty(defaultPackage)
+                        && Objects.equals(defaultPackage, callingPackage)) {
+                    return;
+                }
+            }
+        } finally {
+            Binder.restoreCallingIdentity(token);
+        }
+
+        // 3. Check if the caller is the owner of the plans (if they exist).
+        String ownerPackage = mEnrollableSubscriptionPlansOwner.get(subId);
+        if (ownerPackage != null && ownerPackage.equals(callingPackage)) {
+            return;
+        }
+
+        // 4. Permission Checks
+        // MANAGE_SUBSCRIPTION_PLANS allows for read or write.
+        if (mContext.checkCallingOrSelfPermission(
+                android.Manifest.permission.MANAGE_SUBSCRIPTION_PLANS)
+                        == PackageManager.PERMISSION_GRANTED) {
+            return;
+        }
+
+        // READ_SUBSCRIPTION_PLANS allows only for read.
+        if (!isWrite && mContext.checkCallingOrSelfPermission(
+                android.Manifest.permission.READ_SUBSCRIPTION_PLANS)
+                        == PackageManager.PERMISSION_GRANTED) {
+            return;
+        }
+
+        throw new SecurityException(message + ": Caller " + callingPackage
+                + " does not meet required permissions (Carrier Privilege, Plan Owner, or "
+                + "MANAGE_SUBSCRIPTION_PLANS)");
+    }
+
+    /**
+     * Helper to broadcast ACTION_ENROLLABLE_SUBSCRIPTION_PLANS_CHANGED.
+     */
+    private void broadcastEnrollableSubscriptionPlansChanged(int subId) {
+        Intent intent = new Intent(
+                SubscriptionManager.ACTION_ENROLLABLE_SUBSCRIPTION_PLANS_CHANGED);
+        SubscriptionManager.putSubscriptionIdExtra(intent, subId);
+        mContext.sendBroadcast(intent, android.Manifest.permission.READ_SUBSCRIPTION_PLANS);
     }
 
     /**

@@ -14,17 +14,18 @@
  * limitations under the License.
  */
 
-// QTI_BEGIN: 2025-02-26: Telephony: Fix license marking
+// QTI_BEGIN: 2025-02-25: Telephony: Fix license marking
 /*
  * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
  * Copyright (c) 2025 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
-// QTI_END: 2025-02-26: Telephony: Fix license marking
+// QTI_END: 2025-02-25: Telephony: Fix license marking
 package com.android.internal.telephony.data;
 
 import android.annotation.CallbackExecutor;
+import android.annotation.ElapsedRealtimeLong;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.content.ContentResolver;
@@ -54,8 +55,10 @@ import android.util.IndentingPrintWriter;
 import android.util.LocalLog;
 import android.util.LruCache;
 
+import com.android.internal.telephony.HalVersion;
 import com.android.internal.telephony.IccCardConstants;
 import com.android.internal.telephony.Phone;
+import com.android.internal.telephony.RIL;
 import com.android.internal.telephony.data.DataConfigManager.DataConfigManagerCallback;
 import com.android.internal.telephony.data.DataNetworkController.DataNetworkControllerCallback;
 import com.android.internal.telephony.flags.FeatureFlags;
@@ -64,6 +67,7 @@ import com.android.telephony.Rlog;
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
@@ -105,9 +109,21 @@ public class DataProfileManager extends Handler {
      * All data profiles for the current carrier. Note only data profiles loaded from the APN
      * database will be stored here. The on-demand data profiles (generated dynamically, for
      * example, enterprise data profiles with differentiator) are not stored here.
+     *
+     * @see #updateDataProfiles(boolean) for how this is updated.
+     *
+     * Thread-safety: This list is read by multiple threads (e.g., Binder threads for API calls
+     * like {@link TelephonyManager#isTetheringApnRequired()}) but is only ever modified on the main
+     * thread.
+     *
+     * To ensure thread safety without locks (which can cause performance issues), this list is
+     * treated as immutable. It is declared {@code volatile}, and any modifications are performed
+     * by creating a new list and swapping this reference atomically (a copy-on-write pattern).
+     * This guarantees that reader threads will always see a consistent, fully-formed snapshot
+     * of the list.
      */
     @NonNull
-    private final List<DataProfile> mAllDataProfiles = new ArrayList<>();
+    private volatile List<DataProfile> mAllDataProfiles = Collections.emptyList();
 
     /** The data profile used for initial attach. */
     @Nullable
@@ -292,7 +308,7 @@ public class DataProfileManager extends Handler {
             while (cursor.moveToNext()) {
                 ApnSetting apn = ApnSetting.makeApnSetting(cursor);
                 if (apn != null) {
-// QTI_BEGIN: 2025-02-07: Telephony: Telephony-Data: Decouple Qualcomm value adds.
+// QTI_BEGIN: 2025-02-06: Telephony: Telephony-Data: Decouple Qualcomm value adds.
                     DataProfile dataProfile = new DataProfile.Builder()
                             .setApnSetting(apn)
                             .setTrafficDescriptor(new TrafficDescriptor(apn.getApnName(), null))
@@ -301,26 +317,24 @@ public class DataProfileManager extends Handler {
                     profiles.add(dataProfile);
                     log("Added " + dataProfile);
 
-// QTI_END: 2025-02-07: Telephony: Telephony-Data: Decouple Qualcomm value adds.
+// QTI_END: 2025-02-06: Telephony: Telephony-Data: Decouple Qualcomm value adds.
                     isInternetSupported |= apn.canHandleType(ApnSetting.TYPE_DEFAULT);
                     if (mDataConfigManager.isApnConfigAnomalyReportEnabled()
                             && apn.getEditedStatus() == Telephony.Carriers.UNEDITED) {
                         checkApnSetting(apn);
                     }
                 }
-// QTI_BEGIN: 2022-03-05: Telephony: Add support for injecting data sub modules
+// QTI_BEGIN: 2022-03-04: Telephony: Add support for injecting data sub modules
             }
-// QTI_END: 2022-03-05: Telephony: Add support for injecting data sub modules
+// QTI_END: 2022-03-04: Telephony: Add support for injecting data sub modules
             cursor.close();
 
-// QTI_BEGIN: 2025-02-07: Telephony: Telephony-Data: Decouple Qualcomm value adds.
+// QTI_BEGIN: 2025-02-06: Telephony: Telephony-Data: Decouple Qualcomm value adds.
             if (!profiles.isEmpty()) {
                 filterDataProfilesWithRadioCapability(profiles);
-// QTI_END: 2025-02-07: Telephony: Telephony-Data: Decouple Qualcomm value adds.
-// QTI_BEGIN: 2023-04-07: Telephony: Fix for initial attach on "nxtgenphone" instead of "nrphone"
+// QTI_END: 2025-02-06: Telephony: Telephony-Data: Decouple Qualcomm value adds.
             }
 
-// QTI_END: 2023-04-07: Telephony: Fix for initial attach on "nxtgenphone" instead of "nrphone"
             if (!isInternetSupported
                     && !profiles.isEmpty() // APN database has been read successfully
                     && mDataConfigManager.isApnConfigAnomalyReportEnabled()) {
@@ -386,8 +400,7 @@ public class DataProfileManager extends Handler {
         boolean profilesChanged = false;
         if (mAllDataProfiles.size() != profiles.size() || !mAllDataProfiles.containsAll(profiles)) {
             log("Data profiles changed.");
-            mAllDataProfiles.clear();
-            mAllDataProfiles.addAll(profiles);
+            mAllDataProfiles = Collections.unmodifiableList(new ArrayList<>(profiles));
             profilesChanged = true;
         }
 
@@ -410,19 +423,19 @@ public class DataProfileManager extends Handler {
         }
     }
 
-// QTI_BEGIN: 2022-03-05: Telephony: Add support for injecting data sub modules
+// QTI_BEGIN: 2022-03-04: Telephony: Add support for injecting data sub modules
     /**
      * Filters out multiple APNs based on radio capability if the APN's GID value is listed in
      * CarrierConfigManager#KEY_MULTI_APN_ARRAY_FOR_SAME_GID as per the operator requirement.
      */
-// QTI_END: 2022-03-05: Telephony: Add support for injecting data sub modules
-// QTI_BEGIN: 2025-02-07: Telephony: Telephony-Data: Decouple Qualcomm value adds.
+// QTI_END: 2022-03-04: Telephony: Add support for injecting data sub modules
+// QTI_BEGIN: 2025-02-06: Telephony: Telephony-Data: Decouple Qualcomm value adds.
     protected void filterDataProfilesWithRadioCapability(List<DataProfile> profiles) {
-// QTI_END: 2025-02-07: Telephony: Telephony-Data: Decouple Qualcomm value adds.
-// QTI_BEGIN: 2022-03-05: Telephony: Add support for injecting data sub modules
+// QTI_END: 2025-02-06: Telephony: Telephony-Data: Decouple Qualcomm value adds.
+// QTI_BEGIN: 2022-03-04: Telephony: Add support for injecting data sub modules
     }
 
-// QTI_END: 2022-03-05: Telephony: Add support for injecting data sub modules
+// QTI_END: 2022-03-04: Telephony: Add support for injecting data sub modules
     /**
      * @return The preferred data profile set id.
      */
@@ -565,6 +578,26 @@ public class DataProfileManager extends Handler {
     }
 
     /**
+     * Set the timestamp of when the data profile was last used to set up a data network.
+     * This is used for sorting the data profiles so the least recently used ones can be
+     * prioritized.
+     *
+     * @param dataProfile The data profile that was used.
+     * @param timestamp The timestamp from {@link android.os.SystemClock#elapsedRealtime()}.
+     */
+    public void setDataProfileUsedTime(@NonNull DataProfile dataProfile,
+            @ElapsedRealtimeLong long timestamp) {
+        // Because in data profile manager, only the pre-built APN-based data profiles are stored..
+        // So this method is only meaningful when the data profile has APN in it.
+        for (DataProfile dp : mAllDataProfiles) {
+            if (dp.getApnSetting() != null
+                    && dp.getApnSetting().equals(dataProfile.getApnSetting())) {
+                dp.setLastSetupTimestamp(timestamp);
+            }
+        }
+    }
+
+    /**
      * Reload the latest preferred data profile from either database or the config. This is to
      * make sure the cached {@link #mPreferredDataProfile} is in-sync.
      *
@@ -703,6 +736,18 @@ public class DataProfileManager extends Handler {
                     isEsimBootstrapProvisioning, ignorePermanentFailure);
         }
 
+        HalVersion halVersion = mPhone.getHalVersion();
+        boolean useApnOnly = halVersion != null
+                && halVersion.lessOrEqual(RIL.RADIO_HAL_VERSION_1_5);
+        if (useApnOnly) {
+            for (DataProfile dataProfile : mAllDataProfiles) {
+                if (Objects.equals(apnSetting, dataProfile.getApnSetting())) {
+                    return dataProfile;
+                }
+            }
+            return null;
+        }
+
         TrafficDescriptor.Builder trafficDescriptorBuilder = new TrafficDescriptor.Builder();
         if (networkRequest.hasAttribute(TelephonyNetworkRequest
                 .CAPABILITY_ATTRIBUTE_TRAFFIC_DESCRIPTOR_DNN)) {
@@ -744,13 +789,34 @@ public class DataProfileManager extends Handler {
             return null;
         }
 
+        if (!mFeatureFlags.enableTrafficDescriptorConnectionCapability() || mDataConfigManager
+                .isApnMatchedRequired()) {
+            if (trafficDescriptor.getDataNetworkName() == null
+                    && trafficDescriptor.getOsAppId() == null
+                    && trafficDescriptor.getConnectionCapability()
+                    != TrafficDescriptor.CONNECTION_CAPABILITY_UNKNOWN) {
+                return null;
+            }
+        }
+
         // Instead of building the data profile from APN setting and traffic descriptor on-the-fly,
         // find the existing one from mAllDataProfiles so the last-setup timestamp can be retained.
-        // Only create a new one when it can't be found.
-        for (DataProfile dataProfile : mAllDataProfiles) {
-            if (Objects.equals(apnSetting, dataProfile.getApnSetting())
-                    && trafficDescriptor.equals(dataProfile.getTrafficDescriptor())) {
-                return dataProfile;
+        // Note that the pre-built data profile in mAllDataProfiles all have connection capability
+        // unknown, so we need to apply the connection capability to it.
+        if (mFeatureFlags.enableTrafficDescriptorConnectionCapability()) {
+            for (DataProfile dataProfile : mAllDataProfiles) {
+                if (Objects.equals(apnSetting, dataProfile.getApnSetting())) {
+                    return new DataProfile.Builder(dataProfile)
+                            .setTrafficDescriptor(trafficDescriptor)
+                            .build();
+                }
+            }
+        } else {
+            for (DataProfile dataProfile : mAllDataProfiles) {
+                if (Objects.equals(apnSetting, dataProfile.getApnSetting())
+                        && trafficDescriptor.equals(dataProfile.getTrafficDescriptor())) {
+                    return dataProfile;
+                }
             }
         }
 
@@ -1174,9 +1240,9 @@ public class DataProfileManager extends Handler {
      * Log debug messages.
      * @param s debug messages
      */
-// QTI_BEGIN: 2022-03-05: Telephony: Add support for injecting data sub modules
+// QTI_BEGIN: 2022-03-04: Telephony: Add support for injecting data sub modules
     protected void log(@NonNull String s) {
-// QTI_END: 2022-03-05: Telephony: Add support for injecting data sub modules
+// QTI_END: 2022-03-04: Telephony: Add support for injecting data sub modules
         Rlog.d(mLogTag, s);
     }
 
@@ -1184,9 +1250,9 @@ public class DataProfileManager extends Handler {
      * Log error messages.
      * @param s error messages
      */
-// QTI_BEGIN: 2022-03-05: Telephony: Add support for injecting data sub modules
+// QTI_BEGIN: 2022-03-04: Telephony: Add support for injecting data sub modules
     protected void loge(@NonNull String s) {
-// QTI_END: 2022-03-05: Telephony: Add support for injecting data sub modules
+// QTI_END: 2022-03-04: Telephony: Add support for injecting data sub modules
         Rlog.e(mLogTag, s);
     }
 
@@ -1202,9 +1268,9 @@ public class DataProfileManager extends Handler {
      * Log debug messages and also log into the local log.
      * @param s debug messages
      */
-// QTI_BEGIN: 2022-03-05: Telephony: Add support for injecting data sub modules
+// QTI_BEGIN: 2022-03-04: Telephony: Add support for injecting data sub modules
     protected void logl(@NonNull String s) {
-// QTI_END: 2022-03-05: Telephony: Add support for injecting data sub modules
+// QTI_END: 2022-03-04: Telephony: Add support for injecting data sub modules
         log(s);
         mLocalLog.log(s);
     }
