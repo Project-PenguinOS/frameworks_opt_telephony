@@ -254,6 +254,7 @@ import static com.android.internal.telephony.RILConstants.RIL_UNSOL_CELLULAR_IDE
 import static com.android.internal.telephony.RILConstants.RIL_UNSOL_CELL_INFO_LIST;
 import static com.android.internal.telephony.RILConstants.RIL_UNSOL_CONNECTION_SETUP_FAILURE;
 import static com.android.internal.telephony.RILConstants.RIL_UNSOL_DATA_CALL_LIST_CHANGED;
+import static com.android.internal.telephony.RILConstants.RIL_UNSOL_DATA_CALL_LIST_UPDATED;
 import static com.android.internal.telephony.RILConstants.RIL_UNSOL_DC_RT_INFO_CHANGED;
 import static com.android.internal.telephony.RILConstants.RIL_UNSOL_EMERGENCY_NETWORK_SCAN_RESULT;
 import static com.android.internal.telephony.RILConstants.RIL_UNSOL_EMERGENCY_NUMBER_LIST;
@@ -5702,6 +5703,8 @@ public class RILUtils {
                 return "UNSOL_PRIORITIZED_SCAN_MODE_CHANGED";
             case RIL_UNSOL_NETWORK_SECURITY_EVENTS:
                 return "UNSOL_NETWORK_SECURITY_EVENTS";
+            case RIL_UNSOL_DATA_CALL_LIST_UPDATED:
+                return "UNSOL_DATA_CALL_LIST_UPDATED";
             default:
                 return "<unknown response " + response + ">";
         }
