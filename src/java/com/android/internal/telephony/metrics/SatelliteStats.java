@@ -2020,6 +2020,9 @@ public class SatelliteStats {
         private final @SatelliteConstants.SatelliteGlobalConnectType int mSupportedConnectionMode;
         private final @SatelliteConstants.SatelliteSessionConnectType int mSessionConnectionMode;
         private final String mPlmn;
+        private final boolean mIsInCarrierRoamingNtnMode;
+        private final int mCarrierRoamingSatelliteEmergencyMessagingProvider;
+        private final int mEmergencyNumberSourceUsedInHandoverIntent;
 
         private SatelliteSosMessageRecommenderParams(Builder builder) {
             this.mIsDisplaySosMessageSent = builder.mIsDisplaySosMessageSent;
@@ -2036,6 +2039,11 @@ public class SatelliteStats {
             this.mSupportedConnectionMode = builder.mSupportedConnectionMode;
             this.mSessionConnectionMode = builder.mSessionConnectionMode;
             this.mPlmn = builder.mPlmn;
+            this.mIsInCarrierRoamingNtnMode = builder.mIsInCarrierRoamingNtnMode;
+            this.mCarrierRoamingSatelliteEmergencyMessagingProvider =
+                builder.mCarrierRoamingSatelliteEmergencyMessagingProvider;
+            this.mEmergencyNumberSourceUsedInHandoverIntent =
+                builder.mEmergencyNumberSourceUsedInHandoverIntent;
         }
 
         public boolean isDisplaySosMessageSent() {
@@ -2090,6 +2098,18 @@ public class SatelliteStats {
             return mPlmn;
         }
 
+        public boolean getIsInCarrierRoamingNtnMode() {
+            return mIsInCarrierRoamingNtnMode;
+        }
+
+        public int getCarrierRoamingSatelliteEmergencyMessagingProvider() {
+            return mCarrierRoamingSatelliteEmergencyMessagingProvider;
+        }
+
+        public int getEmergencyNumberSourceUsedInHandoverIntent() {
+            return mEmergencyNumberSourceUsedInHandoverIntent;
+        }
+
         /**
          * A builder class to create {@link SatelliteSosMessageRecommender} data structure class
          */
@@ -2109,6 +2129,11 @@ public class SatelliteStats {
             private @SatelliteConstants.SatelliteSessionConnectType int mSessionConnectionMode =
                     SatelliteConstants.SESSION_NTN_CONNECT_TYPE_UNKNOWN;
             private String mPlmn = "UNKNOWN";
+            private boolean mIsInCarrierRoamingNtnMode = false;
+            private int mCarrierRoamingSatelliteEmergencyMessagingProvider =
+                SatelliteManager.CARRIER_ROAMING_SATELLITE_EMERGENCY_MESSAGING_PROVIDER_UNKNOWN;
+            private int mEmergencyNumberSourceUsedInHandoverIntent =
+                SatelliteConstants.EMERGENCY_NUMBER_SOURCE_UNKNOWN;
 
             /**
              * Sets resultCode value of {@link SatelliteSosMessageRecommender} atom
@@ -2230,6 +2255,35 @@ public class SatelliteStats {
             }
 
             /**
+             * Sets isInCarrierRoamingNtnMode value of {@link SatelliteSosMessageRecommender} atom
+             * then returns Builder class
+             */
+            public Builder setIsInCarrierRoamingNtnMode(boolean isInCarrierRoamingNtnMode) {
+                this.mIsInCarrierRoamingNtnMode = isInCarrierRoamingNtnMode;
+                return this;
+            }
+
+            /**
+             * Sets carrierRoamingSatelliteEmergencyMessagingProvider value of
+             * {@link SatelliteSosMessageRecommender} atom
+             * then returns Builder class
+             */
+            public Builder setCarrierRoamingSatelliteEmergencyMessagingProvider(int provider) {
+                this.mCarrierRoamingSatelliteEmergencyMessagingProvider = provider;
+                return this;
+            }
+
+            /**
+             * Sets emergencyNumberSourceUsedInHandoverIntent value of
+             * {@link SatelliteSosMessageRecommender} atom
+             * then returns Builder class
+             */
+            public Builder setEmergencyNumberSourceUsedInHandoverIntent(int source) {
+                this.mEmergencyNumberSourceUsedInHandoverIntent = source;
+                return this;
+            }
+
+            /**
              * Returns SosMessageRecommenderParams, which contains whole component of
              * {@link SatelliteSosMessageRecommenderParams} atom
              */
@@ -2255,6 +2309,11 @@ public class SatelliteStats {
                     + ", supportedConnectionMode=" + mSupportedConnectionMode
                     + ", sessionConnectionMode=" + mSessionConnectionMode
                     + ", plmn=" + mPlmn
+                    + ", isInCarrierRoamingNtnMode=" + mIsInCarrierRoamingNtnMode
+                    + ", carrierRoamingSatelliteEmergencyMessagingProvider ="
+                    + mCarrierRoamingSatelliteEmergencyMessagingProvider
+                    + ", mEmergencyNumberSourceUsedInHandoverIntent ="
+                    + mEmergencyNumberSourceUsedInHandoverIntent
                     + ")";
         }
     }
@@ -4247,6 +4306,12 @@ public class SatelliteStats {
         proto.count = 1;
         proto.supportedConnectionMode = param.getSupportedConnectionMode();
         proto.sessionConnectionMode = param.getSessionConnectionMode();
+        proto.plmn = param.getPlmn();
+        proto.isInCarrierRoamingNtnMode = param.getIsInCarrierRoamingNtnMode();
+        proto.carrierRoamingSatelliteEmergencyMessagingProvider =
+            param.getCarrierRoamingSatelliteEmergencyMessagingProvider();
+        proto.emergencyNumberSourceUsedInHandoverIntent =
+            param.getEmergencyNumberSourceUsedInHandoverIntent();
         if (DBG) logd("onSatelliteSosMessageRecommender: " + param);
         mAtomsStorage.addSatelliteSosMessageRecommenderStats(proto);
     }
