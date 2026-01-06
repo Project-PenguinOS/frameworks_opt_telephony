@@ -3598,14 +3598,14 @@ public class SatelliteControllerTest extends TelephonyTest {
         doReturn(plmnList).when(mMockConfig).getAllSatellitePlmnsForCarrier(anyInt());
         doReturn(mMockConfig).when(mMockConfigParser).getConfig();
 
-        Map<String, List<Integer>> servicePerPlmn = new HashMap<>();
+        Map<String, Set<Integer>> servicePerPlmn = new HashMap<>();
         List<List<Integer>> serviceLists = Arrays.asList(
                 Arrays.asList(1),
                 Arrays.asList(3),
                 Arrays.asList(5)
         );
         for (int i = 0; i < plmnList.size(); i++) {
-            servicePerPlmn.put(plmnList.get(i), serviceLists.get(i));
+            servicePerPlmn.put(plmnList.get(i), new HashSet<>(serviceLists.get(i)));
         }
         doReturn(servicePerPlmn).when(mMockConfig).getSupportedSatelliteServices(anyInt());
         doReturn(mMockConfig).when(mMockConfigParser).getConfig();
@@ -7747,6 +7747,114 @@ public class SatelliteControllerTest extends TelephonyTest {
                 .getSatelliteDataServicePolicyForPlmn(SUB_ID, null);
         assertEquals(SATELLITE_DATA_SUPPORT_ONLY_RESTRICTED, dataSupportModeForPlmn);
     }
+
+  @Test
+  public void testGetSupportedServicesOnCarrierRoamingNtn_unsupportedSatelliteViaCarrier() {
+        mSatelliteControllerUT.setCallOnlySuperMethod();
+        mCarrierConfigBundle.putBoolean(
+            CarrierConfigManager.KEY_SATELLITE_ATTACH_SUPPORTED_BOOL, false);
+        invokeCarrierConfigChanged();
+        int[] services = mSatelliteControllerUT.getSupportedServicesOnCarrierRoamingNtn(SUB_ID);
+        assertEquals(0, services.length);
+  }
+
+  @Test
+  public void testGetSupportedServicesOnCarrierRoamingNtn_entitlementDataSource() throws Exception {
+        mSatelliteControllerUT.setCallOnlySuperMethod();
+        List<String> overlayConfigPlmnList = new ArrayList<>();
+        replaceInstance(SatelliteController.class, "mSatellitePlmnListFromOverlayConfig",
+            mSatelliteControllerUT, overlayConfigPlmnList);
+        mCarrierConfigBundle.putBoolean(
+            CarrierConfigManager.KEY_SATELLITE_ENTITLEMENT_SUPPORTED_BOOL, true);
+        mCarrierConfigBundle.putBoolean(CarrierConfigManager.KEY_SATELLITE_ATTACH_SUPPORTED_BOOL,
+            true);
+        invokeCarrierConfigChanged();
+
+        List<String> entitlementPlmnList = Arrays.stream(
+            new String[]{"00101", "00102", "00103", "00104"}).toList();
+        List<String> barredPlmnList = new ArrayList<>();
+        Map<String, List<Integer>> serviceTypeListMap = Map.of("00101",
+            List.of(NetworkRegistrationInfo.SERVICE_TYPE_DATA,
+                NetworkRegistrationInfo.SERVICE_TYPE_SMS), "00102",
+            List.of(NetworkRegistrationInfo.SERVICE_TYPE_VOICE,
+                NetworkRegistrationInfo.SERVICE_TYPE_SMS), "00103",
+            List.of(NetworkRegistrationInfo.SERVICE_TYPE_DATA,
+                NetworkRegistrationInfo.SERVICE_TYPE_VOICE, SERVICE_TYPE_SMS));
+        mSatelliteControllerUT.onSatelliteEntitlementStatusUpdated(SUB_ID, false,
+            entitlementPlmnList, barredPlmnList, new HashMap<>(), serviceTypeListMap,
+            new HashMap<>(), new HashMap<>(), mIIntegerConsumer);
+        processAllMessages();
+        int[] expectedServices = new int[]{NetworkRegistrationInfo.SERVICE_TYPE_DATA,
+            NetworkRegistrationInfo.SERVICE_TYPE_VOICE, NetworkRegistrationInfo.SERVICE_TYPE_SMS};
+        int[] supportedServices = mSatelliteControllerUT.getSupportedServicesOnCarrierRoamingNtn(
+            SUB_ID);
+        Arrays.sort(expectedServices);
+        Arrays.sort(supportedServices);
+        assertArrayEquals(expectedServices, supportedServices);
+  }
+
+  @Test
+  public void testGetSupportedServicesOnCarrierRoamingNtn_configUpdaterDataSource() {
+        mSatelliteControllerUT.setCallOnlySuperMethod();
+        mCarrierConfigBundle.putBoolean(
+            CarrierConfigManager.KEY_SATELLITE_ATTACH_SUPPORTED_BOOL, true);
+        setConfigData(Arrays.asList("00101", "00102", "31024"));
+        invokeCarrierConfigChanged();
+
+        int[] expectedServices = new int[]{NetworkRegistrationInfo.SERVICE_TYPE_SMS,
+            NetworkRegistrationInfo.SERVICE_TYPE_VOICE,
+            NetworkRegistrationInfo.SERVICE_TYPE_EMERGENCY};
+        int[] supportedServices = mSatelliteControllerUT.getSupportedServicesOnCarrierRoamingNtn(
+            SUB_ID);
+        Arrays.sort(expectedServices);
+        Arrays.sort(supportedServices);
+        assertArrayEquals(expectedServices, supportedServices);
+  }
+
+  @Test
+  public void testGetSupportedServicesOnCarrierRoamingNtn_carrierConfigDataSource() {
+        mSatelliteControllerUT.setCallOnlySuperMethod();
+        mCarrierConfigBundle.putBoolean(
+            CarrierConfigManager.KEY_SATELLITE_ATTACH_SUPPORTED_BOOL, true);
+        setCarrierConfigDataPlmnList(Arrays.asList("00101", "00102", "00104"));
+        invokeCarrierConfigChanged();
+
+        int[] expectedServices = new int[]{NetworkRegistrationInfo.SERVICE_TYPE_DATA,
+            NetworkRegistrationInfo.SERVICE_TYPE_VOICE, NetworkRegistrationInfo.SERVICE_TYPE_SMS};
+        int[] supportedServices = mSatelliteControllerUT.getSupportedServicesOnCarrierRoamingNtn(
+            SUB_ID);
+        Arrays.sort(expectedServices);
+        Arrays.sort(supportedServices);
+        assertArrayEquals(expectedServices, supportedServices);
+  }
+
+  @Test
+  public void testGetSupportedServicesOnCarrierRoamingNtn_defaultCarrierConfigDataSource() {
+        mSatelliteControllerUT.setCallOnlySuperMethod();
+        mCarrierConfigBundle.putBoolean(
+            CarrierConfigManager.KEY_SATELLITE_ATTACH_SUPPORTED_BOOL, true);
+        int[] defaultServices = {NetworkRegistrationInfo.SERVICE_TYPE_SMS,
+            NetworkRegistrationInfo.SERVICE_TYPE_MMS};
+        mCarrierConfigBundle.putIntArray(
+            CarrierConfigManager.KEY_CARRIER_ROAMING_SATELLITE_DEFAULT_SERVICES_INT_ARRAY,
+            defaultServices);
+        invokeCarrierConfigChanged();
+
+        int[] supportedServices = mSatelliteControllerUT.getSupportedServicesOnCarrierRoamingNtn(
+            SUB_ID);
+        assertArrayEquals(defaultServices, supportedServices);
+  }
+
+  @Test
+  public void testGetSupportedServicesOnCarrierRoamingNtn_noDataSource() {
+    mSatelliteControllerUT.setCallOnlySuperMethod();
+    mCarrierConfigBundle.putBoolean(CarrierConfigManager.KEY_SATELLITE_ATTACH_SUPPORTED_BOOL, true);
+    invokeCarrierConfigChanged();
+
+    int[] supportedServices = mSatelliteControllerUT.getSupportedServicesOnCarrierRoamingNtn(
+        SUB_ID);
+    assertEquals(0, supportedServices.length);
+  }
 
     @Test
     public void testNotifyCarrierRoamingNtnAvailableServicesChanged_noServices() throws Exception {
