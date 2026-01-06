@@ -14,10 +14,10 @@
 // limitations under the License.
 
 syntax = "proto2";
-package com.android.internal.telephony.satellite;
+package com.android.internal.telephony;
 
-option java_package = "com.android.internal.telephony.satellite";
-option java_outer_classname = "SatelliteConfigData";
+option java_package = "com.android.internal.telephony";
+option java_outer_classname = "TelephonyConfigData";
 
 // Top level container for all telephony configs that can be updated.
 //

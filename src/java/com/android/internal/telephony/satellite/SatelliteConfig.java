@@ -24,7 +24,7 @@ import android.util.ArraySet;
 import android.util.Log;
 
 import com.android.internal.annotations.VisibleForTesting;
-import com.android.internal.telephony.satellite.nano.SatelliteConfigData;
+import com.android.internal.telephony.nano.TelephonyConfigData;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
@@ -59,7 +59,7 @@ public class SatelliteConfig {
     private File mSatS2File;
     private File mSatelliteAccessConfigJsonFile;
     private List<String> mDeviceSatelliteProviders;
-    private SatelliteConfigData.SatelliteConfigProto mConfigData;
+    private TelephonyConfigData.SatelliteConfigProto mConfigData;
 
     public SatelliteConfig() {
         logd("SatelliteConfig: constructing from scratch");
@@ -74,7 +74,7 @@ public class SatelliteConfig {
         new SatelliteConfig(satelliteConfig.mConfigData);
     }
 
-    public SatelliteConfig(@NonNull SatelliteConfigData.SatelliteConfigProto configData) {
+    public SatelliteConfig(@NonNull TelephonyConfigData.SatelliteConfigProto configData) {
         logd("SatelliteConfig: constructing with configData: " + configData);
         mConfigData = configData;
         mVersion = mConfigData.version;
@@ -154,15 +154,15 @@ public class SatelliteConfig {
      * @return a Map data with carrier_id, plmns and allowed_services.
      */
     private Map<Integer, Map<String, Set<Integer>>> getCarrierSupportedSatelliteServices() {
-        SatelliteConfigData.CarrierSupportedSatelliteServicesProto[] satelliteServices =
+        TelephonyConfigData.CarrierSupportedSatelliteServicesProto[] satelliteServices =
                 mConfigData.carrierSupportedSatelliteServices;
         Map<Integer, Map<String, Set<Integer>>> carrierToServicesMap = new HashMap<>();
-        for (SatelliteConfigData.CarrierSupportedSatelliteServicesProto carrierProto :
+        for (TelephonyConfigData.CarrierSupportedSatelliteServicesProto carrierProto :
                 satelliteServices) {
-            SatelliteConfigData.SatelliteProviderCapabilityProto[] satelliteCapabilities =
+            TelephonyConfigData.SatelliteProviderCapabilityProto[] satelliteCapabilities =
                     carrierProto.supportedSatelliteProviderCapabilities;
             Map<String, Set<Integer>> satelliteCapabilityMap = new HashMap<>();
-            for (SatelliteConfigData.SatelliteProviderCapabilityProto capabilityProto :
+            for (TelephonyConfigData.SatelliteProviderCapabilityProto capabilityProto :
                     satelliteCapabilities) {
                 String carrierPlmn = capabilityProto.carrierPlmn;
                 Set<Integer> allowedServices = new HashSet<>();
