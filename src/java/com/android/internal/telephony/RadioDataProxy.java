@@ -479,19 +479,14 @@ public class RadioDataProxy extends RadioServiceProxy {
      * Call IRadioData#notifyImsDataNetwork
      *
      * @param serial Serial number of request
-     * @param accessNetwork The access network type.
-     * @param dataNetworkState The data network connection state.
-     * @param physicalTransportType The physical transport type of the data network.
-     * @param physicalNetworkModemId The logic modem ID while the physical transport type is WWAN.
-     *        If the physical transport type is WLAN, this modem ID will be -1.
+     * @param info IMS data network info
      * @throws RemoteException if error occurs
      */
-    public void notifyImsDataNetwork(int serial, int accessNetwork, int dataNetworkState,
-            int physicalTransportType, int physicalNetworkModemId) throws RemoteException {
+    public void notifyImsDataNetwork(int serial,
+            android.hardware.radio.data.ImsDataNetworkInfo info) throws RemoteException {
         if (isEmpty()) return;
         if (isAidl()) {
-            mDataProxy.notifyImsDataNetwork(serial, accessNetwork, dataNetworkState,
-                    physicalTransportType, physicalNetworkModemId);
+            mDataProxy.notifyImsDataNetwork(serial, info);
         }
     }
 }

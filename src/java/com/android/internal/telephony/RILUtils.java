@@ -322,6 +322,8 @@ import android.net.LinkProperties;
 import android.os.SystemClock;
 import android.service.carrier.CarrierIdentifier;
 import android.telephony.AccessNetworkConstants;
+import android.telephony.AccessNetworkConstants.RadioAccessNetworkType;
+import android.telephony.AccessNetworkConstants.TransportType;
 import android.telephony.Annotation;
 import android.telephony.Annotation.DataState;
 import android.telephony.BarringInfo;
@@ -4983,6 +4985,26 @@ public class RILUtils {
                     android.hardware.radio.ims.ImsServiceType.VOWIFI;
             default -> android.hardware.radio.ims.ImsServiceType.INVALID;
         };
+    }
+
+    /**
+     * Convert to HAL IMS data network info.
+     * @param accessNetwork The access network type.
+     * @param dataNetworkState The data network connection state.
+     * @param physicalTransportType The physical transport type of the data network.
+     * @param physicalNetworkSlotIndex The slot index of physicalTransportType.
+     * @return The converted HAL IMS data network info.
+     */
+    public static android.hardware.radio.data.ImsDataNetworkInfo convertToHalImsDataNetworkInfo(
+            @RadioAccessNetworkType int accessNetwork, @DataState int dataNetworkState,
+            @TransportType int physicalTransportType, int physicalNetworkSlotIndex) {
+        android.hardware.radio.data.ImsDataNetworkInfo info =
+                new android.hardware.radio.data.ImsDataNetworkInfo();
+        info.accessNetwork = accessNetwork;
+        info.dataNetworkState = convertToHalDataNetworkState(dataNetworkState);
+        info.physicalTransportType = physicalTransportType;
+        info.physicalNetworkModemId = physicalNetworkSlotIndex;
+        return info;
     }
 
     /**
