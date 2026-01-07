@@ -80,3 +80,26 @@ flag {
         purpose: PURPOSE_FEATURE
     }
 }
+
+# OWNER=yomna TARGET=26Q2
+flag {
+    name: "key_carrier_2g_toggle"
+    namespace: "telephony"
+    description: "Guard carrier key API KEY_CARRIER_DEFAULT_2G_PROTECTION_ENABLED_BOOL"
+    bug: "411183432"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+# OWNER=yomna TARGET=26Q2
+flag {
+    name: "drb_security_transparency"
+    is_exported: true
+    namespace: "telephony"
+    description: "Guard system API for DRB-specific security updates"
+    bug:"452486608"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}

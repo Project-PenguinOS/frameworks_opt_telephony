@@ -3296,7 +3296,7 @@ public class RILUtils {
         return convertedReasonCodes;
     }
 
-    /**
+  /**
      * Convert a list of NetworkSecurityEvent defined in NetworkSecurityEvent.aidl to a set
      * of NetworkSecurityEvent
      * @param halNetworkSecurityEvents List of halNetworkSecurityEvent defined in
@@ -3311,8 +3311,24 @@ public class RILUtils {
         }
         for (android.hardware.radio.network.NetworkSecurityEvent halNetworkSecurityEvent :
                 halNetworkSecurityEvents) {
-            networkSecurityEvents.add(
-                    new NetworkSecurityEvent(
+            networkSecurityEvents.add(convertHalNetworkSecurityEvent(halNetworkSecurityEvent));
+        }
+        return networkSecurityEvents;
+    }
+
+    /**
+     * Convert a single NetworkSecurityEvent defined in NetworkSecurityEvent.aidl to a single
+     * of NetworkSecurityEvent
+     * @param halNetworkSecurityEvent A single halNetworkSecurityEvent defined in
+     *        NetworkSecurityEvent.aidl
+     * @return The converted set of NetworkSecurityEvent
+     */
+    public static NetworkSecurityEvent convertHalNetworkSecurityEvent(@Nullable
+            android.hardware.radio.network.NetworkSecurityEvent halNetworkSecurityEvent) {
+        if (halNetworkSecurityEvent == null) {
+            return null;
+        }
+        return new NetworkSecurityEvent(
                             convertHalNetworkSecurityAlertCategory(
                                     halNetworkSecurityEvent.alertCategory),
                             convertHalNetworkSecurityAlertStatus(
@@ -3324,9 +3340,7 @@ public class RILUtils {
                             halNetworkSecurityEvent.arfcn,
                             halNetworkSecurityEvent.plmn,
                             halNetworkSecurityEvent.rat,
-                            halNetworkSecurityEvent.isEmergency));
-        }
-        return networkSecurityEvents;
+                            halNetworkSecurityEvent.isEmergency);
     }
 
     private static LinkAddress convertToLinkAddress(String addressString) {
