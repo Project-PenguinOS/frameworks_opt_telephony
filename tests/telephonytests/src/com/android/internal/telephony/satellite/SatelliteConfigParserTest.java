@@ -40,6 +40,7 @@ import android.testing.AndroidTestingRunner;
 
 import androidx.test.InstrumentationRegistry;
 
+import com.android.internal.telephony.TelephonyConfigData;
 import com.android.internal.telephony.TelephonyTest;
 
 import com.google.protobuf.ByteString;
@@ -83,25 +84,25 @@ public class SatelliteConfigParserTest extends TelephonyTest {
         MockitoAnnotations.initMocks(this);
         logd(TAG + " Setup!");
 
-        SatelliteConfigData.TelephonyConfigProto.Builder telephonyConfigBuilder =
-                SatelliteConfigData.TelephonyConfigProto.newBuilder();
-        SatelliteConfigData.SatelliteConfigProto.Builder satelliteConfigBuilder =
-                SatelliteConfigData.SatelliteConfigProto.newBuilder();
+        TelephonyConfigData.TelephonyConfigProto.Builder telephonyConfigBuilder =
+                TelephonyConfigData.TelephonyConfigProto.newBuilder();
+        TelephonyConfigData.SatelliteConfigProto.Builder satelliteConfigBuilder =
+                TelephonyConfigData.SatelliteConfigProto.newBuilder();
 
         // version
         satelliteConfigBuilder.setVersion(4);
 
         // carriersupportedservices
-        SatelliteConfigData.CarrierSupportedSatelliteServicesProto.Builder
+        TelephonyConfigData.CarrierSupportedSatelliteServicesProto.Builder
                 carrierSupportedSatelliteServiceBuilder =
-                SatelliteConfigData.CarrierSupportedSatelliteServicesProto.newBuilder();
+                TelephonyConfigData.CarrierSupportedSatelliteServicesProto.newBuilder();
 
         // carriersupportedservices#carrier_id
         carrierSupportedSatelliteServiceBuilder.setCarrierId(1);
 
         // carrierroamingconfig
-        SatelliteConfigData.CarrierRoamingConfigProto.Builder carrierRoamingConfigBuilder =
-                SatelliteConfigData.CarrierRoamingConfigProto.newBuilder();
+        TelephonyConfigData.CarrierRoamingConfigProto.Builder carrierRoamingConfigBuilder =
+                TelephonyConfigData.CarrierRoamingConfigProto.newBuilder();
         carrierRoamingConfigBuilder.setMaxAllowedDataMode(
                 SATELLITE_DATA_SUPPORT_BANDWIDTH_CONSTRAINED);
         carrierRoamingConfigBuilder.addDeviceSatellitePlmn(PLMN_310160);
@@ -111,9 +112,9 @@ public class SatelliteConfigParserTest extends TelephonyTest {
         carrierRoamingConfigBuilder.clear();
 
         // carriersupportedservices#providercapability
-        SatelliteConfigData.SatelliteProviderCapabilityProto.Builder
+        TelephonyConfigData.SatelliteProviderCapabilityProto.Builder
                 satelliteProviderCapabilityBuilder =
-                SatelliteConfigData.SatelliteProviderCapabilityProto.newBuilder();
+                TelephonyConfigData.SatelliteProviderCapabilityProto.newBuilder();
         satelliteProviderCapabilityBuilder.setCarrierPlmn(PLMN_310160);
         satelliteProviderCapabilityBuilder.addAllowedServices(SERVICE_TYPE_VOICE);
         satelliteProviderCapabilityBuilder.addAllowedServices(SERVICE_TYPE_DATA);
@@ -132,8 +133,8 @@ public class SatelliteConfigParserTest extends TelephonyTest {
                 carrierSupportedSatelliteServiceBuilder);
 
         // satelliteregion
-        SatelliteConfigData.SatelliteRegionProto.Builder satelliteRegionBuilder =
-                SatelliteConfigData.SatelliteRegionProto.newBuilder();
+        TelephonyConfigData.SatelliteRegionProto.Builder satelliteRegionBuilder =
+                TelephonyConfigData.SatelliteRegionProto.newBuilder();
         String testS2Content = "0123456789", testSatelliteAccessConfigContent = "sac";
         satelliteRegionBuilder.setS2CellFile(ByteString.copyFrom(testS2Content.getBytes()));
         satelliteRegionBuilder.setSatelliteAccessConfigFile(
@@ -144,7 +145,7 @@ public class SatelliteConfigParserTest extends TelephonyTest {
 
         telephonyConfigBuilder.setSatellite(satelliteConfigBuilder);
 
-        SatelliteConfigData.TelephonyConfigProto telephonyConfigData =
+        TelephonyConfigData.TelephonyConfigProto telephonyConfigData =
                 telephonyConfigBuilder.build();
         mBytesProtoBuffer = telephonyConfigData.toByteArray();
     }
@@ -462,18 +463,18 @@ public class SatelliteConfigParserTest extends TelephonyTest {
 
     @Test
     public void testNullCarrierRoamingConfig() {
-        SatelliteConfigData.TelephonyConfigProto.Builder telephonyConfigBuilder =
-                SatelliteConfigData.TelephonyConfigProto.newBuilder();
-        SatelliteConfigData.SatelliteConfigProto.Builder satelliteConfigBuilder =
-                SatelliteConfigData.SatelliteConfigProto.newBuilder();
+        TelephonyConfigData.TelephonyConfigProto.Builder telephonyConfigBuilder =
+                TelephonyConfigData.TelephonyConfigProto.newBuilder();
+        TelephonyConfigData.SatelliteConfigProto.Builder satelliteConfigBuilder =
+                TelephonyConfigData.SatelliteConfigProto.newBuilder();
 
         // version
         satelliteConfigBuilder.setVersion(4);
 
         // carriersupportedservices
-        SatelliteConfigData.CarrierSupportedSatelliteServicesProto.Builder
+        TelephonyConfigData.CarrierSupportedSatelliteServicesProto.Builder
                 carrierSupportedSatelliteServiceBuilder =
-                SatelliteConfigData.CarrierSupportedSatelliteServicesProto.newBuilder();
+                TelephonyConfigData.CarrierSupportedSatelliteServicesProto.newBuilder();
 
         // carriersupportedservices#carrier_id
         carrierSupportedSatelliteServiceBuilder.setCarrierId(1);
@@ -481,9 +482,9 @@ public class SatelliteConfigParserTest extends TelephonyTest {
         // not building carrierroamingconfig
 
         // carriersupportedservices#providercapability
-        SatelliteConfigData.SatelliteProviderCapabilityProto.Builder
+        TelephonyConfigData.SatelliteProviderCapabilityProto.Builder
                 satelliteProviderCapabilityBuilder =
-                SatelliteConfigData.SatelliteProviderCapabilityProto.newBuilder();
+                TelephonyConfigData.SatelliteProviderCapabilityProto.newBuilder();
         satelliteProviderCapabilityBuilder.setCarrierPlmn(PLMN_310160);
         satelliteProviderCapabilityBuilder.addAllowedServices(SERVICE_TYPE_VOICE);
         satelliteProviderCapabilityBuilder.addAllowedServices(SERVICE_TYPE_DATA);
@@ -502,8 +503,8 @@ public class SatelliteConfigParserTest extends TelephonyTest {
                 carrierSupportedSatelliteServiceBuilder);
 
         // satelliteregion
-        SatelliteConfigData.SatelliteRegionProto.Builder satelliteRegionBuilder =
-                SatelliteConfigData.SatelliteRegionProto.newBuilder();
+        TelephonyConfigData.SatelliteRegionProto.Builder satelliteRegionBuilder =
+                TelephonyConfigData.SatelliteRegionProto.newBuilder();
         String testS2Content = "0123456789", testSatelliteAccessConfigContent = "sac";
         satelliteRegionBuilder.setS2CellFile(ByteString.copyFrom(testS2Content.getBytes()));
         satelliteRegionBuilder.setSatelliteAccessConfigFile(
@@ -514,7 +515,7 @@ public class SatelliteConfigParserTest extends TelephonyTest {
 
         telephonyConfigBuilder.setSatellite(satelliteConfigBuilder);
 
-        SatelliteConfigData.TelephonyConfigProto telephonyConfigData =
+        TelephonyConfigData.TelephonyConfigProto telephonyConfigData =
                 telephonyConfigBuilder.build();
         mBytesProtoBuffer = telephonyConfigData.toByteArray();
 
@@ -535,32 +536,32 @@ public class SatelliteConfigParserTest extends TelephonyTest {
 
     @Test
     public void testNullMaxAllowedDataMode() {
-        SatelliteConfigData.TelephonyConfigProto.Builder telephonyConfigBuilder =
-                SatelliteConfigData.TelephonyConfigProto.newBuilder();
-        SatelliteConfigData.SatelliteConfigProto.Builder satelliteConfigBuilder =
-                SatelliteConfigData.SatelliteConfigProto.newBuilder();
+        TelephonyConfigData.TelephonyConfigProto.Builder telephonyConfigBuilder =
+                TelephonyConfigData.TelephonyConfigProto.newBuilder();
+        TelephonyConfigData.SatelliteConfigProto.Builder satelliteConfigBuilder =
+                TelephonyConfigData.SatelliteConfigProto.newBuilder();
 
         // version
         satelliteConfigBuilder.setVersion(4);
 
         // carriersupportedservices
-        SatelliteConfigData.CarrierSupportedSatelliteServicesProto.Builder
+        TelephonyConfigData.CarrierSupportedSatelliteServicesProto.Builder
                 carrierSupportedSatelliteServiceBuilder =
-                SatelliteConfigData.CarrierSupportedSatelliteServicesProto.newBuilder();
+                TelephonyConfigData.CarrierSupportedSatelliteServicesProto.newBuilder();
 
         // carriersupportedservices#carrier_id
         carrierSupportedSatelliteServiceBuilder.setCarrierId(1);
 
         // carrierroamingconfig, but not setting maxAllowedDataMode
-        SatelliteConfigData.CarrierRoamingConfigProto.Builder carrierRoamingConfigBuilder =
-                SatelliteConfigData.CarrierRoamingConfigProto.newBuilder();
+        TelephonyConfigData.CarrierRoamingConfigProto.Builder carrierRoamingConfigBuilder =
+                TelephonyConfigData.CarrierRoamingConfigProto.newBuilder();
         satelliteConfigBuilder.setCarrierRoamingConfig(carrierRoamingConfigBuilder);
         carrierRoamingConfigBuilder.clear();
 
         // carriersupportedservices#providercapability
-        SatelliteConfigData.SatelliteProviderCapabilityProto.Builder
+        TelephonyConfigData.SatelliteProviderCapabilityProto.Builder
                 satelliteProviderCapabilityBuilder =
-                SatelliteConfigData.SatelliteProviderCapabilityProto.newBuilder();
+                TelephonyConfigData.SatelliteProviderCapabilityProto.newBuilder();
         satelliteProviderCapabilityBuilder.setCarrierPlmn(PLMN_310160);
         satelliteProviderCapabilityBuilder.addAllowedServices(SERVICE_TYPE_VOICE);
         satelliteProviderCapabilityBuilder.addAllowedServices(SERVICE_TYPE_DATA);
@@ -579,8 +580,8 @@ public class SatelliteConfigParserTest extends TelephonyTest {
                 carrierSupportedSatelliteServiceBuilder);
 
         // satelliteregion
-        SatelliteConfigData.SatelliteRegionProto.Builder satelliteRegionBuilder =
-                SatelliteConfigData.SatelliteRegionProto.newBuilder();
+        TelephonyConfigData.SatelliteRegionProto.Builder satelliteRegionBuilder =
+                TelephonyConfigData.SatelliteRegionProto.newBuilder();
         String testS2Content = "0123456789", testSatelliteAccessConfigContent = "sac";
         satelliteRegionBuilder.setS2CellFile(ByteString.copyFrom(testS2Content.getBytes()));
         satelliteRegionBuilder.setSatelliteAccessConfigFile(
@@ -591,7 +592,7 @@ public class SatelliteConfigParserTest extends TelephonyTest {
 
         telephonyConfigBuilder.setSatellite(satelliteConfigBuilder);
 
-        SatelliteConfigData.TelephonyConfigProto telephonyConfigData =
+        TelephonyConfigData.TelephonyConfigProto telephonyConfigData =
                 telephonyConfigBuilder.build();
         mBytesProtoBuffer = telephonyConfigData.toByteArray();
 
@@ -615,26 +616,26 @@ public class SatelliteConfigParserTest extends TelephonyTest {
     private void setProtoData(boolean carrierSupportedSatelliteServices,
             boolean carrierRoamingConfigs, boolean satelliteRegion) {
 
-        SatelliteConfigData.TelephonyConfigProto.Builder telephonyConfigBuilder =
-                SatelliteConfigData.TelephonyConfigProto.newBuilder();
-        SatelliteConfigData.SatelliteConfigProto.Builder satelliteConfigBuilder =
-                SatelliteConfigData.SatelliteConfigProto.newBuilder();
+        TelephonyConfigData.TelephonyConfigProto.Builder telephonyConfigBuilder =
+                TelephonyConfigData.TelephonyConfigProto.newBuilder();
+        TelephonyConfigData.SatelliteConfigProto.Builder satelliteConfigBuilder =
+                TelephonyConfigData.SatelliteConfigProto.newBuilder();
 
         // set version
         satelliteConfigBuilder.setVersion(4);
 
         if (carrierSupportedSatelliteServices) {
-            SatelliteConfigData.CarrierSupportedSatelliteServicesProto.Builder
+            TelephonyConfigData.CarrierSupportedSatelliteServicesProto.Builder
                     carrierSupportedSatelliteServiceBuilder =
-                    SatelliteConfigData.CarrierSupportedSatelliteServicesProto.newBuilder();
+                    TelephonyConfigData.CarrierSupportedSatelliteServicesProto.newBuilder();
 
             // set carriersupportedservices#carrier_id
             carrierSupportedSatelliteServiceBuilder.setCarrierId(1);
 
             // set carriersupportedservices#providercapability
-            SatelliteConfigData.SatelliteProviderCapabilityProto.Builder
+            TelephonyConfigData.SatelliteProviderCapabilityProto.Builder
                     satelliteProviderCapabilityBuilder =
-                    SatelliteConfigData.SatelliteProviderCapabilityProto.newBuilder();
+                    TelephonyConfigData.SatelliteProviderCapabilityProto.newBuilder();
             satelliteProviderCapabilityBuilder.setCarrierPlmn(PLMN_310160);
             satelliteProviderCapabilityBuilder.addAllowedServices(SERVICE_TYPE_VOICE);
             satelliteProviderCapabilityBuilder.addAllowedServices(SERVICE_TYPE_DATA);
@@ -655,8 +656,8 @@ public class SatelliteConfigParserTest extends TelephonyTest {
 
         if (carrierRoamingConfigs) {
             // set carrierRoamingConfigs#maxalloweddatamode
-            SatelliteConfigData.CarrierRoamingConfigProto.Builder carrierRoamingConfigBuilder =
-                    SatelliteConfigData.CarrierRoamingConfigProto.newBuilder();
+            TelephonyConfigData.CarrierRoamingConfigProto.Builder carrierRoamingConfigBuilder =
+                    TelephonyConfigData.CarrierRoamingConfigProto.newBuilder();
             carrierRoamingConfigBuilder.setMaxAllowedDataMode(
                     SATELLITE_DATA_SUPPORT_BANDWIDTH_CONSTRAINED);
 
@@ -669,8 +670,8 @@ public class SatelliteConfigParserTest extends TelephonyTest {
         }
 
         if (satelliteRegion) {
-            SatelliteConfigData.SatelliteRegionProto.Builder satelliteRegionBuilder =
-                    SatelliteConfigData.SatelliteRegionProto.newBuilder();
+            TelephonyConfigData.SatelliteRegionProto.Builder satelliteRegionBuilder =
+                    TelephonyConfigData.SatelliteRegionProto.newBuilder();
             String testS2Content = "0123456789", testSatelliteAccessConfigContent = "sac";
             // set satelliteRegions#s2cellFile
             satelliteRegionBuilder.setS2CellFile(ByteString.copyFrom(testS2Content.getBytes()));
@@ -686,7 +687,7 @@ public class SatelliteConfigParserTest extends TelephonyTest {
         }
 
         telephonyConfigBuilder.setSatellite(satelliteConfigBuilder);
-        SatelliteConfigData.TelephonyConfigProto telephonyConfigData =
+        TelephonyConfigData.TelephonyConfigProto telephonyConfigData =
                 telephonyConfigBuilder.build();
         mBytesProtoBuffer = telephonyConfigData.toByteArray();
     }
@@ -735,15 +736,15 @@ public class SatelliteConfigParserTest extends TelephonyTest {
             boolean s2CellFile,
             boolean satelliteAccessConfigFile) {
 
-        SatelliteConfigData.TelephonyConfigProto.Builder telephonyConfigBuilder =
-                SatelliteConfigData.TelephonyConfigProto.newBuilder();
-        SatelliteConfigData.SatelliteConfigProto.Builder satelliteConfigBuilder =
-                SatelliteConfigData.SatelliteConfigProto.newBuilder();
+        TelephonyConfigData.TelephonyConfigProto.Builder telephonyConfigBuilder =
+                TelephonyConfigData.TelephonyConfigProto.newBuilder();
+        TelephonyConfigData.SatelliteConfigProto.Builder satelliteConfigBuilder =
+                TelephonyConfigData.SatelliteConfigProto.newBuilder();
 
         satelliteConfigBuilder.setVersion(4);
 
-        SatelliteConfigData.SatelliteRegionProto.Builder satelliteRegionBuilder =
-                SatelliteConfigData.SatelliteRegionProto.newBuilder();
+        TelephonyConfigData.SatelliteRegionProto.Builder satelliteRegionBuilder =
+                TelephonyConfigData.SatelliteRegionProto.newBuilder();
         String testS2Content = "0123456789", testSatelliteAccessConfigContent = "sac";
 
         if (s2CellFile) {
@@ -765,7 +766,7 @@ public class SatelliteConfigParserTest extends TelephonyTest {
 
         satelliteConfigBuilder.setDeviceSatelliteRegion(satelliteRegionBuilder);
         telephonyConfigBuilder.setSatellite(satelliteConfigBuilder);
-        SatelliteConfigData.TelephonyConfigProto telephonyConfigData =
+        TelephonyConfigData.TelephonyConfigProto telephonyConfigData =
                 telephonyConfigBuilder.build();
         mBytesProtoBuffer = telephonyConfigData.toByteArray();
     }
@@ -815,23 +816,23 @@ public class SatelliteConfigParserTest extends TelephonyTest {
             boolean carrierId,
             boolean plmn,
             boolean serviceType) {
-        SatelliteConfigData.TelephonyConfigProto.Builder telephonyConfigBuilder =
-                SatelliteConfigData.TelephonyConfigProto.newBuilder();
-        SatelliteConfigData.SatelliteConfigProto.Builder satelliteConfigBuilder =
-                SatelliteConfigData.SatelliteConfigProto.newBuilder();
+        TelephonyConfigData.TelephonyConfigProto.Builder telephonyConfigBuilder =
+                TelephonyConfigData.TelephonyConfigProto.newBuilder();
+        TelephonyConfigData.SatelliteConfigProto.Builder satelliteConfigBuilder =
+                TelephonyConfigData.SatelliteConfigProto.newBuilder();
 
         satelliteConfigBuilder.setVersion(4);
 
-        SatelliteConfigData.CarrierSupportedSatelliteServicesProto.Builder
+        TelephonyConfigData.CarrierSupportedSatelliteServicesProto.Builder
                 carrierSupportedSatelliteServiceBuilder =
-                SatelliteConfigData.CarrierSupportedSatelliteServicesProto.newBuilder();
+                TelephonyConfigData.CarrierSupportedSatelliteServicesProto.newBuilder();
 
         if (carrierId) {
             carrierSupportedSatelliteServiceBuilder.setCarrierId(1);
         }
 
-        SatelliteConfigData.SatelliteProviderCapabilityProto.Builder providerCapabilityBuilder =
-                SatelliteConfigData.SatelliteProviderCapabilityProto.newBuilder();
+        TelephonyConfigData.SatelliteProviderCapabilityProto.Builder providerCapabilityBuilder =
+                TelephonyConfigData.SatelliteProviderCapabilityProto.newBuilder();
         if (plmn) {
             providerCapabilityBuilder.setCarrierPlmn(PLMN_45005);
         }
@@ -844,7 +845,7 @@ public class SatelliteConfigParserTest extends TelephonyTest {
         satelliteConfigBuilder
                 .addCarrierSupportedSatelliteServices(carrierSupportedSatelliteServiceBuilder);
         telephonyConfigBuilder.setSatellite(satelliteConfigBuilder);
-        SatelliteConfigData.TelephonyConfigProto telephonyConfigData =
+        TelephonyConfigData.TelephonyConfigProto telephonyConfigData =
                 telephonyConfigBuilder.build();
         mBytesProtoBuffer = telephonyConfigData.toByteArray();
     }

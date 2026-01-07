@@ -21,7 +21,7 @@ import android.annotation.Nullable;
 import android.util.Log;
 
 import com.android.internal.telephony.configupdate.ConfigParser;
-import com.android.internal.telephony.satellite.nano.SatelliteConfigData;
+import com.android.internal.telephony.nano.TelephonyConfigData;
 
 import java.io.File;
 import java.io.IOException;
@@ -71,8 +71,8 @@ public class SatelliteConfigParser extends ConfigParser<SatelliteConfig> {
                 Log.d(TAG, "config data is null");
                 return;
             }
-            SatelliteConfigData.TelephonyConfigProto telephonyConfigData =
-                    SatelliteConfigData.TelephonyConfigProto.parseFrom(data);
+            TelephonyConfigData.TelephonyConfigProto telephonyConfigData =
+                    TelephonyConfigData.TelephonyConfigProto.parseFrom(data);
             if (telephonyConfigData == null || telephonyConfigData.satellite == null) {
                 Log.e(TAG, "telephonyConfigData or telephonyConfigData.satellite is null");
                 return;
