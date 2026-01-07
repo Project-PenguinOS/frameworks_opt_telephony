@@ -905,12 +905,13 @@ public class DataConfigManager extends Handler {
     }
 
     /**
-     * Returns whether the data roaming setting for satellite connection is ignored.
+     * Returns whether data roaming is allowed on satellite even if the data roaming setting is
+     * disabled.
      *
-     * @return {@code true} if data roaming setting for satellite connection is ignored,
-     * {@code false} otherwise.
+     * @return {@code true} if data roaming is allowed on satellite even if data roaming setting is
+     *     disabled, {@code false} otherwise.
      */
-    public boolean isIgnoringDataRoamingSettingForSatellite() {
+    public boolean isDataRoamingAllowedOnSatellite() {
         return mCarrierConfig.getBoolean(
             CarrierConfigManager.KEY_SATELLITE_IGNORE_DATA_ROAMING_SETTING_BOOL);
     }
