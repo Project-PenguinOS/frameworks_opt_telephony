@@ -67,6 +67,7 @@ flag {
     metadata {
         purpose: PURPOSE_FEATURE
     }
+    is_exported: true
 }
 
 # OWNER=braydenhass TARGET=26Q2
