@@ -175,6 +175,9 @@ public class GsmCdmaPhone extends Phone {
     /** List of Registrants to receive Supplementary Service Notifications. */
     // Key used to read/write the current sub Id. Updated on SIM loaded.
     public static final String CURR_SUBID = "curr_subid";
+    // Key used to read/write the carrier 2g protection default state.
+    public static final String PREF_KEY_HAS_APPLIED_2G_PROTECTION_DEFAULT =
+            "pref_key_has_applied_2g_protection_default";
     private RegistrantList mSsnRegistrants = new RegistrantList();
 
     //CDMA
@@ -2934,6 +2937,10 @@ public class GsmCdmaPhone extends Phone {
                 }
 
                 loadAllowedNetworksFromSubscriptionDatabase();
+
+                if (b != null && mFeatureFlags.keyCarrier2gToggle()) {
+                    updateDefaultEnable2gSettings(b);
+                }
                 // Obtain new radio capabilities from the modem, since some are SIM-dependent
                 mCi.getRadioCapability(obtainMessage(EVENT_GET_RADIO_CAPABILITY));
                 break;
@@ -3372,6 +3379,14 @@ public class GsmCdmaPhone extends Phone {
                     logd("EVENT_NETWORK_SECURITY_EVENTS for non-Safety Center listeners "
                             + "phoneId = " + getPhoneId());
                     mNotifier.notifyNetworkSecurityEvents(this, events);
+                }
+                break;
+            case EVENT_SET_ALLOWED_NETWORK_TYPES_FOR_2G_DISABLED_DONE:
+                logd("EVENT_SET_ALLOWED_NETWORK_TYPES_FOR_2G_DISABLED_DONE");
+                ar = (AsyncResult) msg.obj;
+                if (ar.exception != null) {
+                    set2gProtectionDefaultUpdated(false);
+                    loge("Failed to execute setAllowedNetworkTypesForReason:" + ar.exception);
                 }
                 break;
 
@@ -4236,6 +4251,63 @@ public class GsmCdmaPhone extends Phone {
                 && (setting == 1 || (setting == -1 && mDefaultVonr));
         mCi.setVoNrEnabled(enbleVonr, obtainMessage(EVENT_SET_VONR_ENABLED_DONE), null);
         super.setAllowedImsServicesForAny(ImsRegistrationImplBase.REGISTRATION_TECH_NR, enbleVonr);
+    }
+
+    private void updateDefaultEnable2gSettings(@NonNull PersistableBundle config) {
+        if (!SubscriptionManager.isValidSubscriptionId(getSubId())) {
+            logd("updateDefaultEnable2gSettings subId is invalid subId:" + getSubId());
+            return;
+        }
+
+        if (RadioInterfaceCapabilityController.getInstance().getCapabilities().contains(
+                TelephonyManager.CAPABILITY_USES_ALLOWED_NETWORK_TYPES_BITMASK)) {
+            // Get the value for whether 2G is disabled by the carrier from carrier configuration.
+            boolean is2gProtectionDefaultEnabled = config.getBoolean(
+                    CarrierConfigManager.KEY_CARRIER_DEFAULT_2G_PROTECTION_ENABLED_BOOL);
+            if (is2gProtectionDefaultEnabled && !is2gProtectionDefaultUpdated()) {
+                // This code will be executed if the carrier has disabled 2G and it is the first
+                // time, as we are validating if 2g disabled by carrier previously from
+                // SharedPreferences 'is2gProtectionDefaultUpdated()'.
+                // While rebooting, multiple EVENT_CARRIER_CONFIG_CHANGED events are received.
+                // To handle this race condition, SharedPreferences is updated before updating the
+                // network allowed type.
+                set2gProtectionDefaultUpdated(true);
+                long currentlyAllowedNetworkTypes = getAllowedNetworkTypes(
+                        TelephonyManager.ALLOWED_NETWORK_TYPES_REASON_ENABLE_2G);
+
+                if ((currentlyAllowedNetworkTypes & TelephonyManager.NETWORK_CLASS_BITMASK_2G)
+                        != 0) {
+                    disable2gNetworkType(currentlyAllowedNetworkTypes);
+                }
+            }
+        }
+    }
+
+    private void disable2gNetworkType(long currentlyAllowedNetworkTypes) {
+        setAllowedNetworkTypes(TelephonyManager.ALLOWED_NETWORK_TYPES_REASON_ENABLE_2G,
+                currentlyAllowedNetworkTypes & ~TelephonyManager.NETWORK_CLASS_BITMASK_2G,
+                obtainMessage(EVENT_SET_ALLOWED_NETWORK_TYPES_FOR_2G_DISABLED_DONE));
+        logi("2G is disabled by carrier.");
+    }
+
+    private boolean is2gProtectionDefaultUpdated() {
+        int subId = getSubId();
+        if (SubscriptionManager.isValidSubscriptionId(subId)) {
+            SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(mContext);
+            return sp.getBoolean(PREF_KEY_HAS_APPLIED_2G_PROTECTION_DEFAULT + subId, false);
+        }
+        return false;
+    }
+
+    private void set2gProtectionDefaultUpdated(boolean is2gProtectionDefaultUpdated) {
+        int subId = getSubId();
+        if (SubscriptionManager.isValidSubscriptionId(subId)) {
+            SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(mContext);
+            SharedPreferences.Editor editor = sp.edit();
+            editor.putBoolean(PREF_KEY_HAS_APPLIED_2G_PROTECTION_DEFAULT + subId,
+                    is2gProtectionDefaultUpdated);
+            editor.apply();
+        }
     }
 
     /**

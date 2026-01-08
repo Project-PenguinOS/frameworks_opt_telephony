@@ -82,7 +82,7 @@ flag {
     namespace: "telephony"
     description: "Subscription plan enhancement"
     bug: "451832521"
-    is_exported: false
+    is_exported: true
 }
 
 # OWNER=justingross TARGET=26Q2
