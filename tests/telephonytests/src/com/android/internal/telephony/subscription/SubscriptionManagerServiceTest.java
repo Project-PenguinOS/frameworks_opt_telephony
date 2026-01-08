@@ -3390,6 +3390,67 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
 
     @Test
     @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
+    public void testUpdateGroupDisabledUngroupedOpportunistic() {
+        doReturn(true).when(mFeatureFlags).preventDisablingUngroupedOppSub();
+        mContextFixture.addCallingOrSelfPermission(Manifest.permission.READ_PHONE_STATE);
+        mContextFixture.addCallingOrSelfPermission(Manifest.permission.READ_PRIVILEGED_PHONE_STATE);
+        mContextFixture.addCallingOrSelfPermission(
+                Manifest.permission.USE_ICC_AUTH_WITH_DEVICE_IDENTIFIER);
+
+        // Sub 1: Opportunistic, Ungrouped. Active (Slot 0).
+        SubscriptionInfoInternal sub1 = new SubscriptionInfoInternal
+                .Builder(FAKE_SUBSCRIPTION_INFO1)
+                .setOpportunistic(1)
+                .setGroupUuid("")
+                .setSimSlotIndex(0)
+                .build();
+        int subId1 = insertSubscription(sub1);
+
+        mSubscriptionManagerServiceUT.updateGroupDisabled();
+        assertThat(mSubscriptionManagerServiceUT.getSubscriptionInfoInternal(subId1)
+                .isGroupDisabled()).isFalse();
+
+        // Sub 2: Opportunistic, Grouped (UUID1). Active (Slot 1).
+        SubscriptionInfoInternal sub2 = new SubscriptionInfoInternal
+                .Builder(FAKE_SUBSCRIPTION_INFO2)
+                .setOpportunistic(1)
+                .setGroupUuid(FAKE_UUID1)
+                .setSimSlotIndex(1)
+                .build();
+        int subId2 = insertSubscription(sub2);
+
+        // Verify that sub 2 IS group disabled (Grouped, but no active primary in UUID1).
+        // Active subs: 1 (opp, null group), 2 (opp, UUID1).
+        mSubscriptionManagerServiceUT.updateGroupDisabled();
+        assertThat(mSubscriptionManagerServiceUT.getSubscriptionInfoInternal(subId2)
+                .isGroupDisabled()).isTrue();
+
+        // Sub 3: Primary, Grouped (UUID1). Active (Slot 0) - replaces Sub 1 in Slot 0 conceptually
+        mSubscriptionManagerServiceUT.updateSimState(
+                0, TelephonyManager.SIM_STATE_ABSENT, null, null);
+        processAllMessages();
+        SubscriptionInfoInternal sub3 = new SubscriptionInfoInternal
+                .Builder(FAKE_SUBSCRIPTION_INFO1)
+                .setId(3)
+                .setIccId(FAKE_ICCID3)
+                .setOpportunistic(0)
+                .setGroupUuid(FAKE_UUID1)
+                .setSimSlotIndex(0)
+                .build();
+        insertSubscription(sub3);
+
+        // Verify that sub 2 is enabled (Primary is active).
+        mSubscriptionManagerServiceUT.updateGroupDisabled();
+        assertThat(mSubscriptionManagerServiceUT.getSubscriptionInfoInternal(subId2)
+                .isGroupDisabled()).isFalse();
+
+        // Verify that sub 1 (inactive, ungrouped) is still enabled (default).
+        assertThat(mSubscriptionManagerServiceUT.getSubscriptionInfoInternal(subId1)
+                .isGroupDisabled()).isFalse();
+    }
+
+    @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testIsSatelliteSpn() {
         mContextFixture.putResource(R.string.config_satellite_sim_spn_identifier,
                 FAKE_CARRIER_NAME1);
