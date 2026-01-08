@@ -46,7 +46,6 @@ import android.util.Pair;
 
 
 import com.android.internal.annotations.VisibleForTesting;
-import com.android.internal.telephony.flags.Flags;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -297,7 +296,7 @@ public class CarrierKeyDownloadManager extends Handler {
                 }
             } else {
                 logd("handleAlarmOrConfigChange :: mIsKeySent " + mIsKeySent);
-                if (Flags.sendImsiKeyForDuplicateSim() && !mIsKeySent) {
+                if (!mIsKeySent) {
                     ImsiEncryptionInfo imsiEncryptionInfo = getExistingKey();
                     if (imsiEncryptionInfo != null) {
                         logd("handleAlarmOrConfigChange :: saving public key");
