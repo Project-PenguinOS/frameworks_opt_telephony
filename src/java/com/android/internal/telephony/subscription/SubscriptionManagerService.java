@@ -585,6 +585,9 @@ public class SubscriptionManagerService extends ISub.Stub {
         @NonNull public UserHandle getCallingUserHandle() {
             return Binder.getCallingUserHandle();
         }
+        @NonNull public int getCallingUid() {
+            return Binder.getCallingUid();
+        }
     }
 
     /**
@@ -4075,6 +4078,15 @@ public class SubscriptionManagerService extends ISub.Stub {
     })
     public String getPhoneNumber(int subId, @PhoneNumberSource int source,
             @NonNull String callingPackage, @Nullable String callingFeatureId /* unused */) {
+
+        if (mFeatureFlags.getPhoneNumberTs43Api()
+                && source == SubscriptionManager.PHONE_NUMBER_SOURCE_TS43) {
+            if (!TelephonyPermissions.isSystemOrPhone(BINDER_WRAPPER.getCallingUid())) {
+                throw new SecurityException(
+                        "getPhoneNumber(TS43) is restricted to privileged system components.");
+            }
+        }
+
         TelephonyPermissions.enforceAnyPermissionGrantedOrCarrierPrivileges(
                 mContext, subId, Binder.getCallingUid(), "getPhoneNumber",
                 Manifest.permission.READ_PHONE_NUMBERS,
@@ -4199,6 +4211,7 @@ public class SubscriptionManagerService extends ISub.Stub {
                 mContext, subId, Binder.getCallingUid(), "getPhoneNumberFromFirstAvailableSource",
                 Manifest.permission.READ_PHONE_NUMBERS,
                 Manifest.permission.READ_PRIVILEGED_PHONE_STATE);
+        int callingUid = BINDER_WRAPPER.getCallingUid();
 
         enforceTelephonyFeatureWithException(callingPackage,
                 "getPhoneNumberFromFirstAvailableSource");
@@ -4219,7 +4232,8 @@ public class SubscriptionManagerService extends ISub.Stub {
                     SubscriptionManager.PHONE_NUMBER_SOURCE_UICC, false);
             if (!TextUtils.isEmpty(number)) return number;
 
-            if (mFeatureFlags.getPhoneNumberTs43Api()) {
+            if (mFeatureFlags.getPhoneNumberTs43Api()
+                    && TelephonyPermissions.isSystemOrPhone(callingUid)) {
                 number = getPhoneNumberFromSourceInternal(
                         subId,
                         SubscriptionManager.PHONE_NUMBER_SOURCE_TS43, false);
@@ -4273,6 +4287,7 @@ public class SubscriptionManagerService extends ISub.Stub {
                 "getLastKnownPhoneNumberFromFirstAvailableSource",
                 Manifest.permission.READ_PHONE_NUMBERS,
                 Manifest.permission.READ_PRIVILEGED_PHONE_STATE);
+        int callingUid = BINDER_WRAPPER.getCallingUid();
 
         enforceTelephonyFeatureWithException(callingPackage,
                 "getLastKnownPhoneNumberFromFirstAvailableSource");
@@ -4290,7 +4305,8 @@ public class SubscriptionManagerService extends ISub.Stub {
                     SubscriptionManager.PHONE_NUMBER_SOURCE_UICC, false);
             if (!TextUtils.isEmpty(number)) return number;
 
-            if (mFeatureFlags.getPhoneNumberTs43Api()) {
+            if (mFeatureFlags.getPhoneNumberTs43Api()
+                    && TelephonyPermissions.isSystemOrPhone(callingUid)) {
                 number = getPhoneNumberFromSourceInternal(subId,
                         SubscriptionManager.PHONE_NUMBER_SOURCE_TS43, false);
                 if (!TextUtils.isEmpty(number)) return number;
