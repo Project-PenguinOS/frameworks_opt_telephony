@@ -2460,32 +2460,6 @@ public class DataNetwork extends StateMachine {
         return true;
     }
 
-    /**
-     * Check if there are immutable capabilities changed. The connectivity service is not able
-     * to handle immutable capabilities changed, but in very rare scenarios, immutable capabilities
-     * need to be changed dynamically, such as in setup data call response, modem responded with the
-     * same cid. In that case, we need to merge the new capabilities into the existing data network.
-     *
-     * @param oldCapabilities The old network capabilities.
-     * @param newCapabilities The new network capabilities.
-     * @return {@code true} if there are immutable network capabilities changed.
-     */
-    private static boolean areImmutableCapabilitiesChanged(
-            @NonNull NetworkCapabilities oldCapabilities,
-            @NonNull NetworkCapabilities newCapabilities) {
-        if (ArrayUtils.isEmpty(oldCapabilities.getCapabilities())) return false;
-
-        // Remove mutable capabilities from both old and new capabilities, the remaining
-        // capabilities would be immutable capabilities.
-        List<Integer> oldImmutableCapabilities = Arrays.stream(oldCapabilities.getCapabilities())
-                .boxed().collect(Collectors.toList());
-        oldImmutableCapabilities.removeAll(MUTABLE_CAPABILITIES);
-        List<Integer> newImmutableCapabilities = Arrays.stream(newCapabilities.getCapabilities())
-                .boxed().collect(Collectors.toList());
-        newImmutableCapabilities.removeAll(MUTABLE_CAPABILITIES);
-        return oldImmutableCapabilities.size() != newImmutableCapabilities.size()
-                || !oldImmutableCapabilities.containsAll(newImmutableCapabilities);
-    }
 
     /**
      * In some rare cases we need to re-create the network agent, for example, underlying network
@@ -2787,28 +2761,11 @@ public class DataNetwork extends StateMachine {
         }
 
         if (!nc.equals(mNetworkCapabilities)) {
-            // Check if we are changing the immutable capabilities. Note that we should be very
-            // careful and limit the use cases of changing immutable capabilities. Connectivity
-            // service would not close sockets for clients if a network request becomes
-            // unsatisfiable.
-            if (!mFlags.notRecreateAgentWhenImmutableCapabilitiesChanged()
-                    && (mEverConnected && areImmutableCapabilitiesChanged(mNetworkCapabilities, nc)
-                    && (isConnected() || isHandoverInProgress()))) {
-                // Before connectivity service supports making all capabilities mutable, it is
-                // suggested to de-register and re-register the network agent if it is needed to
-                // add/remove immutable capabilities.
-                logl("updateNetworkCapabilities: Immutable capabilities changed. Re-create the "
-                        + "network agent. Attempted to change from " + mNetworkCapabilities + " to "
-                        + nc);
-                mNetworkCapabilities = nc;
-                recreateNetworkAgent();
-            } else {
-                // Now we need to inform connectivity service and data network controller
-                // about the capabilities changed.
-                mNetworkCapabilities = nc;
-                log("Capabilities changed to " + mNetworkCapabilities);
-                mNetworkAgent.sendNetworkCapabilities(mNetworkCapabilities);
-            }
+            // Inform connectivity service and data network controller about the capabilities
+            // changed.
+            mNetworkCapabilities = nc;
+            log("Capabilities changed to " + mNetworkCapabilities);
+            mNetworkAgent.sendNetworkCapabilities(mNetworkCapabilities);
 
             // Only retry the request when the network is in connected or handover state. This is to
             // prevent request is detached during connecting state, and then become a setup/detach
