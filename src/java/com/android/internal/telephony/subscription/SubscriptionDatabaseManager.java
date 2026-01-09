@@ -481,7 +481,15 @@ public class SubscriptionDatabaseManager extends Handler {
                     SubscriptionDatabaseManager::setIsSatelliteProvisionedForNonIpDatagram),
             new AbstractMap.SimpleImmutableEntry<>(
                     SimInfo.COLUMN_IS_PRIVATE_NETWORK,
-                    SubscriptionDatabaseManager::setIsPrivateNetwork),
+                    SubscriptionDatabaseManager::setIsPrivateNetwork)
+    );
+
+    /**
+     * The mapping from columns in {@link android.provider.Telephony.SimInfo} table to
+     * {@link SubscriptionDatabaseManager} setting long methods.
+     */
+    private static final Map<String, TriConsumer<SubscriptionDatabaseManager, Integer, Long>>
+            SUBSCRIPTION_SET_LONG_METHOD_MAP = Map.ofEntries(
             new AbstractMap.SimpleImmutableEntry<>(
                     SimInfo.COLUMN_STREAMING_APP_MAX_DOWNLINK_KBPS,
                     SubscriptionDatabaseManager::setStreamingAppMaxDownlinkKbps),
@@ -832,6 +840,18 @@ public class SubscriptionDatabaseManager extends Handler {
         } else if (SUBSCRIPTION_SET_STRING_METHOD_MAP.containsKey(columnName)) {
             // For string type columns. Will throw exception if value is not string type.
             SUBSCRIPTION_SET_STRING_METHOD_MAP.get(columnName).accept(this, subId, (String) value);
+        } else if (SUBSCRIPTION_SET_LONG_METHOD_MAP.containsKey(columnName)) {
+            // NEW LOGIC FOR LONG
+            long longValue;
+            if (value instanceof String) {
+                longValue = Long.parseLong((String) value);
+            } else if (value instanceof Number) {
+                longValue = ((Number) value).longValue();
+            } else {
+                throw new ClassCastException("columnName=" + columnName + ", cannot cast "
+                        + value.getClass() + " to long.");
+            }
+            SUBSCRIPTION_SET_LONG_METHOD_MAP.get(columnName).accept(this, subId, longValue);
         } else if (SUBSCRIPTION_SET_BYTE_ARRAY_METHOD_MAP.containsKey(columnName)) {
             // For byte array type columns, accepting both byte[] and string that can be converted
             // to byte[] using base 64 encoding/decoding.
@@ -2412,7 +2432,7 @@ public class SubscriptionDatabaseManager extends Handler {
      * @throws IllegalArgumentException if the subscription does not exist.
      */
     public void setStreamingAppMaxDownlinkKbps(int subId,
-            int streamingAppMaxDownlinkKbps) {
+            long streamingAppMaxDownlinkKbps) {
         if (mFeatureFlags.subscriptionPlanEnhancement()) {
             writeDatabaseAndCacheHelper(subId,
                     SimInfo.COLUMN_STREAMING_APP_MAX_DOWNLINK_KBPS,
@@ -2429,7 +2449,7 @@ public class SubscriptionDatabaseManager extends Handler {
      * @param streamingAppMaxUplinkKbps The maximum uplink data rate in Kbps.
      * @throws IllegalArgumentException if the subscription does not exist.
      */
-    public void setStreamingAppMaxUplinkKbps(int subId, int streamingAppMaxUplinkKbps) {
+    public void setStreamingAppMaxUplinkKbps(int subId, long streamingAppMaxUplinkKbps) {
         if (mFeatureFlags.subscriptionPlanEnhancement()) {
             writeDatabaseAndCacheHelper(subId,
                     SimInfo.COLUMN_STREAMING_APP_MAX_UPLINK_KBPS,
@@ -2713,10 +2733,10 @@ public class SubscriptionDatabaseManager extends Handler {
                 cursor.getColumnIndexOrThrow(SimInfo.COLUMN_IS_PRIVATE_NETWORK)));
         if (mFeatureFlags.subscriptionPlanEnhancement()) {
             builder.setStreamingAppMaxDownlinkKbps(
-                    cursor.getInt(cursor.getColumnIndexOrThrow(
+                    cursor.getLong(cursor.getColumnIndexOrThrow(
                             SimInfo.COLUMN_STREAMING_APP_MAX_DOWNLINK_KBPS)))
                     .setStreamingAppMaxUplinkKbps(
-                            cursor.getInt(cursor.getColumnIndexOrThrow(
+                            cursor.getLong(cursor.getColumnIndexOrThrow(
                                     SimInfo.COLUMN_STREAMING_APP_MAX_UPLINK_KBPS))
                     );
         }
