@@ -1717,7 +1717,8 @@ public class MetricsCollector implements StatsManager.StatsPullAtomCallback {
                 stats.batteryLevelDropPercent,
                 stats.wasChargingDuringSession,
                 stats.batteryDesignCapacityMah,
-                stats.energyConsumedNwh);
+                stats.energyConsumedNwh,
+                stats.eligibilitySource);
     }
 
     private static StatsEvent buildStatsEvent(CarrierRoamingSatelliteControllerStats stats) {
@@ -1739,7 +1740,9 @@ public class MetricsCollector implements StatsManager.StatsPullAtomCallback {
                 stats.countOfSessionConnectionModeAutomatic,
                 stats.countOfSessionConnectionModeManual,
                 stats.serviceDataPolicy,
-                stats.totalSessionDurationSec);
+                stats.totalSessionDurationSec,
+                stats.satelliteAttachSupported,
+                stats.eligibilitySource);
     }
 
     private static StatsEvent buildStatsEvent(SatelliteEntitlement stats) {

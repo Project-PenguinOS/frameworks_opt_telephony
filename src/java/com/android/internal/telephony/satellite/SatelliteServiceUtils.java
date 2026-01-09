@@ -802,6 +802,38 @@ public class SatelliteServiceUtils {
     }
 
     /**
+     * Check if the device is able to scan satellite network for given subscription.
+     *
+     * @param subId The subscription ID to check.
+     * @return {@code true} if it is allowed, {@code false} otherwise, or if SatelliteController is
+     * not available.
+     */
+    public static boolean isSatelliteAttachSupported(int subId) {
+        SatelliteController satelliteController = SatelliteController.getInstance();
+        if (satelliteController != null) {
+            return satelliteController.isSatelliteSupportedViaCarrier(subId);
+        }
+        loge("isSatelliteAttachSupported: SatelliteController instance is null");
+        return false;
+    }
+
+    /**
+     * Returns the satellite eligibility source for given subscription.
+     *
+     * @param subId The subscription ID to check.
+     * @return {@link SatelliteConstants.SatelliteEligibilitySource}
+     */
+    public static @SatelliteConstants.SatelliteEligibilitySource int getSatelliteEligibilitySource(
+            int subId) {
+        SatelliteController satelliteController = SatelliteController.getInstance();
+        if (satelliteController != null) {
+            return satelliteController.getSatelliteEligibilitySource(subId);
+        }
+        loge("getSatelliteEligibilitySource: SatelliteController instance is null");
+        return SatelliteConstants.SATELLITE_ELIGIBILITY_SOURCE_UNKNOWN;
+    }
+
+    /**
      * Returns the global connect type for given satellite subscription.
      *
      * @param subId The subscription ID to check.

@@ -2310,6 +2310,7 @@ public class SatelliteStats {
         private final boolean mWasChargingDuringSession;
         private final int mBatteryDesignCapacityMah;
         private final long mEnergyConsumedNwh;
+        private final @SatelliteConstants.SatelliteEligibilitySource int mEligibilitySource;
 
         private CarrierRoamingSatelliteSessionParams(Builder builder) {
             this.mCarrierId = builder.mCarrierId;
@@ -2359,6 +2360,7 @@ public class SatelliteStats {
             this.mWasChargingDuringSession = builder.mWasChargingDuringSession;
             this.mBatteryDesignCapacityMah = builder.mBatteryDesignCapacityMah;
             this.mEnergyConsumedNwh = builder.mEnergyConsumedNwh;
+            this.mEligibilitySource = builder.mEligibilitySource;
         }
 
         public int getCarrierId() {
@@ -2559,6 +2561,13 @@ public class SatelliteStats {
         }
 
         /**
+         * Returns the eligibility source for carrier roaming satellite source.
+         */
+        public @SatelliteConstants.SatelliteEligibilitySource int getEligibilitySource() {
+            return mEligibilitySource;
+        }
+
+        /**
          * A builder class to create {@link CarrierRoamingSatelliteSessionParams} data structure
          * class
          */
@@ -2611,6 +2620,8 @@ public class SatelliteStats {
             private boolean mWasChargingDuringSession = false;
             private int mBatteryDesignCapacityMah = 0;
             private long mEnergyConsumedNwh = 0;
+            private @SatelliteConstants.SatelliteEligibilitySource int mEligibilitySource =
+                    SatelliteConstants.SATELLITE_ELIGIBILITY_SOURCE_UNKNOWN;
 
 
             /**
@@ -3026,6 +3037,16 @@ public class SatelliteStats {
             }
 
             /**
+             * Sets the eligibility source value of {@link CarrierRoamingSatelliteSession}
+             * atom then returns Builder class.
+             */
+            public Builder setEligibilitySource(
+                    @SatelliteConstants.SatelliteEligibilitySource int eligibilitySource) {
+                this.mEligibilitySource = eligibilitySource;
+                return this;
+            }
+
+            /**
              * Returns CarrierRoamingSatelliteSessionParams, which contains whole component of
              * {@link CarrierRoamingSatelliteSession} atom
              */
@@ -3084,6 +3105,7 @@ public class SatelliteStats {
                     + ", WasChargingDuringSession=" + mWasChargingDuringSession
                     + ", BatteryDesignCapacityMah=" + mBatteryDesignCapacityMah
                     + ", EnergyConsumedNwh=" + mEnergyConsumedNwh
+                    + ", eligibilitySource=" + mEligibilitySource
                     + ")";
         }
     }
@@ -3111,6 +3133,8 @@ public class SatelliteStats {
         private final int mCountOfSessionConnectionModeManual;
         private final int mServiceDataPolicy;
         private final int mSessionDurationSec;
+        private final boolean mIsSatelliteAttachSupported;
+        private final @SatelliteConstants.SatelliteEligibilitySource int mEligibilitySource;
 
         private CarrierRoamingSatelliteControllerStatsParams(Builder builder) {
             this.mConfigDataSource = builder.mConfigDataSource;
@@ -3138,6 +3162,8 @@ public class SatelliteStats {
             this.mSupportedConnectionMode = builder.mSupportedConnectionMode;
             this.mServiceDataPolicy = builder.mServiceDataPolicy;
             this.mSessionDurationSec = builder.mSessionDurationSec;
+            this.mIsSatelliteAttachSupported = builder.mIsSatelliteAttachSupported;
+            this.mEligibilitySource = builder.mEligibilitySource;
         }
 
         public int getConfigDataSource() {
@@ -3208,6 +3234,15 @@ public class SatelliteStats {
             return mSessionDurationSec;
         }
 
+        /** Returns whether the device is able to scan satellite network. */
+        public boolean isSatelliteAttachSupported() {
+            return mIsSatelliteAttachSupported;
+        }
+
+        /** Returns the eligibility condition for corresponding carrier ID. */
+        public @SatelliteConstants.SatelliteEligibilitySource int getEligibilitySource() {
+            return mEligibilitySource;
+        }
         /**
          * A builder class to create {@link CarrierRoamingSatelliteControllerStatsParams}
          * data structure class
@@ -3232,6 +3267,9 @@ public class SatelliteStats {
             private int mServiceDataPolicy =
                     SatelliteConstants.SATELLITE_ENTITLEMENT_SERVICE_POLICY_UNKNOWN;
             private int mSessionDurationSec = 0;
+            private boolean mIsSatelliteAttachSupported;
+            private @SatelliteConstants.SatelliteEligibilitySource int mEligibilitySource =
+                    SatelliteConstants.SATELLITE_ELIGIBILITY_SOURCE_UNKNOWN;
 
             /**
              * Sets configDataSource value of {@link CarrierRoamingSatelliteControllerStats} atom
@@ -3377,6 +3415,22 @@ public class SatelliteStats {
                 return this;
             }
 
+            /** Sets whether the device is able to scan satellite network or not. */
+            public Builder setSatelliteAttachSupported(boolean isSatelliteAttachSupported) {
+                this.mIsSatelliteAttachSupported = isSatelliteAttachSupported;
+                return this;
+            }
+
+            /**
+             * Sets the eligibility source value of {@link CarrierRoamingSatelliteControllerStats}
+             * atom then returns Builder class.
+             */
+            public Builder setEligibilitySource(
+                    @SatelliteConstants.SatelliteEligibilitySource int eligibilitySource) {
+                this.mEligibilitySource = eligibilitySource;
+                return this;
+            }
+
             /**
              * Returns CarrierRoamingSatelliteControllerStatsParams, which contains whole component
              * of {@link CarrierRoamingSatelliteControllerStats} atom
@@ -3413,7 +3467,9 @@ public class SatelliteStats {
                     && mCountOfSessionConnectionModeManual == that
                     .getCountOfSessionConnectionModeManual()
                     && mServiceDataPolicy == that.getServiceDataPolicy()
-                    && mSessionDurationSec == that.getSessionDurationSec();
+                    && mSessionDurationSec == that.getSessionDurationSec()
+                    && mIsSatelliteAttachSupported == that.isSatelliteAttachSupported()
+                    && mEligibilitySource == that.getEligibilitySource();
         }
 
         @Override
@@ -3424,7 +3480,7 @@ public class SatelliteStats {
                     mSatelliteSessionGapMaxSec, mCarrierId, mIsDeviceEntitled, mIsMultiSim,
                     mCountOfSatelliteSessions, mIsNbIotNtn, mSupportedConnectionMode,
                     mCountOfSessionConnectionModeAutomatic, mCountOfSessionConnectionModeManual,
-                    mSessionDurationSec);
+                    mSessionDurationSec, mIsSatelliteAttachSupported, mEligibilitySource);
         }
 
         @Override
@@ -3452,6 +3508,8 @@ public class SatelliteStats {
                     + mCountOfSessionConnectionModeManual
                     + ", serviceDataPolicy=" + mServiceDataPolicy
                     + ", totalSessionDurationSec" + mSessionDurationSec
+                    + ", satelliteAttachSupported=" + mIsSatelliteAttachSupported
+                    + ", eligibilitySource=" + mEligibilitySource
                     + ")";
         }
     }
@@ -4241,6 +4299,7 @@ public class SatelliteStats {
         proto.wasChargingDuringSession = param.wasChargingDuringSession();
         proto.batteryDesignCapacityMah = param.getBatteryDesignCapacityMah();
         proto.energyConsumedNwh = param.getEnergyConsumedNwh();
+        proto.eligibilitySource = param.getEligibilitySource();
         if (DBG) logd("onCarrierRoamingSatelliteSessionMetrics: " + param);
         mAtomsStorage.addCarrierRoamingSatelliteSessionStats(proto);
     }
@@ -4284,6 +4343,8 @@ public class SatelliteStats {
         proto.countOfSessionConnectionModeManual = param.getCountOfSessionConnectionModeManual();
         proto.serviceDataPolicy = param.getServiceDataPolicy();
         proto.totalSessionDurationSec = param.getSessionDurationSec();
+        proto.satelliteAttachSupported = param.isSatelliteAttachSupported();
+        proto.eligibilitySource = param.getEligibilitySource();
         if (DBG) logd("onCarrierRoamingSatelliteControllerStatsMetrics: " + param);
         mAtomsStorage.addCarrierRoamingSatelliteControllerStats(proto);
     }

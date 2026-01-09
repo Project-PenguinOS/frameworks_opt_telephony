@@ -915,6 +915,8 @@ public class PersistAtomsStorage {
                     stats.countOfSessionConnectionModeManual;
             existingStats.serviceDataPolicy = stats.serviceDataPolicy;
             existingStats.totalSessionDurationSec += stats.totalSessionDurationSec;
+            existingStats.satelliteAttachSupported = stats.satelliteAttachSupported;
+            existingStats.eligibilitySource = stats.eligibilitySource;
         } else {
             // A session gap of -1 is normal for a new entry where a session has not yet occurred.
             // The backend is expected to interpret this value as "not available".
