@@ -116,3 +116,11 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+# OWNER=rgreenwalt TARGET=26Q2
+flag {
+    name: "new_sim_auth_permission"
+    namespace: "telephony"
+    description: "Add new permission to secure SIM auth"
+    bug:"343796688"
+}
