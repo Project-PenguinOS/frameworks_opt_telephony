@@ -1691,12 +1691,6 @@ public class SubscriptionManagerService extends ISub.Stub {
             if (mSlotIndexToSubId.containsKey(phoneId)) {
                 markSubscriptionsInactive(phoneId);
             }
-
-            if (Flags.clearCachedImsPhoneNumberWhenDeviceLostImsRegistration()
-                    && !mFeatureFlags.lastKnownPhoneNumber()) {
-                // Clear the cached Ims phone number
-                setNumberFromIms(getSubId(phoneId), new String(""));
-            }
         } else if (simState == TelephonyManager.SIM_STATE_NOT_READY) {
             // Check if this is the final state. Only update the subscription if NOT_READY is a
             // final state.
@@ -1709,12 +1703,6 @@ public class SubscriptionManagerService extends ISub.Stub {
             } else {
                 logl("updateSubscription: UICC app disabled on slot " + phoneId);
                 markSubscriptionsInactive(phoneId);
-
-                if (Flags.clearCachedImsPhoneNumberWhenDeviceLostImsRegistration()
-                        && !mFeatureFlags.lastKnownPhoneNumber()) {
-                    // Clear the cached Ims phone number
-                    setNumberFromIms(getSubId(phoneId), new String(""));
-                }
             }
         } else {
             String iccId = getIccId(phoneId);
@@ -4150,7 +4138,7 @@ public class SubscriptionManagerService extends ISub.Stub {
             case SubscriptionManager.PHONE_NUMBER_SOURCE_CARRIER:
                 return subInfo.getNumberFromCarrier();
             case SubscriptionManager.PHONE_NUMBER_SOURCE_IMS:
-                if (checkForImsRegistration && mFeatureFlags.lastKnownPhoneNumber()) {
+                if (checkForImsRegistration) {
                     TelephonyManager tm = mTelephonyManager.createForSubscriptionId(subId);
                     if (tm == null || !tm.isImsRegistered()) {
                         return "";

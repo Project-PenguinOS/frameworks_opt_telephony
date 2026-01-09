@@ -64,18 +64,6 @@ flag {
   is_exported: false
 }
 
-# OWNER=donaldahn TARGET=26Q2
-flag {
-    name: "last_known_phone_number"
-    namespace: "telephony"
-    description: "Enables the phone number API for satellite."
-    bug: "436628415"
-    is_exported: false
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
 # OWNER=jackyu TARGET=26Q2
 flag {
     name: "subscription_plan_enhancement"

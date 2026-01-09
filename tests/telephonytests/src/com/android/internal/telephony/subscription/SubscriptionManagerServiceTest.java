@@ -1859,7 +1859,6 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     @Test
     @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testGetPhoneNumberSourcePriority() throws Exception {
-        doReturn(true).when(mFeatureFlags).lastKnownPhoneNumber();
         mContextFixture.addCallingOrSelfPermission(Manifest.permission.READ_PHONE_NUMBERS);
 
         String phoneNumberFromCarrier = "8675309";
@@ -1918,7 +1917,6 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     @Test
     @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testGetPhoneNumber_ImsNotRegistered() throws Exception {
-        doReturn(true).when(mFeatureFlags).lastKnownPhoneNumber();
         mContextFixture.addCallingOrSelfPermission(Manifest.permission.READ_PHONE_NUMBERS);
 
         String phoneNumberFromCarrier = "";
@@ -2701,7 +2699,6 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     @Test
     @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testGetPhoneNumberFromDefaultSubscription() {
-        doReturn(true).when(mFeatureFlags).lastKnownPhoneNumber();
         mContextFixture.addCallingOrSelfPermission(Manifest.permission.READ_PRIVILEGED_PHONE_STATE);
         mContextFixture.addCallingOrSelfPermission(Manifest.permission.MODIFY_PHONE_STATE);
         int subId = insertSubscription(FAKE_SUBSCRIPTION_INFO1);
