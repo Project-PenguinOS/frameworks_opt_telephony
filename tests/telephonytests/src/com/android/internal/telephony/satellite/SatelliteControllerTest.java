@@ -5235,7 +5235,6 @@ public class SatelliteControllerTest extends TelephonyTest {
     }
 
     private void setSatelliteSubscriberTesting(boolean sameCarrier) throws Exception {
-        when(mFeatureFlags.lastKnownPhoneNumber()).thenReturn(true);
         doReturn("123").when(mContext).getAttributionTag();
         final int carrierId_subID = 0;
         final int carrierId_subID1 = sameCarrier ? 0 : 1;
@@ -5307,7 +5306,6 @@ public class SatelliteControllerTest extends TelephonyTest {
 
     @Test
     public void testCheckForSubscriberIdChange_noChanged() {
-        when(mFeatureFlags.lastKnownPhoneNumber()).thenReturn(true);
         String imsi = "012345";
         String oldMsisdn = "1234567890";
         String newMsisdn = "1234567890";
@@ -5354,7 +5352,6 @@ public class SatelliteControllerTest extends TelephonyTest {
 
     @Test
     public void testCheckForSubscriberIdChange_changed() {
-        when(mFeatureFlags.lastKnownPhoneNumber()).thenReturn(true);
         mCarrierConfigBundle.putBoolean(KEY_CARRIER_CONFIG_APPLIED_BOOL, true);
         List<SubscriptionInfo> allSubInfos = new ArrayList<>();
 
@@ -7894,7 +7891,6 @@ public class SatelliteControllerTest extends TelephonyTest {
 
     @Test
     public void testGetPhoneNumberBasedCarrier() throws Exception {
-        when(mFeatureFlags.lastKnownPhoneNumber()).thenReturn(true);
         assertEquals("", mSatelliteControllerUT.getPhoneNumberBasedCarrier(-1));
 
         int carrierId_subID = 0;
