@@ -99,16 +99,6 @@ flag {
   bug:"448973795"
 }
 
-# OWNER=jackyu TARGET=26Q1
-flag {
-  name: "not_recreate_agent_when_immutable_capabilities_changed"
-  namespace: "telephony"
-  description: "Do not recreate network agent when immutable capabilities changed"
-  bug:"448915789"
-  metadata {
-    purpose: PURPOSE_BUGFIX
-  }
-}
 
 # OWNER=sewookseo TARGET=26Q2
 flag {

@@ -57,6 +57,7 @@ import static org.mockito.Mockito.when;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.content.pm.ResolveInfo;
 import android.hardware.radio.modem.ImeiInfo;
 import android.os.AsyncResult;
 import android.os.Bundle;
@@ -64,6 +65,7 @@ import android.os.Handler;
 import android.os.Message;
 import android.os.PersistableBundle;
 import android.os.Process;
+import android.os.UserHandle;
 import android.os.UserManager;
 import android.os.WorkSource;
 import android.preference.PreferenceManager;
@@ -121,6 +123,7 @@ import org.mockito.Mockito;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -3033,14 +3036,14 @@ public class GsmCdmaPhoneTest extends TelephonyTest {
         int subId = 1;
         doReturn(subId).when(mSubscriptionManagerService).getSubId(anyInt());
         doReturn(true).when(mFeatureFlags).keyCarrier2gToggle();
+        TelephonyManager.setupISubForTest(mSubscriptionManagerService);
+        TelephonyManager.enableServiceHandleCaching();
+        mPhoneUT.loadAllowedNetworksFromSubscriptionDatabase();
         addRadioCapabilities(new HashSet<>(
                 Arrays.asList(TelephonyManager.CAPABILITY_USES_ALLOWED_NETWORK_TYPES_BITMASK)));
         // 2g is disabled by carrier
         mContextFixture.getCarrierConfigBundle().putBoolean(
                 CarrierConfigManager.KEY_CARRIER_DEFAULT_2G_PROTECTION_ENABLED_BOOL, true);
-        // 19 == TelephonyManager.NETWORK_TYPE_NR
-        // NR_BITMASK == 524288 == 1 << 19
-        loadAllowedNetworks("user=4096,power=4096,carrier=4096,enable_2g=-1");
 
         // Update cc settings
         mPhoneUT.sendMessage(mPhoneUT.obtainMessage(Phone.EVENT_CARRIER_CONFIG_CHANGED));
@@ -3050,8 +3053,25 @@ public class GsmCdmaPhoneTest extends TelephonyTest {
         verify(mMockCi).setAllowedNetworkTypesBitmap(anyInt(), captureMessage.capture());
         assertEquals(mPhoneUT.EVENT_SET_ALLOWED_NETWORK_TYPES_FOR_2G_DISABLED_DONE,
                 captureMessage.getAllValues().get(0).what);
+        assertTrue(isCarrier2gToggleUpdated(subId));
         verify(mNotifier).notifyAllowedNetworkTypesChanged(any(),
                 eq(TelephonyManager.ALLOWED_NETWORK_TYPES_REASON_ENABLE_2G), anyLong());
+
+        // verifying the '2G disabled' broadcast notification called.
+        mContextFixture.putResource(
+                com.android.internal.R.string.config_network_change_notification,
+                "com.android/com.android.test");
+        ResolveInfo resolveInfo = new ResolveInfo();
+        doReturn(Collections.singletonList(resolveInfo)).when(mPackageManager)
+                                                        .queryBroadcastReceivers(any(), anyInt());
+        AsyncResult ar = new AsyncResult(null, null, null);
+
+        mPhoneUT.sendMessage(mPhoneUT.obtainMessage(
+                GsmCdmaPhone.EVENT_SET_ALLOWED_NETWORK_TYPES_FOR_2G_DISABLED_DONE, ar));
+        processAllMessages();
+
+        verify(mContext).sendBroadcastAsUser(any(Intent.class), eq(UserHandle.ALL));
+
     }
 
     @Test
@@ -3150,6 +3170,7 @@ public class GsmCdmaPhoneTest extends TelephonyTest {
         processAllMessages();
 
         assertFalse(isCarrier2gToggleUpdated(subId));
+        verify(mContext, never()).sendBroadcastAsUser(any(), eq(UserHandle.ALL));
     }
 
     private void loadAllowedNetworks(String validSerializedNetworkMap) {

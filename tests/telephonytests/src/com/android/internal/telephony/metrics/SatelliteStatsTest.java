@@ -475,6 +475,8 @@ public class SatelliteStatsTest extends TelephonyTest {
                         .setIsWifiEnabled(false)
                         .setIsWfcEnabled(false)
                         .setIsWfcRegistered(false)
+                        .setEligibilitySource(
+                                SatelliteConstants.SATELLITE_ELIGIBILITY_SOURCE_ENTITLEMENT)
                         .build();
 
         mSatelliteStats.onCarrierRoamingSatelliteSessionMetrics(param);
@@ -508,6 +510,7 @@ public class SatelliteStatsTest extends TelephonyTest {
         assertEquals(param.isWifiEnabled(), stats.isWifiEnabled);
         assertEquals(param.isWfcEnabled(), stats.isWfcEnabled);
         assertEquals(param.isWfcRegistered(), stats.isWfcRegistered);
+        assertEquals(param.getEligibilitySource(), stats.eligibilitySource);
 
         verifyNoMoreInteractions(mPersistAtomsStorage);
     }
@@ -532,6 +535,9 @@ public class SatelliteStatsTest extends TelephonyTest {
                         .increaseCountOfSessionConnectionModeAutomatic(true)
                         .increaseCountOfSessionConnectionModeManual(false)
                         .setIsNbIotNtn(true)
+                        .setSatelliteAttachSupported(true)
+                        .setEligibilitySource(
+                                SatelliteConstants.SATELLITE_ELIGIBILITY_SOURCE_ENTITLEMENT)
                         .build();
 
         mSatelliteStats.onCarrierRoamingSatelliteControllerStatsMetrics(param);
@@ -560,6 +566,8 @@ public class SatelliteStatsTest extends TelephonyTest {
         assertEquals(param.isMultiSim(), stats.isMultiSim);
         assertEquals(param.getCountOfSatelliteSessions(), stats.countOfSatelliteSessions);
         assertEquals(param.isNbIotNtn(), stats.isNbIotNtn);
+        assertEquals(param.isSatelliteAttachSupported(), stats.satelliteAttachSupported);
+        assertEquals(param.getEligibilitySource(), stats.eligibilitySource);
 
         verifyNoMoreInteractions(mPersistAtomsStorage);
     }

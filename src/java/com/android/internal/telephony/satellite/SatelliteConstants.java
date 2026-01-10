@@ -208,4 +208,24 @@ public class SatelliteConstants {
     })
     @Retention(RetentionPolicy.SOURCE)
     public @interface SatelliteEntitlementQueryTrigger {}
+
+    /**
+     * Defines the source or reason for satellite service eligibility.
+     * Matches the SatelliteEligibilitySource enum in enums.proto.
+     */
+    // Unknown or unspecified eligibility source.
+    public static final int SATELLITE_ELIGIBILITY_SOURCE_UNKNOWN = 0;
+    // Service is available because the subscription is entitled.
+    public static final int SATELLITE_ELIGIBILITY_SOURCE_ENTITLEMENT = 1;
+    // Service is available based on a carrier configuration for the subscription.
+    public static final int SATELLITE_ELIGIBILITY_SOURCE_CARRIER_CONFIG = 2;
+
+    /** @hide */
+    @IntDef(prefix = {"SATELLITE_ELIGIBILITY_SOURCE_"}, value = {
+            SATELLITE_ELIGIBILITY_SOURCE_UNKNOWN,
+            SATELLITE_ELIGIBILITY_SOURCE_ENTITLEMENT,
+            SATELLITE_ELIGIBILITY_SOURCE_CARRIER_CONFIG
+    })
+    @Retention(RetentionPolicy.SOURCE)
+    public @interface SatelliteEligibilitySource {}
 }
