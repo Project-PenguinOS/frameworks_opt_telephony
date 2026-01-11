@@ -481,7 +481,6 @@ public class DefaultPhoneNotifierTest extends TelephonyTest {
     @Test
     @SmallTest
     public void testCellularIdentifierDisclosedChanged() {
-        doReturn(true).when(mFeatureFlags).cellularIdentifierDisclosureIndications();
         int phoneId = mPhone.getPhoneId();
         int subId = mPhone.getSubId();
         CellularIdentifierDisclosure disclosure =
