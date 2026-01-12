@@ -4300,6 +4300,7 @@ public class SatelliteStats {
         proto.batteryDesignCapacityMah = param.getBatteryDesignCapacityMah();
         proto.energyConsumedNwh = param.getEnergyConsumedNwh();
         proto.eligibilitySource = param.getEligibilitySource();
+        proto.plmn = param.getPlmn();
         if (DBG) logd("onCarrierRoamingSatelliteSessionMetrics: " + param);
         mAtomsStorage.addCarrierRoamingSatelliteSessionStats(proto);
     }
