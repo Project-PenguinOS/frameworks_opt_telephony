@@ -3256,11 +3256,9 @@ public class GsmCdmaPhone extends Phone {
                 }
 
                 mIdentifierDisclosureNotifier.addDisclosure(mContext, getSubId(), disclosure);
-                if (mFeatureFlags.cellularIdentifierDisclosureIndications()) {
-                    logd("EVENT_CELL_IDENTIFIER_DISCLOSURE for non-Safety Center listeners "
-                            + "phoneId = " + getPhoneId());
-                    mNotifier.notifyCellularIdentifierDisclosedChanged(this, disclosure);
-                }
+                logd("EVENT_CELL_IDENTIFIER_DISCLOSURE for non-Safety Center listeners "
+                        + "phoneId = " + getPhoneId());
+                mNotifier.notifyCellularIdentifierDisclosedChanged(this, disclosure);
                 break;
 
             case EVENT_SET_IDENTIFIER_DISCLOSURE_ENABLED_DONE:
