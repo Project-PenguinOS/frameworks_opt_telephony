@@ -107,11 +107,7 @@ public class GsmCdmaCallTracker extends CallTracker {
     private UUSInfo mPendingCallUusInfo;
 // QTI_END: 2019-04-16: Telephony: Handle ECBM mode for both the SUBs to place calls in ECBM mode
     private int m3WayCallFlashDelay;
-// QTI_BEGIN: 2022-02-02: Telephony: Exit both ECBM and SCBM before placing MO call
-    private boolean mPendingExitEcbmReq;
-    private boolean mPendingExitScbmReq;
-// QTI_END: 2022-02-02: Telephony: Exit both ECBM and SCBM before placing MO call
-
+    private final QtiEmergencyModeTracker mQtiEmergencyModeTracker;
     /**
      * Listens for Emergency Callback Mode state change intents
      */
@@ -173,6 +169,7 @@ public class GsmCdmaCallTracker extends CallTracker {
         mPhone.getContext().registerReceiver(mEcmExitReceiver, filter);
 
         updatePhoneType(true);
+        mQtiEmergencyModeTracker = new QtiEmergencyModeTracker();
     }
 
     public void updatePhoneType() {
@@ -205,26 +202,6 @@ public class GsmCdmaCallTracker extends CallTracker {
 
         mPendingMO = null;
         clearDisconnected();
-    }
-
-// QTI_BEGIN: 2021-12-28: Telephony: Add exit SCBM support
-    /**
-     * @return true if the phone is in Emergency Callback mode, otherwise false
-     */
-    private boolean isPhoneInEcbm() {
-        return EcbmHandler.getInstance() != null && EcbmHandler.getInstance().isInEcm();
-    }
-
-    /**
-     * @return true if the phone is in SMS callback mode and
-     * exit SCBM supported, otherwise false
-     */
-    private boolean canExitScbm() {
-        return mPhone.isInScbm() && mPhone.isExitScbmFeatureSupported();
-    }
-
-    private boolean isPhoneInEmergencyMode() {
-        return isPhoneInEcbm() || canExitScbm();
     }
 
 
@@ -281,46 +258,6 @@ public class GsmCdmaCallTracker extends CallTracker {
         for (Connection conn : connCopy) {
             GsmCdmaConnection gsmCdmaConn = (GsmCdmaConnection) conn;
             gsmCdmaConn.fakeHoldBeforeDial();
-        }
-    }
-
-// QTI_BEGIN: 2021-12-28: Telephony: Add exit SCBM support
-    private void exitEmergencyMode() {
-        boolean isPhoneInEcbm = isPhoneInEcbm();
-// QTI_END: 2021-12-28: Telephony: Add exit SCBM support
-// QTI_BEGIN: 2022-02-02: Telephony: Exit both ECBM and SCBM before placing MO call
-        boolean isPhoneInScbm = canExitScbm();
-
-// QTI_END: 2022-02-02: Telephony: Exit both ECBM and SCBM before placing MO call
-// QTI_BEGIN: 2021-12-28: Telephony: Add exit SCBM support
-        if (isPhoneInEcbm) {
-            EcbmHandler emergencyHandler = EcbmHandler.getInstance();
-            try {
-                emergencyHandler.exitEmergencyCallbackMode();
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-            emergencyHandler.setOnEcbModeExitResponse(this,
-                    EVENT_EXIT_ECM_RESPONSE_CDMA, null);
-// QTI_END: 2021-12-28: Telephony: Add exit SCBM support
-// QTI_BEGIN: 2022-02-02: Telephony: Exit both ECBM and SCBM before placing MO call
-            mPendingExitEcbmReq = true;
-        }
-        if (isPhoneInScbm) {
-// QTI_END: 2022-02-02: Telephony: Exit both ECBM and SCBM before placing MO call
-// QTI_BEGIN: 2021-12-28: Telephony: Add exit SCBM support
-            try {
-                mPhone.exitScbm();
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-            mPhone.setOnScbmExitResponse(this,
-                    EVENT_EXIT_SCBM_RESPONSE_CDMA, null);
-// QTI_END: 2021-12-28: Telephony: Add exit SCBM support
-// QTI_BEGIN: 2022-02-02: Telephony: Exit both ECBM and SCBM before placing MO call
-            mPendingExitScbmReq = true;
-// QTI_END: 2022-02-02: Telephony: Exit both ECBM and SCBM before placing MO call
-// QTI_BEGIN: 2021-12-28: Telephony: Add exit SCBM support
         }
     }
 
@@ -408,7 +345,8 @@ public class GsmCdmaCallTracker extends CallTracker {
             // Always unmute when initiating a new call
             setMute(false);
 // QTI_BEGIN: 2021-12-28: Telephony: Add exit SCBM support
-            boolean isPhoneInEmergencyMode = isPhoneInEmergencyMode();
+            boolean isPhoneInEmergencyMode = mQtiEmergencyModeTracker.
+                        isPhoneInEmergencyMode(mPhone);
 
 // QTI_END: 2021-12-28: Telephony: Add exit SCBM support
 // QTI_BEGIN: 2019-04-16: Telephony: Handle ECBM mode for both the SUBs to place calls in ECBM mode
@@ -426,7 +364,13 @@ public class GsmCdmaCallTracker extends CallTracker {
             } else {
 // QTI_END: 2019-04-16: Telephony: Handle ECBM mode for both the SUBs to place calls in ECBM mode
 // QTI_BEGIN: 2021-12-28: Telephony: Add exit SCBM support
-                exitEmergencyMode();
+                try {
+                    mQtiEmergencyModeTracker.exitEmergencyMode(this, mPhone);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    reset();
+                    throw new CallStateException("service not available");
+                }
 // QTI_END: 2021-12-28: Telephony: Add exit SCBM support
 // QTI_BEGIN: 2019-04-16: Telephony: Handle ECBM mode for both the SUBs to place calls in ECBM mode
                 mPendingCallClirMode = clirMode;
@@ -550,7 +494,8 @@ public class GsmCdmaCallTracker extends CallTracker {
             // Check data call
             disableDataCallInEmergencyCall(dialString);
 // QTI_BEGIN: 2021-12-28: Telephony: Add exit SCBM support
-            boolean isPhoneInEmergencyMode = isPhoneInEmergencyMode();
+            boolean isPhoneInEmergencyMode = mQtiEmergencyModeTracker.
+                        isPhoneInEmergencyMode(mPhone);
 // QTI_END: 2021-12-28: Telephony: Add exit SCBM support
             // In Ecm mode, if another emergency call is dialed, Ecm mode will not exit.
 // QTI_BEGIN: 2021-12-28: Telephony: Add exit SCBM support
@@ -576,7 +521,12 @@ public class GsmCdmaCallTracker extends CallTracker {
                         TelephonyManager.STOP_REASON_OUTGOING_NORMAL_CALL_INITIATED);
             } else {
 // QTI_BEGIN: 2021-12-28: Telephony: Add exit SCBM support
-                exitEmergencyMode();
+                try {
+                    mQtiEmergencyModeTracker.exitEmergencyMode(this, mPhone);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    throw new CallStateException("service not available");
+                }
 // QTI_END: 2021-12-28: Telephony: Add exit SCBM support
                 mPendingCallClirMode=clirMode;
                 mPendingCallInEcm=true;
@@ -1295,7 +1245,8 @@ public class GsmCdmaCallTracker extends CallTracker {
     private void handlePendingMoCall() {
 // QTI_END: 2021-12-28: Telephony: Add exit SCBM support
 // QTI_BEGIN: 2022-02-02: Telephony: Exit both ECBM and SCBM before placing MO call
-        if (mPendingCallInEcm && !mPendingExitEcbmReq && !mPendingExitScbmReq) {
+        if (mPendingCallInEcm && !mQtiEmergencyModeTracker.getPendingExitEcbmReq() &&
+                !mQtiEmergencyModeTracker.getPendingExitScbmReq()) {
 // QTI_END: 2022-02-02: Telephony: Exit both ECBM and SCBM before placing MO call
 // QTI_BEGIN: 2021-12-28: Telephony: Add exit SCBM support
             // no matter the result, we still do the same here
@@ -1492,7 +1443,7 @@ public class GsmCdmaCallTracker extends CallTracker {
 
             case EVENT_EXIT_ECM_RESPONSE_CDMA:
 // QTI_BEGIN: 2022-02-02: Telephony: Exit both ECBM and SCBM before placing MO call
-                mPendingExitEcbmReq = false;
+                mQtiEmergencyModeTracker.setPendingExitEcbmReq(false);
 // QTI_END: 2022-02-02: Telephony: Exit both ECBM and SCBM before placing MO call
 // QTI_BEGIN: 2021-12-28: Telephony: Add exit SCBM support
                 handlePendingMoCall();
@@ -1506,7 +1457,7 @@ public class GsmCdmaCallTracker extends CallTracker {
             case EVENT_EXIT_SCBM_RESPONSE_CDMA:
 // QTI_END: 2021-12-28: Telephony: Add exit SCBM support
 // QTI_BEGIN: 2022-02-02: Telephony: Exit both ECBM and SCBM before placing MO call
-                mPendingExitScbmReq = false;
+                mQtiEmergencyModeTracker.setPendingExitScbmReq(false);
 // QTI_END: 2022-02-02: Telephony: Exit both ECBM and SCBM before placing MO call
 // QTI_BEGIN: 2021-12-28: Telephony: Add exit SCBM support
                 handlePendingMoCall();
