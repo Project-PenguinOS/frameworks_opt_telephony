@@ -4704,7 +4704,7 @@ public class ServiceStateTracker extends Handler {
                 .getBoolean(com.android.internal.R.bool
                         .config_update_operator_name_after_carrier_config_loaded);
 
-        return !forceWaitForCarrierConfig || isCarrierConfigApplied();
+        return (!forceWaitForCarrierConfig || isCarrierConfigApplied()) && !isSimAbsent();
     }
 
     /**
