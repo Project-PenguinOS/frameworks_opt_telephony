@@ -62,14 +62,6 @@ public class UiccPhoneBookController extends IIccPhoneBook.Stub {
     /* only one UiccPhoneBookController exists */
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     public UiccPhoneBookController(@NonNull FeatureFlags featureFlags) {
-        if (!featureFlags.publishTelephonyServicesAfterConstruction()) {
-            ServiceRegisterer iccPhoneBookServiceRegisterer = TelephonyFrameworkInitializer
-                    .getTelephonyServiceManager()
-                    .getIccPhoneBookServiceRegisterer();
-            if (iccPhoneBookServiceRegisterer.get() == null) {
-                iccPhoneBookServiceRegisterer.register(this);
-            }
-        }
     }
 
     @Override

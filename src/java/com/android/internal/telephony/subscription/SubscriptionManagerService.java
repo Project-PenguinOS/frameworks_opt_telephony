@@ -813,16 +813,6 @@ public class SubscriptionManagerService extends ISub.Stub {
                 getDefaultSmsSubId());
         updateDefaultSubId();
 
-        if (!mFeatureFlags.publishTelephonyServicesAfterConstruction()) {
-            TelephonyServiceManager.ServiceRegisterer subscriptionServiceRegisterer =
-                    TelephonyFrameworkInitializer
-                            .getTelephonyServiceManager()
-                            .getSubscriptionServiceRegisterer();
-            if (subscriptionServiceRegisterer.get() == null) {
-                subscriptionServiceRegisterer.register(this);
-            }
-        }
-
         mHandler.post(() -> {
             // EuiccController is created after SubscriptionManagerService. So we need to get
             // the instance later in the handler.
