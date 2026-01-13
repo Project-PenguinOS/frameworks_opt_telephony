@@ -514,6 +514,7 @@ public class PersistAtomsStorageTest extends TelephonyTest {
         mServiceState1Proto.carrierId = CARRIER1_ID;
         mServiceState1Proto.totalTimeMillis = 5000L;
         mServiceState1Proto.isEmergencyOnly = false;
+        mServiceState1Proto.plmn = "123456";
 
         // LTE with ENDC on slot 0
         mServiceState2Proto = new CellularServiceState();
@@ -527,6 +528,7 @@ public class PersistAtomsStorageTest extends TelephonyTest {
         mServiceState2Proto.carrierId = CARRIER1_ID;
         mServiceState2Proto.totalTimeMillis = 15000L;
         mServiceState2Proto.isEmergencyOnly = false;
+        mServiceState2Proto.plmn = "123456";
 
         // LTE with WFC and roaming on slot 1
         mServiceState3Proto = new CellularServiceState();
@@ -705,6 +707,7 @@ public class PersistAtomsStorageTest extends TelephonyTest {
         mDataCallSession0.ongoing = true;
         mDataCallSession0.handoverFailureCauses = new int[]{3, 2, 1};
         mDataCallSession0.handoverFailureRat = new int[]{5, 5, 6};
+        mDataCallSession0.plmn = "123456";
 
         mDataCallSession1 = new DataCallSession();
         mDataCallSession1.dimension = 222;
@@ -714,6 +717,7 @@ public class PersistAtomsStorageTest extends TelephonyTest {
         mDataCallSession1.setupFailed = false;
         mDataCallSession1.durationMinutes = 5;
         mDataCallSession1.ongoing = false;
+        mDataCallSession1.plmn = "123456";
 
         // RCS registrtion feature tag slot 0
         mImsRegistrationFeatureTagStats1Proto = new ImsRegistrationFeatureTagStats();
@@ -1042,6 +1046,7 @@ public class PersistAtomsStorageTest extends TelephonyTest {
         mIncomingSms1.isManagedProfile = false;
         mIncomingSms1.isNtn = false;
         mIncomingSms1.isEmergency = true;
+        mIncomingSms1.plmn = "123456";
 
         mIncomingSms2 = new IncomingSms();
         mIncomingSms2.smsFormat = INCOMING_SMS__SMS_FORMAT__SMS_FORMAT_3GPP2;
@@ -1062,6 +1067,7 @@ public class PersistAtomsStorageTest extends TelephonyTest {
         mIncomingSms2.isManagedProfile = true;
         mIncomingSms2.isNtn = true;
         mIncomingSms2.isEmergency = true;
+        mIncomingSms2.plmn = "123456";
 
         mIncomingSms = new IncomingSms[] {mIncomingSms1, mIncomingSms2};
 
@@ -1085,6 +1091,7 @@ public class PersistAtomsStorageTest extends TelephonyTest {
         mOutgoingSms1.isManagedProfile = false;
         mOutgoingSms1.isEmergency = false;
         mOutgoingSms1.isNtn = false;
+        mOutgoingSms1.plmn = "123456";
 
         mOutgoingSms2 = new OutgoingSms();
         mOutgoingSms2.smsFormat = INCOMING_SMS__SMS_FORMAT__SMS_FORMAT_3GPP2;
@@ -1106,6 +1113,7 @@ public class PersistAtomsStorageTest extends TelephonyTest {
         mOutgoingSms2.isManagedProfile = true;
         mOutgoingSms2.isEmergency = true;
         mOutgoingSms2.isNtn = true;
+        mOutgoingSms2.plmn = "123456";
 
         mOutgoingSms = new OutgoingSms[] {mOutgoingSms1, mOutgoingSms2};
 
@@ -2735,6 +2743,7 @@ public class PersistAtomsStorageTest extends TelephonyTest {
         newDataCallSession0.ratSwitchCount = 5;
         newDataCallSession0.handoverFailureCauses = new int[]{4};
         newDataCallSession0.handoverFailureRat = new int[]{4};
+        newDataCallSession0.plmn = "123456";
         DataCallSession totalDataCallSession0 = copyOf(newDataCallSession0);
         totalDataCallSession0.durationMinutes =
                 mDataCallSession0.durationMinutes + newDataCallSession0.durationMinutes;
@@ -2742,6 +2751,7 @@ public class PersistAtomsStorageTest extends TelephonyTest {
                 mDataCallSession0.ratSwitchCount + newDataCallSession0.ratSwitchCount;
         totalDataCallSession0.handoverFailureCauses = new int[]{1, 2, 3, 4};
         totalDataCallSession0.handoverFailureRat = new int[]{6, 5, 5, 4};
+        totalDataCallSession0.plmn = "123456";
 
         mPersistAtomsStorage.addDataCallSession(mDataCallSession0);
         mPersistAtomsStorage.addDataCallSession(newDataCallSession0);
