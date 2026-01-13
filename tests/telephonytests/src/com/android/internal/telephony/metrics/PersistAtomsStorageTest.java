@@ -49,6 +49,7 @@ import static com.android.internal.telephony.satellite.SatelliteConstants.ACCESS
 import static com.android.internal.telephony.satellite.SatelliteConstants.ACCESS_CONTROL_TYPE_NETWORK_COUNTRY_CODE;
 import static com.android.internal.telephony.satellite.SatelliteConstants.CONFIG_DATA_SOURCE_CONFIG_UPDATER;
 import static com.android.internal.telephony.satellite.SatelliteConstants.CONFIG_DATA_SOURCE_DEVICE_CONFIG;
+import static com.android.internal.telephony.satellite.SatelliteConstants.SATELLITE_ENTITLEMENT_QUERY_TRIGGER_UNKNOWN;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -1507,6 +1508,7 @@ public class PersistAtomsStorageTest extends TelephonyTest {
         mSatelliteEntitlement1.isRetry = false;
         mSatelliteEntitlement1.count = 1;
         mSatelliteEntitlement1.httpStatusCode = 404;
+        mSatelliteEntitlement1.triggerEvent = SATELLITE_ENTITLEMENT_QUERY_TRIGGER_UNKNOWN;
 
         mSatelliteEntitlement2 = new SatelliteEntitlement();
         mSatelliteEntitlement2.carrierId = 2;
@@ -1517,6 +1519,7 @@ public class PersistAtomsStorageTest extends TelephonyTest {
         mSatelliteEntitlement2.isRetry = true;
         mSatelliteEntitlement2.count = 1;
         mSatelliteEntitlement2.httpStatusCode = 500;
+        mSatelliteEntitlement2.triggerEvent = SATELLITE_ENTITLEMENT_QUERY_TRIGGER_UNKNOWN;
 
         mSatelliteEntitlements = new SatelliteEntitlement[] {mSatelliteEntitlement1,
                 mSatelliteEntitlement2};

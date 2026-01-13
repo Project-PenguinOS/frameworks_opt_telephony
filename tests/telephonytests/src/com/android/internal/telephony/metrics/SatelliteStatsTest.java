@@ -658,6 +658,8 @@ public class SatelliteStatsTest extends TelephonyTest {
                         .setIsRetry(true)
                         .setCount(5)
                         .setHttpStatusCode(404)
+                        .setTriggerEvent(SatelliteConstants
+                                .SATELLITE_ENTITLEMENT_QUERY_TRIGGER_UNKNOWN)
                         .build();
 
         mSatelliteStats.onSatelliteEntitlementMetrics(param);
@@ -673,6 +675,7 @@ public class SatelliteStatsTest extends TelephonyTest {
         assertEquals(param.getIsRetry(), stats.isRetry);
         assertEquals(param.getCount(), stats.count);
         assertEquals(param.getHttpStatusCode(), stats.httpStatusCode);
+        assertEquals(param.getTriggerEvent(), stats.triggerEvent);
 
         verifyNoMoreInteractions(mPersistAtomsStorage);
     }

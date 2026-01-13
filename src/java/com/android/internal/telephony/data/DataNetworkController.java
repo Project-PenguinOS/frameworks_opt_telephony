@@ -1856,12 +1856,18 @@ public class DataNetworkController extends Handler {
         }
 
         // Check if data roaming is disabled.
-        // But if the data roaming setting for satellite connection is ignored as the satellite
-        // data plan is included in the user mobile plan, then we should not disallow data due to
-        // roaming disabled.
-        if (mServiceState.getDataRoaming() && !mDataSettingsManager.isDataRoamingEnabled()
-                    && !shouldAllowSatelliteDataWhenRoamingDisabled()) {
-            evaluation.addDataDisallowedReason(DataDisallowedReason.ROAMING_DISABLED);
+        boolean roamingDisabled = !mDataSettingsManager.isDataRoamingEnabled();
+
+        if (mServiceState.getDataRoaming() && roamingDisabled) {
+            if (mServiceState.isUsingNonTerrestrialNetwork()) {
+                // Even if data roaming setting is disabled, we check if we should exempt the
+                // satellite network from this restriction before disallowing it.
+                if (!shouldAllowSatelliteDataWhenRoamingDisabled()) {
+                    evaluation.addDataDisallowedReason(DataDisallowedReason.ROAMING_DISABLED);
+                }
+            } else {
+                evaluation.addDataDisallowedReason(DataDisallowedReason.ROAMING_DISABLED);
+            }
         }
 
         // Check if data is restricted by the cellular network.
@@ -2042,15 +2048,14 @@ public class DataNetworkController extends Handler {
 // QTI_END: 2025-02-06: Telephony: Telephony-Data: Decouple Qualcomm value adds.
 
     /**
-     * Returns whether the data roaming setting should be ignored for satellite connection,
-     * as the satellite data plan is included in the user mobile plan.
+     * Returns whether satellite data is allowed when data roaming setting is disabled, as the
+     * satellite data plan is included in the user mobile plan.
      *
-     * @return {@code true} if the data roaming setting should be ignored for satellite connection.
-     * {@code false} otherwise.
+     * @return {@code true} if data should be allowed on satellite network when data roaming setting
+     * is disabled. {@code false} otherwise.
      */
     private boolean shouldAllowSatelliteDataWhenRoamingDisabled() {
-        return mServiceState.isUsingNonTerrestrialNetwork()
-                && mDataConfigManager.isDataRoamingAllowedOnSatellite();
+        return mDataConfigManager.isDataRoamingAllowedOnSatellite();
     }
 
     /**
@@ -2339,8 +2344,18 @@ public class DataNetworkController extends Handler {
         boolean dataDisabled = !mDataSettingsManager.isDataEnabled();
 
         // Check if data roaming is disabled
-        if (mServiceState.getDataRoaming() && !mDataSettingsManager.isDataRoamingEnabled()) {
-            evaluation.addDataDisallowedReason(DataDisallowedReason.ROAMING_DISABLED);
+        boolean roamingDisabled = !mDataSettingsManager.isDataRoamingEnabled();
+
+        if (mServiceState.getDataRoaming() && roamingDisabled) {
+            if (mServiceState.isUsingNonTerrestrialNetwork()) {
+                // Even if data roaming setting is disabled, we check if we should exempt the
+                // satellite network from this restriction before disallowing it.
+                if (!shouldAllowSatelliteDataWhenRoamingDisabled()) {
+                    evaluation.addDataDisallowedReason(DataDisallowedReason.ROAMING_DISABLED);
+                }
+            } else {
+                evaluation.addDataDisallowedReason(DataDisallowedReason.ROAMING_DISABLED);
+            }
         }
 
         // Check if current data network type is allowed by the data profile. Use the lingering

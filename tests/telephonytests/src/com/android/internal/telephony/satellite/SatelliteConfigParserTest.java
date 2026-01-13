@@ -42,8 +42,7 @@ import androidx.test.InstrumentationRegistry;
 
 import com.android.internal.telephony.TelephonyConfigData;
 import com.android.internal.telephony.TelephonyTest;
-
-import com.google.protobuf.ByteString;
+import com.android.internal.telephony.protobuf.ByteString;
 
 import org.junit.After;
 import org.junit.Before;

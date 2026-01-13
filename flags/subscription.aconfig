@@ -93,3 +93,12 @@ flag {
     bug: "458746638"
     is_exported: true
 }
+
+# OWNER=ysnam TARGET=26Q2
+flag {
+    name: "prevent_disabling_ungrouped_opp_sub"
+    namespace: "telephony"
+    description: "Prevent disabling ungrouped opportunistic subscription when it is the only active subscription."
+    bug: "465531655"
+    is_exported: false
+}
