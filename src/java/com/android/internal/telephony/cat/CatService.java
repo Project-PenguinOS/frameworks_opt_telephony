@@ -239,8 +239,7 @@ public class CatService extends Handler implements AppInterface {
              * correctly.
              * To avoid issues, always use the file handler from a known, valid SIM application.
              */
-            if (Flags.catServiceCreationFix() && ca.getType() == APPTYPE_UNKNOWN
-                    && uiccProfile.getNumApplications() > 1) {
+            if (ca.getType() == APPTYPE_UNKNOWN && uiccProfile.getNumApplications() > 1) {
                 for (int i = 1; i < uiccProfile.getNumApplications(); i++) {
                     UiccCardApplication tmpCa = uiccProfile.getApplicationIndex(i);
                     if (tmpCa.getType() != APPTYPE_UNKNOWN) {
