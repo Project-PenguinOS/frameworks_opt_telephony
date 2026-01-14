@@ -97,6 +97,7 @@ import android.content.res.Resources;
 import android.database.ContentObserver;
 import android.hardware.devicestate.DeviceState;
 import android.hardware.devicestate.DeviceStateManager;
+import android.hardware.display.DisplayManager;
 import android.location.LocationManager;
 import android.net.Uri;
 import android.net.wifi.WifiManager;
@@ -160,6 +161,7 @@ import android.text.TextUtils;
 import android.util.Log;
 import android.util.Pair;
 import android.uwb.UwbManager;
+import android.view.Display;
 import android.view.WindowManager;
 
 import com.android.internal.R;
@@ -369,6 +371,7 @@ public class SatelliteController extends Handler {
     private static final int EVENT_CARRIER_CONFIG_CHANGED = 92;
     private static final int EVENT_SATELLITE_ENTILEMENT_STATUS_UPDATED = 93;
     private static final int EVENT_PACKAGE_CHANGED = 94;
+    private static final int EVENT_SCREEN_STATE_CHANGED = 95;
 
     private static final int TRUE = 1;
     private static final int FALSE = 0;
@@ -609,7 +612,8 @@ public class SatelliteController extends Handler {
     @NonNull private final ConcurrentHashMap<Integer, List<String>>
             mSupportedDisasterPlmnsPerCarrierFromConfig = new ConcurrentHashMap<>();
 
-    @NonNull private final ConcurrentHashMap<Integer, CarrierRoamingSatelliteSessionStats>
+    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PRIVATE)
+    @NonNull protected final ConcurrentHashMap<Integer, CarrierRoamingSatelliteSessionStats>
             mCarrierRoamingSatelliteSessionStatsMap = new ConcurrentHashMap<>();
     /**
      * Key: Subscription ID; Value: set of
@@ -620,6 +624,7 @@ public class SatelliteController extends Handler {
 
     @NonNull private final List<String> mSatellitePlmnListFromOverlayConfig;
     @NonNull private final CarrierConfigManager mCarrierConfigManager;
+    @NonNull private DisplayManager mDisplayManager;
     @NonNull private final CarrierConfigManager.CarrierConfigChangeListener
             mCarrierConfigChangeListener;
     @NonNull private final ConfigProviderAdaptor.Callback mConfigDataUpdatedCallback;
@@ -799,6 +804,7 @@ public class SatelliteController extends Handler {
     })
     @Retention(RetentionPolicy.SOURCE)
     public @interface SatelliteDataPlan {}
+
     private BroadcastReceiver
             mDefaultSmsSubscriptionChangedBroadcastReceiver = new BroadcastReceiver() {
                 @Override
@@ -1072,6 +1078,9 @@ public class SatelliteController extends Handler {
 
         mDSM.registerForSignalStrengthReportDecision(this, CMD_UPDATE_NTN_SIGNAL_STRENGTH_REPORTING,
                 null);
+        if (mFeatureFlags.satelliteMetricsEnhancement()) {
+            mDSM.registerForScreenStateChanged(this, EVENT_SCREEN_STATE_CHANGED, null);
+        }
 
         loadSatelliteSharedPreferences();
         if (mSharedPreferences != null) {
@@ -2722,6 +2731,10 @@ public class SatelliteController extends Handler {
 
             case EVENT_PACKAGE_CHANGED:
                 handlePackageChangeEvent();
+                break;
+
+            case EVENT_SCREEN_STATE_CHANGED:
+                handleEventScreenStateChanged((AsyncResult) msg.obj);
                 break;
 
             default:
@@ -7353,7 +7366,10 @@ public class SatelliteController extends Handler {
             // Log satellite session start
             CarrierRoamingSatelliteSessionStats sessionStats =
                     CarrierRoamingSatelliteSessionStats.getInstance(subId);
-            String satellitePlmn = phone.getServiceState().getOperatorNumeric();
+            String satellitePlmn = Optional.ofNullable(phone)
+                    .map(Phone::getServiceState)
+                    .map(ServiceState::getOperatorNumeric)
+                    .orElse("");
             int[] supported_satellite_services =
                     getSupportedSatelliteServicesOnSessionStart(
                             getSupportedSatelliteServicesForPlmn(subId,
@@ -7365,7 +7381,7 @@ public class SatelliteController extends Handler {
             sessionStats.onSessionStart(phone.getCarrierId(), phone,
                     supported_satellite_services, dataPolicy, satelliteApps,
                     getSupportedConnectTypeMetrics(subId), getSessionConnectTypeMetrics(subId),
-                    satellitePlmn, mFeatureFlags);
+                    satellitePlmn, mFeatureFlags, isScreenOn());
             mCarrierRoamingSatelliteSessionStatsMap.put(subId, sessionStats);
             mCarrierRoamingSatelliteControllerStats.onSessionStart(subId);
         } else if (lastNotifiedNtnMode && !currNtnMode) {
@@ -10683,6 +10699,46 @@ public class SatelliteController extends Handler {
         return getSatelliteDataServicePolicyForPlmn(subId, "");
     }
 
+
+    private void handleEventScreenStateChanged(@Nullable AsyncResult asyncResult) {
+        if (!mFeatureFlags.satelliteMetricsEnhancement()) {
+            logd("handleEventScreenStateChanged: satelliteMetricsEnhancement is not enabled, "
+                    + "ignore.");
+            return;
+        }
+
+        if (asyncResult == null) {
+            ploge("handleEventScreenStateChanged: asyncResult is null");
+            return;
+        }
+        boolean isScreenOn = (boolean) asyncResult.result;
+        plogd("handleEventScreenStateChanged: " + isScreenOn);
+        mCarrierRoamingSatelliteSessionStatsMap.values().forEach(stats -> {
+            stats.onScreenStateChanged(isScreenOn);
+        });
+    }
+
+    @VisibleForTesting(visibility =  VisibleForTesting.Visibility.PRIVATE)
+    protected boolean isScreenOn() {
+        if (mDisplayManager == null) {
+            mDisplayManager = mContext.getSystemService(DisplayManager.class);
+        }
+
+        Display[] displays = mDisplayManager.getDisplays();
+        if (displays != null) {
+            for (Display display : displays) {
+                if (display.getState() == Display.STATE_ON) {
+                    plogd("isScreenOn: Screen on for display=" + display);
+                    return true;
+                }
+            }
+            plogd("isScreenOn: Screens all off");
+            return false;
+        }
+
+        plogd("No displays found");
+        return false;
+    }
 
     /**
      * Get the satellite configuration for the given PLMN.
