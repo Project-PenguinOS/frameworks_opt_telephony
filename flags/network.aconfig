@@ -28,14 +28,6 @@ flag {
   bug: "355062720"
 }
 
-# OWNER=yomna TARGET=25Q2
-flag {
-  name: "cellular_identifier_disclosure_indications"
-  is_exported: true
-  namespace: "telephony"
-  description: "guard system API onCellularIdentifierDisclosedChanged"
-  bug: "355062720"
-}
 
 # OWNER=yomna TARGET=25Q4
 flag {

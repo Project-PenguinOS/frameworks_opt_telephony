@@ -9846,25 +9846,54 @@ public class SatelliteController extends Handler {
         }
     }
 
+    private int[] getSupportedSatelliteServicesFromConfig(int subId) {
+        Map<String, Set<Integer>> supportedServicesList =
+                mSatelliteServicesSupportedByCarriersFromConfig.get(subId);
+        if (supportedServicesList == null || supportedServicesList.isEmpty()) {
+            return new int[0];
+        }
+
+        Set<Integer> serviceTypesSet = new HashSet<>();
+        for (Set<Integer> values : supportedServicesList.values()) {
+            serviceTypesSet.addAll(values);
+        }
+
+        return serviceTypesSet.stream().mapToInt(Integer::intValue).toArray();
+    }
+
     /**
      * Given a subscription ID, this returns the carriers' supported services on
      * non-terrestrial networks.
      *
      * @param subId Associated subscription ID.
-     * return supported services at entitlement for the available carriers. Note: If available
-     *        services/allowed service type field is empty at entitlement, information from
-     *        {@link
-     *        CarrierConfigManager#KEY_CARRIER_ROAMING_SATELLITE_DEFAULT_SERVICES_INT_ARRAY}
-     *        will be returned.
+     * return supported services at entitlement for the available carriers.
+     *        The data source used for supported services is as follows:
+     *              1. Return supported services from entitlement info if available
+     *              2. Return supported services provided by config updater if available
+     *              3. Return services from {@link CarrierConfigManager
+     *              #KEY_CARRIER_SUPPORTED_SATELLITE_SERVICES_PER_PROVIDER_BUNDLE}
+     *              4. Else return default services present in {@link CarrierConfigManager
+     *              #KEY_CARRIER_ROAMING_SATELLITE_DEFAULT_SERVICES_INT_ARRAY}
      */
     public int[] getSupportedServicesOnCarrierRoamingNtn(int subId) {
         if (isValidSubscriptionId(subId) && isSatelliteSupportedViaCarrier(subId)) {
             // check available services supported at entitlement for sub id
             int[] services = getAvailableServicesWithEntitlementForSubId(subId);
-            logd("getAvailableServicesWithEntitlementForSubId: " + Arrays.toString(services));
+            plogd("getSupportedServicesOnCarrierRoamingNtn[DataSource=Entitlement]: subId=" + subId
+                    + " services=" + Arrays.toString(services));
+
             if (services.length == 0) {
-                services = getSupportedSatelliteServicesForCarrier(subId);
+                services = getSupportedSatelliteServicesFromConfig(subId);
+                plogd("getSupportedServicesOnCarrierRoamingNtn[DataSource=Config]: subId=" + subId
+                        + " services=" + Arrays.toString(services));
             }
+
+            if (services.length == 0) {
+                services = getSatelliteDefaultServicesFromCarrierConfig(subId);
+                plogd("getSupportedServicesOnCarrierRoamingNtn[DataSource=Default Services]: "
+                        + "subId=" + subId + " services=" + Arrays.toString(services));
+            }
+
             if (isP2PSmsDisallowedOnCarrierRoamingNtn(subId)) {
                 services = Arrays.stream(services).filter(
                         value -> value != NetworkRegistrationInfo.SERVICE_TYPE_SMS).toArray();
@@ -9935,15 +9964,15 @@ public class SatelliteController extends Handler {
     }
 
     @NonNull
-    private int[] getSupportedSatelliteServicesForCarrier(int subId) {
+    private int[] getSatelliteDefaultServicesFromCarrierConfig(int subId) {
         PersistableBundle config = getPersistableBundle(subId);
         int[] availableServices =
                 config.getIntArray(KEY_CARRIER_ROAMING_SATELLITE_DEFAULT_SERVICES_INT_ARRAY);
         if (availableServices == null) {
-            logd("getSupportedSatelliteServicesForCarrier: defaultCapabilities is null");
+            logd("getSatelliteDefaultServicesFromCarrierConfig: defaultCapabilities is null");
             return new int[0];
         }
-        logd("getSupportedSatelliteServicesForCarrier: subId=" + subId
+        logd("getSatelliteDefaultServicesFromCarrierConfig: subId=" + subId
                 + ", return default values " + Arrays.toString(availableServices));
         return availableServices;
     }
