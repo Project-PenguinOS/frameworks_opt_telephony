@@ -109,7 +109,6 @@ import com.android.internal.telephony.TelephonyPermissions;
 import com.android.internal.telephony.data.PhoneSwitcher;
 import com.android.internal.telephony.euicc.EuiccController;
 import com.android.internal.telephony.flags.FeatureFlags;
-import com.android.internal.telephony.flags.Flags;
 import com.android.internal.telephony.satellite.SatelliteController;
 import com.android.internal.telephony.subscription.SubscriptionDatabaseManager.SubscriptionDatabaseManagerCallback;
 import com.android.internal.telephony.uicc.IccRecords;
@@ -5964,6 +5963,22 @@ public class SubscriptionManagerService extends ISub.Stub {
         }
 
         return TextUtils.equals(spn, overlaySpn);
+    }
+
+    @Override
+    @EnforcePermission(Manifest.permission.CONTROL_SIM_AUTO_PIN_MANAGEMENT)
+    public byte[] getAllPlatformManagedPinsForBackup() {
+        getAllPlatformManagedPinsForBackup_enforcePermission();
+
+        return mUiccController.getPinStorage().getPlatformManagedPinsForBackup();
+    }
+
+    @Override
+    @EnforcePermission(Manifest.permission.CONTROL_SIM_AUTO_PIN_MANAGEMENT)
+    public void restorePlatformManagedSimPins(byte[] data) {
+        restorePlatformManagedSimPins_enforcePermission();
+
+        mUiccController.getPinStorage().restorePlatformManagedPinsFromBackup(data);
     }
 
     private boolean isMockModemAllowed() {
