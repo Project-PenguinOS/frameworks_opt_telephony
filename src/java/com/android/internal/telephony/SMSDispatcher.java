@@ -17,6 +17,7 @@
 package com.android.internal.telephony;
 
 import static android.Manifest.permission.SEND_SMS_NO_CONFIRMATION;
+import static android.service.messaging.AlternativeMessageTransportService.UPGRADE_STATUS_ACCEPTED;
 
 import static com.android.internal.telephony.IccSmsInterfaceManager.SMS_MESSAGE_PERIOD_NOT_SPECIFIED;
 import static com.android.internal.telephony.IccSmsInterfaceManager.SMS_MESSAGE_PRIORITY_NOT_SPECIFIED;
@@ -65,6 +66,7 @@ import android.service.carrier.CarrierMessagingServiceWrapper;
 import android.service.carrier.CarrierMessagingServiceWrapper.CarrierMessagingCallback;
 import android.telephony.AnomalyReporter;
 import android.telephony.CarrierConfigManager;
+import android.telephony.MessageUpgradeController;
 import android.telephony.NetworkRegistrationInfo;
 import android.telephony.PhoneNumberUtils;
 import android.telephony.ServiceState;
@@ -1668,6 +1670,31 @@ public abstract class SMSDispatcher extends Handler {
                     persistMessage, priority, validityPeriod, isForVvm, messageId, messageRef,
                     skipShortCodeCheck, uniqueMessageId, uid);
 
+            if (mFeatureFlags.messagePromotion() && persistMessage) {
+                MessageUpgradeController upgradeController = new MessageUpgradeController(mContext);
+                boolean upgradeMessage =
+                        upgradeController.isMessageUpgradeSupportedAndNotDma(callingPkg);
+                if (upgradeMessage) {
+                    tracker.persistPendingMessageIfRequired(mContext);
+                    if (tracker.mMessageUri != null) {
+                        Rlog.d(TAG, "sendText: requesting message upgrade via DMA.");
+                        upgradeController.upgradeMessage(tracker.mMessageUri, Runnable::run,
+                                status -> {
+                                if (status != UPGRADE_STATUS_ACCEPTED) {
+                                    Rlog.d(TAG, "sendText: message upgrade request failed.");
+                                    if (!sendSmsByCarrierApp(false /* isDataSms */, tracker)) {
+                                        sendSubmitPdu(tracker);
+                                    }
+                                }
+                            });
+                        return;
+                    }
+                } else {
+                    Rlog.d(TAG, "sendText: message upgrade is not supported or the calling app"
+                            + " is DMA.");
+                }
+            }
+
             if (!sendSmsByCarrierApp(false /* isDataSms */, tracker)) {
                 sendSubmitPdu(tracker);
             }
@@ -1875,6 +1902,14 @@ public abstract class SMSDispatcher extends Handler {
         final AtomicInteger unsentPartCount = new AtomicInteger(msgCount);
         final AtomicBoolean anyPartFailed = new AtomicBoolean(false);
 
+        // Check if the message should be upgraded and send by DMA.
+        boolean upgradeMessage = false;
+        MessageUpgradeController upgradeController = null;
+        if (mFeatureFlags.messagePromotion() && persistMessage) {
+            upgradeController = new MessageUpgradeController(mContext);
+            upgradeMessage = upgradeController.isMessageUpgradeSupportedAndNotDma(callingPkg);
+        }
+
         for (int i = 0; i < msgCount; i++) {
             SmsHeader.ConcatRef concatRef = new SmsHeader.ConcatRef();
             concatRef.refNumber = refNumber;
@@ -1916,9 +1951,33 @@ public abstract class SMSDispatcher extends Handler {
                 triggerSentIntentForFailure(sentIntents);
                 return;
             }
+
             trackers[i].mPersistMessage = persistMessage;
+            if (upgradeMessage && (i == (msgCount - 1))) {
+                // We only persist the message as DRAFT if this is the last part and use the uri to
+                // upgrade the message. This is how we are persisting messages as of today, after
+                // receiving the send result.
+                trackers[i].persistPendingMessageIfRequired(mContext);
+            }
         }
 
+        if (upgradeMessage && trackers[msgCount - 1].mMessageUri != null
+                && upgradeController != null) {
+            Rlog.d(TAG, "sendMultipartText: requesting message upgrade via DMA.");
+            upgradeController.upgradeMessage(trackers[msgCount - 1].mMessageUri, Runnable::run,
+                    status -> {
+                        if (status != UPGRADE_STATUS_ACCEPTED) {
+                            Rlog.d(TAG, "sendText: message upgrade request failed.");
+                            sendMultipartTextByCarrierApp(parts, trackers);
+                        }
+                    });
+            return;
+        }
+
+        sendMultipartTextByCarrierApp(parts, trackers);
+    }
+
+    private void sendMultipartTextByCarrierApp(ArrayList<String> parts, SmsTracker[] trackers) {
         String carrierPackage = getCarrierAppPackageName();
         if (carrierPackage != null) {
             Rlog.d(TAG, "Found carrier package " + carrierPackage + " "
@@ -2758,9 +2817,11 @@ public abstract class SMSDispatcher extends Handler {
             if (mMessageUri == null) {
                 return;
             }
-            final ContentValues values = new ContentValues(2);
+            final ContentValues values = new ContentValues(4);
             values.put(Sms.TYPE, messageType);
             values.put(Sms.ERROR_CODE, errorCode);
+            values.put(Sms.SEEN, 1);
+            values.put(Sms.READ, 1);
             final long identity = Binder.clearCallingIdentity();
             try {
                 if (context.getContentResolver().update(mMessageUri, values,
@@ -2809,18 +2870,26 @@ public abstract class SMSDispatcher extends Handler {
          * @return The telephony provider URI if stored
          */
         private Uri persistSentMessageIfRequired(Context context, int messageType, int errorCode) {
+            return persistMessageIfRequired(context, messageType, errorCode, 1 /*seenFlag*/,
+                    1 /*readFlag*/);
+        }
+
+        private Uri persistMessageIfRequired(
+                Context context, int messageType, int errorCode, int seenFlag, int readFlag) {
             if (!mIsText || !mPersistMessage || isFromDefaultSmsApplication(context)) {
                 return null;
             }
-            Rlog.d(TAG, "Persist SMS into "
-                    + (messageType == Sms.MESSAGE_TYPE_FAILED ? "FAILED" : "SENT"));
+
+            String messageTypeStr = messageType == Sms.MESSAGE_TYPE_DRAFT ? "DRAFT"
+                    : messageType == Sms.MESSAGE_TYPE_FAILED ? "FAILED" : "SENT";
+            Rlog.d(TAG, "Persist SMS into " + messageTypeStr);
             final ContentValues values = new ContentValues();
             values.put(Sms.SUBSCRIPTION_ID, mSubId);
             values.put(Sms.ADDRESS, mDestAddress);
             values.put(Sms.BODY, mFullMessageText);
             values.put(Sms.DATE, System.currentTimeMillis()); // milliseconds
-            values.put(Sms.SEEN, 1);
-            values.put(Sms.READ, 1);
+            values.put(Sms.SEEN, seenFlag);
+            values.put(Sms.READ, readFlag);
             final String creator = mAppInfo != null ? mAppInfo.packageName : null;
             if (!TextUtils.isEmpty(creator)) {
                 values.put(Sms.CREATOR, creator);
@@ -2847,11 +2916,26 @@ public abstract class SMSDispatcher extends Handler {
                 }
                 return uri;
             } catch (Exception e) {
-                Rlog.e(TAG, "writeOutboxMessage: Failed to persist outbox message", e);
+                String errorMessage = messageType == Sms.MESSAGE_TYPE_DRAFT
+                        ? "Failed to persist message in DRAFT"
+                        : "writeOutboxMessage: Failed to persist outbox message";
+                Rlog.e(TAG, errorMessage, e);
                 return null;
             } finally {
                 Binder.restoreCallingIdentity(identity);
             }
+        }
+
+        /**
+         * Persist a pending SMS into the SMS provider
+         */
+        public void persistPendingMessageIfRequired(Context context) {
+            if (mMessageUri != null) {
+                return;
+            }
+
+            mMessageUri = persistMessageIfRequired(context, Sms.MESSAGE_TYPE_DRAFT, NO_ERROR_CODE,
+                    0 /*seenFlag*/, 0 /*readFlag*/);
         }
 
         /**
