@@ -29,16 +29,13 @@ import static org.mockito.Mockito.when;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
-import android.platform.test.flag.junit.SetFlagsRule;
 import android.telephony.emergency.EmergencyNumber;
 
 import com.android.internal.telephony.PhoneInternalInterface.DialArgs;
 import com.android.internal.telephony.emergency.EmergencyNumberTracker;
-import com.android.internal.telephony.flags.Flags;
 
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -47,8 +44,6 @@ import java.util.ArrayList;
  * Unit test verifying the methods of the connection class.
  */
 public class ConnectionTest extends TelephonyTest {
-
-    @Rule public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
 
     private static final int TEST_PHONE_TYPE = 1;
 
@@ -144,7 +139,6 @@ public class ConnectionTest extends TelephonyTest {
         mTestConnection = new TestConnection(TEST_PHONE_TYPE);
         mPhoneFactoryProxy = mock(Connection.PhoneFactoryProxy.class);
         mTestConnection.setPhoneFactoryProxy(mPhoneFactoryProxy);
-        mSetFlagsRule.disableFlags(Flags.FLAG_USE_EMERGENCY_ROUTING_CAUSE);
     }
 
     @After
@@ -233,7 +227,8 @@ public class ConnectionTest extends TelephonyTest {
         assertEquals(getTestEmergencyNumber(), connection.getEmergencyNumberInfo());
 
         Bundle extras = new Bundle();
-        extras.putBoolean(PhoneConstants.EXTRA_USE_EMERGENCY_ROUTING, true);
+        extras.putInt(PhoneConstants.EXTRA_EMERGENCY_ROUTING_UPDATE_CAUSE,
+                PhoneConstants.EMERGENCY_ROUTING_UPDATE_CAUSE_ALTERNATE_SERVICE);
         extras.putInt(PhoneConstants.EXTRA_EMERGENCY_SERVICE_CATEGORY,
                 EmergencyNumber.EMERGENCY_SERVICE_CATEGORY_POLICE);
         dialArgs = new DialArgs.Builder().setIntentExtras(extras).build();
