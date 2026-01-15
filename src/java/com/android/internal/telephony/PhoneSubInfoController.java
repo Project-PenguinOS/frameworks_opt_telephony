@@ -109,14 +109,6 @@ public class PhoneSubInfoController extends IPhoneSubInfo.Stub {
         mFeatureFlags = featureFlags;
         mVendorApiLevel = SystemProperties.getInt(
                 "ro.vendor.api_level", Build.VERSION.DEVICE_INITIAL_SDK_INT);
-        if (!mFeatureFlags.publishTelephonyServicesAfterConstruction()) {
-            ServiceRegisterer phoneSubServiceRegisterer = TelephonyFrameworkInitializer
-                    .getTelephonyServiceManager()
-                    .getPhoneSubServiceRegisterer();
-            if (phoneSubServiceRegisterer.get() == null) {
-                phoneSubServiceRegisterer.register(this);
-            }
-        }
     }
 
     @Deprecated
