@@ -600,9 +600,6 @@ public class SubscriptionManagerService extends ISub.Stub {
         @NonNull public UserHandle getCallingUserHandle() {
             return Binder.getCallingUserHandle();
         }
-        public int getCallingUid() {
-            return Binder.getCallingUid();
-        }
     }
 
     /**
@@ -830,16 +827,6 @@ public class SubscriptionManagerService extends ISub.Stub {
         broadcastSubId(SubscriptionManager.ACTION_DEFAULT_SMS_SUBSCRIPTION_CHANGED,
                 getDefaultSmsSubId());
         updateDefaultSubId();
-
-        if (!mFeatureFlags.publishTelephonyServicesAfterConstruction()) {
-            TelephonyServiceManager.ServiceRegisterer subscriptionServiceRegisterer =
-                    TelephonyFrameworkInitializer
-                            .getTelephonyServiceManager()
-                            .getSubscriptionServiceRegisterer();
-            if (subscriptionServiceRegisterer.get() == null) {
-                subscriptionServiceRegisterer.register(this);
-            }
-        }
 
         mHandler.post(() -> {
             // EuiccController is created after SubscriptionManagerService. So we need to get
@@ -4081,15 +4068,6 @@ public class SubscriptionManagerService extends ISub.Stub {
     })
     public String getPhoneNumber(int subId, @PhoneNumberSource int source,
             @NonNull String callingPackage, @Nullable String callingFeatureId /* unused */) {
-
-        if (mFeatureFlags.getPhoneNumberTs43Api()
-                && source == SubscriptionManager.PHONE_NUMBER_SOURCE_TS43) {
-            if (!isPrivilegedUidForTs43(BINDER_WRAPPER.getCallingUid())) {
-                throw new SecurityException(
-                        "getPhoneNumber(TS43) is restricted to privileged system components.");
-            }
-        }
-
         TelephonyPermissions.enforceAnyPermissionGrantedOrCarrierPrivileges(
                 mContext, subId, Binder.getCallingUid(), "getPhoneNumber",
                 Manifest.permission.READ_PHONE_NUMBERS,
@@ -4214,7 +4192,6 @@ public class SubscriptionManagerService extends ISub.Stub {
                 mContext, subId, Binder.getCallingUid(), "getPhoneNumberFromFirstAvailableSource",
                 Manifest.permission.READ_PHONE_NUMBERS,
                 Manifest.permission.READ_PRIVILEGED_PHONE_STATE);
-        int callingUid = BINDER_WRAPPER.getCallingUid();
 
         enforceTelephonyFeatureWithException(callingPackage,
                 "getPhoneNumberFromFirstAvailableSource");
@@ -4235,8 +4212,7 @@ public class SubscriptionManagerService extends ISub.Stub {
                     SubscriptionManager.PHONE_NUMBER_SOURCE_UICC, false);
             if (!TextUtils.isEmpty(number)) return number;
 
-            if (mFeatureFlags.getPhoneNumberTs43Api()
-                    && isPrivilegedUidForTs43(callingUid)) {
+            if (mFeatureFlags.getPhoneNumberTs43Api()) {
                 number = getPhoneNumberFromSourceInternal(
                         subId,
                         SubscriptionManager.PHONE_NUMBER_SOURCE_TS43, false);
@@ -4290,7 +4266,6 @@ public class SubscriptionManagerService extends ISub.Stub {
                 "getLastKnownPhoneNumberFromFirstAvailableSource",
                 Manifest.permission.READ_PHONE_NUMBERS,
                 Manifest.permission.READ_PRIVILEGED_PHONE_STATE);
-        int callingUid = BINDER_WRAPPER.getCallingUid();
 
         enforceTelephonyFeatureWithException(callingPackage,
                 "getLastKnownPhoneNumberFromFirstAvailableSource");
@@ -4308,8 +4283,7 @@ public class SubscriptionManagerService extends ISub.Stub {
                     SubscriptionManager.PHONE_NUMBER_SOURCE_UICC, false);
             if (!TextUtils.isEmpty(number)) return number;
 
-            if (mFeatureFlags.getPhoneNumberTs43Api()
-                    && isPrivilegedUidForTs43(callingUid)) {
+            if (mFeatureFlags.getPhoneNumberTs43Api()) {
                 number = getPhoneNumberFromSourceInternal(subId,
                         SubscriptionManager.PHONE_NUMBER_SOURCE_TS43, false);
                 if (!TextUtils.isEmpty(number)) return number;
@@ -5970,11 +5944,6 @@ public class SubscriptionManagerService extends ISub.Stub {
         boolean isAllowed = SystemProperties.getBoolean(ALLOW_MOCK_MODEM_PROPERTY, false);
         return (SystemProperties.getBoolean(ALLOW_MOCK_MODEM_PROPERTY, false)
                 || SystemProperties.getBoolean(BOOT_ALLOW_MOCK_MODEM_PROPERTY, false));
-    }
-
-    private boolean isPrivilegedUidForTs43(int uid) {
-        int appId = UserHandle.getAppId(uid);
-        return appId == Process.SYSTEM_UID || appId == Process.SHELL_UID;
     }
 
     /**

@@ -1860,7 +1860,6 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testGetPhoneNumberSourcePriority() throws Exception {
         mContextFixture.addCallingOrSelfPermission(Manifest.permission.READ_PHONE_NUMBERS);
-        doReturn(Process.SYSTEM_UID).when(mBinder).getCallingUid();
 
         String phoneNumberFromCarrier = "8675309";
         String phoneNumberFromUicc = "1112223333";
@@ -1899,10 +1898,6 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
         assertThat(mSubscriptionManagerServiceUT.getPhoneNumberFromFirstAvailableSource(
                 subId, CALLING_PACKAGE, CALLING_FEATURE)).isEqualTo(phoneNumberFromTs43);
 
-        doReturn(10001).when(mBinder).getCallingUid();
-        assertThat(mSubscriptionManagerServiceUT.getPhoneNumberFromFirstAvailableSource(
-                subId, CALLING_PACKAGE, CALLING_FEATURE)).isEqualTo("");
-
         multiNumberSubInfo =
                 new SubscriptionInfoInternal.Builder(multiNumberSubInfo)
                         .setNumberFromCarrier("")
@@ -1923,7 +1918,6 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testGetPhoneNumber_ImsNotRegistered() throws Exception {
         mContextFixture.addCallingOrSelfPermission(Manifest.permission.READ_PHONE_NUMBERS);
-        doReturn(Process.SYSTEM_UID).when(mBinder).getCallingUid();
 
         String phoneNumberFromCarrier = "";
         String phoneNumberFromUicc = "";
@@ -2707,7 +2701,6 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     public void testGetPhoneNumberFromDefaultSubscription() {
         mContextFixture.addCallingOrSelfPermission(Manifest.permission.READ_PRIVILEGED_PHONE_STATE);
         mContextFixture.addCallingOrSelfPermission(Manifest.permission.MODIFY_PHONE_STATE);
-        doReturn(Process.SYSTEM_UID).when(mBinder).getCallingUid();
         int subId = insertSubscription(FAKE_SUBSCRIPTION_INFO1);
 
         mSubscriptionManagerServiceUT.setDefaultVoiceSubId(subId);
@@ -2742,19 +2735,6 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
                         SubscriptionManager.PHONE_NUMBER_SOURCE_TS43,
                         CALLING_PACKAGE,
                         CALLING_FEATURE)).isEqualTo(FAKE_PHONE_NUMBER1);
-    }
-
-    @Test
-    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
-    public void testGetPhoneNumber_ts43_unprivilegedUid() {
-        mContextFixture.addCallingOrSelfPermission(Manifest.permission.READ_PRIVILEGED_PHONE_STATE);
-        doReturn(10001).when(mBinder).getCallingUid();
-
-        assertThrows(SecurityException.class, () ->
-                mSubscriptionManagerServiceUT.getPhoneNumber(
-                        SubscriptionManager.DEFAULT_SUBSCRIPTION_ID,
-                        SubscriptionManager.PHONE_NUMBER_SOURCE_TS43,
-                        CALLING_PACKAGE, CALLING_FEATURE));
     }
 
     @Test

@@ -194,14 +194,8 @@ public class PhoneFactory {
                 sUiccController = UiccController.make(context, featureFlags);
 
                 Rlog.i(LOG_TAG, "Creating SubscriptionManagerService");
-                if (featureFlags.publishTelephonyServicesAfterConstruction()) {
-                    sSubscriptionManagerService =
-                            SubscriptionManagerService.init(
-                                    context, Looper.myLooper(), featureFlags);
-                } else {
-                    sSubscriptionManagerService = new SubscriptionManagerService(context,
-                            Looper.myLooper(), featureFlags);
-                }
+                sSubscriptionManagerService =
+                        SubscriptionManagerService.init(context, Looper.myLooper(), featureFlags);
 
                 TelephonyComponentFactory.getInstance().inject(MultiSimSettingController.class.
                         getName()).initMultiSimSettingController(context, featureFlags);
