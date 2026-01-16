@@ -152,13 +152,13 @@ public class SubscriptionDatabaseManagerTest extends TelephonyTest {
     static final String FAKE_MAC_ADDRESS1 = "DC:E5:5B:38:7D:40";
     static final String FAKE_MAC_ADDRESS2 = "DC:B5:4F:47:F3:4C";
 
-    static final int FAKE_STREAMING_DOWNLINK1 = 1234567;
+    static final long FAKE_STREAMING_DOWNLINK1 = 1234567890123456789L;
 
-    static final int FAKE_STREAMING_DOWNLINK2 = 7654321;
+    static final long FAKE_STREAMING_DOWNLINK2 = 987654321098765432L;
 
-    static final int FAKE_STREAMING_UPLINK1 = 1234;
+    static final long FAKE_STREAMING_UPLINK1 = 123456789012345678L;
 
-    static final int FAKE_STREAMING_UPLINK2 = 5678;
+    static final long FAKE_STREAMING_UPLINK2 = 98765432109876543L;
 
     static final int FAKE_TRANSFER_STATUS_TRANSFERRED_OUT = 1;
     static final int FAKE_TRANSFER_STATUS_CONVERTED = 2;

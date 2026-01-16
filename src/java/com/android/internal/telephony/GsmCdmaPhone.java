@@ -23,6 +23,8 @@
 package com.android.internal.telephony;
 
 import static android.telephony.NetworkRegistrationInfo.DOMAIN_PS;
+import static android.telephony.TelephonyManager.ACTION_2G_DISABLED_BY_CARRIER;
+import static android.telephony.TelephonyManager.EXTRA_SUBSCRIPTION_ID;
 
 import static com.android.internal.telephony.CommandException.Error.GENERIC_FAILURE;
 import static com.android.internal.telephony.CommandException.Error.SIM_BUSY;
@@ -43,6 +45,7 @@ import android.annotation.Nullable;
 import android.app.ActivityManager;
 import android.compat.annotation.UnsupportedAppUsage;
 import android.content.BroadcastReceiver;
+import android.content.ComponentName;
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
@@ -3384,7 +3387,10 @@ public class GsmCdmaPhone extends Phone {
             case EVENT_SET_ALLOWED_NETWORK_TYPES_FOR_2G_DISABLED_DONE:
                 logd("EVENT_SET_ALLOWED_NETWORK_TYPES_FOR_2G_DISABLED_DONE");
                 ar = (AsyncResult) msg.obj;
-                if (ar.exception != null) {
+                if (ar.exception == null) {
+                    // Send a notification that 2G has been disabled by the carrier.
+                    sendNotification2gDisabledByCarrier();
+                } else {
                     set2gProtectionDefaultUpdated(false);
                     loge("Failed to execute setAllowedNetworkTypesForReason:" + ar.exception);
                 }
@@ -4288,6 +4294,21 @@ public class GsmCdmaPhone extends Phone {
                 currentlyAllowedNetworkTypes & ~TelephonyManager.NETWORK_CLASS_BITMASK_2G,
                 obtainMessage(EVENT_SET_ALLOWED_NETWORK_TYPES_FOR_2G_DISABLED_DONE));
         logi("2G is disabled by carrier.");
+    }
+
+    private void sendNotification2gDisabledByCarrier() {
+        String componentString = getContext().getResources().getString(
+                com.android.internal.R.string.config_network_change_notification);
+        ComponentName componentName = ComponentName.unflattenFromString(componentString);
+        if (componentName != null) {
+            final Intent intent = new Intent();
+            intent.setAction(ACTION_2G_DISABLED_BY_CARRIER);
+            intent.setComponent(componentName);
+            intent.putExtra(EXTRA_SUBSCRIPTION_ID, getSubId());
+            if (mContext.getPackageManager().queryBroadcastReceivers(intent, 0).size() > 0) {
+                mContext.sendBroadcastAsUser(intent, UserHandle.ALL);
+            }
+        }
     }
 
     private boolean is2gProtectionDefaultUpdated() {

@@ -20,8 +20,8 @@ import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.util.Log;
 
+import com.android.internal.telephony.TelephonyConfigData;
 import com.android.internal.telephony.configupdate.ConfigParser;
-import com.android.internal.telephony.nano.TelephonyConfigData;
 
 import java.io.File;
 import java.io.IOException;
@@ -73,12 +73,12 @@ public class SatelliteConfigParser extends ConfigParser<SatelliteConfig> {
             }
             TelephonyConfigData.TelephonyConfigProto telephonyConfigData =
                     TelephonyConfigData.TelephonyConfigProto.parseFrom(data);
-            if (telephonyConfigData == null || telephonyConfigData.satellite == null) {
-                Log.e(TAG, "telephonyConfigData or telephonyConfigData.satellite is null");
+            if (!telephonyConfigData.hasSatellite()) {
+                Log.e(TAG, "telephonyConfigData does not have satellite config");
                 return;
             }
-            mVersion = telephonyConfigData.satellite.version;
-            mConfig = new SatelliteConfig(telephonyConfigData.satellite);
+            mVersion = telephonyConfigData.getSatellite().getVersion();
+            mConfig = new SatelliteConfig(telephonyConfigData.getSatellite());
             Log.d(TAG, "SatelliteConfig is created");
         } catch (Exception e) {
             parseError = true;

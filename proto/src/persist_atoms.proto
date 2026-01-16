@@ -362,6 +362,7 @@ message IncomingSms {
     optional bool is_emergency = 18;
     optional bool is_nb_iot_ntn = 19;
     optional int32 pdu_length = 20;
+    optional string plmn = 21;
 
     // Internal use only
     optional int32 hashCode = 10001;
@@ -393,6 +394,7 @@ message OutgoingSms {
     optional int32 pdu_length = 23;
     optional string calling_package_name = 24;
     optional int32 app_uid = 25;
+    optional string plmn = 26;
 
     // Internal use only
     optional int32 hashCode = 10001;
@@ -434,6 +436,7 @@ message DataCallSession {
     optional bool is_provisioning_profile = 26;
     optional bool is_nb_iot_ntn = 27;
     optional int32 slice_capability = 28;
+    optional string plmn = 29;
 }
 
 message CellularServiceState {
@@ -455,6 +458,7 @@ message CellularServiceState {
     optional bool is_ntn = 16;
     optional bool is_nb_iot_ntn = 17;
     optional bool is_opportunistic = 18;
+    optional string plmn = 19;
 
     // Internal use only
     optional int64 last_used_millis = 10001;
@@ -898,6 +902,7 @@ message CarrierRoamingSatelliteSession {
     optional bool was_charging_during_session = 43;
     optional int32 battery_design_capacity_mah = 44;
     optional int64 energy_consumed_nwh = 45;
+    optional int32 eligibility_source = 46;
 }
 
 message CarrierRoamingSatelliteControllerStats {
@@ -918,6 +923,8 @@ message CarrierRoamingSatelliteControllerStats {
     optional int32 count_of_session_connection_mode_manual = 15;
     optional int32 service_data_policy = 16;
     optional int32 total_session_duration_sec = 17;
+    optional bool satellite_attach_supported = 18;
+    optional int32 eligibility_source = 19;
 }
 
 message SatelliteEntitlement {

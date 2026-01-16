@@ -30,6 +30,7 @@ import static android.telephony.CarrierConfigManager.KEY_CARRIER_SUPPORTED_SATEL
 import static android.telephony.CarrierConfigManager.KEY_EMERGENCY_CALL_TO_SATELLITE_T911_HANDOVER_TIMEOUT_MILLIS_INT;
 import static android.telephony.CarrierConfigManager.KEY_SATELLITE_ATTACH_SUPPORTED_BOOL;
 import static android.telephony.CarrierConfigManager.KEY_SATELLITE_CONNECTION_HYSTERESIS_SEC_INT;
+import static android.telephony.CarrierConfigManager.KEY_SATELLITE_ENTITLEMENT_SUPPORTED_BOOL;
 import static android.telephony.CarrierConfigManager.KEY_SATELLITE_ESOS_SUPPORTED_BOOL;
 import static android.telephony.CarrierConfigManager.KEY_SATELLITE_NIDD_APN_NAME_STRING;
 import static android.telephony.CarrierConfigManager.KEY_SATELLITE_ROAMING_P2P_SMS_SUPPORTED_BOOL;
@@ -2471,11 +2472,11 @@ public class SatelliteControllerTest extends TelephonyTest {
 
         // Satellite attach and entitlement are supported.
         mCarrierConfigBundle.putBoolean(
-            CarrierConfigManager.KEY_SATELLITE_ATTACH_SUPPORTED_BOOL,
-            true);
+                CarrierConfigManager.KEY_SATELLITE_ATTACH_SUPPORTED_BOOL,
+                true);
         mCarrierConfigBundle.putBoolean(
-            CarrierConfigManager.KEY_SATELLITE_ENTITLEMENT_SUPPORTED_BOOL,
-            true);
+                CarrierConfigManager.KEY_SATELLITE_ENTITLEMENT_SUPPORTED_BOOL,
+                true);
 
         // Emergency and disaster PLMNs are not supported.
         int[] supportedServices2 = {2};
@@ -3456,7 +3457,7 @@ public class SatelliteControllerTest extends TelephonyTest {
         replaceInstance(SatelliteController.class, "mSatellitePlmnListFromOverlayConfig",
                 mSatelliteControllerUT, overlayConfigPlmnList);
         mCarrierConfigBundle.putBoolean(
-                CarrierConfigManager.KEY_SATELLITE_ENTITLEMENT_SUPPORTED_BOOL, true);
+                KEY_SATELLITE_ENTITLEMENT_SUPPORTED_BOOL, true);
         mCarrierConfigBundle.putBoolean(CarrierConfigManager.KEY_SATELLITE_ATTACH_SUPPORTED_BOOL,
                 true);
 
@@ -3741,7 +3742,7 @@ public class SatelliteControllerTest extends TelephonyTest {
         replaceInstance(SatelliteController.class, "mMergedPlmnListPerCarrier",
                 mSatelliteControllerUT, new ConcurrentHashMap<>());
         mCarrierConfigBundle.putBoolean(
-                CarrierConfigManager.KEY_SATELLITE_ENTITLEMENT_SUPPORTED_BOOL, true);
+                KEY_SATELLITE_ENTITLEMENT_SUPPORTED_BOOL, true);
         List<String> plmnListPerCarrier;
 
         // verify whether an empty list is returned with conditions below
@@ -3842,7 +3843,7 @@ public class SatelliteControllerTest extends TelephonyTest {
         mCarrierConfigBundle.putBoolean(CarrierConfigManager.KEY_SATELLITE_ATTACH_SUPPORTED_BOOL,
                 true);
         mCarrierConfigBundle.putBoolean(
-                CarrierConfigManager.KEY_SATELLITE_ENTITLEMENT_SUPPORTED_BOOL, true);
+                KEY_SATELLITE_ENTITLEMENT_SUPPORTED_BOOL, true);
         for (Pair<Executor, CarrierConfigManager.CarrierConfigChangeListener> pair
                 : mCarrierConfigChangedListenerList) {
             pair.first.execute(() -> pair.second.onCarrierConfigChanged(
@@ -3891,7 +3892,7 @@ public class SatelliteControllerTest extends TelephonyTest {
         mCarrierConfigBundle.putBoolean(CarrierConfigManager.KEY_SATELLITE_ATTACH_SUPPORTED_BOOL,
                 true);
         mCarrierConfigBundle.putBoolean(
-                CarrierConfigManager.KEY_SATELLITE_ENTITLEMENT_SUPPORTED_BOOL, true);
+                KEY_SATELLITE_ENTITLEMENT_SUPPORTED_BOOL, true);
         for (Pair<Executor, CarrierConfigManager.CarrierConfigChangeListener> pair
                 : mCarrierConfigChangedListenerList) {
             pair.first.execute(() -> pair.second.onCarrierConfigChanged(
@@ -5234,7 +5235,6 @@ public class SatelliteControllerTest extends TelephonyTest {
     }
 
     private void setSatelliteSubscriberTesting(boolean sameCarrier) throws Exception {
-        when(mFeatureFlags.lastKnownPhoneNumber()).thenReturn(true);
         doReturn("123").when(mContext).getAttributionTag();
         final int carrierId_subID = 0;
         final int carrierId_subID1 = sameCarrier ? 0 : 1;
@@ -5306,7 +5306,6 @@ public class SatelliteControllerTest extends TelephonyTest {
 
     @Test
     public void testCheckForSubscriberIdChange_noChanged() {
-        when(mFeatureFlags.lastKnownPhoneNumber()).thenReturn(true);
         String imsi = "012345";
         String oldMsisdn = "1234567890";
         String newMsisdn = "1234567890";
@@ -5353,7 +5352,6 @@ public class SatelliteControllerTest extends TelephonyTest {
 
     @Test
     public void testCheckForSubscriberIdChange_changed() {
-        when(mFeatureFlags.lastKnownPhoneNumber()).thenReturn(true);
         mCarrierConfigBundle.putBoolean(KEY_CARRIER_CONFIG_APPLIED_BOOL, true);
         List<SubscriptionInfo> allSubInfos = new ArrayList<>();
 
@@ -6979,7 +6977,7 @@ public class SatelliteControllerTest extends TelephonyTest {
         replaceInstance(SatelliteController.class, "mSatellitePlmnListFromOverlayConfig",
                 mSatelliteControllerUT, overlayConfigPlmnList);
         mCarrierConfigBundle.putBoolean(
-                CarrierConfigManager.KEY_SATELLITE_ENTITLEMENT_SUPPORTED_BOOL, true);
+                KEY_SATELLITE_ENTITLEMENT_SUPPORTED_BOOL, true);
         mCarrierConfigBundle.putBoolean(CarrierConfigManager.KEY_SATELLITE_ATTACH_SUPPORTED_BOOL,
                 true);
 
@@ -7013,7 +7011,7 @@ public class SatelliteControllerTest extends TelephonyTest {
         replaceInstance(SatelliteController.class, "mSatellitePlmnListFromOverlayConfig",
                 mSatelliteControllerUT, overlayConfigPlmnList);
         mCarrierConfigBundle.putBoolean(
-                CarrierConfigManager.KEY_SATELLITE_ENTITLEMENT_SUPPORTED_BOOL, true);
+                KEY_SATELLITE_ENTITLEMENT_SUPPORTED_BOOL, true);
         mCarrierConfigBundle.putBoolean(CarrierConfigManager.KEY_SATELLITE_ATTACH_SUPPORTED_BOOL,
                 true);
 
@@ -7042,7 +7040,7 @@ public class SatelliteControllerTest extends TelephonyTest {
         replaceInstance(SatelliteController.class, "mSatellitePlmnListFromOverlayConfig",
                 mSatelliteControllerUT, overlayConfigPlmnList);
         mCarrierConfigBundle.putBoolean(
-                CarrierConfigManager.KEY_SATELLITE_ENTITLEMENT_SUPPORTED_BOOL, true);
+                KEY_SATELLITE_ENTITLEMENT_SUPPORTED_BOOL, true);
         mCarrierConfigBundle.putBoolean(CarrierConfigManager.KEY_SATELLITE_ATTACH_SUPPORTED_BOOL,
                 true);
         mCarrierConfigBundle.putInt(
@@ -7101,7 +7099,7 @@ public class SatelliteControllerTest extends TelephonyTest {
         replaceInstance(SatelliteController.class, "mSatellitePlmnListFromOverlayConfig",
                 mSatelliteControllerUT, overlayConfigPlmnList);
         mCarrierConfigBundle.putBoolean(
-                CarrierConfigManager.KEY_SATELLITE_ENTITLEMENT_SUPPORTED_BOOL, true);
+                KEY_SATELLITE_ENTITLEMENT_SUPPORTED_BOOL, true);
         mCarrierConfigBundle.putBoolean(CarrierConfigManager.KEY_SATELLITE_ATTACH_SUPPORTED_BOOL,
                 true);
         mCarrierConfigBundle.putInt(
@@ -7163,7 +7161,7 @@ public class SatelliteControllerTest extends TelephonyTest {
         replaceInstance(SatelliteController.class, "mSatellitePlmnListFromOverlayConfig",
                 mSatelliteControllerUT, overlayConfigPlmnList);
         mCarrierConfigBundle.putBoolean(
-                CarrierConfigManager.KEY_SATELLITE_ENTITLEMENT_SUPPORTED_BOOL, true);
+                KEY_SATELLITE_ENTITLEMENT_SUPPORTED_BOOL, true);
         mCarrierConfigBundle.putBoolean(CarrierConfigManager.KEY_SATELLITE_ATTACH_SUPPORTED_BOOL,
                 true);
         mCarrierConfigBundle.putInt(
@@ -7222,7 +7220,7 @@ public class SatelliteControllerTest extends TelephonyTest {
         replaceInstance(SatelliteController.class, "mSatellitePlmnListFromOverlayConfig",
                 mSatelliteControllerUT, overlayConfigPlmnList);
         mCarrierConfigBundle.putBoolean(
-                CarrierConfigManager.KEY_SATELLITE_ENTITLEMENT_SUPPORTED_BOOL, true);
+                KEY_SATELLITE_ENTITLEMENT_SUPPORTED_BOOL, true);
         mCarrierConfigBundle.putBoolean(CarrierConfigManager.KEY_SATELLITE_ATTACH_SUPPORTED_BOOL,
                 true);
         mCarrierConfigBundle.putInt(
@@ -7281,7 +7279,7 @@ public class SatelliteControllerTest extends TelephonyTest {
         replaceInstance(SatelliteController.class, "mSatellitePlmnListFromOverlayConfig",
                 mSatelliteControllerUT, overlayConfigPlmnList);
         mCarrierConfigBundle.putBoolean(
-                CarrierConfigManager.KEY_SATELLITE_ENTITLEMENT_SUPPORTED_BOOL, true);
+                KEY_SATELLITE_ENTITLEMENT_SUPPORTED_BOOL, true);
         mCarrierConfigBundle.putBoolean(CarrierConfigManager.KEY_SATELLITE_ATTACH_SUPPORTED_BOOL,
                 true);
 
@@ -7335,7 +7333,7 @@ public class SatelliteControllerTest extends TelephonyTest {
 
         // With Satellite entitlement support bool true with entitlement data service policy
         mCarrierConfigBundle.putBoolean(
-                CarrierConfigManager.KEY_SATELLITE_ENTITLEMENT_SUPPORTED_BOOL, true);
+                KEY_SATELLITE_ENTITLEMENT_SUPPORTED_BOOL, true);
         mCarrierConfigBundle.putBoolean(CarrierConfigManager.KEY_SATELLITE_ATTACH_SUPPORTED_BOOL,
                 true);
 
@@ -7372,7 +7370,7 @@ public class SatelliteControllerTest extends TelephonyTest {
         // When satellite entitlement bool is false , validate the value is read from carrier
         // config, when data services is supported
         mCarrierConfigBundle.putBoolean(
-                CarrierConfigManager.KEY_SATELLITE_ENTITLEMENT_SUPPORTED_BOOL, false);
+                KEY_SATELLITE_ENTITLEMENT_SUPPORTED_BOOL, false);
         setConfigData(new ArrayList<>());
         PersistableBundle carrierSupportedSatelliteServicesPerProvider =
                 new PersistableBundle();
@@ -7461,7 +7459,7 @@ public class SatelliteControllerTest extends TelephonyTest {
 
         // With Satellite entitlement support bool true with entitlement data service policy map
         mCarrierConfigBundle.putBoolean(
-                CarrierConfigManager.KEY_SATELLITE_ENTITLEMENT_SUPPORTED_BOOL, true);
+                KEY_SATELLITE_ENTITLEMENT_SUPPORTED_BOOL, true);
 
         List<String> entitlementPlmnList =
                 Arrays.stream(new String[] {"00101", "00102", "00103", "00104"}).toList();
@@ -7567,7 +7565,7 @@ public class SatelliteControllerTest extends TelephonyTest {
         replaceInstance(SatelliteController.class, "mSatellitePlmnListFromOverlayConfig",
                 mSatelliteControllerUT, overlayConfigPlmnList);
         mCarrierConfigBundle.putBoolean(
-                CarrierConfigManager.KEY_SATELLITE_ENTITLEMENT_SUPPORTED_BOOL, true);
+                KEY_SATELLITE_ENTITLEMENT_SUPPORTED_BOOL, true);
         mCarrierConfigBundle.putBoolean(CarrierConfigManager.KEY_SATELLITE_ATTACH_SUPPORTED_BOOL,
                 true);
 
@@ -7643,7 +7641,7 @@ public class SatelliteControllerTest extends TelephonyTest {
 
         // Without entitlement
         mCarrierConfigBundle.putBoolean(
-                CarrierConfigManager.KEY_SATELLITE_ENTITLEMENT_SUPPORTED_BOOL, false);
+                KEY_SATELLITE_ENTITLEMENT_SUPPORTED_BOOL, false);
 
         List<String> entitlementPlmnList =
                 Arrays.stream(new String[] {"00101", "00102", "00103", "00104"}).toList();
@@ -7755,7 +7753,7 @@ public class SatelliteControllerTest extends TelephonyTest {
         replaceInstance(SatelliteController.class, "mSatellitePlmnListFromOverlayConfig",
                 mSatelliteControllerUT, overlayConfigPlmnList);
         mCarrierConfigBundle.putBoolean(
-                CarrierConfigManager.KEY_SATELLITE_ENTITLEMENT_SUPPORTED_BOOL, true);
+                KEY_SATELLITE_ENTITLEMENT_SUPPORTED_BOOL, true);
         mCarrierConfigBundle.putBoolean(CarrierConfigManager.KEY_SATELLITE_ATTACH_SUPPORTED_BOOL,
                 true);
         mCarrierConfigBundle.putIntArray(
@@ -7780,7 +7778,7 @@ public class SatelliteControllerTest extends TelephonyTest {
         replaceInstance(SatelliteController.class, "mSatellitePlmnListFromOverlayConfig",
                 mSatelliteControllerUT, overlayConfigPlmnList);
         mCarrierConfigBundle.putBoolean(
-                CarrierConfigManager.KEY_SATELLITE_ENTITLEMENT_SUPPORTED_BOOL, true);
+                KEY_SATELLITE_ENTITLEMENT_SUPPORTED_BOOL, true);
         mCarrierConfigBundle.putBoolean(CarrierConfigManager.KEY_SATELLITE_ATTACH_SUPPORTED_BOOL,
                 true);
         invokeCarrierConfigChanged();
@@ -7812,7 +7810,7 @@ public class SatelliteControllerTest extends TelephonyTest {
         replaceInstance(SatelliteController.class, "mSatellitePlmnListFromOverlayConfig",
                 mSatelliteControllerUT, overlayConfigPlmnList);
         mCarrierConfigBundle.putBoolean(
-                CarrierConfigManager.KEY_SATELLITE_ENTITLEMENT_SUPPORTED_BOOL, true);
+                KEY_SATELLITE_ENTITLEMENT_SUPPORTED_BOOL, true);
         mCarrierConfigBundle.putBoolean(CarrierConfigManager.KEY_SATELLITE_ATTACH_SUPPORTED_BOOL,
                 true);
         invokeCarrierConfigChanged();
@@ -7854,7 +7852,7 @@ public class SatelliteControllerTest extends TelephonyTest {
         replaceInstance(SatelliteController.class, "mSatellitePlmnListFromOverlayConfig",
                 mSatelliteControllerUT, overlayConfigPlmnList);
         mCarrierConfigBundle.putBoolean(
-                CarrierConfigManager.KEY_SATELLITE_ENTITLEMENT_SUPPORTED_BOOL, true);
+                KEY_SATELLITE_ENTITLEMENT_SUPPORTED_BOOL, true);
         mCarrierConfigBundle.putBoolean(CarrierConfigManager.KEY_SATELLITE_ATTACH_SUPPORTED_BOOL,
                 true);
         invokeCarrierConfigChanged();
@@ -7893,7 +7891,6 @@ public class SatelliteControllerTest extends TelephonyTest {
 
     @Test
     public void testGetPhoneNumberBasedCarrier() throws Exception {
-        when(mFeatureFlags.lastKnownPhoneNumber()).thenReturn(true);
         assertEquals("", mSatelliteControllerUT.getPhoneNumberBasedCarrier(-1));
 
         int carrierId_subID = 0;
@@ -8465,5 +8462,177 @@ public class SatelliteControllerTest extends TelephonyTest {
         assertEquals("getSupportedConnectTypeMetrics should return UNKNOWN.",
                 SatelliteConstants.SESSION_NTN_CONNECT_TYPE_UNKNOWN,
                 mSatelliteControllerUT.getSessionConnectTypeMetrics(SUB_ID));
+    }
+
+    @Test
+    public void testSatelliteEligibilitySourceMetrics_withFeatureFlagEnabled() {
+        doReturn(true).when(mFeatureFlags).satelliteMetricsEnhancement();
+
+        // 1. KEY_SATELLITE_ATTACH_SUPPORTED_BOOL is false
+        mCarrierConfigBundle.putBoolean(KEY_SATELLITE_ATTACH_SUPPORTED_BOOL, false);
+        for (Pair<Executor, CarrierConfigManager.CarrierConfigChangeListener> pair
+                : mCarrierConfigChangedListenerList) {
+            pair.first.execute(() -> pair.second.onCarrierConfigChanged(
+                    /*slotIndex*/ 0, /*subId*/ SUB_ID, /*carrierId*/ 0, /*specificCarrierId*/ 0)
+            );
+        }
+        processAllMessages();
+        // Eligibility source should be SATELLITE_ELIGIBILITY_SOURCE_UNKNOWN.
+        verify(mMockCarrierRoamingSatelliteControllerStats, never()).reportIsDeviceEntitled(
+                anyInt(), anyBoolean());
+        verify(mMockCarrierRoamingSatelliteControllerStats, times(1)).reportDeviceEligibilitySource(
+                eq(SUB_ID), eq(false),
+                eq(SatelliteConstants.SATELLITE_ELIGIBILITY_SOURCE_UNKNOWN));
+        assertEquals(SatelliteConstants.SATELLITE_ELIGIBILITY_SOURCE_UNKNOWN,
+                mSatelliteControllerUT.getSatelliteEligibilitySource(SUB_ID));
+
+        // 2. KEY_SATELLITE_ATTACH_SUPPORTED_BOOL is true but
+        // KEY_SATELLITE_ENTITLEMENT_SUPPORTED_BOOL is false.
+        mCarrierConfigBundle.putBoolean(KEY_SATELLITE_ATTACH_SUPPORTED_BOOL, true);
+        mCarrierConfigBundle.putBoolean(KEY_SATELLITE_ENTITLEMENT_SUPPORTED_BOOL, false);
+        for (Pair<Executor, CarrierConfigManager.CarrierConfigChangeListener> pair
+                : mCarrierConfigChangedListenerList) {
+            pair.first.execute(() -> pair.second.onCarrierConfigChanged(
+                    /*slotIndex*/ 0, /*subId*/ SUB_ID, /*carrierId*/ 0, /*specificCarrierId*/ 0)
+            );
+        }
+        processAllMessages();
+        // Eligibility source should be SATELLITE_ELIGIBILITY_SOURCE_CARRIER_CONFIG.
+        verify(mMockCarrierRoamingSatelliteControllerStats, never()).reportIsDeviceEntitled(
+                anyInt(), anyBoolean());
+        verify(mMockCarrierRoamingSatelliteControllerStats, times(1)).reportDeviceEligibilitySource(
+                eq(SUB_ID), eq(true),
+                eq(SatelliteConstants.SATELLITE_ELIGIBILITY_SOURCE_CARRIER_CONFIG));
+        assertEquals(SatelliteConstants.SATELLITE_ELIGIBILITY_SOURCE_CARRIER_CONFIG,
+                mSatelliteControllerUT.getSatelliteEligibilitySource(SUB_ID));
+
+        // 3. KEY_SATELLITE_ATTACH_SUPPORTED_BOOL is true and
+        // KEY_SATELLITE_ENTITLEMENT_SUPPORTED_BOOL is true, but the SUB_ID is not entitled yet.
+        clearInvocations(mMockCarrierRoamingSatelliteControllerStats);
+        mCarrierConfigBundle.putBoolean(KEY_SATELLITE_ATTACH_SUPPORTED_BOOL, true);
+        mCarrierConfigBundle.putBoolean(KEY_SATELLITE_ENTITLEMENT_SUPPORTED_BOOL, true);
+        for (Pair<Executor, CarrierConfigManager.CarrierConfigChangeListener> pair
+                : mCarrierConfigChangedListenerList) {
+            pair.first.execute(() -> pair.second.onCarrierConfigChanged(
+                    /*slotIndex*/ 0, /*subId*/ SUB_ID, /*carrierId*/ 0, /*specificCarrierId*/ 0)
+            );
+        }
+        processAllMessages();
+        // Eligibility source should be SATELLITE_ELIGIBILITY_SOURCE_UNKNOWN.
+        verify(mMockCarrierRoamingSatelliteControllerStats, times(1)).reportIsDeviceEntitled(
+                anyInt(), eq(false));
+        verify(mMockCarrierRoamingSatelliteControllerStats, times(2)).reportDeviceEligibilitySource(
+                eq(SUB_ID), eq(true),
+                eq(SatelliteConstants.SATELLITE_ELIGIBILITY_SOURCE_ENTITLEMENT));
+        assertEquals(SatelliteConstants.SATELLITE_ELIGIBILITY_SOURCE_ENTITLEMENT,
+                mSatelliteControllerUT.getSatelliteEligibilitySource(SUB_ID));
+
+        // 4. KEY_SATELLITE_ATTACH_SUPPORTED_BOOL is true and
+        // KEY_SATELLITE_ENTITLEMENT_SUPPORTED_BOOL is true, the SUB_ID is entitled.
+        clearInvocations(mMockCarrierRoamingSatelliteControllerStats);
+        mCarrierConfigBundle.putBoolean(KEY_SATELLITE_ATTACH_SUPPORTED_BOOL, true);
+        mCarrierConfigBundle.putBoolean(KEY_SATELLITE_ENTITLEMENT_SUPPORTED_BOOL, true);
+        for (Pair<Executor, CarrierConfigManager.CarrierConfigChangeListener> pair
+                : mCarrierConfigChangedListenerList) {
+            pair.first.execute(() -> pair.second.onCarrierConfigChanged(
+                    /*slotIndex*/ 0, /*subId*/ SUB_ID, /*carrierId*/ 0, /*specificCarrierId*/ 0)
+            );
+        }
+        mSatelliteControllerUT.onSatelliteEntitlementStatusUpdated(SUB_ID, true, new ArrayList<>(),
+                new ArrayList<>(), new HashMap<>(), new HashMap<>(), new HashMap<>(),
+                new HashMap<>(), mIIntegerConsumer);
+        processAllMessages();
+        // Eligibility source should be SATELLITE_ELIGIBILITY_SOURCE_ENTITLEMENT.
+        verify(mMockCarrierRoamingSatelliteControllerStats, times(1)).reportIsDeviceEntitled(
+                eq(SUB_ID), eq(true));
+        verify(mMockCarrierRoamingSatelliteControllerStats, times(2)).reportDeviceEligibilitySource(
+                eq(SUB_ID), eq(true),
+                eq(SatelliteConstants.SATELLITE_ELIGIBILITY_SOURCE_ENTITLEMENT));
+        assertEquals(SatelliteConstants.SATELLITE_ELIGIBILITY_SOURCE_ENTITLEMENT,
+                mSatelliteControllerUT.getSatelliteEligibilitySource(SUB_ID));
+    }
+
+    @Test
+    public void testSatelliteEligibilitySourceMetrics_withFeatureFlagDisabled() {
+        doReturn(false).when(mFeatureFlags).satelliteMetricsEnhancement();
+
+        // 1. KEY_SATELLITE_ATTACH_SUPPORTED_BOOL is false
+        mCarrierConfigBundle.putBoolean(KEY_SATELLITE_ATTACH_SUPPORTED_BOOL, false);
+        for (Pair<Executor, CarrierConfigManager.CarrierConfigChangeListener> pair
+                : mCarrierConfigChangedListenerList) {
+            pair.first.execute(() -> pair.second.onCarrierConfigChanged(
+                    /*slotIndex*/ 0, /*subId*/ SUB_ID, /*carrierId*/ 0, /*specificCarrierId*/ 0)
+            );
+        }
+        processAllMessages();
+
+        verify(mMockCarrierRoamingSatelliteControllerStats, never()).reportIsDeviceEntitled(
+                anyInt(), anyBoolean());
+        verify(mMockCarrierRoamingSatelliteControllerStats, never()).reportDeviceEligibilitySource(
+                anyInt(), anyBoolean(), anyInt());
+        assertEquals(SatelliteConstants.SATELLITE_ELIGIBILITY_SOURCE_UNKNOWN,
+                mSatelliteControllerUT.getSatelliteEligibilitySource(SUB_ID));
+
+        // 2. KEY_SATELLITE_ATTACH_SUPPORTED_BOOL is true but
+        // KEY_SATELLITE_ENTITLEMENT_SUPPORTED_BOOL is false.
+        mCarrierConfigBundle.putBoolean(KEY_SATELLITE_ATTACH_SUPPORTED_BOOL, true);
+        mCarrierConfigBundle.putBoolean(KEY_SATELLITE_ENTITLEMENT_SUPPORTED_BOOL, false);
+        for (Pair<Executor, CarrierConfigManager.CarrierConfigChangeListener> pair
+                : mCarrierConfigChangedListenerList) {
+            pair.first.execute(() -> pair.second.onCarrierConfigChanged(
+                    /*slotIndex*/ 0, /*subId*/ SUB_ID, /*carrierId*/ 0, /*specificCarrierId*/ 0)
+            );
+        }
+        processAllMessages();
+
+        verify(mMockCarrierRoamingSatelliteControllerStats, never()).reportIsDeviceEntitled(
+                anyInt(), anyBoolean());
+        verify(mMockCarrierRoamingSatelliteControllerStats, never()).reportDeviceEligibilitySource(
+                anyInt(), anyBoolean(), anyInt());
+        assertEquals(SatelliteConstants.SATELLITE_ELIGIBILITY_SOURCE_UNKNOWN,
+                mSatelliteControllerUT.getSatelliteEligibilitySource(SUB_ID));
+
+        // 3. KEY_SATELLITE_ATTACH_SUPPORTED_BOOL is true and
+        // KEY_SATELLITE_ENTITLEMENT_SUPPORTED_BOOL is true, but the SUB_ID is not entitled yet.
+        clearInvocations(mMockCarrierRoamingSatelliteControllerStats);
+        mCarrierConfigBundle.putBoolean(KEY_SATELLITE_ATTACH_SUPPORTED_BOOL, true);
+        mCarrierConfigBundle.putBoolean(KEY_SATELLITE_ENTITLEMENT_SUPPORTED_BOOL, true);
+        for (Pair<Executor, CarrierConfigManager.CarrierConfigChangeListener> pair
+                : mCarrierConfigChangedListenerList) {
+            pair.first.execute(() -> pair.second.onCarrierConfigChanged(
+                    /*slotIndex*/ 0, /*subId*/ SUB_ID, /*carrierId*/ 0, /*specificCarrierId*/ 0)
+            );
+        }
+        processAllMessages();
+
+        verify(mMockCarrierRoamingSatelliteControllerStats, times(1)).reportIsDeviceEntitled(
+                eq(SUB_ID), eq(false));
+        verify(mMockCarrierRoamingSatelliteControllerStats, never()).reportDeviceEligibilitySource(
+                anyInt(), anyBoolean(), anyInt());
+        assertEquals(SatelliteConstants.SATELLITE_ELIGIBILITY_SOURCE_UNKNOWN,
+                mSatelliteControllerUT.getSatelliteEligibilitySource(SUB_ID));
+
+        // 4. KEY_SATELLITE_ATTACH_SUPPORTED_BOOL is true and
+        // KEY_SATELLITE_ENTITLEMENT_SUPPORTED_BOOL is true, the SUB_ID is entitled.
+        clearInvocations(mMockCarrierRoamingSatelliteControllerStats);
+        mCarrierConfigBundle.putBoolean(KEY_SATELLITE_ATTACH_SUPPORTED_BOOL, true);
+        mCarrierConfigBundle.putBoolean(KEY_SATELLITE_ENTITLEMENT_SUPPORTED_BOOL, true);
+        for (Pair<Executor, CarrierConfigManager.CarrierConfigChangeListener> pair
+                : mCarrierConfigChangedListenerList) {
+            pair.first.execute(() -> pair.second.onCarrierConfigChanged(
+                    /*slotIndex*/ 0, /*subId*/ SUB_ID, /*carrierId*/ 0, /*specificCarrierId*/ 0)
+            );
+        }
+        mSatelliteControllerUT.onSatelliteEntitlementStatusUpdated(SUB_ID, true, new ArrayList<>(),
+                new ArrayList<>(), new HashMap<>(), new HashMap<>(), new HashMap<>(),
+                new HashMap<>(), mIIntegerConsumer);
+        processAllMessages();
+
+        verify(mMockCarrierRoamingSatelliteControllerStats, times(1)).reportIsDeviceEntitled(
+                eq(SUB_ID), eq(true));
+        verify(mMockCarrierRoamingSatelliteControllerStats, never()).reportDeviceEligibilitySource(
+                anyInt(), anyBoolean(), anyInt());
+        assertEquals(SatelliteConstants.SATELLITE_ELIGIBILITY_SOURCE_UNKNOWN,
+                mSatelliteControllerUT.getSatelliteEligibilitySource(SUB_ID));
     }
 }
