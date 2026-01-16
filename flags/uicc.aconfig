@@ -54,13 +54,6 @@ flag {
     is_exported: true
 }
 
-# OWNER=arunvoddu TARGET=25Q4
-flag {
-    name: "send_imsi_key_for_duplicate_sim"
-    namespace: "telephony"
-    description: "This will make sure to send the IMSIKey to Modem in case SIM2 operator is same as SIM1"
-    bug:"400888891"
-}
 
 # OWNER=arunvoddu TARGET=25Q4
 flag {
@@ -122,4 +115,12 @@ flag {
     metadata {
         purpose: PURPOSE_BUGFIX
     }
+}
+
+# OWNER=rgreenwalt TARGET=26Q2
+flag {
+    name: "new_sim_auth_permission"
+    namespace: "telephony"
+    description: "Add new permission to secure SIM auth"
+    bug:"343796688"
 }

@@ -363,6 +363,21 @@ public class SubscriptionManagerService extends ISub.Stub {
      */
     private static final String ATTR_SUBSCRIPTION_STATUS = "subscriptionStatus";
 
+    /** Attribute for {@link #TAG_PLAN}: The unique integer plan ID. */
+    private static final String ATTR_PLAN_ID = "planId";
+
+    /** Attribute for {@link #TAG_PLAN}: Comma-separated list of plan type integers. */
+    private static final String ATTR_PLAN_TYPES = "planTypes";
+
+    /** Attribute for {@link #TAG_PLAN}: The data usage reset time (ZonedDateTime string). */
+    private static final String ATTR_RESET_TIME = "resetTime";
+
+    /** Attribute for {@link #TAG_PLAN}: Max streaming downlink speed in Kbps. */
+    private static final String ATTR_DOWNLINK_KBPS = "downlinkKbps";
+
+    /** Attribute for {@link #TAG_PLAN}: Max streaming uplink speed in Kbps. */
+    private static final String ATTR_UPLINK_KBPS = "uplinkKbps";
+
     /** The context */
     @NonNull
     private final Context mContext;
@@ -1716,12 +1731,6 @@ public class SubscriptionManagerService extends ISub.Stub {
             if (mSlotIndexToSubId.containsKey(phoneId)) {
                 markSubscriptionsInactive(phoneId);
             }
-
-            if (Flags.clearCachedImsPhoneNumberWhenDeviceLostImsRegistration()
-                    && !mFeatureFlags.lastKnownPhoneNumber()) {
-                // Clear the cached Ims phone number
-                setNumberFromIms(getSubId(phoneId), new String(""));
-            }
         } else if (simState == TelephonyManager.SIM_STATE_NOT_READY) {
             // Check if this is the final state. Only update the subscription if NOT_READY is a
             // final state.
@@ -1734,12 +1743,6 @@ public class SubscriptionManagerService extends ISub.Stub {
             } else {
                 logl("updateSubscription: UICC app disabled on slot " + phoneId);
                 markSubscriptionsInactive(phoneId);
-
-                if (Flags.clearCachedImsPhoneNumberWhenDeviceLostImsRegistration()
-                        && !mFeatureFlags.lastKnownPhoneNumber()) {
-                    // Clear the cached Ims phone number
-                    setNumberFromIms(getSubId(phoneId), new String(""));
-                }
             }
         } else {
             String iccId = getIccId(phoneId);
@@ -3770,7 +3773,7 @@ public class SubscriptionManagerService extends ISub.Stub {
         try {
             Object value = mSubscriptionDatabaseManager.getSubscriptionProperty(subId, columnName);
             // The raw types of subscription database should only have 3 different types.
-            if (value instanceof Integer) {
+            if (value instanceof Integer || value instanceof Long) {
                 return String.valueOf(value);
             } else if (value instanceof String) {
                 return (String) value;
@@ -4199,7 +4202,7 @@ public class SubscriptionManagerService extends ISub.Stub {
             case SubscriptionManager.PHONE_NUMBER_SOURCE_CARRIER:
                 return subInfo.getNumberFromCarrier();
             case SubscriptionManager.PHONE_NUMBER_SOURCE_IMS:
-                if (checkForImsRegistration && mFeatureFlags.lastKnownPhoneNumber()) {
+                if (checkForImsRegistration) {
                     TelephonyManager tm = mTelephonyManager.createForSubscriptionId(subId);
                     if (tm == null || !tm.isImsRegistered()) {
                         return "";
@@ -5367,8 +5370,8 @@ public class SubscriptionManagerService extends ISub.Stub {
         long duration = expirationTime - currentTime;
 
         // Check for expiration.
-        if (expirationTime > 0 && duration <= 0) {
-            logl("Skipping expired plans for subId=" + subId);
+        if (duration <= 0) {
+            logl("Skipping reading expired/volatile plans for subId=" + subId);
             return;
         }
 
@@ -5476,6 +5479,43 @@ public class SubscriptionManagerService extends ISub.Stub {
                 builder.setSubscriptionStatus(status);
             }
 
+            // Read Plan ID
+            int planId = in.getAttributeInt(null, ATTR_PLAN_ID, SubscriptionPlan.UNSPECIFIED_ID);
+            if (planId != SubscriptionPlan.UNSPECIFIED_ID) {
+                builder.setId(planId);
+            }
+
+            // Read Plan Types
+            String planTypesStr = in.getAttributeValue(null, ATTR_PLAN_TYPES);
+            if (planTypesStr != null && !planTypesStr.isEmpty()) {
+                try {
+                    int[] types = Arrays.stream(planTypesStr.split(","))
+                            .mapToInt(Integer::parseInt)
+                            .toArray();
+                    builder.setTypes(types);
+                } catch (NumberFormatException e) {
+                    loge("Failed to parse plan types: " + planTypesStr);
+                }
+            }
+
+            // Read Data Usage Reset Time
+            String resetTimeStr = in.getAttributeValue(null, ATTR_RESET_TIME);
+            if (resetTimeStr != null) {
+                builder.setDataUsageResetTime(RecurrenceRule.convertZonedDateTime(resetTimeStr));
+            }
+
+            // Read Streaming Bandwidth
+            long downlink = in.getAttributeLong(null, ATTR_DOWNLINK_KBPS,
+                    SubscriptionPlan.BITRATE_UNKNOWN);
+            if (downlink != SubscriptionPlan.BITRATE_UNKNOWN) {
+                builder.setStreamingAppMaxDownlinkKbps(downlink);
+            }
+            long uplink = in.getAttributeLong(null, ATTR_UPLINK_KBPS,
+                    SubscriptionPlan.BITRATE_UNKNOWN);
+            if (uplink != SubscriptionPlan.BITRATE_UNKNOWN) {
+                builder.setStreamingAppMaxUplinkKbps(uplink);
+            }
+
             return builder.build();
 
         } catch (Exception e) {
@@ -5514,6 +5554,10 @@ public class SubscriptionManagerService extends ISub.Stub {
                     SubscriptionPlan[] plans = mEnrollableSubscriptionPlans.get(subId);
                     String owner = mEnrollableSubscriptionPlansOwner.get(subId);
                     Long expirationTime = mEnrollablePlanExpirationTime.get(subId);
+
+                    if (expirationTime != null && expirationTime == 0) {
+                        continue; // skip writing volatile enrollable plans into the XML
+                    }
 
                     if (plans != null && plans.length > 0) {
                         out.startTag(null, TAG_SUB_PLANS);
@@ -5604,6 +5648,29 @@ public class SubscriptionManagerService extends ISub.Stub {
         // 5. Write Subscription Status
         if (plan.getSubscriptionStatus() != SubscriptionPlan.SUBSCRIPTION_STATUS_UNKNOWN) {
             out.attributeInt(null, ATTR_SUBSCRIPTION_STATUS, plan.getSubscriptionStatus());
+        }
+
+        // 6. Write Plan ID
+        if (plan.getId() != SubscriptionPlan.UNSPECIFIED_ID) {
+            out.attributeInt(null, ATTR_PLAN_ID, plan.getId());
+        }
+
+        // 7. Write Plan Types
+        Set<Integer> types = plan.getTypes();
+        out.attribute(null, ATTR_PLAN_TYPES, TextUtils.join(",", types));
+
+        // 8. Write Data Usage Reset Time
+        if (plan.getDataUsageResetTime() != null) {
+            out.attribute(null, ATTR_RESET_TIME,
+                    RecurrenceRule.convertZonedDateTime(plan.getDataUsageResetTime()));
+        }
+
+        // 9. Write Streaming Bandwidth
+        if (plan.getStreamingAppMaxDownlinkKbps() != SubscriptionPlan.BITRATE_UNKNOWN) {
+            out.attributeLong(null, ATTR_DOWNLINK_KBPS, plan.getStreamingAppMaxDownlinkKbps());
+        }
+        if (plan.getStreamingAppMaxUplinkKbps() != SubscriptionPlan.BITRATE_UNKNOWN) {
+            out.attributeLong(null, ATTR_UPLINK_KBPS, plan.getStreamingAppMaxUplinkKbps());
         }
 
         out.endTag(null, TAG_PLAN);

@@ -555,7 +555,7 @@ public class SubscriptionInfoInternal {
      * applications. It can be used by streaming apps to select an appropriate media quality
      * that matches the available bandwidth, helping to avoid buffering.
      */
-    private final int mStreamingAppMaxDownlinkKbps;
+    private final long mStreamingAppMaxDownlinkKbps;
 
     /**
      * The maximum uplink data rate in Kilobits per second (Kbps) for streaming applications
@@ -565,7 +565,7 @@ public class SubscriptionInfoInternal {
      * applications to upload data. It can be used by streaming apps to select an appropriate
      * media quality for outgoing streams, helping to avoid buffering or connection issues.
      */
-    private final int mStreamingAppMaxUplinkKbps;
+    private final long mStreamingAppMaxUplinkKbps;
 
     /**
      * Constructor from builder.
@@ -1439,7 +1439,7 @@ public class SubscriptionInfoInternal {
      * @return The maximum downlink data rate in Kbps for streaming applications defined in
      * GSMA TS.43 9.1.3.
      */
-    public int getStreamingAppMaxDownlinkKbps() {
+    public long getStreamingAppMaxDownlinkKbps() {
         return mStreamingAppMaxDownlinkKbps;
     }
 
@@ -1447,7 +1447,7 @@ public class SubscriptionInfoInternal {
      * @return The maximum uplink data rate in Kbps for streaming applications defined in GSMA
      * TS.43 9.1.3.
      */
-    public int getStreamingAppMaxUplinkKbps() {
+    public long getStreamingAppMaxUplinkKbps() {
         return mStreamingAppMaxUplinkKbps;
     }
 
@@ -2150,13 +2150,13 @@ public class SubscriptionInfoInternal {
          * The maximum downlink data rate in Kbps for streaming applications defined in GSMA
          * TS.43 9.1.3.
          */
-        private int mStreamingAppMaxDownlinkKbps = SubscriptionPlan.BITRATE_UNKNOWN;
+        private long mStreamingAppMaxDownlinkKbps = SubscriptionPlan.BITRATE_UNKNOWN;
 
         /**
          * The maximum uplink data rate in Kbps for streaming applications defined in GSMA TS.43
          * 9.1.3.
          */
-        private int mStreamingAppMaxUplinkKbps = SubscriptionPlan.BITRATE_UNKNOWN;
+        private long mStreamingAppMaxUplinkKbps = SubscriptionPlan.BITRATE_UNKNOWN;
 
         /**
          * Default constructor.
@@ -3268,7 +3268,7 @@ public class SubscriptionInfoInternal {
          * @return The builder.
          */
         @NonNull
-        public Builder setStreamingAppMaxDownlinkKbps(int maxDownlinkDataRate) {
+        public Builder setStreamingAppMaxDownlinkKbps(long maxDownlinkDataRate) {
             mStreamingAppMaxDownlinkKbps = maxDownlinkDataRate;
             return this;
         }
@@ -3281,7 +3281,7 @@ public class SubscriptionInfoInternal {
          * @return The builder.
          */
         @NonNull
-        public Builder setStreamingAppMaxUplinkKbps(int maxUplinkDataRate) {
+        public Builder setStreamingAppMaxUplinkKbps(long maxUplinkDataRate) {
             mStreamingAppMaxUplinkKbps = maxUplinkDataRate;
             return this;
         }

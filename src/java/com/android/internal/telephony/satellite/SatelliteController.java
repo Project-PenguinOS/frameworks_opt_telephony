@@ -757,6 +757,8 @@ public class SatelliteController extends Handler {
     /** Key Subscription ID, value : map to plmn info with related service policy for voice service */
     ConcurrentHashMap<Integer, Map<String, Integer>> mEntitlementVoiceServicePolicyMapPerCarrier =
             new ConcurrentHashMap<>();
+    /** Key : Subscription ID, value : satellite eligibility source. */
+    ConcurrentHashMap<Integer, Integer> mSatelliteEligibilitySource = new ConcurrentHashMap<>();
     private static final int DEFAULT_SATELLITE_EMERGENCY_MODE_DURATION_SECONDS = 300;
     private AlertDialog mNetworkSelectionModeAutoDialog = null;
 
@@ -2239,6 +2241,7 @@ public class SatelliteController extends Handler {
                 handleCarrierRoamingConfigVersionReport();
                 handleMaxAllowedDataMetricsReport();
                 scheduleRegularMetricReportTimer();
+                handleEntireEligibilityMetricReport();
                 break;
             }
 
@@ -6435,6 +6438,7 @@ public class SatelliteController extends Handler {
         sendMessageDelayed(obtainMessage(CMD_EVALUATE_ESOS_PROFILES_PRIORITIZATION),
                 mEvaluateEsosProfilesPrioritizationDurationMillis.get());
         updateRegionalSatelliteEarfcns(subId);
+        updateAndReportEligibilitySource(subId);
     }
 
     private void getSatelliteEnabledForCarrierAtModem(int subId) {
@@ -6612,7 +6616,7 @@ public class SatelliteController extends Handler {
         return strArray;
     }
 
-    private boolean isSatelliteSupportedViaCarrier(int subId) {
+    boolean isSatelliteSupportedViaCarrier(int subId) {
         return getConfigForSubId(subId)
                 .getBoolean(KEY_SATELLITE_ATTACH_SUPPORTED_BOOL);
     }
@@ -7366,7 +7370,6 @@ public class SatelliteController extends Handler {
             int dataPolicy = mapDataPolicyForMetrics(getSatelliteDataServicePolicyForPlmn(subId,
                     satellitePlmn));
             satelliteApps = getSatelliteDataOptimizedApps(userId);
-
 
             sessionStats.onSessionStart(phone.getCarrierId(), phone,
                     supported_satellite_services, dataPolicy, satelliteApps,
@@ -8532,12 +8535,7 @@ public class SatelliteController extends Handler {
             return subscriberId;
         }
 
-        String phoneNumber = "";
-        if (mFeatureFlags.lastKnownPhoneNumber()) {
-            phoneNumber = subscriptionManager.getLastKnownPhoneNumber(subId);
-        } else {
-            phoneNumber = subscriptionManager.getPhoneNumber(subId);
-        }
+        String phoneNumber = subscriptionManager.getLastKnownPhoneNumber(subId);
         if (TextUtils.isEmpty(phoneNumber)) {
             plogd("getPhoneNumberBasedCarrier: phoneNumber is empty.");
             return subscriberId;
@@ -9158,6 +9156,17 @@ public class SatelliteController extends Handler {
      */
     public String getSatellitePlmnForMetrics() {
         String satellitePlmn = Optional.ofNullable(getSatellitePhone())
+                .map(Phone::getServiceState)
+                .map(ServiceState::getOperatorNumeric)
+                .orElse(SatelliteConstants.DEFAULT_PLMN);
+        return satellitePlmn;
+    }
+
+    /**
+     * return plmn value if phone available, otherwise empty string
+     */
+    public String getSatellitePlmnForMetrics(@Nullable Phone phone) {
+        String satellitePlmn = Optional.ofNullable(phone)
                 .map(Phone::getServiceState)
                 .map(ServiceState::getOperatorNumeric)
                 .orElse(SatelliteConstants.DEFAULT_PLMN);
@@ -10266,10 +10275,9 @@ public class SatelliteController extends Handler {
             for (int subId : activeSubIds) {
                 boolean isSubIdEntitled = mSatelliteEntitlementStatusPerCarrier.computeIfAbsent(
                         subId, k -> false);
-                mCarrierRoamingSatelliteControllerStats.reportIsDeviceEntitled(subId,
-                        isSubIdEntitled);
                 plogd("handleEntitlementMetricReport: subId=" + subId + ", isSubEntitled="
                         + isSubIdEntitled);
+                reportEntitlementStatusAndEligibility(subId, isSubIdEntitled);
             }
         } else {
             loge("handleEntireEntitlementMetricReport: no active subId");
@@ -10277,10 +10285,14 @@ public class SatelliteController extends Handler {
     }
 
     private void handleIndividualEntitlementMetricReport(int subId,
-            boolean isSubscriptionEntitled) {
-        mSatelliteEntitlementStatusPerCarrier.put(subId, isSubscriptionEntitled);
-        mCarrierRoamingSatelliteControllerStats.reportIsDeviceEntitled(subId,
-                isSubscriptionEntitled);
+            boolean isSubIdEntitled) {
+        mSatelliteEntitlementStatusPerCarrier.put(subId, isSubIdEntitled);
+        reportEntitlementStatusAndEligibility(subId, isSubIdEntitled);
+    }
+
+    private void reportEntitlementStatusAndEligibility(int subId, boolean isSubIdEntitled) {
+        mCarrierRoamingSatelliteControllerStats.reportIsDeviceEntitled(subId, isSubIdEntitled);
+        updateAndReportEligibilitySource(subId);
     }
 
     private void handleEntireProvisionMetricReport() {
@@ -10339,6 +10351,63 @@ public class SatelliteController extends Handler {
                         info.mSupportedConnectionMode);
             }
         }
+    }
+
+    /**
+     * Periodically reports the current eligibility source for all active subscriptions.
+     * This is typically called once a day to ensure metrics are up-to-date.
+     */
+    private void handleEntireEligibilityMetricReport() {
+        if (!mFeatureFlags.satelliteMetricsEnhancement()) {
+            logd("handleEntireEligibilityMetricReport: satelliteMetricsEnhancement is not enabled"
+                    + ". ignore.");
+            return;
+        }
+
+        int[] activeSubIds = mSubscriptionManagerService.getActiveSubIdList(true);
+        if (activeSubIds.length > 0) {
+            for (int subId : activeSubIds) {
+                updateAndReportEligibilitySource(subId);
+            }
+        } else {
+            loge("handleEntireEligibilityMetricReport: no active subId");
+        }
+    }
+
+    /**
+     * Determines and reports the satellite eligibility source for the given subId
+     * based on the carrier configuration and its supported eligibility mechanism.
+     */
+    private void updateAndReportEligibilitySource(int subId) {
+        if (!mFeatureFlags.satelliteMetricsEnhancement()) {
+            logd("updateAndReportEligibilitySource: satelliteMetricsEnhancement is not enabled"
+                    + ". ignore.");
+            return;
+        }
+
+        if (!isValidSubscriptionId(subId)) {
+            plogw("updateAndReportEligibilitySource: Invalid subId=" + subId);
+            return;
+        }
+
+        int newSource = SatelliteConstants.SATELLITE_ELIGIBILITY_SOURCE_UNKNOWN;
+        boolean attachSupported = isSatelliteSupportedViaCarrier(subId);
+        boolean entitlementSupportedByCarrier = getConfigForSubId(subId).getBoolean(
+                KEY_SATELLITE_ENTITLEMENT_SUPPORTED_BOOL, false);
+        if (attachSupported) {
+            if (entitlementSupportedByCarrier) {
+                newSource = SatelliteConstants.SATELLITE_ELIGIBILITY_SOURCE_ENTITLEMENT;
+            } else {
+                newSource = SatelliteConstants.SATELLITE_ELIGIBILITY_SOURCE_CARRIER_CONFIG;
+            }
+        }
+
+        mSatelliteEligibilitySource.put(subId, newSource);
+        mCarrierRoamingSatelliteControllerStats.reportDeviceEligibilitySource(subId,
+                attachSupported, newSource);
+        plogd("updateEligibilitySource: subId=" + subId + ", attachSupported=" + attachSupported
+                + ", entitlementSupported=" + entitlementSupportedByCarrier
+                + ", reportedSource=" + newSource);
     }
 
     // Helper class to store aggregated information per carrierId.
@@ -10714,6 +10783,40 @@ public class SatelliteController extends Handler {
     /** Returns whether the device is entitled for given subscription. */
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
     public boolean isDeviceEntitledForSubscription(int subId) {
-        return mSatelliteEntitlementStatusPerCarrier.getOrDefault(subId, false);
+        PersistableBundle config = getConfigForSubId(subId);
+        boolean attachSupported = config.getBoolean(KEY_SATELLITE_ATTACH_SUPPORTED_BOOL);
+        if (!attachSupported) {
+            logd("isDeviceEntitledForSubscription: subId=" + subId
+                    + ", satellite attach not supported, returning false");
+            return false;
+        }
+
+        boolean entitlementSupportedByCarrier = config.getBoolean(
+                KEY_SATELLITE_ENTITLEMENT_SUPPORTED_BOOL, false);
+        if (entitlementSupportedByCarrier) {
+            boolean isEntitled = mSatelliteEntitlementStatusPerCarrier.getOrDefault(subId,
+                    false);
+            logd("isDeviceEntitledForSubscription: subId=" + subId
+                    + ", entitlement supported, returning map status=" + isEntitled);
+            return isEntitled;
+        }
+
+        logd("isDeviceEntitledForSubscription: subId=" + subId
+                + ", entitlement not required, returning true");
+        return true;
+    }
+
+    /** Returns whether the satellite eligibility source for given subscription. */
+    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
+    public @SatelliteConstants.SatelliteEligibilitySource int getSatelliteEligibilitySource(
+            int subId) {
+        if (!mFeatureFlags.satelliteMetricsEnhancement()) {
+            logd("getSatelliteEligibilitySource: satelliteMetricsEnhancement is not "
+                    + "enabled. ignore.");
+            return SatelliteConstants.SATELLITE_ELIGIBILITY_SOURCE_UNKNOWN;
+        }
+
+        return mSatelliteEligibilitySource.getOrDefault(subId,
+                SatelliteConstants.SATELLITE_ELIGIBILITY_SOURCE_UNKNOWN);
     }
 }

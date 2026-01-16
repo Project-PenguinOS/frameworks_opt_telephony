@@ -95,7 +95,8 @@ public class CarrierRoamingSatelliteControllerStatsTest extends TelephonyTest {
         doReturn(new int[]{TEST_SUB_ID_0}).when(
                 mMockSubscriptionManagerService).getActiveSubIdList(anyBoolean());
         doReturn(false).when(mMockSatellitecontroller).isInCarrierRoamingNbIotNtn(any());
-        doReturn(false).when(mMockSatellitecontroller).isDeviceEntitledForSubscription(anyInt());
+        doReturn(false).when(mMockSatellitecontroller).isDeviceEntitledForSubscription(
+                anyInt());
 
         expected.initializeParams();
         expected.setConfigDataSource(CONFIG_DATA_SOURCE_ENTITLEMENT);
@@ -274,7 +275,8 @@ public class CarrierRoamingSatelliteControllerStatsTest extends TelephonyTest {
         doReturn(false).when(mMockSatellitecontroller).isInCarrierRoamingNbIotNtn(any());
         doReturn(SatelliteConstants.GLOBAL_NTN_CONNECT_TYPE_UNKNOWN).when(
                 mMockSatellitecontroller).getSupportedConnectTypeMetrics(anyInt());
-        doReturn(false).when(mMockSatellitecontroller).isDeviceEntitledForSubscription(anyInt());
+        doReturn(false).when(mMockSatellitecontroller).isDeviceEntitledForSubscription(
+                anyInt());
 
         expected.initializeParams();
         // Session gaps will be -1, when it is not reported.

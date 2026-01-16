@@ -4447,9 +4447,9 @@ public class RIL extends BaseCommands implements CommandsInterface {
         }
 
         radioServiceInvokeHelper(HAL_SERVICE_DATA, rr, "notifyImsDataNetwork", () -> {
-            dataProxy.notifyImsDataNetwork(rr.mSerial, accessNetwork,
-                    RILUtils.convertToHalDataNetworkState(dataNetworkState),
-                    physicalTransportType, physicalNetworkSlotIndex);
+            dataProxy.notifyImsDataNetwork(rr.mSerial,
+                    RILUtils.convertToHalImsDataNetworkInfo(accessNetwork, dataNetworkState,
+                    physicalTransportType, physicalNetworkSlotIndex));
         });
     }
 
