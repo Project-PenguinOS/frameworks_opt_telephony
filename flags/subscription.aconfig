@@ -90,3 +90,11 @@ flag {
     bug: "465531655"
     is_exported: false
 }
+
+# OWNER=ysnam TARGET=26Q2
+flag {
+    name: "skip_available_esim_port_check_for_opportunistic_sub"
+    namespace: "telephony"
+    description: "Skip available eSIM port check for opportunistic subscription."
+    bug: "469500968"
+}

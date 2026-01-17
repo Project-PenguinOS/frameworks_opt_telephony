@@ -211,16 +211,9 @@ public class PhoneFactory {
 // QTI_BEGIN: 2023-11-09: Telephony: Remove legacy subscription code
                 Rlog.i(LOG_TAG, "Creating SubscriptionManagerService");
 // QTI_END: 2023-11-09: Telephony: Remove legacy subscription code
-                if (featureFlags.publishTelephonyServicesAfterConstruction()) {
-                    sSubscriptionManagerService =
-                            SubscriptionManagerService.init(
-                                    context, Looper.myLooper(), featureFlags);
-                } else {
-                    sSubscriptionManagerService = TelephonyComponentFactory.getInstance().inject(
-                            SubscriptionManagerService.class.getName())
-                            .makeSubscriptionManagerService(context, Looper.myLooper(), featureFlags);
-                }
-
+                sSubscriptionManagerService =
+                        SubscriptionManagerService.init(
+                                context, Looper.myLooper(), featureFlags);
                 TelephonyComponentFactory.getInstance().inject(MultiSimSettingController.class.
                         getName()).initMultiSimSettingController(context, featureFlags);
 

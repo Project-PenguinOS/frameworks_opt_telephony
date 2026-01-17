@@ -35,7 +35,6 @@ import com.android.ims.internal.ConferenceParticipant;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.telephony.domainselection.DomainSelectionResolver;
 import com.android.internal.telephony.emergency.EmergencyNumberTracker;
-import com.android.internal.telephony.flags.Flags;
 import com.android.internal.telephony.util.TelephonyUtils;
 import com.android.telephony.Rlog;
 
@@ -685,15 +684,9 @@ public abstract class Connection {
             int emergencyRoutingUpdateCause =
                     PhoneConstants.EMERGENCY_ROUTING_UPDATE_CAUSE_UNSPECIFIED;
             if (dialArgs != null && dialArgs.intentExtras != null) {
-                if (Flags.useEmergencyRoutingCause()) {
-                    emergencyRoutingUpdateCause = dialArgs.intentExtras.getInt(
-                            PhoneConstants.EXTRA_EMERGENCY_ROUTING_UPDATE_CAUSE,
-                            PhoneConstants.EMERGENCY_ROUTING_UPDATE_CAUSE_UNSPECIFIED);
-                } else if (dialArgs.intentExtras.getBoolean(
-                            PhoneConstants.EXTRA_USE_EMERGENCY_ROUTING, false)) {
-                    emergencyRoutingUpdateCause =
-                            PhoneConstants.EMERGENCY_ROUTING_UPDATE_CAUSE_ALTERNATE_SERVICE;
-                }
+                emergencyRoutingUpdateCause = dialArgs.intentExtras.getInt(
+                        PhoneConstants.EXTRA_EMERGENCY_ROUTING_UPDATE_CAUSE,
+                        PhoneConstants.EMERGENCY_ROUTING_UPDATE_CAUSE_UNSPECIFIED);
             }
             if (emergencyRoutingUpdateCause
                     != PhoneConstants.EMERGENCY_ROUTING_UPDATE_CAUSE_UNSPECIFIED) {
