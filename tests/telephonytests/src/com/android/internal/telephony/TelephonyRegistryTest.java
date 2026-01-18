@@ -2090,7 +2090,6 @@ public class TelephonyRegistryTest extends TelephonyTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_CELLULAR_IDENTIFIER_DISCLOSURE_INDICATIONS)
     public void testNotifyCellularIdentifierDisclosedChanged() {
         int subId = 1;
         int[] events = {TelephonyCallback.EVENT_CELLULAR_IDENTIFIER_DISCLOSED_CHANGED};

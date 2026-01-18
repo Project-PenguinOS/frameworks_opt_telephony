@@ -283,6 +283,7 @@ public class RadioConfig extends Handler {
             if (serviceBound) logd("Unbinding to mock RadioConfig service");
 
             if (mMockModem != null) {
+                mMockModem.unbindMockModemService(MockModem.RADIOCONFIG_SERVICE);
                 mMockModem = null;
                 resetProxyAndRequestList("EVENT_AIDL_SERVICE_DEAD", null);
             }

@@ -365,8 +365,6 @@ public class DefaultPhoneNotifier implements PhoneNotifier {
     @Override
     public void notifyCellularIdentifierDisclosedChanged(Phone sender,
             CellularIdentifierDisclosure disclosure) {
-        if (!mFeatureFlags.cellularIdentifierDisclosureIndications()) return;
-
         mTelephonyRegistryMgr.notifyCellularIdentifierDisclosedChanged(sender.getPhoneId(),
                 sender.getSubId(), disclosure);
     }
