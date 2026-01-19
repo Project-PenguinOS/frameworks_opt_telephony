@@ -210,17 +210,6 @@ flag {
   }
 }
 
-# OWNER=gargakash TARGET=26Q2
-flag {
-  name: "satellite_service_metadata_check"
-  namespace: "telephony"
-  description: "Check for satellite optimization metadata in <service> tags."
-  bug: "427846736"
-  metadata {
-    purpose: PURPOSE_BUGFIX
-  }
-}
-
 # OWNER=karthickmj TARGET=26Q2
 flag {
   name: "satellite_upsell"
