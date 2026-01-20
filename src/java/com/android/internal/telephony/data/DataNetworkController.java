@@ -1670,13 +1670,11 @@ public class DataNetworkController extends Handler {
                     DataDisallowedReason.DATA_NETWORK_TRANSPORT_NOT_ALLOWED);
         }
 
-        if (mFeatureFlags.unsupportedNetworkCapabilitiesPerCarrier()) {
-            // Check if there is any unsupported network capabilities.
-            if (Arrays.stream(networkRequest.getCapabilities())
-                    .anyMatch(mDataConfigManager.getUnsupportedNetworkCapabilities()::contains)) {
-                evaluation.addDataDisallowedReason(
-                        DataDisallowedReason.UNSUPPORTED_NETWORK_CAPABILITIES);
-            }
+        // Check if there is any unsupported network capabilities.
+        if (Arrays.stream(networkRequest.getCapabilities())
+                .anyMatch(mDataConfigManager.getUnsupportedNetworkCapabilities()::contains)) {
+            evaluation.addDataDisallowedReason(
+                    DataDisallowedReason.UNSUPPORTED_NETWORK_CAPABILITIES);
         }
 
         // Bypass all checks for emergency network request.
@@ -2066,13 +2064,11 @@ public class DataNetworkController extends Handler {
             return evaluation;
         }
 
-        if (mFeatureFlags.unsupportedNetworkCapabilitiesPerCarrier()) {
-            // Check if there is any unsupported network capabilities.
-            if (Arrays.stream(dataNetwork.getNetworkCapabilities().getCapabilities())
-                    .anyMatch(mDataConfigManager.getUnsupportedNetworkCapabilities()::contains)) {
-                evaluation.addDataDisallowedReason(
-                        DataDisallowedReason.UNSUPPORTED_NETWORK_CAPABILITIES);
-            }
+        // Check if there is any unsupported network capabilities.
+        if (Arrays.stream(dataNetwork.getNetworkCapabilities().getCapabilities())
+                .anyMatch(mDataConfigManager.getUnsupportedNetworkCapabilities()::contains)) {
+            evaluation.addDataDisallowedReason(
+                    DataDisallowedReason.UNSUPPORTED_NETWORK_CAPABILITIES);
         }
 
         // Check SIM state

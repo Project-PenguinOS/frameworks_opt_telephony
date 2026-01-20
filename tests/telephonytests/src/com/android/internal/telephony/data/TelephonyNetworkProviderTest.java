@@ -406,7 +406,6 @@ public class TelephonyNetworkProviderTest extends TelephonyTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_UNSUPPORTED_NETWORK_CAPABILITIES_PER_CARRIER)
     public void testMakeNetworkFilter() {
         NetworkCapabilities caps = mTelephonyNetworkProvider.makeNetworkFilter();
         assertThat(caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_MMS)).isTrue();
