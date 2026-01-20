@@ -31,6 +31,7 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
@@ -43,7 +44,10 @@ import android.util.ArraySet;
 
 import androidx.annotation.Nullable;
 
+import com.android.internal.telephony.TelephonyConfigData;
 import com.android.internal.telephony.TelephonyTest;
+import com.android.internal.telephony.data.DataConfig;
+import com.android.internal.telephony.data.DataConfigParser;
 import com.android.internal.telephony.satellite.SatelliteConfig;
 import com.android.internal.telephony.satellite.SatelliteConfigParser;
 
@@ -55,7 +59,6 @@ import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 
 import java.io.File;
-import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -67,6 +70,7 @@ import java.util.concurrent.Executors;
 public class TelephonyConfigUpdateInstallReceiverTest extends TelephonyTest {
 
     public static final String DOMAIN_SATELLITE = "satellite";
+    public static final String DOMAIN_DATA = "data";
     private static final int[] ACTIVE_SUB_LIST = {1};
     @Mock
     private Executor mExecutor;
@@ -119,93 +123,79 @@ public class TelephonyConfigUpdateInstallReceiverTest extends TelephonyTest {
         assertSame(spyTelephonyConfigUpdateInstallReceiver,
                 TelephonyConfigUpdateInstallReceiver.getInstance());
 
-        // valid config data case
-        // mVersion:4 | mSupportedServicesPerCarrier:{1={310160=[1, 2, 3], 310220=[3]}} |
-        // mSatelliteRegionCountryCodes:[US] | mIsSatelliteRegionAllowed:true | s2CellFile size:10
-        String mBase64StrForPBByteArray =
-                "CjYIBBIeCAESDgoGMzEwMTYwEAEQAhADEgoKBjMxMDIyMBADGhIKCjAxMjM0NTY3ODkSAlVTGAE=";
-        byte[] mBytesProtoBuffer = Base64.getDecoder().decode(mBase64StrForPBByteArray);
-        doReturn(mBytesProtoBuffer).when(
-                spyTelephonyConfigUpdateInstallReceiver).getContentFromContentPath(any());
-
-        // mock UpdatedParser
-        SatelliteConfigParser spyValidParser =
-                spy(new SatelliteConfigParser(mBytesProtoBuffer));
-
         ConcurrentHashMap<Executor, ConfigProviderAdaptor.Callback> spyCallbackHashMap = spy(
                 new ConcurrentHashMap<>());
         spyCallbackHashMap.put(mExecutor, mCallback);
         spyTelephonyConfigUpdateInstallReceiver.setCallbackMap(spyCallbackHashMap);
 
+        // Mocks for Satellite
+        SatelliteConfigParser spySatelliteParser = mock(SatelliteConfigParser.class);
+        doReturn(new SatelliteConfig()).when(spySatelliteParser).getConfig();
+        doReturn(DOMAIN_SATELLITE).when(spySatelliteParser).getDomain();
+        doReturn(true).when(spyTelephonyConfigUpdateInstallReceiver)
+                .isValidSatelliteCarrierConfigData(any());
+        doReturn(true).when(spyTelephonyConfigUpdateInstallReceiver)
+                .isValidMaxAllowedDataMode(any());
+        doReturn(true).when(spyTelephonyConfigUpdateInstallReceiver)
+                .isValidSatelliteProvider(any());
+        doReturn(10).when(spySatelliteParser).getVersion();
+
+        // Mocks for Data
+        DataConfigParser spyDataParser = mock(DataConfigParser.class);
+        DataConfig mockDataConfig = mock(DataConfig.class);
+        TelephonyConfigData.DataConfigProto validProto =
+                TelephonyConfigData.DataConfigProto.newBuilder().build();
+        doReturn(validProto).when(mockDataConfig).getConfigData();
+        doReturn(mockDataConfig).when(spyDataParser).getConfig();
+        doReturn(DOMAIN_DATA).when(spyDataParser).getDomain();
+        doReturn(true).when(spyTelephonyConfigUpdateInstallReceiver)
+                .isValidDataConfig(any());
+        doReturn(10).when(spyDataParser).getVersion();
+
+        // 1. Success case for both
+        doReturn(spySatelliteParser).when(spyTelephonyConfigUpdateInstallReceiver)
+                .getNewConfigParser(eq(DOMAIN_SATELLITE), any());
+        doReturn(spyDataParser).when(spyTelephonyConfigUpdateInstallReceiver)
+                .getNewConfigParser(eq(DOMAIN_DATA), any());
+
         spyTelephonyConfigUpdateInstallReceiver.postInstall(mContext, new Intent());
 
-        verify(spyCallbackHashMap, times(2)).keySet();
+        verify(spyCallbackHashMap, times(2)).entrySet();
         verify(spyTelephonyConfigUpdateInstallReceiver, times(1))
                 .copySourceFileToTargetFile(any(), any());
         Mockito.clearInvocations(spyCallbackHashMap);
         Mockito.clearInvocations(spyTelephonyConfigUpdateInstallReceiver);
 
-        replaceInstance(TelephonyConfigUpdateInstallReceiver.class, "mConfigParser",
-                spyTelephonyConfigUpdateInstallReceiver, spyValidParser);
+        // 2. Smaller version case
+        // Setup existing parsers with version 10
+        spyTelephonyConfigUpdateInstallReceiver.overrideConfigParser(spySatelliteParser);
+        spyTelephonyConfigUpdateInstallReceiver.overrideConfigParser(spyDataParser);
 
-        // valid config data but smaller version case
-        // mVersion:3 | mSupportedServicesPerCarrier:{1={12345=[1, 2]}} |
-        // mSatelliteRegionCountryCodes:[US] | mIsSatelliteRegionAllowed:true | s2CellFile size:10
-        mBase64StrForPBByteArray =
-                "CicIAxIPCAESCwoFMTIzNDUQARACGhIKCjAxMjM0NTY3ODkSAlVTGAE=";
-        mBytesProtoBuffer = Base64.getDecoder().decode(mBase64StrForPBByteArray);
+        // New parsers with version 5
+        SatelliteConfigParser newSatelliteParser = mock(SatelliteConfigParser.class);
+        doReturn(new SatelliteConfig()).when(newSatelliteParser).getConfig();
+        doReturn(DOMAIN_SATELLITE).when(newSatelliteParser).getDomain();
+        doReturn(true).when(spyTelephonyConfigUpdateInstallReceiver) // Need validation to pass
+                .isValidSatelliteCarrierConfigData(newSatelliteParser);
+        doReturn(true).when(spyTelephonyConfigUpdateInstallReceiver)
+                .isValidMaxAllowedDataMode(newSatelliteParser);
+        doReturn(true).when(spyTelephonyConfigUpdateInstallReceiver)
+                .isValidSatelliteProvider(newSatelliteParser);
+        doReturn(5).when(newSatelliteParser).getVersion();
 
-        // mock UpdatedParser
-        SatelliteConfigParser spyInvalidParser =
-                spy(new SatelliteConfigParser(mBytesProtoBuffer));
-        doReturn(spyInvalidParser).when(spyTelephonyConfigUpdateInstallReceiver)
-                .getNewConfigParser(any(), any());
+        DataConfigParser newDataParser = mock(DataConfigParser.class);
+        DataConfig newDataConfig = mock(DataConfig.class);
+        doReturn(newDataConfig).when(newDataParser).getConfig();
+        doReturn(validProto).when(newDataConfig).getConfigData();
+        doReturn(DOMAIN_DATA).when(newDataParser).getDomain();
+        doReturn(true).when(spyTelephonyConfigUpdateInstallReceiver)
+                .isValidDataConfig(newDataParser);
+        doReturn(5).when(newDataParser).getVersion();
 
-        spyTelephonyConfigUpdateInstallReceiver.postInstall(mContext, new Intent());
-
-        verify(spyCallbackHashMap, times(0)).keySet();
-        verify(spyTelephonyConfigUpdateInstallReceiver, times(0))
-                .copySourceFileToTargetFile(any(), any());
-        Mockito.clearInvocations(spyCallbackHashMap);
-        Mockito.clearInvocations(spyTelephonyConfigUpdateInstallReceiver);
-
-        // Empty config data case which is valid
-        // mSupportedServicesPerCarrier:{} | mSatelliteRegionCountryCodes:[US] |
-        // mIsSatelliteRegionAllowed:true | s2CellFile size:30
-        mBase64StrForPBByteArray =
-                "CioIDBomCh4wMTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkSAlVTGAE=";
-        mBytesProtoBuffer = Base64.getDecoder().decode(mBase64StrForPBByteArray);
-        doReturn(mBytesProtoBuffer).when(
-                spyTelephonyConfigUpdateInstallReceiver).getContentFromContentPath(any());
-
-        // mock UpdatedParser
-        SatelliteConfigParser spyValidEmptyParser =
-                spy(new SatelliteConfigParser(mBytesProtoBuffer));
-        doReturn(spyValidEmptyParser).when(spyTelephonyConfigUpdateInstallReceiver)
-                .getNewConfigParser(any(), any());
-
-        spyTelephonyConfigUpdateInstallReceiver.postInstall(mContext, new Intent());
-        verify(spyCallbackHashMap, times(2)).keySet();
-        verify(spyTelephonyConfigUpdateInstallReceiver, times(1))
-                .copySourceFileToTargetFile(any(), any());
-        Mockito.clearInvocations(spyCallbackHashMap);
-        Mockito.clearInvocations(spyTelephonyConfigUpdateInstallReceiver);
-
-        // Wrong plmn("1234") config data case
-        // mSupportedServicesPerCarrier:{1={"1234"=[1, 2, 3]}} |US
-        // mSatelliteRegionCountryCodes:[US]
-        // | mIsSatelliteRegionAllowed:true | s2CellFile size:10
-        mBase64StrForPBByteArray =
-                "CigIDBIQCAESDAoEMTIzNBABEAIQAxoSCgowMTIzNDU2Nzg5EgJVUxgB";
-        mBytesProtoBuffer = Base64.getDecoder().decode(mBase64StrForPBByteArray);
-        doReturn(mBytesProtoBuffer).when(
-                spyTelephonyConfigUpdateInstallReceiver).getContentFromContentPath(any());
-
-        // mock UpdatedParser
-        spyInvalidParser =
-                spy(new SatelliteConfigParser(mBytesProtoBuffer));
-        doReturn(spyInvalidParser).when(spyTelephonyConfigUpdateInstallReceiver)
-                .getNewConfigParser(any(), any());
+        doReturn(newSatelliteParser).when(spyTelephonyConfigUpdateInstallReceiver)
+                .getNewConfigParser(eq(DOMAIN_SATELLITE), any());
+        doReturn(newDataParser).when(spyTelephonyConfigUpdateInstallReceiver)
+                .getNewConfigParser(eq(DOMAIN_DATA), any());
 
         spyTelephonyConfigUpdateInstallReceiver.postInstall(mContext, new Intent());
 
@@ -215,29 +205,21 @@ public class TelephonyConfigUpdateInstallReceiverTest extends TelephonyTest {
         Mockito.clearInvocations(spyCallbackHashMap);
         Mockito.clearInvocations(spyTelephonyConfigUpdateInstallReceiver);
 
-        // Wrong service("8") config data case
-        // mSupportedServicesPerCarrier:{1={12345=[6, "8"]}} |
-        // mSatelliteRegionCountryCodes:[US] |
-        // mIsSatelliteRegionAllowed:true | s2CellFile size:10
-        mBase64StrForPBByteArray =
-                "CicIDBIPCAESCwoFMTIzNDUQBhAIGhIKCjAxMjM0NTY3ODkSAlVTGAE=";
-        mBytesProtoBuffer = Base64.getDecoder().decode(mBase64StrForPBByteArray);
-        doReturn(mBytesProtoBuffer).when(
-                spyTelephonyConfigUpdateInstallReceiver).getContentFromContentPath(any());
+        // 3. Invalid config case
+        // Reset override
+        spyTelephonyConfigUpdateInstallReceiver.cleanUpTelephonyConfigs();
 
-        // mock UpdatedParser
-        spyInvalidParser =
-                spy(new SatelliteConfigParser(mBytesProtoBuffer));
-        doReturn(spyInvalidParser).when(spyTelephonyConfigUpdateInstallReceiver)
-                .getNewConfigParser(any(), any());
+        // Let's rely on doReturn(false).
+        doReturn(false).when(spyTelephonyConfigUpdateInstallReceiver)
+                .isValidSatelliteCarrierConfigData(any());
+        doReturn(false).when(spyTelephonyConfigUpdateInstallReceiver)
+                .isValidDataConfig(any());
 
         spyTelephonyConfigUpdateInstallReceiver.postInstall(mContext, new Intent());
 
         verify(spyCallbackHashMap, times(0)).keySet();
         verify(spyTelephonyConfigUpdateInstallReceiver, times(0))
                 .copySourceFileToTargetFile(any(), any());
-        Mockito.clearInvocations(spyCallbackHashMap);
-        Mockito.clearInvocations(spyTelephonyConfigUpdateInstallReceiver);
     }
 
 
@@ -246,25 +228,34 @@ public class TelephonyConfigUpdateInstallReceiverTest extends TelephonyTest {
         TelephonyConfigUpdateInstallReceiver spyTelephonyConfigUpdateInstallReceiver =
                 spy(new TelephonyConfigUpdateInstallReceiver());
 
-        doReturn(null).when(
-                spyTelephonyConfigUpdateInstallReceiver).getContentFromContentPath(any());
-
         replaceInstance(TelephonyConfigUpdateInstallReceiver.class, "sReceiverAdaptorInstance",
                 null, spyTelephonyConfigUpdateInstallReceiver);
+
+        // 1. Test null case
+        doReturn(null).when(
+                spyTelephonyConfigUpdateInstallReceiver).getNewConfigParser(any(), any());
+
         assertNull(TelephonyConfigUpdateInstallReceiver.getInstance().getConfigParser(
                 DOMAIN_SATELLITE));
+        assertNull(TelephonyConfigUpdateInstallReceiver.getInstance().getConfigParser(
+                DOMAIN_DATA));
 
-        String mBase64StrForPBByteArray =
-                "CjYIBBIeCAESDgoGMzEwMTYwEAEQAhADEgoKBjMxMDIyMBADGhIKCjAxMjM0NTY3ODkSAlVTGAE=";
-        byte[] mBytesProtoBuffer = Base64.getDecoder().decode(mBase64StrForPBByteArray);
-        doReturn(mBytesProtoBuffer).when(
-                spyTelephonyConfigUpdateInstallReceiver).getContentFromContentPath(any());
+        // 2. Test success case
+        SatelliteConfigParser mockSatParser = mock(SatelliteConfigParser.class);
+        doReturn(new SatelliteConfig()).when(mockSatParser).getConfig();
+        doReturn(mockSatParser).when(spyTelephonyConfigUpdateInstallReceiver)
+                .getNewConfigParser(eq(DOMAIN_SATELLITE), any());
 
-        replaceInstance(TelephonyConfigUpdateInstallReceiver.class, "sReceiverAdaptorInstance",
-                null, spyTelephonyConfigUpdateInstallReceiver);
+        DataConfigParser mockDataParser = mock(DataConfigParser.class);
+        DataConfig mockDataConfig = mock(DataConfig.class);
+        doReturn(mockDataConfig).when(mockDataParser).getConfig();
+        doReturn(mockDataParser).when(spyTelephonyConfigUpdateInstallReceiver)
+                .getNewConfigParser(eq(DOMAIN_DATA), any());
 
         assertNotNull(TelephonyConfigUpdateInstallReceiver.getInstance().getConfigParser(
                 DOMAIN_SATELLITE));
+        assertNotNull(TelephonyConfigUpdateInstallReceiver.getInstance().getConfigParser(
+                DOMAIN_DATA));
     }
 
     @Test
@@ -393,5 +384,82 @@ public class TelephonyConfigUpdateInstallReceiverTest extends TelephonyTest {
         doReturn(List.of("310211", "123")).when(mockConfig).getDeviceSatelliteProviderList();
         assertFalse(spyTelephonyConfigUpdateInstallReceiver
                 .isValidSatelliteProvider(mockParser));
+    }
+
+    @Test
+    public void testIsValidDataConfig() {
+        TelephonyConfigUpdateInstallReceiver spyReceiver =
+                spy(new TelephonyConfigUpdateInstallReceiver());
+        DataConfigParser mockParser = mock(DataConfigParser.class);
+        DataConfig mockConfig = mock(DataConfig.class);
+
+        doReturn(mockConfig).when(mockParser).getConfig();
+
+        // Case 1: parser not instance of DataConfigParser
+        assertFalse(spyReceiver.isValidDataConfig(mock(ConfigParser.class)));
+
+        // Case 2: dataConfig null
+        doReturn(null).when(mockParser).getConfig();
+        assertFalse(spyReceiver.isValidDataConfig(mockParser));
+        doReturn(mockConfig).when(mockParser).getConfig();
+
+        // Case 3: no connection capability configs (valid)
+        TelephonyConfigData.DataConfigProto proto =
+                TelephonyConfigData.DataConfigProto.newBuilder().build();
+        doReturn(proto).when(mockConfig).getConfigData();
+        assertTrue(spyReceiver.isValidDataConfig(mockParser));
+
+        // Case 4: valid connection capability configs
+        TelephonyConfigData.ConnectionCapabilityMap defaultMap =
+                TelephonyConfigData.ConnectionCapabilityMap.newBuilder()
+                        .addRules("123:456:true")
+                        .build();
+        TelephonyConfigData.ConnectionCapabilityMap carrierMap =
+                TelephonyConfigData.ConnectionCapabilityMap.newBuilder()
+                        .setCarrierId(1)
+                        .addRules("111:222:false")
+                        .build();
+
+        TelephonyConfigData.ConnectionCapabilityConfig caps =
+                TelephonyConfigData.ConnectionCapabilityConfig.newBuilder()
+                        .setDefaultConnectionCapabilityConfig(defaultMap)
+                        .addCarrierConnectionCapabilityConfigs(carrierMap)
+                        .build();
+
+        proto = TelephonyConfigData.DataConfigProto.newBuilder()
+                .setConnectionCapabilityConfigs(caps)
+                .build();
+        doReturn(proto).when(mockConfig).getConfigData();
+
+        assertTrue(spyReceiver.isValidDataConfig(mockParser));
+
+        // Case 5: Invalid rule format in default map
+        defaultMap = TelephonyConfigData.ConnectionCapabilityMap.newBuilder()
+                .addRules("invalid_rule")
+                .build();
+        caps = TelephonyConfigData.ConnectionCapabilityConfig.newBuilder()
+                .setDefaultConnectionCapabilityConfig(defaultMap)
+                .build();
+        proto = TelephonyConfigData.DataConfigProto.newBuilder()
+                .setConnectionCapabilityConfigs(caps)
+                .build();
+        doReturn(proto).when(mockConfig).getConfigData();
+
+        assertFalse(spyReceiver.isValidDataConfig(mockParser));
+
+        // Case 6: Invalid number format in carrier map
+        carrierMap = TelephonyConfigData.ConnectionCapabilityMap.newBuilder()
+                .setCarrierId(1)
+                .addRules("abc:def:true")
+                .build();
+        caps = TelephonyConfigData.ConnectionCapabilityConfig.newBuilder()
+                .addCarrierConnectionCapabilityConfigs(carrierMap)
+                .build();
+        proto = TelephonyConfigData.DataConfigProto.newBuilder()
+                .setConnectionCapabilityConfigs(caps)
+                .build();
+        doReturn(proto).when(mockConfig).getConfigData();
+
+        assertFalse(spyReceiver.isValidDataConfig(mockParser));
     }
 }
