@@ -6829,12 +6829,8 @@ public class SatelliteController extends Handler {
      * @return : Notification throttle timeout in millis.
      */
     private long getNotificationDisplayThrottleTimeout(int subId) {
-        if (Flags.starlinkDataBugfix()) {
-            return getConfigForSubId(subId).getLong(
-                    KEY_SATELLITE_CONNECTED_NOTIFICATION_THROTTLE_MILLIS_INT);
-        } else {
-            return TimeUnit.DAYS.toMillis(7);
-        }
+        return getConfigForSubId(subId).getLong(
+                KEY_SATELLITE_CONNECTED_NOTIFICATION_THROTTLE_MILLIS_INT);
     }
 
     /**
