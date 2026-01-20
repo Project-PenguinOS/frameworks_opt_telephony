@@ -83,6 +83,7 @@ import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyDisplayInfo;
 import android.telephony.TelephonyManager;
 import android.telephony.TelephonyRegistryManager;
+import android.telephony.data.TrafficDescriptor;
 import android.telephony.emergency.EmergencyNumber;
 import android.telephony.euicc.EuiccManager;
 import android.telephony.ims.ImsCallProfile;
@@ -105,6 +106,7 @@ import com.android.internal.telephony.data.DataProfileManager;
 import com.android.internal.telephony.data.DataRetryManager;
 import com.android.internal.telephony.data.DataServiceManager;
 import com.android.internal.telephony.data.DataSettingsManager;
+import com.android.internal.telephony.data.DataUtils;
 import com.android.internal.telephony.data.LinkBandwidthEstimator;
 import com.android.internal.telephony.data.PhoneSwitcher;
 import com.android.internal.telephony.domainselection.DomainSelectionResolver;
@@ -1378,5 +1380,53 @@ public abstract class TelephonyTest {
         for (TestableLooper looper : mTestableLoopers) {
             looper.moveTimeForward(milliSeconds);
         }
+    }
+
+    /**
+     * Helper for subclasses to mock DataConfigManager default behavior.
+     * Maps NetworkCapability to ConnectionCapability (Simulates Default/Static logic).
+     */
+    protected int getTestConnectionCapability(int netCap) {
+        return switch (netCap) {
+            case NetworkCapabilities.NET_CAPABILITY_MMS ->
+                    TrafficDescriptor.CONNECTION_CAPABILITY_MMS;
+            case NetworkCapabilities.NET_CAPABILITY_SUPL ->
+                    TrafficDescriptor.CONNECTION_CAPABILITY_SUPL;
+            case NetworkCapabilities.NET_CAPABILITY_IMS ->
+                    TrafficDescriptor.CONNECTION_CAPABILITY_IMS;
+            case NetworkCapabilities.NET_CAPABILITY_INTERNET ->
+                    TrafficDescriptor.CONNECTION_CAPABILITY_INTERNET;
+            case NetworkCapabilities.NET_CAPABILITY_PRIORITIZE_LATENCY ->
+                    TrafficDescriptor.CONNECTION_CAPABILITY_REAL_TIME_INTERACTIVE;
+            case NetworkCapabilities.NET_CAPABILITY_PRIORITIZE_BANDWIDTH ->
+                    TrafficDescriptor.CONNECTION_CAPABILITY_DOWNLINK_STREAMING;
+            case DataUtils.NET_CAPABILITY_PRIORITIZE_UNIFIED_COMMUNICATIONS ->
+                    TrafficDescriptor.CONNECTION_CAPABILITY_UNIFIED_COMMUNICATIONS;
+            default -> TrafficDescriptor.CONNECTION_CAPABILITY_UNKNOWN;
+        };
+    }
+
+    /**
+     * Helper for subclasses to mock DataConfigManager default behavior.
+     * Maps ConnectionCapability to NetworkCapability.
+     */
+    protected int getTestNetworkCapability(int connCap) {
+        return switch (connCap) {
+            case TrafficDescriptor.CONNECTION_CAPABILITY_MMS ->
+                    NetworkCapabilities.NET_CAPABILITY_MMS;
+            case TrafficDescriptor.CONNECTION_CAPABILITY_SUPL ->
+                    NetworkCapabilities.NET_CAPABILITY_SUPL;
+            case TrafficDescriptor.CONNECTION_CAPABILITY_IMS ->
+                    NetworkCapabilities.NET_CAPABILITY_IMS;
+            case TrafficDescriptor.CONNECTION_CAPABILITY_INTERNET ->
+                    NetworkCapabilities.NET_CAPABILITY_INTERNET;
+            case TrafficDescriptor.CONNECTION_CAPABILITY_REAL_TIME_INTERACTIVE ->
+                    NetworkCapabilities.NET_CAPABILITY_PRIORITIZE_LATENCY;
+            case TrafficDescriptor.CONNECTION_CAPABILITY_DOWNLINK_STREAMING ->
+                    NetworkCapabilities.NET_CAPABILITY_PRIORITIZE_BANDWIDTH;
+            case TrafficDescriptor.CONNECTION_CAPABILITY_UNIFIED_COMMUNICATIONS ->
+                    DataUtils.NET_CAPABILITY_PRIORITIZE_UNIFIED_COMMUNICATIONS;
+            default -> -1; // Corresponds to no capability
+        };
     }
 }

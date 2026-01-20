@@ -1077,6 +1077,11 @@ public class DataNetworkControllerTest extends TelephonyTest {
                 }
             }
 
+            doAnswer(inv -> getTestConnectionCapability(inv.getArgument(0)))
+                    .when(mDataConfigManager).networkCapabilityToConnectionCapability(anyInt());
+            doAnswer(inv -> getTestNetworkCapability(inv.getArgument(0)))
+                    .when(mDataConfigManager).connectionCapabilityToNetworkCapability(anyInt());
+
             boolean hasConnectionCapabilityAttribute = networkRequest.hasAttribute(
                     TelephonyNetworkRequest
                             .CAPABILITY_ATTRIBUTE_TRAFFIC_DESCRIPTOR_CONNECTION_CAPABILITY);
@@ -1095,7 +1100,7 @@ public class DataNetworkControllerTest extends TelephonyTest {
                 }
                 if (hasConnectionCapabilityAttribute) {
                     trafficDescriptorBuilder.setConnectionCapability(
-                            DataUtils.networkCapabilityToConnectionCapability(
+                            mDataConfigManager.networkCapabilityToConnectionCapability(
                                     networkRequest.getHighestPrioritySupportedNetworkCapability()));
                 }
 

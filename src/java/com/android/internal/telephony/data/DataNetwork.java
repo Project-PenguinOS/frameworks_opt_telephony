@@ -2552,7 +2552,7 @@ public class DataNetwork extends StateMachine {
         // Extract network capabilities from the traffic descriptor.
         if (mFlags.enableTrafficDescriptorConnectionCapability()) {
             for (TrafficDescriptor trafficDescriptor : mTrafficDescriptors) {
-                int netCap = DataUtils.connectionCapabilityToNetworkCapability(
+                int netCap = mDataConfigManager.connectionCapabilityToNetworkCapability(
                         trafficDescriptor.getConnectionCapability());
                 if (netCap != -1) {
                     builder.addCapability(netCap);
