@@ -1305,15 +1305,13 @@ public class DataConfigManager extends Handler {
     @NonNull
     @NetCapability
     public Set<Integer> getUnsupportedNetworkCapabilities() {
-        if (mFeatureFlags.unsupportedNetworkCapabilitiesPerCarrier()) {
-            // Carrier config should take precedence over resource overlay.
-            String[] unsupportedCapStringArray = mCarrierConfig.getStringArray(
-                    CarrierConfigManager.KEY_TELEPHONY_UNSUPPORTED_NETWORK_CAPABILITY_STRING_ARRAY);
-            if (unsupportedCapStringArray != null) {
-                return Arrays.stream(unsupportedCapStringArray)
-                        .map(DataUtils::getNetworkCapabilityFromString)
-                        .collect(Collectors.toSet());
-            }
+        // Carrier config should take precedence over resource overlay.
+        String[] unsupportedCapStringArray = mCarrierConfig.getStringArray(
+                CarrierConfigManager.KEY_TELEPHONY_UNSUPPORTED_NETWORK_CAPABILITY_STRING_ARRAY);
+        if (unsupportedCapStringArray != null) {
+            return Arrays.stream(unsupportedCapStringArray)
+                    .map(DataUtils::getNetworkCapabilityFromString)
+                    .collect(Collectors.toSet());
         }
 
         return Arrays.stream(mResources.getStringArray(com.android.internal.R.array
