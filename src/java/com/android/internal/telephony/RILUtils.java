@@ -256,6 +256,7 @@ import static com.android.internal.telephony.RILConstants.RIL_UNSOL_CONNECTION_S
 import static com.android.internal.telephony.RILConstants.RIL_UNSOL_DATA_CALL_LIST_CHANGED;
 import static com.android.internal.telephony.RILConstants.RIL_UNSOL_DATA_CALL_LIST_UPDATED;
 import static com.android.internal.telephony.RILConstants.RIL_UNSOL_DC_RT_INFO_CHANGED;
+import static com.android.internal.telephony.RILConstants.RIL_UNSOL_DISPLAY_NETWORK_TYPE_CHANGED;
 import static com.android.internal.telephony.RILConstants.RIL_UNSOL_EMERGENCY_NETWORK_SCAN_RESULT;
 import static com.android.internal.telephony.RILConstants.RIL_UNSOL_EMERGENCY_NUMBER_LIST;
 import static com.android.internal.telephony.RILConstants.RIL_UNSOL_ENTER_EMERGENCY_CALLBACK_MODE;
@@ -5727,6 +5728,8 @@ public class RILUtils {
                 return "UNSOL_NETWORK_SECURITY_EVENTS";
             case RIL_UNSOL_DATA_CALL_LIST_UPDATED:
                 return "UNSOL_DATA_CALL_LIST_UPDATED";
+            case RIL_UNSOL_DISPLAY_NETWORK_TYPE_CHANGED:
+                return "UNSOL_DISPLAY_NETWORK_TYPE_CHANGED";
             default:
                 return "<unknown response " + response + ">";
         }
