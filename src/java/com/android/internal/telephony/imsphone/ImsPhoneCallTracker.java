@@ -2306,10 +2306,6 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
                 setEmergencyCallInfo(profile, conn);
             }
 
-// QTI_BEGIN: 2019-09-17: Telephony: IMS: Add check for EXTRA_START_CALL_WITH_RTT
-            boolean isStartRttCall = true;
-
-// QTI_END: 2019-09-17: Telephony: IMS: Add check for EXTRA_START_CALL_WITH_RTT
             // Translate call subject intent-extra from Telecom-specific extra key to the
             // ImsCallProfile key.
             if (intentExtras != null) {
@@ -2321,21 +2317,12 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
                     profile.setCallExtra(ImsCallProfile.EXTRA_CALL_SUBJECT,
                             intentExtras.getString(TelecomManager.EXTRA_CALL_SUBJECT));
                 }
-
-// QTI_BEGIN: 2021-01-22: Telephony: IMS: Remove RTT related test code
                 boolean isExtraStartRttCall = intentExtras.getBoolean(
-// QTI_END: 2021-01-22: Telephony: IMS: Remove RTT related test code
-// QTI_BEGIN: 2019-09-17: Telephony: IMS: Add check for EXTRA_START_CALL_WITH_RTT
                     android.telecom.TelecomManager.EXTRA_START_CALL_WITH_RTT, true);
-// QTI_END: 2019-09-17: Telephony: IMS: Add check for EXTRA_START_CALL_WITH_RTT
-// QTI_BEGIN: 2021-01-22: Telephony: IMS: Remove RTT related test code
                 boolean isSettingStartRttCall = QtiImsUtils.canStartRttCall(mPhone.getPhoneId(),
                                                                             mPhone.getContext());
-                isStartRttCall = isExtraStartRttCall && isSettingStartRttCall;
-// QTI_END: 2021-01-22: Telephony: IMS: Remove RTT related test code
-// QTI_BEGIN: 2019-09-17: Telephony: IMS: Add check for EXTRA_START_CALL_WITH_RTT
-                if (DBG) log("dialInternal: isStartRttCall = " + isStartRttCall);
-// QTI_END: 2019-09-17: Telephony: IMS: Add check for EXTRA_START_CALL_WITH_RTT
+
+                if (DBG) log("dialInternal: isSettingStartRttCall = " + isSettingStartRttCall);
 
                 if (intentExtras.containsKey(android.telecom.TelecomManager.EXTRA_PRIORITY)) {
                     profile.setCallExtraInt(ImsCallProfile.EXTRA_PRIORITY, intentExtras.getInt(
@@ -2355,18 +2342,13 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
                                     TelecomManager.EXTRA_OUTGOING_PICTURE)).getUuid());
                     profile.setCallExtra(ImsCallProfile.EXTRA_PICTURE_URL, url);
                 }
-
-// QTI_BEGIN: 2019-10-30: Telephony: Do not set RTT mode to full when there are no sims
-                // Set the RTT mode to 1 if sim supports RTT and if the connection has
-                // valid RTT text stream
-// QTI_END: 2019-10-30: Telephony: Do not set RTT mode to full when there are no sims
-// QTI_BEGIN: 2022-01-20: Telephony: IMS : Check RTT mode in AOSP implementation
-                if (isRttSupported() && conn.hasRttTextStream() && isStartRttCall && isRttOn()) {
-// QTI_END: 2022-01-20: Telephony: IMS : Check RTT mode in AOSP implementation
-// QTI_BEGIN: 2021-01-22: Telephony: IMS: Remove RTT related test code
-                    if (DBG) log("dialInternal: setting RTT mode to full");
-// QTI_END: 2021-01-22: Telephony: IMS: Remove RTT related test code
-                    profile.mMediaProfile.mRttMode = ImsStreamMediaProfile.RTT_MODE_FULL;
+                if (isExtraStartRttCall && canMakeRttCall(profile, isEmergencyCall)) {
+                    int mode = isSettingStartRttCall
+                            ? QtiImsUtils.getRttOperatingMode(
+                            mPhone.getPhoneId(), mPhone.getContext())
+                            : ImsStreamMediaProfile.RTT_MODE_DISABLED;
+                    if (DBG) log("dialInternal: setting RTT mode :" + mode);
+                    profile.getMediaProfile().setRttMode(mode);
                 }
 
                 if (intentExtras.containsKey(ImsCallProfile.EXTRA_IS_CALL_PULL)) {
@@ -2390,20 +2372,6 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
                 // intentExtras individually, with uniquely defined keys.
                 // These key-value pairs are processed by IMS Service before
                 // being sent to the lower layers/to the network.
-            }
-
-// QTI_BEGIN: 2019-10-30: Telephony: Do not set RTT mode to full when there are no sims
-            // Override RTT mode as per operator requirements not supported by AOSP
-// QTI_END: 2019-10-30: Telephony: Do not set RTT mode to full when there are no sims
-// QTI_BEGIN: 2021-08-25: Telephony: IMS: Fix wrong RTT operating mode for E911 call in roaming
-            if (isStartRttCall && canMakeRttCall(profile, isEmergencyCall)) {
-// QTI_END: 2021-08-25: Telephony: IMS: Fix wrong RTT operating mode for E911 call in roaming
-// QTI_BEGIN: 2021-05-06: Telephony: IMS: Check for roaming for RTT call in automatic mode
-                int mode = QtiImsUtils.getRttOperatingMode(
-                        mPhone.getPhoneId(), mPhone.getContext());
-                if (DBG) log("dialInternal: set RTT operation mode: " + mode);
-                profile.getMediaProfile().setRttMode(mode);
-// QTI_END: 2021-05-06: Telephony: IMS: Check for roaming for RTT call in automatic mode
             }
 
             mPhone.getVoiceCallSessionStats().onImsDial(conn);
