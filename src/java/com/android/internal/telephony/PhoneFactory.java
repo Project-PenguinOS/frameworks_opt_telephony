@@ -208,9 +208,7 @@ public class PhoneFactory {
                 // call getInstance()
                 sUiccController = UiccController.make(context, featureFlags);
 
-// QTI_BEGIN: 2023-11-09: Telephony: Remove legacy subscription code
                 Rlog.i(LOG_TAG, "Creating SubscriptionManagerService");
-// QTI_END: 2023-11-09: Telephony: Remove legacy subscription code
                 sSubscriptionManagerService =
                         SubscriptionManagerService.init(
                                 context, Looper.myLooper(), featureFlags);
@@ -421,9 +419,7 @@ public class PhoneFactory {
     /* Gets the default subscription */
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     public static int getDefaultSubscription() {
-// QTI_BEGIN: 2023-11-09: Telephony: Remove legacy subscription code
         return SubscriptionManagerService.getInstance().getDefaultSubId();
-// QTI_END: 2023-11-09: Telephony: Remove legacy subscription code
     }
 
     /* Returns User SMS Prompt property,  enabled or not */
@@ -451,9 +447,7 @@ public class PhoneFactory {
     }
 
     /**
-// QTI_BEGIN: 2023-11-09: Telephony: Remove legacy subscription code
      * Get the instance of {@link SmsController}.
-// QTI_END: 2023-11-09: Telephony: Remove legacy subscription code
      */
     public static SmsController getSmsController() {
         synchronized (sLockProxyPhones) {
