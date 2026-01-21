@@ -111,17 +111,6 @@ flag {
   }
 }
 
-# OWNER=sewookseo TARGET=26Q2
-flag {
-  name: "qos_filter_match_address_range"
-  namespace: "telephony"
-  description: "Support QosFilter address match function for IP address range based on the prefix length."
-  bug:"399960748"
-  metadata {
-    purpose: PURPOSE_BUGFIX
-  }
-}
-
 # OWNER=jackyu TARGET=26Q1
 flag {
   name: "unsupported_network_capabilities_per_carrier"

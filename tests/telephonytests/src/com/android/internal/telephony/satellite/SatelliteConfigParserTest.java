@@ -915,4 +915,9 @@ public class SatelliteConfigParserTest extends TelephonyTest {
                 Integer.valueOf(CarrierConfigManager.SATELLITE_DATA_SUPPORT_BANDWIDTH_CONSTRAINED),
                 satelliteConfigParser.getConfig().getSatelliteMaxAllowedDataMode());
     }
+    @Test
+    public void testGetDomain() {
+        SatelliteConfigParser parser = new SatelliteConfigParser(mBytesProtoBuffer);
+        assertEquals("satellite", parser.getDomain());
+    }
 }

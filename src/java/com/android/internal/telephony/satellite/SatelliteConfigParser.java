@@ -22,6 +22,7 @@ import android.util.Log;
 
 import com.android.internal.telephony.TelephonyConfigData;
 import com.android.internal.telephony.configupdate.ConfigParser;
+import com.android.internal.telephony.configupdate.TelephonyConfigUpdateInstallReceiver;
 
 import java.io.File;
 import java.io.IOException;
@@ -89,5 +90,10 @@ public class SatelliteConfigParser extends ConfigParser<SatelliteConfig> {
                 mConfig = null;
             }
         }
+    }
+
+    @Override
+    public String getDomain() {
+        return TelephonyConfigUpdateInstallReceiver.DOMAIN_SATELLITE;
     }
 }
