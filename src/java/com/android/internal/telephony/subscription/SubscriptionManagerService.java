@@ -109,7 +109,6 @@ import com.android.internal.telephony.TelephonyPermissions;
 import com.android.internal.telephony.data.PhoneSwitcher;
 import com.android.internal.telephony.euicc.EuiccController;
 import com.android.internal.telephony.flags.FeatureFlags;
-import com.android.internal.telephony.flags.Flags;
 import com.android.internal.telephony.satellite.SatelliteController;
 import com.android.internal.telephony.subscription.SubscriptionDatabaseManager.SubscriptionDatabaseManagerCallback;
 import com.android.internal.telephony.uicc.IccRecords;
@@ -4074,9 +4073,11 @@ public class SubscriptionManagerService extends ISub.Stub {
 
         if (mFeatureFlags.getPhoneNumberTs43Api()
                 && source == SubscriptionManager.PHONE_NUMBER_SOURCE_TS43) {
-            if (!TelephonyPermissions.isSystemOrPhone(BINDER_WRAPPER.getCallingUid())) {
+            if (!TelephonyPermissions.isSystemOrPhone(BINDER_WRAPPER.getCallingUid())
+                    && !TelephonyPermissions.checkCarrierPrivilegeForSubId(mContext, subId)) {
                 throw new SecurityException(
-                        "getPhoneNumber(TS43) is restricted to privileged system components.");
+                        "getPhoneNumber(TS43) is restricted to privileged system components or"
+                                + " carrier privileged apps.");
             }
         }
 
@@ -4211,6 +4212,8 @@ public class SubscriptionManagerService extends ISub.Stub {
 
         subId = checkAndGetSubId(subId);
         if (subId == SubscriptionManager.INVALID_SUBSCRIPTION_ID) return "";
+        boolean isCarrierPrivileged =
+                TelephonyPermissions.checkCarrierPrivilegeForSubId(mContext, subId);
 
         final long identity = Binder.clearCallingIdentity();
         try {
@@ -4226,7 +4229,8 @@ public class SubscriptionManagerService extends ISub.Stub {
             if (!TextUtils.isEmpty(number)) return number;
 
             if (mFeatureFlags.getPhoneNumberTs43Api()
-                    && TelephonyPermissions.isSystemOrPhone(callingUid)) {
+                    && (TelephonyPermissions.isSystemOrPhone(callingUid)
+                    || isCarrierPrivileged)) {
                 number = getPhoneNumberFromSourceInternal(
                         subId,
                         SubscriptionManager.PHONE_NUMBER_SOURCE_TS43, false);
@@ -4287,6 +4291,8 @@ public class SubscriptionManagerService extends ISub.Stub {
 
         subId = checkAndGetSubId(subId);
         if (subId == SubscriptionManager.INVALID_SUBSCRIPTION_ID) return "";
+        boolean isCarrierPrivileged =
+                TelephonyPermissions.checkCarrierPrivilegeForSubId(mContext, subId);
         final long identity = Binder.clearCallingIdentity();
         try {
             String number;
@@ -4299,7 +4305,8 @@ public class SubscriptionManagerService extends ISub.Stub {
             if (!TextUtils.isEmpty(number)) return number;
 
             if (mFeatureFlags.getPhoneNumberTs43Api()
-                    && TelephonyPermissions.isSystemOrPhone(callingUid)) {
+                    && (TelephonyPermissions.isSystemOrPhone(callingUid)
+                    || isCarrierPrivileged)) {
                 number = getPhoneNumberFromSourceInternal(subId,
                         SubscriptionManager.PHONE_NUMBER_SOURCE_TS43, false);
                 if (!TextUtils.isEmpty(number)) return number;
