@@ -3284,11 +3284,9 @@ public class GsmCdmaPhone extends Phone {
 
                 mNullCipherNotifier.onSecurityAlgorithmUpdate(mContext, getPhoneId(), getSubId(),
                         update);
-                if (mFeatureFlags.securityAlgorithmsUpdateIndications()) {
-                    logd("EVENT_SECURITY_ALGORITHM_UPDATE for non-Safety Center listeners "
-                              + "phoneId = " + getPhoneId());
-                    mNotifier.notifySecurityAlgorithmsChanged(this, update);
-                }
+                logd("EVENT_SECURITY_ALGORITHM_UPDATE for non-Safety Center listeners "
+                          + "phoneId = " + getPhoneId());
+                mNotifier.notifySecurityAlgorithmsChanged(this, update);
                 break;
 
             case EVENT_SET_SECURITY_ALGORITHMS_UPDATED_ENABLED_DONE:
