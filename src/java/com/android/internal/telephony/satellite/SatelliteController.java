@@ -372,9 +372,14 @@ public class SatelliteController extends Handler {
     private static final int EVENT_SATELLITE_ENTILEMENT_STATUS_UPDATED = 93;
     private static final int EVENT_PACKAGE_CHANGED = 94;
     private static final int EVENT_SCREEN_STATE_CHANGED = 95;
+    private static final int EVENT_SET_SATELLITE_NETWORK_INFO_DONE = 96;
 
     private static final int TRUE = 1;
     private static final int FALSE = 0;
+
+    private static final List<Integer> DTC_SATELLITE_TECHNOLOGY_LIST =
+            List.of(SatelliteManager.NT_RADIO_TECHNOLOGY_LTE_DTC,
+                    SatelliteManager.NT_RADIO_TECHNOLOGY_NR_DTC);
 
     @NonNull private static SatelliteController sInstance;
     @NonNull private final Context mContext;
@@ -685,6 +690,9 @@ public class SatelliteController extends Handler {
         // The connect type for this PLMN.
         public int connectType = CarrierConfigManager.CARRIER_ROAMING_NTN_CONNECT_AUTOMATIC;
 
+        // The supported satellite technology list for this PLMN
+        public List<Integer> supportedSatelliteTechs = new ArrayList<>();
+
         @Override
         public boolean equals(Object o) {
             if (o == this) {
@@ -695,12 +703,13 @@ public class SatelliteController extends Handler {
             }
             return plmn.equals(other.plmn)
                     && handoverType == other.handoverType
-                    && connectType == other.connectType;
+                    && connectType == other.connectType
+                    && supportedSatelliteTechs.equals(other.supportedSatelliteTechs);
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(plmn, handoverType, connectType);
+            return Objects.hash(plmn, handoverType, connectType, supportedSatelliteTechs);
         }
 
         @Override
@@ -715,6 +724,9 @@ public class SatelliteController extends Handler {
                     + ", connectType='"
                     + connectType
                     + '\''
+                    + ", supportedSatelliteTechs='"
+                    + supportedSatelliteTechs
+                    + '\''
                     + '}';
         }
     }
@@ -726,6 +738,13 @@ public class SatelliteController extends Handler {
     @NonNull
     private final ConcurrentHashMap<Integer, SatellitePerPlmnConfiguration>
             mCurrentSatellitePerPlmnConfigurations = new ConcurrentHashMap<>();
+
+    // Key: Subscription ID,
+    // Value: Map of <Key: Plmn, Value: List of supported satellite technologies per PLMN> of
+    // all active subscriptions. It is updated on carrier config changes.
+    @NonNull
+    private final ConcurrentHashMap<Integer, Map<String, List<Integer>>>
+            mSatelliteTechPerPlmnForActiveSubId = new ConcurrentHashMap<>();
 
     /**
      * Key : Subscription ID, Value: {@code true} if the EntitlementStatus is enabled,
@@ -1985,6 +2004,10 @@ public class SatelliteController extends Handler {
                     handleEventSatelliteModemStateChanged((int) ar.result);
                     updateLastNotifiedCarrierRoamingNtnSignalStrengthAndNotify(getSatellitePhone());
                 }
+                break;
+
+            case EVENT_SET_SATELLITE_NETWORK_INFO_DONE:
+                handleSetSatellitePlmnNetworkInfoDoneEvent(msg);
                 break;
 
             case EVENT_SET_SATELLITE_PLMN_INFO_DONE:
@@ -6037,8 +6060,23 @@ public class SatelliteController extends Handler {
         }
 
         List<String> allPlmnList = new ArrayList<>(getAllPlmnSet());
-        phone.setSatellitePlmn(phone.getPhoneId(), getCarrierPlmnListForModem(subId), allPlmnList,
-                obtainMessage(EVENT_SET_SATELLITE_PLMN_INFO_DONE));
+        phone.setSatellitePlmn(phone.getPhoneId(), getCarrierPlmnListForModem(subId),
+                allPlmnList, obtainMessage(EVENT_SET_SATELLITE_PLMN_INFO_DONE));
+
+        if (mFeatureFlags.nrNtn()) {
+            List<String> allowedPlmns = getCarrierPlmnListForModem(subId);
+            Set<String> allowedPlmnsSet = new HashSet<>(allowedPlmns);
+            List<String> disallowedPlmns = allPlmnList.stream()
+                    .filter(plmn -> !allowedPlmnsSet.contains(plmn))
+                    .collect(Collectors.toList());
+            SatellitePlmnNetworkInfo satellitePlmnNetworkInfo =
+                    SatellitePlmnNetworkInfo.fromPlmn(subId, allowedPlmns, disallowedPlmns);
+            plogd("configureSatellitePlmnForCarrier: satellitePlmnNetworkInfo="
+                    + satellitePlmnNetworkInfo);
+            phone.setSatelliteNetworkInfo(phone.getPhoneId(),
+                    satellitePlmnNetworkInfo.toHalSatelliteNetworkInfo(),
+                    obtainMessage(EVENT_SET_SATELLITE_NETWORK_INFO_DONE));
+        }
     }
 
     /**
@@ -6150,7 +6188,14 @@ public class SatelliteController extends Handler {
         }
     }
 
+    private void handleSetSatellitePlmnNetworkInfoDoneEvent(Message msg) {
+        plogd("handleSetSatellitePlmnNetworkInfoDoneEvent");
+        AsyncResult ar = (AsyncResult) msg.obj;
+        SatelliteServiceUtils.getSatelliteError(ar, "handleSetSatellitePlmnNetworkInfoCmd");
+    }
+
     private void handleSetSatellitePlmnInfoDoneEvent(Message msg) {
+        plogd("handleSetSatellitePlmnInfoDoneEvent");
         AsyncResult ar = (AsyncResult) msg.obj;
         SatelliteServiceUtils.getSatelliteError(ar, "handleSetSatellitePlmnInfoCmd");
     }
@@ -6461,6 +6506,7 @@ public class SatelliteController extends Handler {
 
     private void processNewCarrierConfigData(int subId) {
         updateRestrictReasonForEntitlementPerCarrier(subId);
+        updateSatelliteTechPerPlmnForActiveSubscriptions();
         configureSatellitePlmnForCarrier(subId);
         evaluateEnablingSatelliteForCarrier(subId,
                 SATELLITE_COMMUNICATION_RESTRICTION_REASON_USER, null);
@@ -7228,6 +7274,137 @@ public class SatelliteController extends Handler {
     }
 
     /**
+     * Returns {@code true} if the satellite provider supports either
+     * {@code SatelliteManager.NT_RADIO_TECHNOLOGY_LTE_DTC} or
+     * {@code SatelliteManager.NT_RADIO_TECHNOLOGY_NR_DTC}.
+     *
+     * @param subId The subscription ID to get the config for.
+     * @param plmn  The PLMN to look up the technology for.
+     * @return {@code true} if any DTC technology is supported or if the supported technology list
+     * is null or empty (for legacy device support); {@code false} otherwise.
+     */
+    public boolean isDtcSatelliteTechnologySupported(int subId, @NonNull String plmn) {
+        logd("isDtcSatelliteTechnologySupported: subId=" + subId + ", plmn=" + plmn);
+
+        Set<String> satelliteProviderSet = getAllPlmnSet();
+        if (!satelliteProviderSet.contains(plmn)) {
+            logd("isDtcSatelliteTechnologySupported: the plmn=" + plmn
+                    + " is not contained in satellite provider");
+            return false;
+        }
+
+        List<Integer> supportedSatelliteTechList = getSupportedSatelliteTechnologies(subId, plmn);
+        if (supportedSatelliteTechList == null || supportedSatelliteTechList.isEmpty()) {
+            logd("isDtcSatelliteTechnologySupported: supportedSatelliteTechList="
+                    + supportedSatelliteTechList + " null or empty, return true.");
+            return true;
+        }
+        logd("isDtcSatelliteTechnologySupported: supportedSatelliteTechList="
+                + supportedSatelliteTechList);
+        return !Collections.disjoint(supportedSatelliteTechList, DTC_SATELLITE_TECHNOLOGY_LIST);
+    }
+
+    /**
+     * Get the list of supported satellite technologies of a given PLMN and subId
+     *
+     * @param subId The subscription ID for which to get the satellite technology.
+     * @param plmn The PLMN (Public Land Mobile Network) identifier.
+     * @return A list of satellite technology types. Returns a list containing
+     *         {@link SatelliteManager#NT_RADIO_TECHNOLOGY_UNKNOWN} if no configuration is found
+     *         for the given PLMN or the map is empty.
+     */
+    @NonNull
+    public List<Integer> getSupportedSatelliteTechnologies(int subId, @NonNull String plmn) {
+        Map<String, List<Integer>> plmnSatelliteTechMap = getPlmnSatelliteTechForCarrier(subId);
+        if (plmnSatelliteTechMap == null || plmnSatelliteTechMap.isEmpty()) {
+            plogd("getSupportedSatelliteTechnologies: plmnSatelliteTechMap is empty");
+            return new ArrayList<>();
+        }
+        List<Integer> satelliteTechList =
+                plmnSatelliteTechMap.getOrDefault(plmn, new ArrayList<>());
+        logd("getSupportedSatelliteTechnologies: subId=" + subId + ", plmn=" + plmn
+                + ", satelliteTechList=" + satelliteTechList);
+        return satelliteTechList;
+    }
+
+    /**
+     * Updates the internal mapping of supported satellite technologies per PLMN for all active
+     * subscriptions using carrier configurations.
+     */
+    private void updateSatelliteTechPerPlmnForActiveSubscriptions() {
+        if (!mFeatureFlags.nrNtn()) {
+            plogd("updateSatelliteTechPerPlmnForActiveSubscriptions: nrNtn feature is disabled");
+            return;
+        }
+
+        mSatelliteTechPerPlmnForActiveSubId.clear();
+        int[] activeSubIds = mSubscriptionManagerService.getActiveSubIdList(true);
+        if (activeSubIds == null) {
+            plogd("updateSatelliteTechPerPlmnForActiveSubscriptions: activeSubIds is null.");
+            return;
+        }
+
+        for (int subId: activeSubIds) {
+            PersistableBundle allConfigPerSubId = getPersistableBundle(subId);
+            if (allConfigPerSubId == null) {
+                logd("updateSatelliteTechPerPlmnForActiveSubscriptions: "
+                        + "no carrier config found for subId: " + subId);
+                continue;
+            }
+
+            PersistableBundle satellitePlmnBundle = allConfigPerSubId.getPersistableBundle(
+                    CarrierConfigManager.KEY_SATELLITE_CONFIGS_PER_PLMN_BUNDLE);
+            if (satellitePlmnBundle == null || satellitePlmnBundle.isEmpty()) {
+                logd("updateSatelliteTechPerPlmnForActiveSubscriptions: "
+                        + "no carrier config found for KEY_SATELLITE_CONFIGS_PER_PLMN_BUNDLE");
+                continue;
+            }
+
+            final Map<String, List<Integer>> plmnTechMap = new HashMap<>();
+            for (String plmn : satellitePlmnBundle.keySet()) {
+                PersistableBundle plmnConfig = satellitePlmnBundle.getPersistableBundle(plmn);
+                if (plmnConfig != null) {
+                    int[] satelliteTechs = plmnConfig.getIntArray(
+                            CarrierConfigManager.KEY_SATELLITE_TECHNOLOGY_INT_ARRAY);
+
+                    if (satelliteTechs != null) {
+                        List<Integer> supportedSatTechList = new ArrayList<>();
+                        for (int satTech : satelliteTechs) {
+                            if (SatelliteServiceUtils.isSatelliteTechSupported(satTech)) {
+                                supportedSatTechList.add(satTech);
+                            } else {
+                                logw("updateSatelliteTechPerPlmnForActiveSubscriptions:"
+                                        + " unsupported satellite tech=" + satTech);
+                            }
+                        }
+                        if (!supportedSatTechList.isEmpty()) {
+                            plmnTechMap.put(plmn, supportedSatTechList);
+                        }
+                    } else {
+                        logw("updateSatelliteTechPerPlmnForActiveSubscriptions: "
+                                + "satelliteTechs is null");
+                    }
+                }
+            }
+            logd("updateSatelliteTechPerPlmnForActiveSubscriptions: subId=" + subId
+                    + ", plmnTechMap=" + plmnTechMap);
+            mSatelliteTechPerPlmnForActiveSubId.put(subId, plmnTechMap);
+        }
+    }
+
+    /**
+     * Gets the map of PLMNs to their satellite technology type list for a given subscription ID.
+     *
+     * @param subId The subscription ID to look up.
+     * @return A non-null map where keys are PLMN strings and values are satellite technology types
+     *         list. Returns an empty map if no configurations are found for the given subId.
+     */
+    @NonNull
+    private Map<String, List<Integer>> getPlmnSatelliteTechForCarrier(int subId) {
+        return mSatelliteTechPerPlmnForActiveSubId.getOrDefault(subId, new HashMap<>());
+    }
+
+    /**
      * Populate the satellite configs for the given PLMN
      *
      * @param subId The subscription ID.
@@ -7274,6 +7451,16 @@ public class SatelliteController extends Handler {
                 plmnSpecificConfig.getInt(
                         CarrierConfigManager.KEY_CARRIER_ROAMING_NTN_CONNECT_TYPE_INT,
                         CarrierConfigManager.CARRIER_ROAMING_NTN_CONNECT_AUTOMATIC);
+
+        int[] supportedSatelliteTechs = plmnSpecificConfig.getIntArray(
+                CarrierConfigManager.KEY_SATELLITE_TECHNOLOGY_INT_ARRAY);
+        if (supportedSatelliteTechs != null) {
+            for (int satelliteTech : supportedSatelliteTechs) {
+                if (SatelliteServiceUtils.isSatelliteTechSupported(satelliteTech)) {
+                    config.supportedSatelliteTechs.add(satelliteTech);
+                }
+            }
+        }
         mCurrentSatellitePerPlmnConfigurations.put(subId, config);
         plogd(
                 "populateSatelliteConfigsForPlmn: set up satellite configs for subId: "
