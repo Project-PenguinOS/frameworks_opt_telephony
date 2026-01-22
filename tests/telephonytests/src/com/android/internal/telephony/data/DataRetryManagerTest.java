@@ -39,6 +39,7 @@ import android.net.NetworkRequest;
 import android.os.AsyncResult;
 import android.os.Looper;
 import android.telephony.AccessNetworkConstants;
+import android.telephony.TelephonyManager;
 import android.telephony.data.ApnSetting;
 import android.telephony.data.DataCallResponse;
 import android.telephony.data.DataProfile;
@@ -48,6 +49,8 @@ import android.testing.AndroidTestingRunner;
 import android.testing.TestableLooper;
 import android.util.SparseArray;
 
+import com.android.internal.telephony.HalVersion;
+import com.android.internal.telephony.RIL;
 import com.android.internal.telephony.TelephonyTest;
 import com.android.internal.telephony.data.DataConfigManager.DataConfigManagerCallback;
 import com.android.internal.telephony.data.DataNetworkController.DataNetworkControllerCallback;
@@ -153,6 +156,7 @@ public class DataRetryManagerTest extends TelephonyTest {
             return null;
         }).when(mDataRetryManagerCallbackMock).invokeFromExecutor(any(Runnable.class));
         mAlarmManager = Mockito.mock(AlarmManager.class);
+        mPhone.mCi = Mockito.spy(mSimulatedCommands);
         SparseArray<DataServiceManager> mockedDataServiceManagers = new SparseArray<>();
         mockedDataServiceManagers.put(AccessNetworkConstants.TRANSPORT_TYPE_WWAN,
                 mMockedWwanDataServiceManager);
@@ -460,6 +464,137 @@ public class DataRetryManagerTest extends TelephonyTest {
         assertThat(entry.dataProfile).isEqualTo(enterpriseDataProfile);
         assertThat(entry.retryDelayMillis).isEqualTo(0);
         assertThat(entry.transport).isEqualTo(AccessNetworkConstants.TRANSPORT_TYPE_WWAN);
+    }
+
+    @Test
+    public void testDataSetupUnthrottlingWithConnectionCapability() throws Exception {
+        // Setup base data profile with TrafficDescriptor having internet capability
+        TrafficDescriptor storedTd = new TrafficDescriptor.Builder()
+                .setDataNetworkName("internet")
+                .setOsAppId(new TrafficDescriptor.OsAppId(
+                        TrafficDescriptor.OsAppId.ANDROID_OS_ID, "ENTERPRISE", 1).getBytes())
+                .setConnectionCapability(TrafficDescriptor.CONNECTION_CAPABILITY_INTERNET)
+                .build();
+        DataProfile storedDataProfile = new DataProfile.Builder()
+                .setTrafficDescriptor(storedTd)
+                .build();
+
+        // Setup request TrafficDescriptor (from modem) with UNKNOWN capability
+        TrafficDescriptor requestTdUnknown = new TrafficDescriptor.Builder()
+                .setDataNetworkName("internet")
+                .setOsAppId(new TrafficDescriptor.OsAppId(
+                        TrafficDescriptor.OsAppId.ANDROID_OS_ID, "ENTERPRISE", 1).getBytes())
+                .setConnectionCapability(TrafficDescriptor.CONNECTION_CAPABILITY_UNKNOWN)
+                .build();
+        DataProfile requestDataProfileUnknown = new DataProfile.Builder()
+                .setTrafficDescriptor(requestTdUnknown)
+                .build();
+
+        // Setup request TrafficDescriptor (from modem) with DIFFERENT capability
+        TrafficDescriptor requestTdDifferent = new TrafficDescriptor.Builder()
+                .setDataNetworkName("internet")
+                .setOsAppId(new TrafficDescriptor.OsAppId(
+                        TrafficDescriptor.OsAppId.ANDROID_OS_ID, "ENTERPRISE", 1).getBytes())
+                .setConnectionCapability(TrafficDescriptor.CONNECTION_CAPABILITY_MMS)
+                .build();
+        DataProfile requestDataProfileDifferent = new DataProfile.Builder()
+                .setTrafficDescriptor(requestTdDifferent)
+                .build();
+
+        NetworkRequest request = new NetworkRequest.Builder()
+                .addCapability(NetworkCapabilities.NET_CAPABILITY_ENTERPRISE)
+                .build();
+        TelephonyNetworkRequest tnr = new TelephonyNetworkRequest(request, mPhone, mFeatureFlags);
+        DataNetworkController.NetworkRequestList
+                networkRequestList = new DataNetworkController.NetworkRequestList(tnr);
+
+        // --- Scenario 1: HAL < 2.4 ---
+        // Expectation: Ignore ConnectionCapability, so UNKNOWN matches INTERNET.
+        doReturn(RIL.RADIO_HAL_VERSION_1_6).when(mPhone.mCi)
+                .getHalVersion(TelephonyManager.HAL_SERVICE_DATA);
+
+        // Throttle
+        mDataRetryManagerUT.evaluateDataSetupRetry(storedDataProfile,
+                AccessNetworkConstants.TRANSPORT_TYPE_WWAN, networkRequestList, 123,
+                Long.MAX_VALUE);
+        processAllFutureMessages();
+
+        // Unthrottle with UNKNOWN capability
+        mDataRetryManagerUT.obtainMessage(6/*EVENT_DATA_PROFILE_UNTHROTTLED*/,
+                new AsyncResult(AccessNetworkConstants.TRANSPORT_TYPE_WWAN,
+                        requestDataProfileUnknown, null)).sendToTarget();
+        processAllMessages();
+
+        // Verify unthrottled
+        verify(mDataRetryManagerCallbackMock, times(1))
+                .onDataNetworkSetupRetry(any(DataSetupRetryEntry.class));
+        Mockito.clearInvocations(mDataRetryManagerCallbackMock);
+
+        // Clean up for next scenario
+        Field field = DataRetryManager.class.getDeclaredField("mDataThrottlingEntries");
+        field.setAccessible(true);
+        ((List<?>) field.get(mDataRetryManagerUT)).clear();
+
+
+        // --- Scenario 2: HAL = 2.4 ---
+        // Expectation: Allow mismatch if request is UNKNOWN.
+        doReturn(RIL.RADIO_HAL_VERSION_2_4).when(mPhone.mCi)
+                .getHalVersion(TelephonyManager.HAL_SERVICE_DATA);
+
+        // Throttle
+        mDataRetryManagerUT.evaluateDataSetupRetry(storedDataProfile,
+                AccessNetworkConstants.TRANSPORT_TYPE_WWAN, networkRequestList, 123,
+                Long.MAX_VALUE);
+        processAllFutureMessages();
+
+        // Unthrottle with UNKNOWN capability -> Should match
+        mDataRetryManagerUT.obtainMessage(6/*EVENT_DATA_PROFILE_UNTHROTTLED*/,
+                new AsyncResult(AccessNetworkConstants.TRANSPORT_TYPE_WWAN,
+                        requestDataProfileUnknown, null)).sendToTarget();
+        processAllMessages();
+
+        verify(mDataRetryManagerCallbackMock, times(1))
+                .onDataNetworkSetupRetry(any(DataSetupRetryEntry.class));
+        Mockito.clearInvocations(mDataRetryManagerCallbackMock);
+        ((List<?>) field.get(mDataRetryManagerUT)).clear();
+
+        // Throttle again
+        mDataRetryManagerUT.evaluateDataSetupRetry(storedDataProfile,
+                AccessNetworkConstants.TRANSPORT_TYPE_WWAN, networkRequestList, 123,
+                Long.MAX_VALUE);
+        processAllFutureMessages();
+
+        // Unthrottle with DIFFERENT capability (MMS) -> Should NOT match
+        mDataRetryManagerUT.obtainMessage(6/*EVENT_DATA_PROFILE_UNTHROTTLED*/,
+                new AsyncResult(AccessNetworkConstants.TRANSPORT_TYPE_WWAN,
+                        requestDataProfileDifferent, null)).sendToTarget();
+        processAllMessages();
+
+        verify(mDataRetryManagerCallbackMock, never())
+                .onDataNetworkSetupRetry(any(DataSetupRetryEntry.class));
+        ((List<?>) field.get(mDataRetryManagerUT)).clear();
+
+
+        // --- Scenario 3: HAL > 2.4 ---
+        // Expectation: Strict equality. UNKNOWN does not match INTERNET.
+        doReturn(new HalVersion(2, 5)).when(mPhone.mCi)
+                .getHalVersion(TelephonyManager.HAL_SERVICE_DATA);
+
+        // Throttle
+        mDataRetryManagerUT.evaluateDataSetupRetry(storedDataProfile,
+                AccessNetworkConstants.TRANSPORT_TYPE_WWAN, networkRequestList, 123,
+                Long.MAX_VALUE);
+        processAllFutureMessages();
+
+        // Unthrottle with UNKNOWN capability -> Should NOT match
+        mDataRetryManagerUT.obtainMessage(6/*EVENT_DATA_PROFILE_UNTHROTTLED*/,
+                new AsyncResult(AccessNetworkConstants.TRANSPORT_TYPE_WWAN,
+                        requestDataProfileUnknown, null)).sendToTarget();
+        processAllMessages();
+
+        verify(mDataRetryManagerCallbackMock, never())
+                .onDataNetworkSetupRetry(any(DataSetupRetryEntry.class));
+        ((List<?>) field.get(mDataRetryManagerUT)).clear();
     }
 
     @Test
