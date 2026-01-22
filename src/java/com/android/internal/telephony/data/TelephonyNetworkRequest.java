@@ -484,18 +484,7 @@ public class TelephonyNetworkRequest {
         HalVersion halVersion = PhoneFactory.getDefaultPhone().getHalVersion();
         boolean useApnOnly = halVersion != null
                 && halVersion.lessOrEqual(RIL.RADIO_HAL_VERSION_1_5);
-        if (Flags.unsupportedNetworkCapabilitiesPerCarrier()) {
-            return CAPABILITY_ATTRIBUTE_MAP.entrySet().stream()
-                    .filter(entry -> !useApnOnly
-                            || (entry.getValue() & CAPABILITY_ATTRIBUTE_APN_SETTING) != 0)
-                    .map(Map.Entry::getKey)
-                    .toList();
-        }
-        Set<Integer> unsupportedCaps = PhoneFactory.getDefaultPhone()
-                .getDataNetworkController().getDataConfigManager()
-                .getUnsupportedNetworkCapabilities();
         return CAPABILITY_ATTRIBUTE_MAP.entrySet().stream()
-                .filter(entry -> !unsupportedCaps.contains(entry.getKey()))
                 .filter(entry -> !useApnOnly
                         || (entry.getValue() & CAPABILITY_ATTRIBUTE_APN_SETTING) != 0)
                 .map(Map.Entry::getKey)

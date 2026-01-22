@@ -466,7 +466,6 @@ public class DefaultPhoneNotifierTest extends TelephonyTest {
     @Test
     @SmallTest
     public void testSecurityAlgorithmsChanged() {
-        doReturn(true).when(mFeatureFlags).securityAlgorithmsUpdateIndications();
         int phoneId = mPhone.getPhoneId();
         int subId = mPhone.getSubId();
         SecurityAlgorithmUpdate update =

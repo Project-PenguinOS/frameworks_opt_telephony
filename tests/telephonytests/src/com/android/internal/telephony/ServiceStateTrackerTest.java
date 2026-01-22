@@ -3311,6 +3311,8 @@ public class ServiceStateTrackerTest extends TelephonyTest {
                 new CellIdentityGsm(0, 1, 900, 5, "101", "23", "test", "tst",
                         Collections.emptyList());
         doReturn(Set.of("10123")).when(mSatelliteController).getAllPlmnSet();
+        doReturn(true).when(mSatelliteController)
+                .isDtcSatelliteTechnologySupported(sst.mSubId, "10123");
         doReturn(satelliteSupportedServiceList).when(mSatelliteController)
                 .getSupportedSatelliteServicesForPlmn(sst.mSubId, "10123");
 

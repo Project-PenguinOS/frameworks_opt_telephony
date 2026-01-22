@@ -434,6 +434,9 @@ public class SatelliteSOSMessageRecommender extends Handler {
 
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PRIVATE)
     protected void reportESosRecommenderDecision(boolean isDialerNotified) {
+        Pair<Integer, Integer> subIdAndHandoverType = getEmergencyCallToSatelliteHandoverType();
+        int subId = subIdAndHandoverType.first;
+        int handoverType = subIdAndHandoverType.second;
         SatelliteStats.getInstance().onSatelliteSosMessageRecommender(
                 new SatelliteStats.SatelliteSosMessageRecommenderParams.Builder()
                         .setDisplaySosMessageSent(isDialerNotified)
@@ -441,16 +444,17 @@ public class SatelliteSOSMessageRecommender extends Handler {
                         .setImsRegistered(isImsRegisteredOverIwlan())
                         .setCellularServiceState(getBestCellularServiceState())
                         .setIsMultiSim(isMultiSim())
-                        .setRecommendingHandoverType(getEmergencyCallToSatelliteHandoverType())
+                        .setRecommendingHandoverType(handoverType)
                         .setIsSatelliteAllowedInCurrentLocation(isSatelliteAllowed())
                         .setIsWifiConnected(mCountryDetector.isWifiNetworkConnected())
-                        .setCarrierId(mSatelliteController.getSatelliteCarrierId())
+                        .setCarrierId(SatelliteServiceUtils.getCarrierIdFromSubscription(subId))
                         .setSupportedConnectionMode(mSatelliteController
                                 .getSupportedConnectTypeMetrics())
                         .setSessionConnectionMode(mSatelliteController
                                 .getSessionConnectTypeMetrics())
                         .setPlmn(mSatelliteController.getSatellitePlmnForMetrics())
-                        .setIsNtnOnlyCarrier(mSatelliteController.isNtnOnlyCarrier()).build());
+                        .setIsNtnOnlyCarrier(SatelliteServiceUtils.isNtnOnlySubscriptionId(subId))
+                        .build());
     }
 
     private void cleanUpResources(boolean isDialerNotified) {
@@ -687,7 +691,7 @@ public class SatelliteSOSMessageRecommender extends Handler {
 
     @NonNull private Bundle createExtraBundleForEventDisplayEmergencyMessage(
             boolean isTestEmergencyNumber) {
-        int handoverType = getEmergencyCallToSatelliteHandoverType();
+        int handoverType = getEmergencyCallToSatelliteHandoverType().second;
         Pair<String, String> oemSatelliteMessagingApp =
                 getOemEnabledSatelliteHandoverAppFromOverlayConfig(mContext);
         String packageName = oemSatelliteMessagingApp.first;
@@ -802,20 +806,36 @@ public class SatelliteSOSMessageRecommender extends Handler {
     }
 
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PRIVATE)
-    protected int getEmergencyCallToSatelliteHandoverType() {
+    /**
+     * Returns the subscription ID and handover type pair for the current SOS message recommender.
+     *
+     * @return a pair containing the subscription ID as the first element and the
+     *         handover type as the second element.
+     */
+    @NonNull
+    protected Pair<Integer, Integer> getEmergencyCallToSatelliteHandoverType() {
+        int satelliteSubId;
+        int handoverType;
+
         if (isSatelliteEmergencyMessagingViaCarrierAvailable()) {
-            int satelliteSubId = mSubIdOfSatelliteConnectedViaCarrierWithinHysteresisTime.get();
-            return mSatelliteController.getCarrierRoamingNtnEmergencyCallToSatelliteHandoverType(
-                    satelliteSubId);
-        } else {
-            int satelliteSubId = mSatelliteController.getSelectedSatelliteSubId();
-            if (!SatelliteServiceUtils.isNtnOnlySubscriptionId(satelliteSubId)) {
-                return mSatelliteController
+            // Case 1: A satellite connection via a carrier is available within the hysteresis
+            // window.
+            satelliteSubId = mSubIdOfSatelliteConnectedViaCarrierWithinHysteresisTime.get();
+            handoverType = mSatelliteController
                     .getCarrierRoamingNtnEmergencyCallToSatelliteHandoverType(satelliteSubId);
+        } else {
+            // Case 2: Use the currently selected satellite subscription ID.
+            satelliteSubId = mSatelliteController.getSelectedSatelliteSubId();
+
+            if (!SatelliteServiceUtils.isNtnOnlySubscriptionId(satelliteSubId)) {
+                handoverType = mSatelliteController
+                        .getCarrierRoamingNtnEmergencyCallToSatelliteHandoverType(satelliteSubId);
             } else {
-                return EMERGENCY_CALL_TO_SATELLITE_HANDOVER_TYPE_SOS;
+                handoverType = EMERGENCY_CALL_TO_SATELLITE_HANDOVER_TYPE_SOS;
             }
         }
+
+        return new Pair<>(satelliteSubId, handoverType);
     }
 
     private void requestIsSatelliteAllowedForCurrentLocation() {

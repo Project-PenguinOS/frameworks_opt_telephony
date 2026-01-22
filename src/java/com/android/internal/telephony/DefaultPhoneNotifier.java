@@ -356,8 +356,6 @@ public class DefaultPhoneNotifier implements PhoneNotifier {
 
     @Override
     public void notifySecurityAlgorithmsChanged(Phone sender, SecurityAlgorithmUpdate update) {
-        if (!mFeatureFlags.securityAlgorithmsUpdateIndications()) return;
-
         mTelephonyRegistryMgr.notifySecurityAlgorithmsChanged(sender.getPhoneId(),
                 sender.getSubId(), update);
     }
