@@ -1196,6 +1196,47 @@ public class EmergencyStateTrackerTest extends TelephonyTest {
 
     @Test
     @SmallTest
+    public void testEndNewCallDuringActiveCallAndNewCall() throws Exception {
+        doReturn(true).when(mFeatureFlags).handleSecondEmergencyCall();
+        EmergencyStateTracker emergencyStateTracker = setupEmergencyStateTracker(
+                /* isSuplDdsSwitchRequiredForEmergencyCall= */ true);
+        Phone phone0 = setupTestPhoneForEmergencyCall(/* isRoaming= */ true,
+                /* isRadioOn= */ true);
+        setUpAsyncResultForSetEmergencyMode(phone0, E_REG_RESULT);
+
+        // First active call
+        CompletableFuture<Integer> future = emergencyStateTracker.startEmergencyCall(phone0,
+                mTestConnection1, false);
+        processAllMessages();
+
+        assertEquals(future.getNow(DisconnectCause.ERROR_UNSPECIFIED),
+                Integer.valueOf(DisconnectCause.NOT_DISCONNECTED));
+
+        emergencyStateTracker.onEmergencyCallStateChanged(Call.State.ACTIVE, mTestConnection1);
+        emergencyStateTracker.onEmergencyCallDomainUpdated(
+                PhoneConstants.PHONE_TYPE_IMS, mTestConnection1);
+        processAllMessages();
+
+        assertTrue(emergencyStateTracker.isInEmergencyCall());
+
+        // Second emergency call started.
+        future = emergencyStateTracker.startEmergencyCall(phone0, mTestConnection2, false);
+
+        assertEquals(future.getNow(DisconnectCause.ERROR_UNSPECIFIED),
+                Integer.valueOf(DisconnectCause.NOT_DISCONNECTED));
+
+        emergencyStateTracker.onEmergencyCallDomainUpdated(
+                PhoneConstants.PHONE_TYPE_IMS, mTestConnection2);
+
+        emergencyStateTracker.endCall(mTestConnection2);
+        processAllMessages();
+
+        assertTrue(emergencyStateTracker.isInEmergencyMode());
+        verify(phone0, never()).exitEmergencyMode(any(Message.class));
+    }
+
+    @Test
+    @SmallTest
     public void testRecoverNormalInCellularWhenVoWiFiConnected() {
         EmergencyStateTracker emergencyStateTracker = setupEmergencyStateTracker(
                 /* isSuplDdsSwitchRequiredForEmergencyCall= */ true);

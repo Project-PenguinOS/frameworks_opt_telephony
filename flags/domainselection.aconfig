@@ -75,3 +75,14 @@ flag {
     description: "This flag specifies whether emergency call over NR requires VoNR setting enabled."
     bug:"461166509"
 }
+
+#OWNER=hwangoo TARGET=26Q2
+flag {
+    name: "handle_second_emergency_call"
+    namespace: "telephony"
+    description: "Used to prevent the device from accidently exiting emergency mode when second emergency call is made when already emergency call is in progress."
+    bug:"472298557"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
