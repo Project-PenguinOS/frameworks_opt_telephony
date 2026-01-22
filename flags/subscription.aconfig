@@ -98,3 +98,15 @@ flag {
     description: "Skip available eSIM port check for opportunistic subscription."
     bug: "469500968"
 }
+
+# OWNER=melhuishj TARGET=26Q2
+flag {
+  name: "ons_handler_thread"
+  namespace: "telephony"
+  description: "Switch to using HandlerThread"
+  bug: "240081918"
+  is_exported: false
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}
