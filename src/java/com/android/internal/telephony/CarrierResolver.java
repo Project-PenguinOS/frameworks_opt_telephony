@@ -801,7 +801,7 @@ public class CarrierResolver extends Handler {
         final String gid1 = mPhone.getGroupIdLevel1();
         final String gid2 = mPhone.getGroupIdLevel2();
         final String imsi = mPhone.getSubscriberId();
-        final String pnn = mPhone.getPlmn();
+        final String pnn = mPhone.getPnnHomeNetworkName();
         final String spn = mSpn;
         final String apn = mPreferApn;
         List<String> accessRules;
