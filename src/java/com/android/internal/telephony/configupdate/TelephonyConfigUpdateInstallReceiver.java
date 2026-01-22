@@ -487,9 +487,29 @@ public class TelephonyConfigUpdateInstallReceiver extends ConfigUpdateInstallRec
      *
      * @param configParser the config parser that we have to override
      */
+    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PRIVATE)
     public void overrideConfigParser(ConfigParser configParser) {
+        if (configParser == null) {
+            Log.e(TAG, "overrideConfigParser: ConfigParser is null");
+            return;
+        }
         Log.d(TAG, "overrideConfigParser");
         getInstance().mConfigParsers.put(configParser.getDomain(), configParser);
+    }
+
+    /**
+     * Clears the config parser for the given domain. Should be used only in tests.
+     *
+     * @param domain the domain that we have to clear the config parser
+     */
+    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PRIVATE)
+    public void clearOverriddenConfigParser(String domain) {
+        if (domain == null) {
+            Log.e(TAG, "clearOverriddenConfigParser: domain is null");
+            return;
+        }
+        Log.d(TAG, "clearOverriddenConfigParser domain_" + domain);
+        getInstance().mConfigParsers.computeIfPresent(domain, (k, v) -> null);
     }
 
     @Override
