@@ -106,6 +106,9 @@ public class PersistAtomsStorage {
      */
     private static final int SAVE_TO_FILE_DELAY_FOR_GET_MILLIS = 500;
 
+    /** Satellite Session GAP value is not valid, thus does not report. */
+    static final int SATELLITE_SESSION_GAP_INVALID_SEC = -1;
+
     /** Maximum number of call sessions to store between pulls. */
     private final int mMaxNumVoiceCallSessions;
 
@@ -890,9 +893,15 @@ public class PersistAtomsStorage {
                     stats.countOfSatelliteConfigUpdateRequest;
             existingStats.countOfSatelliteNotificationDisplayed +=
                     stats.countOfSatelliteNotificationDisplayed;
-            existingStats.satelliteSessionGapMinSec = stats.satelliteSessionGapMinSec;
-            existingStats.satelliteSessionGapAvgSec = stats.satelliteSessionGapAvgSec;
-            existingStats.satelliteSessionGapMaxSec = stats.satelliteSessionGapMaxSec;
+            if (stats.satelliteSessionGapMinSec != SATELLITE_SESSION_GAP_INVALID_SEC) {
+                existingStats.satelliteSessionGapMinSec = stats.satelliteSessionGapMinSec;
+            }
+            if (stats.satelliteSessionGapAvgSec != SATELLITE_SESSION_GAP_INVALID_SEC) {
+                existingStats.satelliteSessionGapAvgSec = stats.satelliteSessionGapAvgSec;
+            }
+            if (stats.satelliteSessionGapMaxSec != SATELLITE_SESSION_GAP_INVALID_SEC) {
+                existingStats.satelliteSessionGapMaxSec = stats.satelliteSessionGapMaxSec;
+            }
             // Does not update configDataSource, carrierId, isDeviceEntitled, due to  they are
             // dimension fields.
             existingStats.isDeviceEntitled = stats.isDeviceEntitled;
@@ -905,7 +914,10 @@ public class PersistAtomsStorage {
             existingStats.countOfSessionConnectionModeManual +=
                     stats.countOfSessionConnectionModeManual;
             existingStats.serviceDataPolicy = stats.serviceDataPolicy;
+            existingStats.totalSessionDurationSec += stats.totalSessionDurationSec;
         } else {
+            // A session gap of -1 is normal for a new entry where a session has not yet occurred.
+            // The backend is expected to interpret this value as "not available".
             mAtoms.carrierRoamingSatelliteControllerStats = insertAtRandomPlace(
                     mAtoms.carrierRoamingSatelliteControllerStats, stats, mMaxNumSatelliteStats);
         }

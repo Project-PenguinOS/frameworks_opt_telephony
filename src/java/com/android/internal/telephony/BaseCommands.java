@@ -15,6 +15,12 @@
  * limitations under the License.
  */
 
+/*
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
 package com.android.internal.telephony;
 
 import android.annotation.NonNull;
@@ -56,6 +62,7 @@ public abstract class BaseCommands implements CommandsInterface {
     protected RegistrantList mCallStateRegistrants = new RegistrantList();
     protected RegistrantList mNetworkStateRegistrants = new RegistrantList();
     protected RegistrantList mDataCallListChangedRegistrants = new RegistrantList();
+    protected RegistrantList mDataCallListUpdatedRegistrants = new RegistrantList();
     protected RegistrantList mApnUnthrottledRegistrants = new RegistrantList();
     protected RegistrantList mSlicingConfigChangedRegistrants = new RegistrantList();
     @UnsupportedAppUsage
@@ -89,7 +96,7 @@ public abstract class BaseCommands implements CommandsInterface {
             new RegistrantList();
     protected RegistrantList mPcoDataRegistrants = new RegistrantList();
     protected RegistrantList mCarrierInfoForImsiEncryptionRegistrants = new RegistrantList();
-    protected RegistrantList mRilNetworkScanResultRegistrants = new RegistrantList();
+    public RegistrantList mRilNetworkScanResultRegistrants = new RegistrantList();
     protected RegistrantList mModemResetRegistrants = new RegistrantList();
     protected RegistrantList mNattKeepaliveStatusRegistrants = new RegistrantList();
     protected RegistrantList mPhysicalChannelConfigurationRegistrants = new RegistrantList();
@@ -107,6 +114,8 @@ public abstract class BaseCommands implements CommandsInterface {
     protected RegistrantList mCellularIdentifierDisclosedRegistrants = new RegistrantList();
     protected RegistrantList mSecurityAlgorithmUpdatedRegistrants = new RegistrantList();
     protected RegistrantList mDisplayNetworkTypeChangedRegistrants = new RegistrantList();
+    protected RegistrantList mPrioritizedScanModeChangedRegistrants = new RegistrantList();
+    protected RegistrantList mNetworkSecurityEventsRegistrants = new RegistrantList();
 
     @UnsupportedAppUsage
     protected Registrant mGsmSmsRegistrant;
@@ -295,6 +304,16 @@ public abstract class BaseCommands implements CommandsInterface {
     @Override
     public void unregisterForDataCallListChanged(Handler h) {
         mDataCallListChangedRegistrants.remove(h);
+    }
+
+    @Override
+    public void registerForDataCallListUpdated(Handler h, int what, Object obj) {
+        mDataCallListUpdatedRegistrants.addUnique(h, what, obj);
+    }
+
+    @Override
+    public void unregisterForDataCallListUpdated(Handler h) {
+        mDataCallListUpdatedRegistrants.remove(h);
     }
 
     @Override
@@ -745,6 +764,16 @@ public abstract class BaseCommands implements CommandsInterface {
     }
 
     @Override
+    public void unregisterForPrioritizedScanModeChanged(Handler h) {
+        mPrioritizedScanModeChangedRegistrants.remove(h);
+    }
+
+    @Override
+    public void registerForPrioritizedScanModeChanged(Handler h, int what, Object obj) {
+        mPrioritizedScanModeChangedRegistrants.addUnique(h, what, obj);
+    }
+
+    @Override
     public void testingEmergencyCall() {}
 
     @Override
@@ -958,5 +987,10 @@ public abstract class BaseCommands implements CommandsInterface {
     @Override
     public void registerForSecurityAlgorithmUpdates(Handler h, int what, Object obj) {
         mSecurityAlgorithmUpdatedRegistrants.add(h, what, obj);
+    }
+
+    @Override
+    public void registerForNetworkSecurityEvents(Handler h, int what, Object obj) {
+        mNetworkSecurityEventsRegistrants.add(h, what, obj);
     }
 }

@@ -91,6 +91,7 @@ import android.text.TextUtils;
 import android.util.ArrayMap;
 import android.util.IndentingPrintWriter;
 import android.util.LocalLog;
+import android.util.Pair;
 import android.util.SparseArray;
 import android.util.SparseIntArray;
 
@@ -534,7 +535,9 @@ public class DataNetwork extends StateMachine {
 
     /** The phone instance. */
     @NonNull
-    private final Phone mPhone;
+// QTI_BEGIN: 2025-12-18: Telephony: Inject DataNetwork and add data restriction
+    protected final Phone mPhone;
+// QTI_END: 2025-12-18: Telephony: Inject DataNetwork and add data restriction
 
     /** Feature flags */
     @NonNull
@@ -1504,7 +1507,12 @@ public class DataNetwork extends StateMachine {
                 case EVENT_DATA_STATE_CHANGED: {
                     AsyncResult ar = (AsyncResult) msg.obj;
                     int transport = (int) ar.userObj;
-                    onDataStateChanged(transport, (List<DataCallResponse>) ar.result);
+                    List<DataCallResponse> responseList;
+                    Pair<List<DataCallResponse>, Boolean> result =
+                            (Pair<List<DataCallResponse>, Boolean>) ar.result;
+                    responseList = result.first;
+                    boolean requireExplicitDisconnect = result.second;
+                    onDataStateChanged(transport, responseList, requireExplicitDisconnect);
                     break;
                 }
                 case EVENT_CARRIER_PRIVILEGED_UIDS_CHANGED: {
@@ -1682,16 +1690,28 @@ public class DataNetwork extends StateMachine {
             mRegStateWhenSetup = nri != null
                     ? nri.getNetworkRegistrationState()
                     : NetworkRegistrationInfo.REGISTRATION_STATE_UNKNOWN;
+            ServiceState serviceState = mPhone.getServiceState();
             // We need to use the actual modem roaming state instead of the framework roaming state
             // here. This flag is only passed down to ril_service for picking the correct protocol
             // (for old modem backward compatibility).
-            boolean isModemRoaming = mPhone.getServiceState().getDataRoamingFromRegistration();
+            boolean isModemRoaming = serviceState.getDataRoamingFromRegistration();
+
+            // Indicates whether satellite data is allowed even when the device is roaming
+            // and data roaming is disabled by the user. This applies when the device is on a
+            // satellite network and the carrier config permits ignoring the roaming setting.
+            boolean allowSatelliteWhenRoamingDisabled = serviceState.getDataRoaming()
+                && !mPhone.getDataRoamingEnabled()
+                && serviceState.isUsingNonTerrestrialNetwork()
+                && mDataConfigManager.isDataRoamingAllowedOnSatellite()
+                && mSatellite;
 
             // Set this flag to true if the user turns on data roaming. Or if we override the
             // roaming state in framework, we should set this flag to true as well so the modem will
             // not reject the data call setup (because the modem thinks the device is roaming).
-            boolean allowRoaming = mPhone.getDataRoamingEnabled()
-                    || (isModemRoaming && (!mPhone.getServiceState().getDataRoaming()
+            boolean allowRoaming =
+                mPhone.getDataRoamingEnabled()
+                    || (isModemRoaming  && (!serviceState.getDataRoaming()
+                    || allowSatelliteWhenRoamingDisabled
                     /*|| isUnmeteredUseOnly()*/));
 
             TrafficDescriptor trafficDescriptor = mDataProfile.getTrafficDescriptor();
@@ -1990,7 +2010,9 @@ public class DataNetwork extends StateMachine {
                     // the unrelated.
                     AsyncResult ar = (AsyncResult) msg.obj;
                     int transport = (int) ar.userObj;
-                    List<DataCallResponse> responseList = (List<DataCallResponse>) ar.result;
+                    Pair<List<DataCallResponse>, Boolean> result =
+                            (Pair<List<DataCallResponse>, Boolean>) ar.result;
+                    List<DataCallResponse> responseList = result.first;
                     if (transport != mTransport) {
                         log("Dropped unrelated "
                                 + AccessNetworkConstants.transportTypeToString(transport)
@@ -2783,7 +2805,9 @@ public class DataNetwork extends StateMachine {
             }
         }
 
-        NetworkCapabilities nc = builder.build();
+// QTI_BEGIN: 2025-12-18: Telephony: Inject DataNetwork and add data restriction
+        NetworkCapabilities nc = adjustNetworkCapabilities(builder.build());
+// QTI_END: 2025-12-18: Telephony: Inject DataNetwork and add data restriction
         if (mNetworkCapabilities == null || mNetworkAgent == null) {
             // This is the first time when network capabilities is created. The agent is not created
             // at this time. Just return here. The network capabilities will be used when network
@@ -2829,6 +2853,18 @@ public class DataNetwork extends StateMachine {
         }
     }
 
+// QTI_BEGIN: 2025-12-18: Telephony: Inject DataNetwork and add data restriction
+    /*
+     * Adjust network capabilites
+     *
+     * @param nc the network capabilites need to be adjusted.
+     * @return the adjusted network capabilites.
+     */
+    protected NetworkCapabilities adjustNetworkCapabilities(NetworkCapabilities nc) {
+        return nc;
+    }
+
+// QTI_END: 2025-12-18: Telephony: Inject DataNetwork and add data restriction
     /**
      * @return The network capabilities of this data network.
      */
@@ -3311,9 +3347,13 @@ public class DataNetwork extends StateMachine {
      *
      * @param transport The transport where this event from.
      * @param responseList The data call response list.
+     * @param requireExplicitDisconnect {@code true} if the framework should wait for the data call
+     *     to be explicitly reported as {@link DataCallResponse#LINK_STATUS_INACTIVE} before
+     *     disconnecting; {@code false} if the framework should treat the absence of the data call
+     *     in the list as a disconnection (legacy behavior).
      */
     private void onDataStateChanged(@TransportType int transport,
-            @NonNull List<DataCallResponse> responseList) {
+            @NonNull List<DataCallResponse> responseList, boolean requireExplicitDisconnect) {
         // Ignore the update if it's not from the data service on the right transport.
         // Also if never received data call response from setup call response, which updates the
         // cid, ignore the update here.
@@ -3349,12 +3389,17 @@ public class DataNetwork extends StateMachine {
                     transitionTo(mDisconnectedState);
                 }
             }
-        } else {
+        } else if (!(mFlags.supportExplicitDataDisconnect() && requireExplicitDisconnect)) {
             // The data call response is missing from the list. This means the PDN is gone. This
             // is the PDN lost reported by the modem. We don't send another DEACTIVATE_DATA request
             // for that
+            // This handles the legacy HAL behavior where dropping a call from the list
+            // implies disconnection. In the new HAL (HAL version >= 2.4), the modem must explicitly
+            // report LINK_STATUS_INACTIVE before removing the entry to avoid dangling
+            // data calls.
             log("onDataStateChanged: PDN disconnected reported by "
-                    + AccessNetworkConstants.transportTypeToString(mTransport) + " data service.");
+                    + AccessNetworkConstants.transportTypeToString(mTransport) + " data service."
+                    + " requireExplicitDisconnect " + requireExplicitDisconnect);
             mFailCause = mEverConnected ? DataFailCause.LOST_CONNECTION
                     : DataFailCause.NO_RETRY_FAILURE;
             mRetryDelayMillis = DataCallResponse.RETRY_DURATION_UNDEFINED;

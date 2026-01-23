@@ -816,9 +816,6 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
     private long mThresholdRtpInactivityTime;
     private final List<Integer> mSrvccTypeSupported = new ArrayList<>();
     private final SrvccStartedCallback mSrvccStartedCallback = new SrvccStartedCallback();
-// QTI_BEGIN: 2018-04-03: Telephony: IMS: UT status from AP keep same as Modem after reset capability
-    private boolean mIgnoreResetUtCapability = false;
-// QTI_END: 2018-04-03: Telephony: IMS: UT status from AP keep same as Modem after reset capability
     // Tracks the state of our background/foreground calls while a call hold/swap operation is
     // in progress. Values listed above.
     private HoldSwapState mHoldSwitchingState = HoldSwapState.INACTIVE;
@@ -2125,10 +2122,6 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
                         .KEY_VOICE_RTP_INACTIVITY_TIME_THRESHOLD_MILLIS_LONG);
         mThresholdRtpJitter = carrierConfig.getInt(
                 CarrierConfigManager.ImsVoice.KEY_VOICE_RTP_JITTER_THRESHOLD_MILLIS_INT);
-// QTI_BEGIN: 2018-04-03: Telephony: IMS: UT status from AP keep same as Modem after reset capability
-        mIgnoreResetUtCapability =  carrierConfig.getBoolean(
-                CarrierConfigManager.KEY_IGNORE_RESET_UT_CAPABILITY_BOOL);
-// QTI_END: 2018-04-03: Telephony: IMS: UT status from AP keep same as Modem after reset capability
 // QTI_BEGIN: 2019-10-03: Telephony: IMS: Fix call cannot be resumed for few operators
         mAllowHoldingCall = carrierConfig.getBoolean(
                 CarrierConfigManager.KEY_ALLOW_HOLD_IN_IMS_CALL_BOOL);
@@ -3352,16 +3345,6 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
             return;
         }
 
-// QTI_BEGIN: 2025-03-16: Telephony: IMS: Exchange the execution order for media capabilities and extras
-        // For CRBT/UVS call, video state is arriving earlier to call object than the extra,
-        // that is setVideoState and onVideoStateChanged are invoked earlier than putExtras
-        // in Call.java, it will lead that call audio manager enables the speaker for CRBT/UVS
-        // call since the onVideoStateChanged comes but the CRBT/UVS extra is not arrived yet.
-        // So exchange the execution order for media capabilities and extras.
-        if (ignoreState) {
-            conn.updateExtras(imsCall);
-        }
-// QTI_END: 2025-03-16: Telephony: IMS: Exchange the execution order for media capabilities and extras
         // processCallStateChange is triggered for onCallUpdated as well.
         // onCallUpdated should not modify the state of the call
         // It should modify only other capabilities of call through updateMediaCapabilities
@@ -3370,6 +3353,7 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
         conn.updateMediaCapabilities(imsCall);
         if (ignoreState) {
             conn.updateAddressDisplay(imsCall);
+            conn.updateExtras(imsCall);
             // Some devices will change the audio direction between major call state changes, so we
             // need to check whether to start or stop ringback
             conn.maybeChangeRingbackState();
@@ -6318,21 +6302,7 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
     private void resetImsCapabilities() {
         log("Resetting Capabilities...");
         boolean tmpIsVideoCallEnabled = isVideoCallEnabled();
-
-// QTI_BEGIN: 2018-04-03: Telephony: IMS: UT status from AP keep same as Modem after reset capability
-        if (mIgnoreResetUtCapability) {
-            //UT capability should not be reset (for IMS deregistration and for IMS feature state
-            //not ready) and it should always depend on the modem indication for UT capability
-            mMmTelCapabilities.removeCapabilities(
-                    MmTelFeature.MmTelCapabilities.CAPABILITY_TYPE_VOICE);
-            mMmTelCapabilities.removeCapabilities(
-                    MmTelFeature.MmTelCapabilities.CAPABILITY_TYPE_VIDEO);
-            mMmTelCapabilities.removeCapabilities(
-                    MmTelFeature.MmTelCapabilities.CAPABILITY_TYPE_SMS);
-        } else {
-            mMmTelCapabilities = new MmTelFeature.MmTelCapabilities();
-        }
-// QTI_END: 2018-04-03: Telephony: IMS: UT status from AP keep same as Modem after reset capability
+        mMmTelCapabilities = new MmTelFeature.MmTelCapabilities();
         mPhone.setServiceState(ServiceState.STATE_OUT_OF_SERVICE);
         mPhone.resetImsRegistrationState();
         mPhone.processDisconnectReason(new ImsReasonInfo(ImsReasonInfo.CODE_LOCAL_IMS_SERVICE_DOWN,
@@ -6792,11 +6762,14 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
      *        a specific direction by NW.
      */
     public void triggerNotifyAnbr(int mediaType, int direction, int bitsPerSecond) {
-        ImsCall activeCall = mForegroundCall.getFirstConnection().getImsCall();
+        // Execute the received bitrate change for the current foreground call.
+        if (mForegroundCall.hasConnections()) {
+            ImsCall activeCall = mForegroundCall.getFirstConnection().getImsCall();
 
-        if (activeCall != null) {
-            if (DBG) log("triggerNotifyAnbr - mediaType=" + mediaType);
-            activeCall.callSessionNotifyAnbr(mediaType, direction, bitsPerSecond);
+            if (activeCall != null) {
+                if (DBG) log("triggerNotifyAnbr - mediaType=" + mediaType);
+                activeCall.callSessionNotifyAnbr(mediaType, direction, bitsPerSecond);
+            }
         }
     }
 

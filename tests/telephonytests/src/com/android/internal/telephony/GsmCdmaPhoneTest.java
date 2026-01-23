@@ -77,6 +77,7 @@ import android.telephony.CellIdentityGsm;
 import android.telephony.CellularIdentifierDisclosure;
 import android.telephony.LinkCapacityEstimate;
 import android.telephony.NetworkRegistrationInfo;
+import android.telephony.NetworkSecurityEvent;
 import android.telephony.RadioAccessFamily;
 import android.telephony.SecurityAlgorithmUpdate;
 import android.telephony.ServiceState;
@@ -115,37 +116,33 @@ import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.Mock;
 import org.mockito.Mockito;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicReference;
 
 @RunWith(AndroidTestingRunner.class)
 @TestableLooper.RunWithLooper
 public class GsmCdmaPhoneTest extends TelephonyTest {
     private static final String LOG_TAG = "GsmCdmaPhoneTest";
     private static final String TEST_EMERGENCY_NUMBER = "555";
-
+    private static final int EVENT_SET_ICC_LOCK_ENABLED = 3;
     // Mocked classes
     private Handler mTestHandler;
     private UiccSlot mUiccSlot;
     private CommandsInterface mMockCi;
     private AdnRecordCache adnRecordCache;
-
     //mPhoneUnderTest
     private GsmCdmaPhone mPhoneUT;
-
     // Ideally we would use TestableDeviceConfig, but that's not doable because the Settings
     // app is not currently debuggable. For now, we use the real device config and ensure that
     // we reset the cellular_security namespace property to its pre-test value after every test.
     private DeviceConfig.Properties mPreTestProperties;
-    @Mock private FeatureFlags mFeatureFlags;
-
-    private static final int EVENT_EMERGENCY_CALLBACK_MODE_EXIT = 1;
-    private static final int EVENT_EMERGENCY_CALL_TOGGLE = 2;
-    private static final int EVENT_SET_ICC_LOCK_ENABLED = 3;
 
     @Before
     public void setUp() throws Exception {
@@ -2749,6 +2746,92 @@ public class GsmCdmaPhoneTest extends TelephonyTest {
     }
 
     @Test
+    public void testNetworkSecurityEventIndication() {
+        GsmCdmaPhone phoneUT = makeNewPhoneUT();
+
+        verify(mMockCi, times(1))
+                .registerForNetworkSecurityEvents(
+                        eq(phoneUT),
+                        eq(Phone.EVENT_NETWORK_SECURITY_EVENTS),
+                        nullable(Object.class));
+    }
+
+    @Test
+    public void testNetworkSecurityEvent_eventAddedToNotifier() {
+        when(mFeatureFlags.networkSecurityEventIndications()).thenReturn(true);
+        when(mSubscriptionManagerService.getSubId(0)).thenReturn(10);
+        GsmCdmaPhone phoneUT = makeNewPhoneUT();
+
+        Set<NetworkSecurityEvent> events = new HashSet<>();
+        events.add(new NetworkSecurityEvent(
+                NetworkSecurityEvent.ALERT_CATEGORY_DOWNGRADE,
+                NetworkSecurityEvent.ALERT_STATUS_DETECTED,
+                new int[]{NetworkSecurityEvent.REASON_CODE_DOWNGRADE_FORCED_HANDOVER},
+                123L, 456, 789, "101112",
+                ServiceState.RIL_RADIO_TECHNOLOGY_LTE,
+                false));
+        phoneUT.sendMessage(
+                phoneUT.obtainMessage(
+                        Phone.EVENT_NETWORK_SECURITY_EVENTS,
+                        new AsyncResult(null, events, null)));
+        processAllMessages();
+
+        verify(mNotifier, times(1)).notifyNetworkSecurityEvents(eq(phoneUT), eq(events));
+    }
+
+    @Test
+    public void testNetworkSecurityEvent_eventNull() {
+        when(mFeatureFlags.networkSecurityEventIndications()).thenReturn(true);
+        GsmCdmaPhone phoneUT = makeNewPhoneUT();
+
+
+        phoneUT.sendMessage(
+                phoneUT.obtainMessage(
+                        Phone.EVENT_NETWORK_SECURITY_EVENTS, new AsyncResult(null, null, null)));
+        processAllMessages();
+
+        verify(mNotifier, never()).notifyNetworkSecurityEvents(any(Phone.class), any());
+    }
+
+    @Test
+    public void testNetworkSecurityEvent_withInvalidSubscriptionID() {
+        when(mFeatureFlags.networkSecurityEventIndications()).thenReturn(true);
+        when(mSubscriptionManagerService.getSubId(0)).thenReturn(-1);
+        GsmCdmaPhone phoneUT = makeNewPhoneUT();
+
+        Set<NetworkSecurityEvent> events = new HashSet<>();
+        events.add(new NetworkSecurityEvent(
+                NetworkSecurityEvent.ALERT_CATEGORY_DOWNGRADE,
+                NetworkSecurityEvent.ALERT_STATUS_DETECTED,
+                new int[]{NetworkSecurityEvent.REASON_CODE_DOWNGRADE_FORCED_HANDOVER},
+                123L, 456, 789, "101112",
+                ServiceState.RIL_RADIO_TECHNOLOGY_LTE,
+                false));
+
+        phoneUT.sendMessage(
+                phoneUT.obtainMessage(
+                        Phone.EVENT_NETWORK_SECURITY_EVENTS,
+                        new AsyncResult(null, events, null)));
+        processAllMessages();
+
+        verify(mNotifier, never()).notifyNetworkSecurityEvents(any(Phone.class), any());
+        assertEquals(1, phoneUT.mCellularEventMessages.size());
+
+        when(mSubscriptionManagerService.getSubId(0)).thenReturn(10);
+
+        // sending SIM loaded broadCast.
+        Intent simLoadedIntent = new Intent(TelephonyManager.ACTION_SIM_APPLICATION_STATE_CHANGED);
+        simLoadedIntent.putExtra(SubscriptionManager.EXTRA_SLOT_INDEX, phoneUT.getPhoneId());
+        simLoadedIntent.putExtra(TelephonyManager.EXTRA_SIM_STATE,
+                TelephonyManager.SIM_STATE_LOADED);
+        mContext.sendBroadcast(simLoadedIntent);
+        processAllMessages();
+
+        verify(mNotifier, times(1)).notifyNetworkSecurityEvents(eq(phoneUT), eq(events));
+        assertTrue(phoneUT.mCellularEventMessages.isEmpty());
+    }
+
+    @Test
     public void testSecurityAlgorithmUpdateFlagOn() {
         Phone phoneUT = makeNewPhoneUT();
 
@@ -2965,6 +3048,153 @@ public class GsmCdmaPhoneTest extends TelephonyTest {
         // Set allowed IMS service for VoLTE.
         mPhoneUT.setAllowedImsServicesForAny(ImsRegistrationImplBase.REGISTRATION_TECH_LTE, true);
         verify(mMockCi, times(2)).updateAllowedImsServices(any(), any(), any());
+    }
+
+    @Test
+    public void testUpdateDefaultEnable2gSettings_disable2g() throws Exception {
+        mPhoneUT.mCi = mMockCi;
+        int subId = 1;
+        doReturn(subId).when(mSubscriptionManagerService).getSubId(anyInt());
+        doReturn(true).when(mFeatureFlags).keyCarrier2gToggle();
+        addRadioCapabilities(new HashSet<>(
+                Arrays.asList(TelephonyManager.CAPABILITY_USES_ALLOWED_NETWORK_TYPES_BITMASK)));
+        // 2g is disabled by carrier
+        mContextFixture.getCarrierConfigBundle().putBoolean(
+                CarrierConfigManager.KEY_CARRIER_DEFAULT_2G_PROTECTION_ENABLED_BOOL, true);
+        // 19 == TelephonyManager.NETWORK_TYPE_NR
+        // NR_BITMASK == 524288 == 1 << 19
+        loadAllowedNetworks("user=4096,power=4096,carrier=4096,enable_2g=-1");
+
+        // Update cc settings
+        mPhoneUT.sendMessage(mPhoneUT.obtainMessage(Phone.EVENT_CARRIER_CONFIG_CHANGED));
+        processAllMessages();
+
+        ArgumentCaptor<Message> captureMessage = ArgumentCaptor.forClass(Message.class);
+        verify(mMockCi).setAllowedNetworkTypesBitmap(anyInt(), captureMessage.capture());
+        assertEquals(mPhoneUT.EVENT_SET_ALLOWED_NETWORK_TYPES_FOR_2G_DISABLED_DONE,
+                captureMessage.getAllValues().get(0).what);
+        verify(mNotifier).notifyAllowedNetworkTypesChanged(any(),
+                eq(TelephonyManager.ALLOWED_NETWORK_TYPES_REASON_ENABLE_2G), anyLong());
+    }
+
+    @Test
+    public void testUpdateDefaultEnable2gSettings_disabledFlagKeyCarrier2gToggle()
+            throws Exception {
+        mPhoneUT.mCi = mMockCi;
+        int subId = 1;
+        doReturn(subId).when(mSubscriptionManagerService).getSubId(anyInt());
+        doReturn(false).when(mFeatureFlags).keyCarrier2gToggle();
+        RadioInterfaceCapabilityController radioController = mock(
+                RadioInterfaceCapabilityController.class);
+        replaceInstance(RadioInterfaceCapabilityController.class, "sInstance", null,
+                radioController);
+
+        // Update cc settings
+        mPhoneUT.sendMessage(mPhoneUT.obtainMessage(Phone.EVENT_CARRIER_CONFIG_CHANGED));
+        processAllMessages();
+
+        verify(radioController, never()).getCapabilities();
+    }
+
+    @Test
+    public void testUpdateDefaultEnable2gSettings_InvalidSubcriptionId() throws Exception {
+        doReturn(true).when(mFeatureFlags).keyCarrier2gToggle();
+        doReturn(SubscriptionManager.INVALID_SUBSCRIPTION_ID).when(mSubscriptionManagerService)
+                .getSubId(anyInt());
+        RadioInterfaceCapabilityController radioController = mock(
+                RadioInterfaceCapabilityController.class);
+        replaceInstance(RadioInterfaceCapabilityController.class, "sInstance", null,
+                radioController);
+
+        // Update cc settings
+        mPhoneUT.sendMessage(mPhoneUT.obtainMessage(Phone.EVENT_CARRIER_CONFIG_CHANGED));
+        processAllMessages();
+
+        verify(radioController, never()).getCapabilities();
+    }
+
+    @Test
+    public void testUpdateDefaultEnable2gSettings_radioInterfaceCapabilityNotSupported()
+            throws Exception {
+        int subId = 1;
+        doReturn(subId).when(mSubscriptionManagerService).getSubId(anyInt());
+        doReturn(true).when(mFeatureFlags).keyCarrier2gToggle();
+        addRadioCapabilities(new HashSet<>());
+
+        // Update cc settings
+        mPhoneUT.sendMessage(mPhoneUT.obtainMessage(Phone.EVENT_CARRIER_CONFIG_CHANGED));
+        processAllMessages();
+
+        assertFalse(isCarrier2gToggleUpdated(subId));
+    }
+
+    @Test
+    public void testUpdateDefaultEnable2gSettings_2gAlreadyDisabledInPhone_CarrierDisabling2g()
+            throws Exception {
+        int subId = 1;
+        doReturn(subId).when(mSubscriptionManagerService).getSubId(anyInt());
+        doReturn(true).when(mFeatureFlags).keyCarrier2gToggle();
+        addRadioCapabilities(new HashSet<>(
+                Arrays.asList(TelephonyManager.CAPABILITY_USES_ALLOWED_NETWORK_TYPES_BITMASK)));
+        // 2g is disabled by carrier
+        mContextFixture.getCarrierConfigBundle().putBoolean(
+                CarrierConfigManager.KEY_CARRIER_DEFAULT_2G_PROTECTION_ENABLED_BOOL, true);
+        // 13 == TelephonyManager.NETWORK_TYPE_LTE
+        // NR_BITMASK == 4096 == 1 << (13 - 1)
+        loadAllowedNetworks("user=4096,power=4096,carrier=4096,enable_2g=4096");
+
+        // Update cc settings
+        mPhoneUT.sendMessage(mPhoneUT.obtainMessage(Phone.EVENT_CARRIER_CONFIG_CHANGED));
+        processAllMessages();
+
+        assertTrue(isCarrier2gToggleUpdated(subId));
+    }
+
+    @Test
+    public void testUpdateDefaultEnable2gSettings_commandException() throws Exception {
+        int subId = 1;
+        doReturn(subId).when(mSubscriptionManagerService).getSubId(anyInt());
+        doReturn(true).when(mFeatureFlags).keyCarrier2gToggle();
+        doReturn(subId).when(mSubscriptionManagerService).getSubId(anyInt());
+        addRadioCapabilities(new HashSet<>(
+                Arrays.asList(TelephonyManager.CAPABILITY_USES_ALLOWED_NETWORK_TYPES_BITMASK)));
+        // 2g is disabled by carrier
+        mContextFixture.getCarrierConfigBundle().putBoolean(
+                CarrierConfigManager.KEY_CARRIER_DEFAULT_2G_PROTECTION_ENABLED_BOOL, true);
+        // 19 == TelephonyManager.NETWORK_TYPE_NR
+        // NR_BITMASK == 524288 == 1 << 19
+        loadAllowedNetworks("user=4096,power=4096,carrier=4096,enable_2g=-1");
+        replaceInstance(Phone.class, "mRadioCapability", mPhoneUT,
+                new AtomicReference<RadioCapability>());
+
+
+        // Update cc settings
+        mPhoneUT.sendMessage(mPhoneUT.obtainMessage(Phone.EVENT_CARRIER_CONFIG_CHANGED));
+        processAllMessages();
+
+        assertFalse(isCarrier2gToggleUpdated(subId));
+    }
+
+    private void loadAllowedNetworks(String validSerializedNetworkMap) {
+        SubscriptionInfoInternal si = new SubscriptionInfoInternal.Builder()
+                .setId(1)
+                .setAllowedNetworkTypesForReasons(validSerializedNetworkMap)
+                .build();
+        doReturn(si).when(mSubscriptionManagerService).getSubscriptionInfoInternal(eq(1));
+        mPhoneUT.loadAllowedNetworksFromSubscriptionDatabase();
+    }
+
+    private void addRadioCapabilities(Set<String> capabilitySet) throws Exception {
+        RadioInterfaceCapabilityController radioController = mock(
+                RadioInterfaceCapabilityController.class);
+        replaceInstance(RadioInterfaceCapabilityController.class, "sInstance", null,
+                radioController);
+        doReturn(capabilitySet).when(radioController).getCapabilities();
+    }
+
+    private boolean isCarrier2gToggleUpdated(int subId) {
+        SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(mContext);
+        return sp.getBoolean(mPhoneUT.PREF_KEY_HAS_APPLIED_2G_PROTECTION_DEFAULT + subId, false);
     }
 
     private void sendRadioAvailableToPhone(GsmCdmaPhone phone) {

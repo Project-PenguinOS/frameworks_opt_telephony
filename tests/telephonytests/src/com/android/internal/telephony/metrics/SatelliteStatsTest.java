@@ -610,11 +610,12 @@ public class SatelliteStatsTest extends TelephonyTest {
         stats = captor.getValue();
         // count should be added
         assertEquals(2, stats.countOfSatelliteConfigUpdateRequest);
-        // static values should not be updated
-        assertEquals(10, stats.carrierId);
+        // carrier ID is not updated. and isolate from prior carrier id report.
+        assertEquals(0, stats.carrierId);
         assertEquals(SatelliteConstants.GLOBAL_NTN_CONNECT_TYPE_UNKNOWN,
                 stats.supportedConnectionMode);
-        assertEquals(true, stats.isDeviceEntitled);
+        // isDeviceEntitle is not updated, and isolate from prior isDeviceEntitled report.
+        assertEquals(false, stats.isDeviceEntitled);
 
         param = new SatelliteStats.CarrierRoamingSatelliteControllerStatsParams.Builder()
                 .setCountOfSatelliteConfigUpdateRequest(2)

@@ -1860,7 +1860,7 @@ public class DataNetworkController extends Handler {
         // data plan is included in the user mobile plan, then we should not disallow data due to
         // roaming disabled.
         if (mServiceState.getDataRoaming() && !mDataSettingsManager.isDataRoamingEnabled()
-                    && !shouldIgnoreDataRoamingSettingForSatellite()) {
+                    && !shouldAllowSatelliteDataWhenRoamingDisabled()) {
             evaluation.addDataDisallowedReason(DataDisallowedReason.ROAMING_DISABLED);
         }
 
@@ -2048,9 +2048,9 @@ public class DataNetworkController extends Handler {
      * @return {@code true} if the data roaming setting should be ignored for satellite connection.
      * {@code false} otherwise.
      */
-    private boolean shouldIgnoreDataRoamingSettingForSatellite() {
+    private boolean shouldAllowSatelliteDataWhenRoamingDisabled() {
         return mServiceState.isUsingNonTerrestrialNetwork()
-                && mDataConfigManager.isIgnoringDataRoamingSettingForSatellite();
+                && mDataConfigManager.isDataRoamingAllowedOnSatellite();
     }
 
     /**
@@ -3225,9 +3225,13 @@ public class DataNetworkController extends Handler {
         boolean isSatellite = (transport == AccessNetworkConstants.TRANSPORT_TYPE_WWAN)
                 && nri != null && nri.isNonTerrestrialNetwork();
 
-        mDataNetworkList.add(new DataNetwork(mPhone, mFeatureFlags, getLooper(),
-                mDataServiceManagers, dataProfile, networkRequestList, transport, isSatellite,
-                allowedReason, new DataNetworkCallback(this::post) {
+// QTI_BEGIN: 2025-12-18: Telephony: Inject DataNetwork and add data restriction
+        mDataNetworkList.add(TelephonyComponentFactory.getInstance().inject(
+                DataNetwork.class.getName())
+                .makeDataNetwork(mPhone, mFeatureFlags, getLooper(),
+                mDataServiceManagers, dataProfile, networkRequestList, transport,
+                isSatellite, allowedReason, new DataNetworkCallback(this::post) {
+// QTI_END: 2025-12-18: Telephony: Inject DataNetwork and add data restriction
                     @Override
                     public void onSetupDataFailed(@NonNull DataNetwork dataNetwork,
                             @NonNull NetworkRequestList requestList, @DataFailureCause int cause,

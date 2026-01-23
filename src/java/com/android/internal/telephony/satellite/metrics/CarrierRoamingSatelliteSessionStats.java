@@ -876,6 +876,9 @@ public class CarrierRoamingSatelliteSessionStats {
                         .setIsWfcRegistered(mIsWfcRegistered)
                         .build();
         SatelliteStats.getInstance().onCarrierRoamingSatelliteSessionMetrics(params);
+        // Add session duration time to session controller atom when session ends.
+        CarrierRoamingSatelliteControllerStats.getOrCreateInstance().addSessionDurationSec(subId,
+                totalSatelliteModeTimeSec);
         logd("Supported satellite services: " + Arrays.toString(mSupportedSatelliteServices));
         logd("last fail causes: " + Arrays.toString(mLastFailCauses));
         logd("reportMetrics: " + params);

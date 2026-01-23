@@ -172,6 +172,7 @@ flag {
   metadata {
     purpose: PURPOSE_FEATURE
   }
+  is_exported: true
 }
 
 # OWNER=arunvoddu TARGET=26Q2
@@ -183,6 +184,7 @@ flag {
   metadata {
     purpose: PURPOSE_FEATURE
   }
+  is_exported: true
 }
 
 # OWNER=tnd TARGET=26Q1
@@ -260,5 +262,38 @@ flag {
   bug: "462776094"
   metadata {
     purpose: PURPOSE_FEATURE
+  }
+}
+
+# OWNER=youngtaecha TARGET=26Q2
+flag {
+  name: "nr_ntn"
+  namespace: "telephony"
+  description: "This flag controls the changes for nr_ntn"
+  bug: "469263921"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}
+
+# OWNER=amallampati TARGET=26Q2
+flag {
+  name: "emergency_messaging_routing_for_international_roaming"
+  namespace: "telephony"
+  description: "This flag controls the changes for emergency messaging routing feature"
+  bug: "469434135"
+  metadata {
+    purpose: PURPOSE_FEATURE
+  }
+}
+
+# OWNER=tnd TARGET=26Q2
+flag {
+  name: "system_selection_specifier_enhancement"
+  namespace: "telephony"
+  description: "This flag controls the enhancement for SystemSelectionSpecifier"
+  bug: "471059941"
+  metadata {
+    purpose: PURPOSE_BUGFIX
   }
 }

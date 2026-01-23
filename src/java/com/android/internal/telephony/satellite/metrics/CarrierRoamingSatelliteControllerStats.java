@@ -42,6 +42,8 @@ public class CarrierRoamingSatelliteControllerStats {
     private static CarrierRoamingSatelliteControllerStats sInstance = null;
     private static final int ADD_COUNT = 1;
     private SatelliteStats mSatelliteStats;
+    @NonNull
+    private final SubscriptionManagerService mSubscriptionManagerService;
     /** Map key subId, value: list of session start time in milliseconds */
     private Map<Integer, List<Long>> mSessionStartTimeMap = new HashMap<>();
     /** Map key subId, list of session end time in milliseconds */
@@ -50,6 +52,7 @@ public class CarrierRoamingSatelliteControllerStats {
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PRIVATE)
     public CarrierRoamingSatelliteControllerStats() {
         mSatelliteStats = SatelliteStats.getInstance();
+        mSubscriptionManagerService = SubscriptionManagerService.getInstance();
         resetSessionGapLists();
     }
 
@@ -73,12 +76,12 @@ public class CarrierRoamingSatelliteControllerStats {
             @SatelliteConstants.ConfigDataSource int configDataSource) {
         mSatelliteStats.onCarrierRoamingSatelliteControllerStatsMetrics(
                 new SatelliteStats.CarrierRoamingSatelliteControllerStatsParams.Builder()
-                        .setConfigDataSource(configDataSource)
                         .setCarrierId(getCarrierIdFromSubscription(subId))
-                        .setSupportedConnectionMode(SatelliteController.getInstance()
-                                .getSupportedConnectTypeMetrics(subId))
+                        .setIsDeviceEntitled(isDeviceEntitled(subId))
                         .setIsMultiSim(isMultiSim())
-                        .setIsNbIotNtn(SatelliteServiceUtils.isNbIotNtn(subId))
+                        .setIsNbIotNtn(isNbIotNtn(subId))
+                        .setSupportedConnectionMode(getSupportedConnectType(subId))
+                        .setConfigDataSource(configDataSource)
                         .build());
     }
 
@@ -86,12 +89,12 @@ public class CarrierRoamingSatelliteControllerStats {
     public void reportCountOfEntitlementStatusQueryRequest(int subId) {
         mSatelliteStats.onCarrierRoamingSatelliteControllerStatsMetrics(
                 new SatelliteStats.CarrierRoamingSatelliteControllerStatsParams.Builder()
-                        .setCountOfEntitlementStatusQueryRequest(ADD_COUNT)
                         .setCarrierId(getCarrierIdFromSubscription(subId))
-                        .setSupportedConnectionMode(SatelliteController.getInstance()
-                                .getSupportedConnectTypeMetrics(subId))
+                        .setIsDeviceEntitled(isDeviceEntitled(subId))
                         .setIsMultiSim(isMultiSim())
-                        .setIsNbIotNtn(SatelliteServiceUtils.isNbIotNtn(subId))
+                        .setIsNbIotNtn(isNbIotNtn(subId))
+                        .setSupportedConnectionMode(getSupportedConnectType(subId))
+                        .setCountOfEntitlementStatusQueryRequest(ADD_COUNT)
                         .build());
     }
 
@@ -108,22 +111,24 @@ public class CarrierRoamingSatelliteControllerStats {
     public void reportCountOfSatelliteNotificationDisplayed(int subId) {
         mSatelliteStats.onCarrierRoamingSatelliteControllerStatsMetrics(
                 new SatelliteStats.CarrierRoamingSatelliteControllerStatsParams.Builder()
-                        .setCountOfSatelliteNotificationDisplayed(ADD_COUNT)
                         .setCarrierId(getCarrierIdFromSubscription(subId))
-                        .setSupportedConnectionMode(SatelliteController.getInstance()
-                                .getSupportedConnectTypeMetrics(subId))
+                        .setIsDeviceEntitled(isDeviceEntitled(subId))
                         .setIsMultiSim(isMultiSim())
-                        .setIsNbIotNtn(SatelliteServiceUtils.isNbIotNtn(subId))
+                        .setIsNbIotNtn(isNbIotNtn(subId))
+                        .setSupportedConnectionMode(getSupportedConnectType(subId))
+                        .setCountOfSatelliteNotificationDisplayed(ADD_COUNT)
                         .build());
     }
 
     /** Capture the NB-IoT NTN carrier ID */
-    public void reportCarrierId(int carrierId, int supportedConnectionMode) {
+    public void reportCarrierId(int subId, int carrierId) {
         mSatelliteStats.onCarrierRoamingSatelliteControllerStatsMetrics(
                 new SatelliteStats.CarrierRoamingSatelliteControllerStatsParams.Builder()
                         .setCarrierId(carrierId)
-                        .setSupportedConnectionMode(supportedConnectionMode)
+                        .setIsDeviceEntitled(isDeviceEntitled(subId))
                         .setIsMultiSim(isMultiSim())
+                        .setIsNbIotNtn(isNbIotNtn(subId))
+                        .setSupportedConnectionMode(getSupportedConnectType(subId))
                         .build());
     }
 
@@ -131,12 +136,11 @@ public class CarrierRoamingSatelliteControllerStats {
     public void reportIsDeviceEntitled(int subId, boolean isDeviceEntitled) {
         mSatelliteStats.onCarrierRoamingSatelliteControllerStatsMetrics(
                 new SatelliteStats.CarrierRoamingSatelliteControllerStatsParams.Builder()
-                        .setIsDeviceEntitled(isDeviceEntitled)
                         .setCarrierId(getCarrierIdFromSubscription(subId))
-                        .setSupportedConnectionMode(SatelliteController.getInstance()
-                                .getSupportedConnectTypeMetrics(subId))
+                        .setIsDeviceEntitled(isDeviceEntitled)
                         .setIsMultiSim(isMultiSim())
-                        .setIsNbIotNtn(SatelliteServiceUtils.isNbIotNtn(subId))
+                        .setIsNbIotNtn(isNbIotNtn(subId))
+                        .setSupportedConnectionMode(getSupportedConnectType(subId))
                         .build());
     }
 
@@ -144,10 +148,12 @@ public class CarrierRoamingSatelliteControllerStats {
     public void reportServiceDataPolicy(int subId, int dataPolicy) {
         mSatelliteStats.onCarrierRoamingSatelliteControllerStatsMetrics(
                 new SatelliteStats.CarrierRoamingSatelliteControllerStatsParams.Builder()
-                        .setServiceDataPolicy(dataPolicy)
                         .setCarrierId(getCarrierIdFromSubscription(subId))
+                        .setIsDeviceEntitled(isDeviceEntitled(subId))
                         .setIsMultiSim(isMultiSim())
-                        .setIsNbIotNtn(SatelliteServiceUtils.isNbIotNtn(subId))
+                        .setIsNbIotNtn(isNbIotNtn(subId))
+                        .setSupportedConnectionMode(getSupportedConnectType(subId))
+                        .setServiceDataPolicy(dataPolicy)
                         .build());
     }
 
@@ -168,8 +174,10 @@ public class CarrierRoamingSatelliteControllerStats {
         mSatelliteStats.onCarrierRoamingSatelliteControllerStatsMetrics(
                 new SatelliteStats.CarrierRoamingSatelliteControllerStatsParams.Builder()
                         .setCarrierId(getCarrierIdFromSubscription(subId))
-                        .setSupportedConnectionMode(SatelliteController.getInstance()
-                                .getSupportedConnectTypeMetrics(subId))
+                        .setIsDeviceEntitled(isDeviceEntitled(subId))
+                        .setIsMultiSim(isMultiSim())
+                        .setIsNbIotNtn(isNbIotNtn(subId))
+                        .setSupportedConnectionMode(getSupportedConnectType(subId))
                         .increaseCountOfSatelliteSessions()
                         .increaseCountOfSessionConnectionModeAutomatic(automatic)
                         .increaseCountOfSessionConnectionModeManual(manual)
@@ -194,14 +202,27 @@ public class CarrierRoamingSatelliteControllerStats {
 
         mSatelliteStats.onCarrierRoamingSatelliteControllerStatsMetrics(
                 new SatelliteStats.CarrierRoamingSatelliteControllerStatsParams.Builder()
+                        .setCarrierId(getCarrierIdFromSubscription(subId))
+                        .setIsDeviceEntitled(isDeviceEntitled(subId))
+                        .setIsMultiSim(isMultiSim())
+                        .setIsNbIotNtn(isNbIotNtn(subId))
+                        .setSupportedConnectionMode(getSupportedConnectType(subId))
                         .setSatelliteSessionGapMinSec(satelliteSessionGapMinSec)
                         .setSatelliteSessionGapAvgSec(getAvg(sessionGapList))
                         .setSatelliteSessionGapMaxSec(satelliteSessionGapMaxSec)
+                        .build());
+    }
+
+    /** Add session duration time in seconds  to the corresponding controller's stats. */
+    public void addSessionDurationSec(int subId, int sessionDurationSec) {
+        mSatelliteStats.onCarrierRoamingSatelliteControllerStatsMetrics(
+                new SatelliteStats.CarrierRoamingSatelliteControllerStatsParams.Builder()
                         .setCarrierId(getCarrierIdFromSubscription(subId))
-                        .setSupportedConnectionMode(SatelliteController.getInstance()
-                                .getSupportedConnectTypeMetrics(subId))
+                        .setIsDeviceEntitled(isDeviceEntitled(subId))
                         .setIsMultiSim(isMultiSim())
-                        .setIsNbIotNtn(SatelliteServiceUtils.isNbIotNtn(subId))
+                        .setIsNbIotNtn(isNbIotNtn(subId))
+                        .setSupportedConnectionMode(getSupportedConnectType(subId))
+                        .setSessionDurationSec(sessionDurationSec)
                         .build());
     }
 
@@ -265,6 +286,25 @@ public class CarrierRoamingSatelliteControllerStats {
         int phoneId = SubscriptionManager.getPhoneId(subId);
         Phone phone = PhoneFactory.getPhone(phoneId);
         return phone != null ? phone.getCarrierId() : TelephonyManager.UNKNOWN_CARRIER_ID;
+    }
+
+    /** Returns whether the device is entitled for given subscription. */
+    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PRIVATE)
+    protected boolean isDeviceEntitled(int subId) {
+        return SatelliteServiceUtils.isDeviceEntitledForSubscription(subId);
+    }
+
+    /** Determines whether the subscription is in carrier roaming NB-IoT NTN or not. */
+    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PRIVATE)
+    protected boolean isNbIotNtn(int subId) {
+        return SatelliteServiceUtils.isNbIotNtn(subId);
+    }
+
+    /** Returns supported connect type for given subscription. */
+    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PRIVATE)
+    protected @SatelliteConstants.SatelliteGlobalConnectType int getSupportedConnectType(
+            int subId) {
+        return SatelliteServiceUtils.getSupportedConnectTypeMetrics(subId);
     }
 
     private static void logd(@NonNull String log) {

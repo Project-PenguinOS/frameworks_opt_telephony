@@ -1416,6 +1416,11 @@ public class PersistAtomsStorageTest extends TelephonyTest {
         mCarrierRoamingSatelliteSession1.isWifiEnabled = false;
         mCarrierRoamingSatelliteSession1.isWfcEnabled = false;
         mCarrierRoamingSatelliteSession1.isWfcRegistered = false;
+        mCarrierRoamingSatelliteSession1.screenOnTimeSec = 67;
+        mCarrierRoamingSatelliteSession1.batteryLevelDropPercent = 13;
+        mCarrierRoamingSatelliteSession1.wasChargingDuringSession = false;
+        mCarrierRoamingSatelliteSession1.batteryDesignCapacityMah = 3000;
+        mCarrierRoamingSatelliteSession1.energyConsumedNwh = 700_000_000L;
 
         mCarrierRoamingSatelliteSession2 = new CarrierRoamingSatelliteSession();
         mCarrierRoamingSatelliteSession2.carrierId = 2;
@@ -1442,6 +1447,11 @@ public class PersistAtomsStorageTest extends TelephonyTest {
         mCarrierRoamingSatelliteSession2.isWifiEnabled = true;
         mCarrierRoamingSatelliteSession2.isWfcEnabled = true;
         mCarrierRoamingSatelliteSession2.isWfcRegistered = true;
+        mCarrierRoamingSatelliteSession2.screenOnTimeSec = 97;
+        mCarrierRoamingSatelliteSession2.batteryLevelDropPercent = 7;
+        mCarrierRoamingSatelliteSession2.wasChargingDuringSession = true;
+        mCarrierRoamingSatelliteSession1.batteryDesignCapacityMah = 4000;
+        mCarrierRoamingSatelliteSession1.energyConsumedNwh = 1_400_000_000L;
 
         mCarrierRoamingSatelliteSessions = new CarrierRoamingSatelliteSession[] {
                 mCarrierRoamingSatelliteSession1, mCarrierRoamingSatelliteSession2};
@@ -1463,6 +1473,7 @@ public class PersistAtomsStorageTest extends TelephonyTest {
         mCarrierRoamingSatelliteControllerStats1.isMultiSim = false;
         mCarrierRoamingSatelliteControllerStats1.countOfSatelliteSessions = 1;
         mCarrierRoamingSatelliteControllerStats1.isNbIotNtn = false;
+        mCarrierRoamingSatelliteControllerStats1.totalSessionDurationSec = 70;
 
         mCarrierRoamingSatelliteControllerStats2 = new CarrierRoamingSatelliteControllerStats();
         mCarrierRoamingSatelliteControllerStats2.configDataSource =
@@ -1481,6 +1492,7 @@ public class PersistAtomsStorageTest extends TelephonyTest {
         mCarrierRoamingSatelliteControllerStats2.isMultiSim = true;
         mCarrierRoamingSatelliteControllerStats2.countOfSatelliteSessions = 2;
         mCarrierRoamingSatelliteControllerStats2.isNbIotNtn = true;
+        mCarrierRoamingSatelliteControllerStats2.totalSessionDurationSec = 99;
 
         // CarrierRoamingSatelliteController has one data point
         mCarrierRoamingSatelliteControllerStats = new CarrierRoamingSatelliteControllerStats[] {
@@ -5290,6 +5302,8 @@ public class PersistAtomsStorageTest extends TelephonyTest {
                 mCarrierRoamingSatelliteControllerStats1.countOfSessionConnectionModeAutomatic * 2;
         expected.countOfSessionConnectionModeManual =
                 mCarrierRoamingSatelliteControllerStats1.countOfSessionConnectionModeManual * 2;
+        expected.totalSessionDurationSec =
+                mCarrierRoamingSatelliteControllerStats1.totalSessionDurationSec * 2;
         verifyCurrentStateSavedToFileOnce();
         CarrierRoamingSatelliteControllerStats[] output =
                 mPersistAtomsStorage.getCarrierRoamingSatelliteControllerStats(0L);
@@ -6799,6 +6813,7 @@ public class PersistAtomsStorageTest extends TelephonyTest {
                 assertEquals(expectedStats.countOfSessionConnectionModeAutomatic,
                         stats.countOfSessionConnectionModeAutomatic);
                 assertEquals(expectedStats.isNbIotNtn, stats.isNbIotNtn);
+                assertEquals(expectedStats.totalSessionDurationSec, stats.totalSessionDurationSec);
                 count++;
             }
         }

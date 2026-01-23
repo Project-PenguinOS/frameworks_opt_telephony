@@ -8038,8 +8038,7 @@ public class SatelliteController extends Handler {
 
         mIsNotificationShowing.set(true);
         mCarrierRoamingSatelliteControllerStats.reportCountOfSatelliteNotificationDisplayed(subId);
-        mCarrierRoamingSatelliteControllerStats.reportCarrierId(getSatelliteCarrierId(),
-                getSupportedConnectTypeMetrics());
+        mCarrierRoamingSatelliteControllerStats.reportCarrierId(subId, getSatelliteCarrierId());
         mSessionMetricsStats.addCountOfSatelliteNotificationDisplayed();
     }
 
@@ -9183,13 +9182,13 @@ public class SatelliteController extends Handler {
     }
 
     /**
-     * Get whether phone is eligible to connect to carrier roaming non-terrestrial network.
+     * Get whether phone is eligible to manually connect to carrier roaming non-terrestrial network.
      *
      * @param phone phone object return {@code true} when the subscription is eligible for satellite
      *     communication if all the following conditions are met:
      *     <ul>
-     *       <li>Subscription supports P2P satellite messaging which is defined by {@link
-     *           CarrierConfigManager#KEY_SATELLITE_ATTACH_SUPPORTED_BOOL}
+     *       <li>Subscription supports manual-connect P2P satellite messaging which is defined by
+     *           {@link CarrierConfigManager#KEY_SATELLITE_ATTACH_SUPPORTED_BOOL}
      *       <li>{@link CarrierConfigManager#KEY_CARRIER_ROAMING_NTN_CONNECT_TYPE_INT} set to {@link
      *           CarrierConfigManager#CARRIER_ROAMING_NTN_CONNECT_MANUAL} or {@link
      *           CarrierConfigManager#CARRIER_ROAMING_NTN_CONNECT_HYBRID}
@@ -9223,7 +9222,8 @@ public class SatelliteController extends Handler {
 
         int subId = getSelectedSatelliteSubId();
         if (!isSatelliteRoamingP2pSmSSupported(subId)) {
-            plogd("isCarrierRoamingNtnEligible(" + subId + "): doesn't support P2P SMS");
+            plogd("isCarrierRoamingNtnEligible(" + subId
+                    + "): doesn't support manual-connect P2P SMS");
             return false;
         }
 
@@ -10709,5 +10709,11 @@ public class SatelliteController extends Handler {
     @VisibleForTesting
     public boolean isWifiConnected() {
         return mIsWifiConnected.get();
+    }
+
+    /** Returns whether the device is entitled for given subscription. */
+    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
+    public boolean isDeviceEntitledForSubscription(int subId) {
+        return mSatelliteEntitlementStatusPerCarrier.getOrDefault(subId, false);
     }
 }

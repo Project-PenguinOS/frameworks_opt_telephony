@@ -62,10 +62,42 @@ flag {
   bug: "437043173"
 }
 
-# OWNER=jferec TARGET=25Q4
+# OWNER=jferec TARGET=26Q2
 flag {
   name: "secure_access_to_restricted_rcs_messages"
   namespace: "telephony"
   description: "Introduces access restrictions to reading and writing restricted RCS messages in the messaging database."
   bug: "459576374"
+  is_exported: true
 }
+
+# OWNER=paulsoumyadeep TARGET=26q2
+flag {
+ name: "cache_sms_application_data"
+ namespace: "telephony"
+ description: "Caches the result of getApplicationCollectionInternal to reduce PackageManager queries."
+ bug: "350569741"
+ metadata {
+     purpose: PURPOSE_BUGFIX
+ }
+}
+
+# OWNER=braydenhass TARGET=26Q2
+flag {
+    name: "sms_network_security_events"
+    namespace: "telephony"
+    description: "Guard system API for SMS network security events."
+    bug: "407790397"
+    metadata {
+        purpose: PURPOSE_FEATURE
+    }
+}
+
+# OWNER=nishantpanwar TARGET=26Q2
+flag {
+  name: "message_promotion"
+  namespace: "telephony"
+  description: "Include the Default Messaging App in outgoing message flows to support sending RCS messages"
+  bug: "469744736"
+}
+

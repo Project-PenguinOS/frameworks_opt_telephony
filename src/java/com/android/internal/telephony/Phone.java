@@ -38,6 +38,8 @@ import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.hardware.radio.modem.ImeiInfo;
+import android.hardware.radio.network.PrioritizedNetworkScanRequest;
+import android.hardware.radio.network.SatelliteNetworkInfo;
 import android.net.Uri;
 import android.os.AsyncResult;
 import android.os.Binder;
@@ -285,7 +287,8 @@ public abstract class Phone extends Handler implements PhoneInternalInterface {
     protected static final int EVENT_SECURITY_ALGORITHM_UPDATE = 74;
     protected static final int EVENT_SET_SECURITY_ALGORITHMS_UPDATED_ENABLED_DONE = 75;
     protected static final int EVENT_NETWORK_SECURITY_EVENTS = 76;
-    protected static final int EVENT_LAST = EVENT_NETWORK_SECURITY_EVENTS;
+    protected static final int EVENT_SET_ALLOWED_NETWORK_TYPES_FOR_2G_DISABLED_DONE = 77;
+    protected static final int EVENT_LAST = EVENT_SET_ALLOWED_NETWORK_TYPES_FOR_2G_DISABLED_DONE;
 
     // For shared prefs.
     private static final String GSM_ROAMING_LIST_OVERRIDE_PREFIX = "gsm_roaming_list_";
@@ -2822,7 +2825,14 @@ public abstract class Phone extends Handler implements PhoneInternalInterface {
      * @param response Callback message.
      */
     public void rebootModem(Message response) {
-        mCi.nvResetConfig(1/* 1: reload NV reset, trigger a modem reboot */, response);
+        RadioConfig radioConfig = RadioConfig.getInstance();
+        RadioConfigProxy radioConfigProxy = radioConfig.getRadioConfigProxy(null);
+        if (radioConfigProxy != null
+                && radioConfigProxy.getVersion().greaterOrEqual(RIL.RADIO_HAL_VERSION_2_4)) {
+            radioConfig.rebootModem(response);
+        } else {
+            mCi.nvResetConfig(1/* 1: reload NV reset, trigger a modem reboot */, response);
+        }
     }
 
     /**
@@ -5323,6 +5333,54 @@ public abstract class Phone extends Handler implements PhoneInternalInterface {
                 + " carrierPlmnList=" + carrierPlmnList.toString()
                 + " allSatellitePlmnList=" + allSatellitePlmnList.toString());
         mCi.setSatellitePlmn(simSlot, carrierPlmnList, allSatellitePlmnList, result);
+    }
+
+    /**
+     * Set the non-terrestrial PLMN with lower priority than terrestrial networks.
+     *
+     * @param simSlot Indicates the SIM slot to which this API will be applied. The modem will use
+     *                this information to determine the relevant carrier.
+     * @param satelliteNetworkInfo The list of roaming PLMN used for connecting to satellite
+     *                             networks supported by user subscription.
+     * @param result Callback message to receive the result.
+     */
+    public void setSatelliteNetworkInfo(int simSlot,
+            @NonNull SatelliteNetworkInfo satelliteNetworkInfo, Message result) {
+        logd("setSatellitePlmn: simSlot=" + simSlot
+                + " satelliteNetworkInfo=" + satelliteNetworkInfo.toString());
+        mCi.setSatelliteNetworkInfo(simSlot, satelliteNetworkInfo, result);
+    }
+
+    /**
+     * Enable a prioritized, aggressive scanning mode for specific networks.
+     *
+     * @param simSlot Indicates the SIM slot to which this method will be applied.
+     *                The modem will use this information to determine the relevant carrier.
+     * @param scanRequest The list of roaming PLMN used for connecting to satellite networks
+     *                    supported by user subscription.
+     * @param result Callback message to receive the result.
+     */
+    public void enablePrioritizedNetworkScan(int simSlot,
+            @NonNull PrioritizedNetworkScanRequest scanRequest, Message result) {
+        logd("enablePrioritizedNetworkScan: simSlot=" + simSlot
+                + " prioritizedNetworkScanRequest=" + scanRequest.toString());
+        mCi.enablePrioritizedNetworkScan(simSlot, scanRequest, result);
+    }
+
+    /**
+     * Disable a prioritized, aggressive scanning mode for specific networks.
+     *
+     * <p>If the device is already attached to a prioritized network provided
+     * by enablePrioritizedNetworkScan, it should detach from it.
+     *
+     * @param simSlot Indicates the SIM slot to which this method will be applied.
+     *                The modem will use this information to determine the relevant carrier.
+     *
+     * Response function is IRadioNetworkResponse.disablePrioritizedNetworkScanResponse()
+     */
+    public void disablePrioritizedNetworkScan(int simSlot, Message result) {
+        logd("disablePrioritizedNetworkScan: simSlot=" + simSlot);
+        mCi.disablePrioritizedNetworkScan(simSlot, result);
     }
 
     /**

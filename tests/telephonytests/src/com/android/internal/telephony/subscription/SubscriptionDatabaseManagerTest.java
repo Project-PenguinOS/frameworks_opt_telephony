@@ -152,6 +152,14 @@ public class SubscriptionDatabaseManagerTest extends TelephonyTest {
     static final String FAKE_MAC_ADDRESS1 = "DC:E5:5B:38:7D:40";
     static final String FAKE_MAC_ADDRESS2 = "DC:B5:4F:47:F3:4C";
 
+    static final int FAKE_STREAMING_DOWNLINK1 = 1234567;
+
+    static final int FAKE_STREAMING_DOWNLINK2 = 7654321;
+
+    static final int FAKE_STREAMING_UPLINK1 = 1234;
+
+    static final int FAKE_STREAMING_UPLINK2 = 5678;
+
     static final int FAKE_TRANSFER_STATUS_TRANSFERRED_OUT = 1;
     static final int FAKE_TRANSFER_STATUS_CONVERTED = 2;
 
@@ -237,6 +245,8 @@ public class SubscriptionDatabaseManagerTest extends TelephonyTest {
                     .setSatelliteEntitlementPlmns(FAKE_SATELLITE_ENTITLEMENT_PLMNS2)
                     .setSatelliteESOSSupported(FAKE_SATELLITE_ESOS_SUPPORTED_DISABLED)
                     .setIsPrivateNetwork(FAKE_IS_PRIVATE_NETWORK_DISABLED)
+                    .setStreamingAppMaxDownlinkKbps(FAKE_STREAMING_DOWNLINK1)
+                    .setStreamingAppMaxUplinkKbps(FAKE_STREAMING_UPLINK1)
                     .build();
 
     static final SubscriptionInfoInternal FAKE_SUBSCRIPTION_INFO2 =
@@ -342,6 +352,8 @@ public class SubscriptionDatabaseManagerTest extends TelephonyTest {
 
         private boolean mDatabaseChanged;
 
+        private int mNextSubId = 1;
+
         SubscriptionProvider() {
             mAllColumns = SimInfo.getAllColumns();
         }
@@ -436,14 +448,8 @@ public class SubscriptionDatabaseManagerTest extends TelephonyTest {
                     throw new IllegalArgumentException("Insert with unknown column " + column);
                 }
             }
-            // The last row's subId + 1
-            int subId;
-            if (mDatabase.isEmpty()) {
-                subId = 1;
-            } else {
-                subId = (int) mDatabase.get(mDatabase.size() - 1)
-                        .get(SimInfo.COLUMN_UNIQUE_KEY_SUBSCRIPTION_ID) + 1;
-            }
+            // subId autoincrement
+            int subId = mNextSubId++;
             values.put(SimInfo.COLUMN_UNIQUE_KEY_SUBSCRIPTION_ID, subId);
             mDatabase.add(values);
             return ContentUris.withAppendedId(SimInfo.CONTENT_URI, subId);

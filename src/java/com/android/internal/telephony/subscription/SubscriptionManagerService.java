@@ -94,11 +94,13 @@ import android.telephony.UiccAccessRule;
 import android.telephony.euicc.EuiccManager;
 import android.text.TextUtils;
 import android.util.ArraySet;
+import android.util.AtomicFile;
 import android.util.Base64;
 import android.util.EventLog;
 import android.util.IndentingPrintWriter;
 import android.util.LocalLog;
 import android.util.Log;
+import android.util.RecurrenceRule;
 
 import com.android.internal.R;
 import com.android.internal.annotations.VisibleForTesting;
@@ -130,14 +132,26 @@ import com.android.internal.telephony.uicc.UiccSlot;
 import com.android.internal.telephony.util.ArrayUtils;
 import com.android.internal.telephony.util.TelephonyUtils;
 import com.android.internal.telephony.util.WorkerThread;
+import com.android.modules.utils.BinaryXmlPullParser;
+import com.android.modules.utils.BinaryXmlSerializer;
+import com.android.modules.utils.TypedXmlPullParser;
+import com.android.modules.utils.TypedXmlSerializer;
 import com.android.telephony.Rlog;
 
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.xmlpull.v1.XmlPullParser;
+import org.xmlpull.v1.XmlPullParserException;
 
+import java.io.File;
 import java.io.FileDescriptor;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.PrintWriter;
+import java.time.Period;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -229,7 +243,9 @@ public class SubscriptionManagerService extends ISub.Stub {
             SimInfo.COLUMN_SATELLITE_ENTITLEMENT_DATA_PLAN_PLMNS,
             SimInfo.COLUMN_SATELLITE_ENTITLEMENT_SERVICE_TYPE_MAP,
             SimInfo.COLUMN_SATELLITE_ENTITLEMENT_DATA_SERVICE_POLICY,
-            SimInfo.COLUMN_SATELLITE_ENTITLEMENT_VOICE_SERVICE_POLICY
+            SimInfo.COLUMN_SATELLITE_ENTITLEMENT_VOICE_SERVICE_POLICY,
+            SimInfo.COLUMN_STREAMING_APP_MAX_DOWNLINK_KBPS,
+            SimInfo.COLUMN_STREAMING_APP_MAX_UPLINK_KBPS
     );
 
     /**
@@ -261,6 +277,91 @@ public class SubscriptionManagerService extends ISub.Stub {
     /** Instance of subscription manager service. */
     @NonNull
     private static SubscriptionManagerService sInstance;
+
+    /** File name to persist enrollable subscription plans. */
+    private static final String ENROLLABLE_PLANS_FILE = "enrollable-plans.xml";
+
+    /** The root element tag of the enrollable plans XML file. */
+    private static final String TAG_ENROLLABLE_PLANS = "enrollable-plans";
+
+    /**
+     * Tag for a group of plans associated with a specific subscription ID. Contains attributes for
+     * metadata (subId, owner, expiration) and child {@link #TAG_PLAN} tags.
+     */
+    private static final String TAG_SUB_PLANS = "sub-plans";
+
+    /** Tag representing a single {@link SubscriptionPlan} entry. */
+    private static final String TAG_PLAN = "plan";
+
+    /**
+     * Attribute for {@link #TAG_SUB_PLANS}: The subscription ID (integer) these plans belong to.
+     */
+    private static final String ATTR_SUB_ID = "subId";
+
+    /**
+     * Attribute for {@link #TAG_SUB_PLANS}: The package name of the app that owns/created these
+     * plans.
+     */
+    private static final String ATTR_OWNER = "owner";
+
+    /**
+     * Attribute for {@link #TAG_SUB_PLANS}: The absolute expiration time in milliseconds. If the
+     * current time exceeds this value, the plans are considered expired.
+     */
+    private static final String ATTR_EXPIRATION_TIME = "expirationTime";
+
+    /**
+     * Attribute for {@link #TAG_PLAN}: The start time of the billing cycle (formatted ZonedDateTime
+     * string).
+     */
+    private static final String ATTR_CYCLE_START = "cycleStart";
+
+    /**
+     * Attribute for {@link #TAG_PLAN}: The end time of the billing cycle (formatted ZonedDateTime
+     * string).
+     */
+    private static final String ATTR_CYCLE_END = "cycleEnd";
+
+    /**
+     * Attribute for {@link #TAG_PLAN}: The recurrence period of the billing cycle (formatted Period
+     * string).
+     */
+    private static final String ATTR_CYCLE_PERIOD = "cyclePeriod";
+
+    /** Attribute for {@link #TAG_PLAN}: The user-visible title of the plan. */
+    private static final String ATTR_TITLE = "title";
+
+    /** Attribute for {@link #TAG_PLAN}: A brief summary of the plan. */
+    private static final String ATTR_SUMMARY = "summary";
+
+    /** Attribute for {@link #TAG_PLAN}: The data limit in bytes. */
+    private static final String ATTR_LIMIT_BYTES = "limitBytes";
+
+    /**
+     * Attribute for {@link #TAG_PLAN}: The behavior when the data limit is reached (e.g., disabled,
+     * throttled).
+     */
+    private static final String ATTR_LIMIT_BEHAVIOR = "limitBehavior";
+
+    /** Attribute for {@link #TAG_PLAN}: The currently used data amount in bytes. */
+    private static final String ATTR_USAGE_BYTES = "usageBytes";
+
+    /**
+     * Attribute for {@link #TAG_PLAN}: The timestamp (epoch millis) when the data usage was
+     * measured.
+     */
+    private static final String ATTR_USAGE_TIME = "usageTime";
+
+    /**
+     * Attribute for {@link #TAG_PLAN}: A comma-separated list of network types this plan applies
+     * to.
+     */
+    private static final String ATTR_NETWORK_TYPES = "networkTypes";
+
+    /**
+     * Attribute for {@link #TAG_PLAN}: The status of the subscription (e.g., active, suspended).
+     */
+    private static final String ATTR_SUBSCRIPTION_STATUS = "subscriptionStatus";
 
     /** The context */
     @NonNull
@@ -398,14 +499,23 @@ public class SubscriptionManagerService extends ISub.Stub {
 
     /**
      * Maps subscription ID to the pending runnable responsible for expiring the enrollable plans.
-     * <p>
-     * The key is the subscription ID ({@link Integer}),
-     * <p>
-     * The value is the Runnable that clears the plans
+     *
+     * <p>The key is the subscription ID ({@link Integer}),
+     *
+     * <p>The value is the Runnable that clears the plans
      */
     @NonNull
     private final Map<Integer, Runnable> mEnrollablePlanExpirationRunnables =
             new ConcurrentHashMap<>();
+
+    /**
+     * Maps subscription ID to the expiration time (absolute time in millis). Used for persistence.
+     */
+    @NonNull
+    private final Map<Integer, Long> mEnrollablePlanExpirationTime = new ConcurrentHashMap<>();
+
+    /** File to persist enrollable subscription plans. */
+    private final AtomicFile mEnrollablePlansFile;
 
     /**
      * Slot index/subscription map that automatically invalidate cache in
@@ -734,6 +844,22 @@ public class SubscriptionManagerService extends ISub.Stub {
                 mEuiccController = EuiccController.get();
             }
         });
+
+        // Initialize AtomicFile for persistence
+        File storageDir = getProtectedStorageDir();
+        if (storageDir != null) {
+            mEnrollablePlansFile = new AtomicFile(new File(storageDir, ENROLLABLE_PLANS_FILE));
+        } else {
+            mEnrollablePlansFile = null;
+        }
+        mHandler.post(this::readEnrollableSubscriptionPlans);
+        // Register for time change for plan expiration.
+        mContext.registerReceiver(new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                mHandler.post(() -> rescheduleAllPlanExpirations());
+            }
+        }, new IntentFilter(Intent.ACTION_TIME_CHANGED));
 
         SubscriptionManager.invalidateSubscriptionManagerServiceCaches();
 
@@ -2456,7 +2582,7 @@ public class SubscriptionManagerService extends ISub.Stub {
         } else if (subscriptionType == SubscriptionManager.SUBSCRIPTION_TYPE_REMOTE_SIM) {
             // We only support one remote SIM at this point, so use -1. This needs to be revisited
             // if we plan to support multiple remote SIMs in the future.
-            slotIndex = SubscriptionManager.INVALID_SIM_SLOT_INDEX;
+            slotIndex = SubscriptionManager.SLOT_INDEX_FOR_REMOTE_SIM_SUB;
         } else {
             throw new IllegalArgumentException("Invalid subscription type " + subscriptionType);
         }
@@ -4882,39 +5008,31 @@ public class SubscriptionManagerService extends ISub.Stub {
                     callingPackage);
         });
     }
+
     /**
      * Internal method to update enrollable plans, running on the handler thread.
      */
     private void setEnrollableSubscriptionPlansInternal(int subId,
             @NonNull SubscriptionPlan[] plans, long expirationDurationMillis,
             @NonNull String callingPackage) {
-        // 1. Store the plans and owner
+        long expirationTime =
+                (expirationDurationMillis > 0)
+                        ? System.currentTimeMillis() + expirationDurationMillis
+                        : 0;
+
+        log("set enrollable SubscriptionPlans for subid:"
+                + subId + " duration:" + expirationDurationMillis + "ms");
+
+        // 1. Store the plans, owner and expiration time.
         mEnrollableSubscriptionPlans.put(subId, plans);
         mEnrollableSubscriptionPlansOwner.put(subId, callingPackage);
+        mEnrollablePlanExpirationTime.put(subId, expirationTime);
 
-        // 2. Manage Expiration Timer
-        // Cancel any existing expiration task for this subId
-        Runnable oldRunnable = mEnrollablePlanExpirationRunnables.remove(subId);
-        if (oldRunnable != null) {
-            mHandler.removeCallbacks(oldRunnable);
-        }
+        // Set a timer and perform expired data cleanup.
+        rescheduleAllPlanExpirations();
 
-        // 3. Schedule new expiration if duration > 0
-        if (expirationDurationMillis > 0) {
-            Runnable expirationRunnable = () -> {
-                // Check if the owner is still the same before clearing (handling race conditions)
-                String currentOwner = mEnrollableSubscriptionPlansOwner.get(subId);
-                if (Objects.equals(callingPackage, currentOwner)) {
-                    logl("Clearing expired enrollable plans for subId=" + subId);
-                    mEnrollableSubscriptionPlans.remove(subId);
-                    mEnrollableSubscriptionPlansOwner.remove(subId);
-                    mEnrollablePlanExpirationRunnables.remove(subId);
-                    broadcastEnrollableSubscriptionPlansChanged(subId);
-                }
-            };
-            mEnrollablePlanExpirationRunnables.put(subId, expirationRunnable);
-            mHandler.postDelayed(expirationRunnable, expirationDurationMillis);
-        }
+        // Write plans to persist the state to disk.
+        writeEnrollableSubscriptionPlans();
 
         // 3. Notify Listeners
         broadcastEnrollableSubscriptionPlansChanged(subId);
@@ -5065,7 +5183,421 @@ public class SubscriptionManagerService extends ISub.Stub {
         Intent intent = new Intent(
                 SubscriptionManager.ACTION_ENROLLABLE_SUBSCRIPTION_PLANS_CHANGED);
         SubscriptionManager.putSubscriptionIdExtra(intent, subId);
+        log("broadcastEnrollableSubscriptionPlansChanged for subId:" + subId);
         mContext.sendBroadcast(intent, android.Manifest.permission.READ_SUBSCRIPTION_PLANS);
+    }
+
+    /**
+     * Reschedules expiration timers based on the current system time.
+     * Uses mEnrollableSubscriptionPlans as the source of truth to avoid synchronization issues.
+     */
+    private void rescheduleAllPlanExpirations() {
+        log("reschedule all enrollable SubscriptionPlans");
+
+        long currentTime = System.currentTimeMillis();
+        List<Integer> expiredSubIds = new ArrayList<>();
+
+        // Cancel all existing timers and clear the map. (Clean Slate)
+        // Prevent zombie timers (timers that run without a plan) from occurring.
+        for (Runnable r : mEnrollablePlanExpirationRunnables.values()) {
+            mHandler.removeCallbacks(r);
+        }
+        mEnrollablePlanExpirationRunnables.clear();
+
+        // Reset the timer by iterating based on the SubscriptionPlans.
+        for (int subId : mEnrollableSubscriptionPlans.keySet()) {
+            // Skip if it is a permanent plan with no expiration time
+            Long expirationTime = mEnrollablePlanExpirationTime.get(subId);
+            if (expirationTime == null || expirationTime == 0) {
+                continue;
+            }
+
+            long remainingDuration = expirationTime - currentTime;
+            if (remainingDuration <= 0) {
+                // Already expired -> get rid of plans
+                logl("Plan for subId=" + subId + " expired (duration=" + remainingDuration + ")");
+                removeEnrollablePlansInMemory(subId);
+                expiredSubIds.add(subId);
+            } else {
+                // Still valid -> Register a new timer
+                logl("Rescheduling expiration for subId="
+                        + subId + " in " + remainingDuration + "ms");
+                Runnable newRunnable = () -> handlePlanExpiration(subId);
+                mEnrollablePlanExpirationRunnables.put(subId, newRunnable);
+                mHandler.postDelayed(newRunnable, remainingDuration);
+            }
+        }
+
+        // If found expired plans, update xml and broadcast them.
+        if (!expiredSubIds.isEmpty()) {
+            writeEnrollableSubscriptionPlans();
+
+            // Broadcast 전송
+            for (int subId : expiredSubIds) {
+                broadcastEnrollableSubscriptionPlansChanged(subId);
+            }
+        }
+    }
+
+    /**
+     * Handles the expiration of plans for a single subscription.
+     * Invoked by the Handler when the expiration time is reached.
+     */
+    private void handlePlanExpiration(int subId) {
+        if (removeEnrollablePlansInMemory(subId)) {
+            logl("Plan for subId=" + subId + " expired.");
+            writeEnrollableSubscriptionPlans();
+            broadcastEnrollableSubscriptionPlansChanged(subId);
+        }
+    }
+
+    /**
+     * Removes enrollable plans from memory maps and cancels the timer.
+     * <p>This method does NOT write to disk or send broadcasts.
+     *
+     * @return {@code true} if plans existed and were removed, {@code false} otherwise.
+     */
+    private boolean removeEnrollablePlansInMemory(int subId) {
+        if (!mEnrollableSubscriptionPlans.containsKey(subId)) {
+            return false;
+        }
+        logl("removing enrollable SubscriptionPlans for subId=" + subId);
+        mEnrollableSubscriptionPlans.remove(subId);
+        mEnrollableSubscriptionPlansOwner.remove(subId);
+        mEnrollablePlanExpirationTime.remove(subId);
+        Runnable runnable = mEnrollablePlanExpirationRunnables.remove(subId);
+        if (runnable != null) {
+            mHandler.removeCallbacks(runnable);
+        }
+        return true;
+    }
+
+    /**
+     * Returns the device protected storage directory.
+     *
+     * <p>This directory is used to store configuration files that need to persist across reboots.
+     *
+     * @return The directory file object.
+     */
+    @Nullable
+    private File getProtectedStorageDir() {
+        Context deContext = mContext.createDeviceProtectedStorageContext();
+        return deContext == null ? null : deContext.getFilesDir();
+    }
+
+    /**
+     * Reads enrollable SubscriptionPlans from the XML file into memory.
+     *
+     * <p>This method is typically called during the service initialization (boot time). It parses
+     * the XML file and populates {@link #mEnrollableSubscriptionPlans}, {@link
+     * #mEnrollableSubscriptionPlansOwner}, and {@link #mEnrollablePlanExpirationTime}.
+     */
+    private void readEnrollableSubscriptionPlans() {
+        if (!mFeatureFlags.subscriptionPlanEnhancement()) {
+            return;
+        }
+        if (mEnrollablePlansFile == null) {
+            loge("can't read enrollableSubscriptionPlans. File is null");
+            return;
+        }
+        synchronized (mEnrollablePlansFile) {
+            if (!mEnrollablePlansFile.exists()) {
+                logl("No persisted enrollable plans file found.");
+                return;
+            }
+
+            logl("read EnrollableSubscriptionPlans");
+
+            // Clear existing in-memory data before loading from disk.
+            mEnrollableSubscriptionPlans.clear();
+            mEnrollableSubscriptionPlansOwner.clear();
+            mEnrollablePlanExpirationTime.clear();
+
+            // Load enrollable subscription plans from XML
+            try (FileInputStream fis = mEnrollablePlansFile.openRead()) {
+                TypedXmlPullParser in = new BinaryXmlPullParser(); // 직접 생성
+                in.setInput(fis, null);
+
+                int type;
+                while ((type = in.next()) != XmlPullParser.END_DOCUMENT) {
+                    if (type != XmlPullParser.START_TAG) continue;
+
+                    final String tag = in.getName();
+                    if (TAG_SUB_PLANS.equals(tag)) {
+                        readEnrollableSubscriptionPlansForSubscriptionLocked(in);
+                    }
+                }
+            } catch (Exception e) {
+                loge("Failed to read enrollable plans: " + e);
+            }
+
+            // After all loads are complete, set a timer and perform expired data cleanup. If any of
+            // the read data is expired, it will be automatically deleted and the file updated.
+            rescheduleAllPlanExpirations();
+        }
+    }
+
+    /**
+     * Parses a single {@code <sub-plans>} block from the XML, which contains all enrollable plans
+     * for a single subscription id.
+     *
+     * <p>This method reads the attributes of the group (subId, owner, expiration) and then iterates
+     * through the child {@code <plan>} tags to build the full list of plans. Finally, it populates
+     * the internal memory caches with the parsed data.
+     *
+     * @param in The XML parser positioned at the start of the {@code <sub-plans>} tag.
+     * @throws IOException If an I/O error occurs.
+     * @throws XmlPullParserException If an XML parsing error occurs.
+     */
+    private void readEnrollableSubscriptionPlansForSubscriptionLocked(TypedXmlPullParser in)
+            throws IOException, XmlPullParserException {
+        long currentTime = System.currentTimeMillis();
+        int subId = in.getAttributeInt(null, ATTR_SUB_ID);
+        String owner = in.getAttributeValue(null, ATTR_OWNER);
+        long expirationTime = in.getAttributeLong(null, ATTR_EXPIRATION_TIME, 0);
+        long duration = expirationTime - currentTime;
+
+        // Check for expiration.
+        if (expirationTime > 0 && duration <= 0) {
+            logl("Skipping expired plans for subId=" + subId);
+            return;
+        }
+
+        List<SubscriptionPlan> plansList = new ArrayList<>();
+        int type;
+        int outerDepth = in.getDepth();
+        // Loop until the end of the current <sub-plans> tag
+        while ((type = in.next()) != XmlPullParser.END_DOCUMENT
+                && (type != XmlPullParser.END_TAG || in.getDepth() > outerDepth)) {
+            if (type == XmlPullParser.END_TAG || type == XmlPullParser.TEXT) continue;
+
+            if (TAG_PLAN.equals(in.getName())) {
+                SubscriptionPlan plan = readSingleSubscriptionPlan(in);
+                if (plan != null) {
+                    plansList.add(plan);
+                }
+            }
+        }
+
+        // If valid plans were found, restore them to the in-memory maps.
+        if (!plansList.isEmpty()) {
+            mEnrollableSubscriptionPlans.put(subId, plansList.toArray(new SubscriptionPlan[0]));
+            if (owner != null) mEnrollableSubscriptionPlansOwner.put(subId, owner);
+
+            if (expirationTime > 0) {
+                // Runnable registration will be done in the reschedule function.
+                mEnrollablePlanExpirationTime.put(subId, expirationTime);
+            }
+        }
+    }
+
+    /** Placeholder: Read SubscriptionPlan fields from XML attributes. */
+    @Nullable
+    private SubscriptionPlan readSingleSubscriptionPlan(TypedXmlPullParser in) {
+        try {
+            SubscriptionPlan.Builder builder;
+
+            // Read Cycle Rule (RecurrenceRule)
+            String cycleStart = in.getAttributeValue(null, ATTR_CYCLE_START);
+            String cycleEnd = in.getAttributeValue(null, ATTR_CYCLE_END);
+            String cyclePeriod = in.getAttributeValue(null, ATTR_CYCLE_PERIOD);
+
+            // Parse ZonedDateTime and Period using RecurrenceRule helpers or standard parsing
+            ZonedDateTime start =
+                    (cycleStart != null) ? RecurrenceRule.convertZonedDateTime(cycleStart) : null;
+            ZonedDateTime end =
+                    (cycleEnd != null) ? RecurrenceRule.convertZonedDateTime(cycleEnd) : null;
+            Period period =
+                    (cyclePeriod != null) ? RecurrenceRule.convertPeriod(cyclePeriod) : null;
+
+            if (period != null) {
+                builder = SubscriptionPlan.Builder.createRecurring(start, period);
+            } else {
+                builder = SubscriptionPlan.Builder.createNonrecurring(start, end);
+            }
+
+            // Read Title & Summary
+            String title = in.getAttributeValue(null, ATTR_TITLE);
+            if (title != null) builder.setTitle(title);
+
+            String summary = in.getAttributeValue(null, ATTR_SUMMARY);
+            if (summary != null) builder.setSummary(summary);
+
+            // Read Data Limit & Usage
+            long limitBytes =
+                    in.getAttributeLong(null, ATTR_LIMIT_BYTES, SubscriptionPlan.BYTES_UNKNOWN);
+            int limitBehavior =
+                    in.getAttributeInt(
+                            null, ATTR_LIMIT_BEHAVIOR, SubscriptionPlan.LIMIT_BEHAVIOR_UNKNOWN);
+            if (limitBytes != SubscriptionPlan.BYTES_UNKNOWN
+                    || limitBehavior != SubscriptionPlan.LIMIT_BEHAVIOR_UNKNOWN) {
+                builder.setDataLimit(limitBytes, limitBehavior);
+            }
+
+            long usageBytes =
+                    in.getAttributeLong(null, ATTR_USAGE_BYTES, SubscriptionPlan.BYTES_UNKNOWN);
+            long usageTime =
+                    in.getAttributeLong(null, ATTR_USAGE_TIME, SubscriptionPlan.TIME_UNKNOWN);
+            if (usageBytes != SubscriptionPlan.BYTES_UNKNOWN
+                    || usageTime != SubscriptionPlan.TIME_UNKNOWN) {
+                builder.setDataUsage(usageBytes, usageTime);
+            }
+
+            // Read Network Types (Comma separated integers)
+            String networkTypesStr = in.getAttributeValue(null, ATTR_NETWORK_TYPES);
+            if (networkTypesStr != null && !networkTypesStr.isEmpty()) {
+                try {
+                    int[] networkTypes =
+                            Arrays.stream(networkTypesStr.split(","))
+                                    .mapToInt(Integer::parseInt)
+                                    .toArray();
+                    builder.setNetworkTypes(networkTypes);
+                } catch (NumberFormatException e) {
+                    loge("Failed to parse network types: " + networkTypesStr);
+                }
+            }
+
+            // Read Subscription Status (New field)
+            int status =
+                    in.getAttributeInt(
+                            null,
+                            ATTR_SUBSCRIPTION_STATUS,
+                            SubscriptionPlan.SUBSCRIPTION_STATUS_UNKNOWN);
+            if (status != SubscriptionPlan.SUBSCRIPTION_STATUS_UNKNOWN) {
+                builder.setSubscriptionStatus(status);
+            }
+
+            return builder.build();
+
+        } catch (Exception e) {
+            loge("Failed to reconstruct SubscriptionPlan from XML: " + e);
+            return null;
+        }
+    }
+
+    /**
+     * Writes the current in-memory enrollable SubscriptionPlans to the XML file.
+     *
+     * <p>This method persists the state of {@link #mEnrollableSubscriptionPlans}, including the
+     * owner and expiration time for each subscription.
+     */
+    private void writeEnrollableSubscriptionPlans() {
+        if (!mFeatureFlags.subscriptionPlanEnhancement()) {
+            return;
+        }
+        if (mEnrollablePlansFile == null) {
+            loge("can't write enrollableSubscriptionPlans. File is null");
+            return;
+        }
+        synchronized (mEnrollablePlansFile) {
+            logl("write EnrollableSubscriptionPlans");
+
+            FileOutputStream fos = null;
+            try {
+                fos = mEnrollablePlansFile.startWrite();
+                TypedXmlSerializer out = new BinaryXmlSerializer();
+                out.setOutput(fos, "utf-8");
+
+                out.startDocument(null, true);
+                out.startTag(null, TAG_ENROLLABLE_PLANS);
+
+                for (Integer subId : mEnrollableSubscriptionPlans.keySet()) {
+                    SubscriptionPlan[] plans = mEnrollableSubscriptionPlans.get(subId);
+                    String owner = mEnrollableSubscriptionPlansOwner.get(subId);
+                    Long expirationTime = mEnrollablePlanExpirationTime.get(subId);
+
+                    if (plans != null && plans.length > 0) {
+                        out.startTag(null, TAG_SUB_PLANS);
+                        out.attributeInt(null, ATTR_SUB_ID, subId);
+                        if (owner != null) {
+                            out.attribute(null, ATTR_OWNER, owner);
+                        }
+                        if (expirationTime != null) {
+                            out.attributeLong(null, ATTR_EXPIRATION_TIME, expirationTime);
+                        }
+
+                        for (SubscriptionPlan plan : plans) {
+                            writeSingleSubscriptionPlan(out, plan);
+                        }
+                        out.endTag(null, TAG_SUB_PLANS);
+                    }
+                }
+
+                out.endTag(null, TAG_ENROLLABLE_PLANS);
+                out.endDocument();
+                mEnrollablePlansFile.finishWrite(fos);
+            } catch (Exception e) {
+                loge("Failed to write enrollable plans: " + e);
+                if (fos != null) mEnrollablePlansFile.failWrite(fos);
+            }
+        }
+    }
+
+    /**
+     * Writes a single SubscriptionPlan to the XML serializer.
+     *
+     * <p>Serializes all fields of the plan into attributes of the {@link #TAG_PLAN} tag.
+     *
+     * @param out The XML serializer.
+     * @param plan The SubscriptionPlan object to write.
+     */
+    private void writeSingleSubscriptionPlan(TypedXmlSerializer out, SubscriptionPlan plan)
+            throws IOException {
+        out.startTag(null, TAG_PLAN);
+
+        // 1. Write Cycle Rule
+        RecurrenceRule cycleRule = plan.getCycleRule();
+        if (cycleRule.start != null) {
+            out.attribute(
+                    null, ATTR_CYCLE_START, RecurrenceRule.convertZonedDateTime(cycleRule.start));
+        }
+        if (cycleRule.end != null) {
+            out.attribute(null, ATTR_CYCLE_END, RecurrenceRule.convertZonedDateTime(cycleRule.end));
+        }
+        if (cycleRule.period != null) {
+            out.attribute(null, ATTR_CYCLE_PERIOD, RecurrenceRule.convertPeriod(cycleRule.period));
+        }
+
+        // 2. Write Title & Summary
+        if (plan.getTitle() != null) {
+            out.attribute(null, ATTR_TITLE, plan.getTitle().toString());
+        }
+        if (plan.getSummary() != null) {
+            out.attribute(null, ATTR_SUMMARY, plan.getSummary().toString());
+        }
+
+        // 3. Write Limit & Usage
+        if (plan.getDataLimitBytes() != SubscriptionPlan.BYTES_UNKNOWN) {
+            out.attributeLong(null, ATTR_LIMIT_BYTES, plan.getDataLimitBytes());
+        }
+        if (plan.getDataLimitBehavior() != SubscriptionPlan.LIMIT_BEHAVIOR_UNKNOWN) {
+            out.attributeInt(null, ATTR_LIMIT_BEHAVIOR, plan.getDataLimitBehavior());
+        }
+        if (plan.getDataUsageBytes() != SubscriptionPlan.BYTES_UNKNOWN) {
+            out.attributeLong(null, ATTR_USAGE_BYTES, plan.getDataUsageBytes());
+        }
+        if (plan.getDataUsageTime() != SubscriptionPlan.TIME_UNKNOWN) {
+            out.attributeLong(null, ATTR_USAGE_TIME, plan.getDataUsageTime());
+        }
+
+        // 4. Write Network Types (as Comma Separated String for simplicity in single tag)
+        int[] networkTypes = plan.getNetworkTypes();
+        if (networkTypes != null && networkTypes.length > 0) {
+            // e.g., "13,20"
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < networkTypes.length; i++) {
+                sb.append(networkTypes[i]);
+                if (i < networkTypes.length - 1) sb.append(",");
+            }
+            out.attribute(null, ATTR_NETWORK_TYPES, sb.toString());
+        }
+
+        // 5. Write Subscription Status
+        if (plan.getSubscriptionStatus() != SubscriptionPlan.SUBSCRIPTION_STATUS_UNKNOWN) {
+            out.attributeInt(null, ATTR_SUBSCRIPTION_STATUS, plan.getSubscriptionStatus());
+        }
+
+        out.endTag(null, TAG_PLAN);
     }
 
     /**
@@ -5585,6 +6117,47 @@ public class SubscriptionManagerService extends ISub.Stub {
             if (mEuiccManager != null) {
                 pw.println("Euicc enabled=" + mEuiccManager.isEnabled());
             }
+
+            pw.println();
+            pw.println("Enrollable Subscription Plans:");
+            pw.increaseIndent();
+            if (mEnrollableSubscriptionPlans.isEmpty()) {
+                pw.println("None");
+            } else {
+                for (Map.Entry<Integer, SubscriptionPlan[]> entry :
+                        mEnrollableSubscriptionPlans.entrySet()) {
+                    int subId = entry.getKey();
+                    pw.println("SubId: " + subId);
+                    pw.increaseIndent();
+
+                    String owner = mEnrollableSubscriptionPlansOwner.get(subId);
+                    pw.println("Owner: " + (owner != null ? owner : "null"));
+
+                    Long expirationTime = mEnrollablePlanExpirationTime.get(subId);
+                    if (expirationTime != null) {
+                        pw.println(
+                                "Expiration: "
+                                        + expirationTime
+                                        + " ("
+                                        + java.time.Instant.ofEpochMilli(expirationTime)
+                                        + ")");
+                    } else {
+                        pw.println("Expiration: Never");
+                    }
+
+                    SubscriptionPlan[] plans = entry.getValue();
+                    if (plans != null) {
+                        for (SubscriptionPlan plan : plans) {
+                            pw.println(plan);
+                        }
+                    } else {
+                        pw.println("Plans: null");
+                    }
+                    pw.decreaseIndent();
+                }
+            }
+            pw.decreaseIndent();
+
             pw.println();
             pw.println("Local log:");
             pw.increaseIndent();
