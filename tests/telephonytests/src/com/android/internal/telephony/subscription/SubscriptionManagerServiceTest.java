@@ -1923,6 +1923,10 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
         assertThat(mSubscriptionManagerServiceUT.getPhoneNumberFromFirstAvailableSource(
                 subId, CALLING_PACKAGE, CALLING_FEATURE)).isEqualTo("");
 
+        setCarrierPrivilegesForSubId(true, subId);
+        assertThat(mSubscriptionManagerServiceUT.getPhoneNumberFromFirstAvailableSource(
+                subId, CALLING_PACKAGE, CALLING_FEATURE)).isEqualTo(phoneNumberFromTs43);
+
         multiNumberSubInfo =
                 new SubscriptionInfoInternal.Builder(multiNumberSubInfo)
                         .setNumberFromCarrier("")
@@ -2766,15 +2770,39 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
 
     @Test
     @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
-    public void testGetPhoneNumber_ts43_unprivilegedUid() {
+    public void testGetPhoneNumber_ts43() throws Exception {
         mContextFixture.addCallingOrSelfPermission(Manifest.permission.READ_PRIVILEGED_PHONE_STATE);
-        doReturn(10001).when(mBinder).getCallingUid();
+        mContextFixture.addCallingOrSelfPermission(Manifest.permission.MODIFY_PHONE_STATE);
 
+        int subId = insertSubscription(FAKE_SUBSCRIPTION_INFO1);
+        String ts43Number = "1234567890";
+
+        mSubscriptionManagerServiceUT.setPhoneNumber(subId,
+                SubscriptionManager.PHONE_NUMBER_SOURCE_TS43, ts43Number,
+                CALLING_PACKAGE, CALLING_FEATURE);
+
+        doReturn(10001).when(mBinder).getCallingUid();
+        setCarrierPrivilegesForSubId(false, subId);
         assertThrows(SecurityException.class, () ->
                 mSubscriptionManagerServiceUT.getPhoneNumber(
-                        SubscriptionManager.DEFAULT_SUBSCRIPTION_ID,
+                        subId,
                         SubscriptionManager.PHONE_NUMBER_SOURCE_TS43,
                         CALLING_PACKAGE, CALLING_FEATURE));
+
+        setCarrierPrivilegesForSubId(true, subId);
+        String result = mSubscriptionManagerServiceUT.getPhoneNumber(
+                subId,
+                SubscriptionManager.PHONE_NUMBER_SOURCE_TS43,
+                CALLING_PACKAGE, CALLING_FEATURE);
+        assertThat(result).isEqualTo(ts43Number);
+
+        setCarrierPrivilegesForSubId(false, subId);
+        doReturn(Process.SYSTEM_UID).when(mBinder).getCallingUid();
+        result = mSubscriptionManagerServiceUT.getPhoneNumber(
+                subId,
+                SubscriptionManager.PHONE_NUMBER_SOURCE_TS43,
+                CALLING_PACKAGE, CALLING_FEATURE);
+        assertThat(result).isEqualTo(ts43Number);
     }
 
     @Test
