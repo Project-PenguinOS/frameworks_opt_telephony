@@ -16,6 +16,13 @@
 
 package com.android.internal.telephony.satellite;
 
+import static android.telephony.satellite.SatelliteManager.NT_RADIO_TECHNOLOGY_EMTC_NTN;
+import static android.telephony.satellite.SatelliteManager.NT_RADIO_TECHNOLOGY_LTE_DTC;
+import static android.telephony.satellite.SatelliteManager.NT_RADIO_TECHNOLOGY_NB_IOT_NTN;
+import static android.telephony.satellite.SatelliteManager.NT_RADIO_TECHNOLOGY_NR_DTC;
+import static android.telephony.satellite.SatelliteManager.NT_RADIO_TECHNOLOGY_NR_NTN;
+import static android.telephony.satellite.SatelliteManager.NT_RADIO_TECHNOLOGY_PROPRIETARY;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -181,6 +188,18 @@ public class SatelliteServiceUtilsTest extends TelephonyTest {
         when(mServiceState.getState()).thenReturn(ServiceState.STATE_OUT_OF_SERVICE);
         when(mServiceState2.isEmergencyOnly()).thenReturn(false);
         assertFalse(SatelliteServiceUtils.isCellularAvailable());
+    }
+
+    @Test
+    public void testIsSatelliteTechSupported() {
+        assertTrue(SatelliteServiceUtils.isSatelliteTechSupported(NT_RADIO_TECHNOLOGY_NB_IOT_NTN));
+        assertTrue(SatelliteServiceUtils.isSatelliteTechSupported(NT_RADIO_TECHNOLOGY_LTE_DTC));
+        assertTrue(SatelliteServiceUtils.isSatelliteTechSupported(NT_RADIO_TECHNOLOGY_NR_DTC));
+        assertTrue(SatelliteServiceUtils.isSatelliteTechSupported(NT_RADIO_TECHNOLOGY_NR_NTN));
+        assertFalse(
+                SatelliteServiceUtils.isSatelliteTechSupported(NT_RADIO_TECHNOLOGY_PROPRIETARY));
+        assertFalse(SatelliteServiceUtils.isSatelliteTechSupported(NT_RADIO_TECHNOLOGY_EMTC_NTN));
+        assertFalse(SatelliteServiceUtils.isSatelliteTechSupported(NT_RADIO_TECHNOLOGY_EMTC_NTN));
     }
 
     @Test

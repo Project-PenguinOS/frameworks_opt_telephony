@@ -84,6 +84,7 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
@@ -110,6 +111,9 @@ public class SatelliteSOSMessageRecommenderTest extends TelephonyTest {
     private static final int PHONE_ID2 = 1;
     private static final int SUB_ID = SubscriptionManager.DEFAULT_SUBSCRIPTION_ID;
     private static final int SUB_ID1 = 1;
+    private static final int SUB_ID2 = 2;
+    private static final int CARRIER_ID1 = 1234;
+    private static final int CARRIER_ID2 = 5678;
     private static final String CALL_ID = "CALL_ID";
     private static final String WRONG_CALL_ID = "WRONG_CALL_ID";
     private static final String DEFAULT_SATELLITE_MESSAGING_PACKAGE = "android.com.google.default";
@@ -780,8 +784,12 @@ public class SatelliteSOSMessageRecommenderTest extends TelephonyTest {
             true, SUB_ID1);
         mTestSatelliteController.mIsDeviceProvisionedForTest = true;
         mTestSOSMessageRecommender.onEmergencyCallStarted(mTestConnection, false);
-        assertEquals(EMERGENCY_CALL_TO_SATELLITE_HANDOVER_TYPE_T911,
-                mTestSOSMessageRecommender.getEmergencyCallToSatelliteHandoverType());
+        Pair<Integer, Integer> subIdAndHandoverType =
+                mTestSOSMessageRecommender.getEmergencyCallToSatelliteHandoverType();
+        int actualSubId = subIdAndHandoverType.first;
+        int actualHandoverType = subIdAndHandoverType.second;
+        assertEquals(SUB_ID1, actualSubId);
+        assertEquals(EMERGENCY_CALL_TO_SATELLITE_HANDOVER_TYPE_T911, actualHandoverType);
         verify(mMockSatelliteStats, never()).onSatelliteSosMessageRecommender(any());
     }
 
@@ -791,8 +799,12 @@ public class SatelliteSOSMessageRecommenderTest extends TelephonyTest {
             true, SUB_ID1);
         mTestSatelliteController.mIsDeviceProvisionedForTest = false;
         mTestSOSMessageRecommender.onEmergencyCallStarted(mTestConnection, false);
-        assertEquals(EMERGENCY_CALL_TO_SATELLITE_HANDOVER_TYPE_T911,
-                mTestSOSMessageRecommender.getEmergencyCallToSatelliteHandoverType());
+        Pair<Integer, Integer> subIdAndHandoverType =
+                mTestSOSMessageRecommender.getEmergencyCallToSatelliteHandoverType();
+        int actualSubId = subIdAndHandoverType.first;
+        int actualHandoverType = subIdAndHandoverType.second;
+        assertEquals(SUB_ID1, actualSubId);
+        assertEquals(EMERGENCY_CALL_TO_SATELLITE_HANDOVER_TYPE_T911, actualHandoverType);
         verify(mMockSatelliteStats, never()).onSatelliteSosMessageRecommender(any());
     }
 
@@ -803,8 +815,12 @@ public class SatelliteSOSMessageRecommenderTest extends TelephonyTest {
         mTestSatelliteController.isOemEnabledSatelliteSupported = true;
         mTestSatelliteController.setDeviceProvisioned(true);
         mTestSOSMessageRecommender.onEmergencyCallStarted(mTestConnection, false);
-        assertEquals(EMERGENCY_CALL_TO_SATELLITE_HANDOVER_TYPE_SOS,
-                mTestSOSMessageRecommender.getEmergencyCallToSatelliteHandoverType());
+        Pair<Integer, Integer> subIdAndHandoverType =
+                mTestSOSMessageRecommender.getEmergencyCallToSatelliteHandoverType();
+        int actualSubId = subIdAndHandoverType.first;
+        int actualHandoverType = subIdAndHandoverType.second;
+        assertEquals(SUB_ID1, actualSubId);
+        assertEquals(EMERGENCY_CALL_TO_SATELLITE_HANDOVER_TYPE_SOS, actualHandoverType);
         verify(mMockSatelliteStats, never()).onSatelliteSosMessageRecommender(any());
     }
 
@@ -813,14 +829,22 @@ public class SatelliteSOSMessageRecommenderTest extends TelephonyTest {
         mTestSatelliteController.setSatelliteConnectedViaCarrierWithinHysteresisTime(false, -1);
         mTestSatelliteController.mIsDeviceProvisionedForTest = true;
         mTestSOSMessageRecommender.onEmergencyCallStarted(mTestConnection, false);
-        assertEquals(EMERGENCY_CALL_TO_SATELLITE_HANDOVER_TYPE_SOS,
-                mTestSOSMessageRecommender.getEmergencyCallToSatelliteHandoverType());
+        Pair<Integer, Integer> subIdAndHandoverType =
+                mTestSOSMessageRecommender.getEmergencyCallToSatelliteHandoverType();
+        int actualSubId = subIdAndHandoverType.first;
+        int actualHandoverType = subIdAndHandoverType.second;
+        assertEquals(SUB_ID1, actualSubId);
+        assertEquals(EMERGENCY_CALL_TO_SATELLITE_HANDOVER_TYPE_SOS, actualHandoverType);
 
         mTestSatelliteController.setSatelliteConnectedViaCarrierWithinHysteresisTime(false, -1);
         mTestSatelliteController.mIsDeviceProvisionedForTest = false;
         mTestSOSMessageRecommender.onEmergencyCallStarted(mTestConnection, false);
-        assertEquals(EMERGENCY_CALL_TO_SATELLITE_HANDOVER_TYPE_SOS,
-                mTestSOSMessageRecommender.getEmergencyCallToSatelliteHandoverType());
+        subIdAndHandoverType = mTestSOSMessageRecommender.getEmergencyCallToSatelliteHandoverType();
+        actualSubId = subIdAndHandoverType.first;
+        actualHandoverType =
+                mTestSOSMessageRecommender.getEmergencyCallToSatelliteHandoverType().second;
+        assertEquals(SUB_ID1, actualSubId);
+        assertEquals(EMERGENCY_CALL_TO_SATELLITE_HANDOVER_TYPE_SOS, actualHandoverType);
         verify(mMockSatelliteStats, never()).onSatelliteSosMessageRecommender(any());
     }
 
@@ -928,6 +952,105 @@ public class SatelliteSOSMessageRecommenderTest extends TelephonyTest {
         assertUnregisterForStateChangedEventsTriggered(mPhone2, 1, 1);
         verify(mMockSatelliteStats, times(1)).onSatelliteSosMessageRecommender(any());
         assertTrue(mTestSOSMessageRecommender.isDialerNotified());
+    }
+
+    @Test
+    public void testReportESosRecommenderDecision_SOS() {
+        // Scenario 1 : SOS / SUB_ID1 case
+        int expectedSubId = SUB_ID1;
+        int expectedHandoverType = EMERGENCY_CALL_TO_SATELLITE_HANDOVER_TYPE_SOS;
+        boolean isDialerNotified = true;
+        int expectedCarrierId = CARRIER_ID1;
+
+        // Configure SatelliteController for SOS
+        mTestSatelliteController.setSatelliteConnectedViaCarrierWithinHysteresisTime(false, -1);
+        mTestSatelliteController.isOemEnabledSatelliteSupported = true;
+        mTestSatelliteController.setDeviceProvisioned(true);
+        mTestSatelliteController.selectedSatelliteSubId = expectedSubId;
+
+        doReturn(true).when(mTelephonyManager).isMultiSimEnabled();
+        doReturn(expectedCarrierId).when(mPhone).getCarrierId();
+
+        SubscriptionInfo subscriptionInfo = new SubscriptionInfo.Builder()
+                .setId(expectedSubId).setOnlyNonTerrestrialNetwork(true).build();
+        when(mMockSubscriptionManagerService.getSubscriptionInfo(eq(expectedSubId)))
+                .thenReturn(subscriptionInfo);
+        when(mSubscriptionManager.getPhoneId(eq(expectedSubId))).thenReturn(PHONE_ID);
+
+        // Trigger an emergency call
+        mTestSOSMessageRecommender.isSatelliteAllowedCallback = null;
+        mTestSOSMessageRecommender.onEmergencyCallStarted(mTestConnection, false);
+        processAllMessages();
+
+        // Move to DIALING state to trigger restriction check
+        mTestSOSMessageRecommender.onEmergencyCallConnectionStateChanged(
+                mTestConnection.getTelecomCallId(), Connection.STATE_DIALING);
+        processAllMessages();
+
+        // Respond to the geofence check
+        if (mTestSOSMessageRecommender.isSatelliteAllowedCallback != null) {
+            mTestSOSMessageRecommender.isSatelliteAllowedCallback.onResult(true);
+        }
+
+        // Move time forward to expire timer
+        moveTimeForward(TEST_EMERGENCY_CALL_TO_SOS_MSG_HYSTERESIS_TIMEOUT_MILLIS);
+        processAllMessages();
+
+        ArgumentCaptor<SatelliteStats.SatelliteSosMessageRecommenderParams> captor =
+                ArgumentCaptor.forClass(SatelliteStats.SatelliteSosMessageRecommenderParams.class);
+        verify(mMockSatelliteStats, times(1)).onSatelliteSosMessageRecommender(captor.capture());
+        SatelliteStats.SatelliteSosMessageRecommenderParams params = captor.getValue();
+
+        assertEquals(isDialerNotified, params.isDisplaySosMessageSent());
+        assertEquals(1, params.getCountOfTimerStarted());
+        assertEquals(expectedHandoverType, params.getRecommendingHandoverType());
+        assertTrue(params.isMultiSim());
+        assertEquals(expectedCarrierId, params.getCarrierId());
+        assertEquals(true, params.isNtnOnlyCarrier());
+    }
+
+    @Test
+    public void testReportESosRecommenderDecision_T911() {
+        // Scenario 2 : T911/  SUB_ID2 case
+        int expectedSubId = SUB_ID2;
+        int expectedHandoverType = EMERGENCY_CALL_TO_SATELLITE_HANDOVER_TYPE_T911;
+        boolean isDialerNotified = false;
+        int expectedCarrierId = CARRIER_ID2;
+
+        // Configure SatelliteController for T911
+        mTestSatelliteController.setSatelliteConnectedViaCarrierWithinHysteresisTime(
+                true, expectedSubId);
+        mTestSatelliteController.carrierRoamingNtnEmergencyCallToSatelliteHandoverType =
+                EMERGENCY_CALL_TO_SATELLITE_HANDOVER_TYPE_T911;
+
+        doReturn(true).when(mTelephonyManager).isMultiSimEnabled();
+        doReturn(expectedCarrierId).when(mPhone).getCarrierId();
+
+        SubscriptionInfo subscriptionInfo = new SubscriptionInfo.Builder()
+                .setId(expectedSubId).setOnlyNonTerrestrialNetwork(false).build();
+        when(mMockSubscriptionManagerService.getSubscriptionInfo(eq(expectedSubId)))
+                .thenReturn(subscriptionInfo);
+        when(mSubscriptionManager.getPhoneId(eq(expectedSubId))).thenReturn(PHONE_ID);
+
+        // Trigger via call end (which calls cleanUpResources(false))
+        mTestSOSMessageRecommender.onEmergencyCallStarted(mTestConnection, false);
+        processAllMessages();
+
+        mTestSOSMessageRecommender.onEmergencyCallConnectionStateChanged(
+                CALL_ID, Connection.STATE_DISCONNECTED);
+        processAllMessages();
+
+        ArgumentCaptor<SatelliteStats.SatelliteSosMessageRecommenderParams> captor =
+                ArgumentCaptor.forClass(SatelliteStats.SatelliteSosMessageRecommenderParams.class);
+        verify(mMockSatelliteStats, times(1)).onSatelliteSosMessageRecommender(captor.capture());
+        SatelliteStats.SatelliteSosMessageRecommenderParams params = captor.getValue();
+
+        assertEquals(isDialerNotified, params.isDisplaySosMessageSent());
+        assertEquals(1, params.getCountOfTimerStarted());
+        assertEquals(expectedHandoverType, params.getRecommendingHandoverType());
+        assertTrue(params.isMultiSim());
+        assertEquals(expectedCarrierId, params.getCarrierId());
+        assertEquals(false, params.isNtnOnlyCarrier());
     }
 
     private void testStopTrackingCallBeforeTimeout(
@@ -1344,8 +1467,9 @@ public class SatelliteSOSMessageRecommenderTest extends TelephonyTest {
             return super.isDeviceProvisioned();
         }
 
+        @NonNull
         @Override
-        protected int getEmergencyCallToSatelliteHandoverType() {
+        protected Pair<Integer, Integer> getEmergencyCallToSatelliteHandoverType() {
             return super.getEmergencyCallToSatelliteHandoverType();
         }
 

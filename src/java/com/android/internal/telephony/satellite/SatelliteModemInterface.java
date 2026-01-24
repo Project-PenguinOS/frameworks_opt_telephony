@@ -79,6 +79,8 @@ public class SatelliteModemInterface {
 
     @NonNull private final SatelliteController mSatelliteController;
 
+    @NonNull private final FeatureFlags mFeatureFlags;
+
     @Nullable private PersistentLogger mPersistentLogger = null;
 
     /** All the atomic variables are declared here. */
@@ -266,6 +268,7 @@ public class SatelliteModemInterface {
         mDemoListener = new SatelliteListener(true);
         mIsSatelliteServiceSupported.set(getSatelliteServiceSupport());
         mSatelliteController = satelliteController;
+        mFeatureFlags = featureFlags;
         mExponentialBackoff = new ExponentialBackoff(REBIND_INITIAL_DELAY, REBIND_MAXIMUM_DELAY,
                 REBIND_MULTIPLIER, looper, () -> {
             if ((mIsBound.get() && mSatelliteService != null) || mIsBinding.get()) {
@@ -687,6 +690,62 @@ public class SatelliteModemInterface {
             }
         }
     }
+
+    /**
+     * Request modem to suspend satellite mode during a satellite session.
+     * @param enabled  {@code true} to suspend satellite mode
+     * while satellite mode is on and {@code false} to resume satellite mode.
+     * @param message The Message to send to result of the operation to.
+     */
+    public void requestSatelliteSuspended(boolean enabled,
+            @Nullable Message message) {
+        if (!mFeatureFlags.satelliteSuspend()) {
+            ploge("requestSatelliteSuspended: satellite_suspend is disabled.");
+            if (message != null) {
+                sendMessageWithResult(message, null,
+                        SatelliteManager.SATELLITE_RESULT_REQUEST_NOT_SUPPORTED);
+            }
+            return;
+        }
+
+        if (mSatelliteService != null) {
+            try {
+                IIntegerConsumer errorCallback = new IIntegerConsumer.Stub() {
+                    @Override
+                    public void accept(int result) {
+                        int error = SatelliteServiceUtils.fromSatelliteError(result);
+                        plogd("requestSatelliteSuspended: " + error);
+                        Binder.withCleanCallingIdentity(() -> {
+                            if (message != null) {
+                                sendMessageWithResult(message, null, error);
+                            }
+                        });
+                    }
+                };
+
+                if (mSatelliteController.isDemoModeEnabled()) {
+                    mDemoSimulator.requestSatelliteSuspended(
+                            enabled, errorCallback);
+                } else {
+                    mSatelliteService.requestSatelliteSuspended(
+                            enabled, errorCallback);
+                }
+            } catch (RemoteException e) {
+                ploge("requestSatelliteSuspended: RemoteException " + e);
+                if (message != null) {
+                    sendMessageWithResult(
+                            message, null, SatelliteManager.SATELLITE_RESULT_SERVICE_ERROR);
+                }
+            }
+        } else {
+            ploge("requestSatelliteSuspended: Satellite service is unavailable.");
+            if (message != null) {
+                sendMessageWithResult(message, null,
+                        SatelliteManager.SATELLITE_RESULT_RADIO_NOT_AVAILABLE);
+            }
+        }
+    }
+
     /**
      * Request to enable or disable the satellite modem and demo mode. If the satellite modem
      * is enabled, this may also disable the cellular modem, and if the satellite modem is disabled,

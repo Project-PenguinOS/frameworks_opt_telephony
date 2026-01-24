@@ -1566,15 +1566,53 @@ public abstract class InboundSmsHandler extends StateMachine {
             mAtomsStorage.addOtpEvaluationEvent(evaluationEvent);
         } else {
             if (containsOtp(textLinks)) {
-                String smsRetrieverHashMatchedPackageName = getSmsRetrieverTargetPackageName(
-                        textLinks);
-                sendBroadcastToTrustedPackages(intent, permission, appOp, opts,
-                        resultReceiver, user, smsRetrieverHashMatchedPackageName);
+                if (android.view.flags.Flags.redactOtpAppCompatApi() && isGenericOtp(textLinks)) {
+                    sendBroadcastForGenericOtp(intent, permission, appOp, opts, resultReceiver,
+                            user);
+                } else {
+                    String smsRetrieverHashMatchedPackageName = getSmsRetrieverTargetPackageName(
+                            textLinks);
+                    sendBroadcastToTrustedPackages(intent, permission, appOp, opts,
+                            resultReceiver, user, smsRetrieverHashMatchedPackageName);
+                }
             } else {
                 sendBroadcastWithStandardPermissions(intent, permission, appOp, opts,
                         resultReceiver, user);
             }
         }
+    }
+
+    private boolean isGenericOtp(@NonNull Collection<TextLinks.TextLink> links) {
+        boolean containsOtp = false;
+        for (TextLinks.TextLink link : links) {
+            for (int i = 0; i < link.getEntityCount(); i++) {
+                if (android.view.flags.Flags.redactOtpAppCompatApi()
+                        && link.getEntity(i).equals(TextClassifier.TYPE_OTP)) {
+                    containsOtp = true;
+                } else if (link.getEntity(i).equals(TextClassifier.TYPE_SMS_RETRIEVER_OTP)
+                    || (android.view.flags.Flags.redactWebOtpSmsApi()
+                           && link.getEntity(i).equals(TextClassifier.TYPE_SMS_WEB_OTP))) {
+                    // If `TYPE_SMS_WEB_OTP` or `TYPE_SMS_RETRIEVER_OTP` is found, then this
+                    // OTP is not generic.
+                    return false;
+                }
+            }
+        }
+        return containsOtp;
+    }
+
+    private void sendBroadcastForGenericOtp(Intent intent, String permission,
+            String appOp, Bundle opts, SmsBroadcastReceiver resultReceiver, UserHandle user) {
+        // Send to all packages which does not target SDK 37.
+        BroadcastOptions broadcastOptions = new BroadcastOptions(opts);
+        broadcastOptions.setRequireCompatChange(SmsManager.FILTER_GENERIC_OTP, false /*=enabled*/);
+        sendBroadcastWithStandardPermissions(intent, permission, appOp, broadcastOptions.toBundle(),
+                resultReceiver, user);
+
+        // Send only to trusted packages for packages that target SDK 37.
+        broadcastOptions.setRequireCompatChange(SmsManager.FILTER_GENERIC_OTP, true /*=enabled*/);
+        sendBroadcastToTrustedPackages(intent, permission, appOp, broadcastOptions.toBundle(),
+                resultReceiver, user, null);
     }
 
     private Collection<TextLinks.TextLink> getOtpLinksAndLogMetrics(Intent intent) {
