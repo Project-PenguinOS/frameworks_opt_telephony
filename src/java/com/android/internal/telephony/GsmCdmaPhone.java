@@ -1990,7 +1990,7 @@ public class GsmCdmaPhone extends Phone {
     }
 
     @Override
-    public String getPlmn() {
+    public String getPnnHomeNetworkName() {
         IccRecords r = mIccRecords.get();
         return (r != null) ? r.getPnnHomeName() : null;
     }
