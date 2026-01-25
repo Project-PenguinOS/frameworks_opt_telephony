@@ -36,7 +36,7 @@ public class NtnCapabilityResolver {
      * connecting to a non-terrestrial network and the available services supported by the network.
      *
      * @param networkRegistrationInfo The NetworkRegistrationInfo of a network.
-     * @param subId The subscription ID associated with a phone.
+     * @param subId                   The subscription ID associated with a phone.
      */
     public static void resolveNtnCapability(
             @NonNull NetworkRegistrationInfo networkRegistrationInfo, int subId) {
@@ -49,15 +49,19 @@ public class NtnCapabilityResolver {
         SatelliteController satelliteController = SatelliteController.getInstance();
         Set<String> allSatellitePlmns = satelliteController.getAllPlmnSet();
         boolean isNtn = networkRegistrationInfo.isNonTerrestrialNetwork();
-        logd("isNonTerrestrialNetwork()=" + isNtn);
+        boolean isDtcSupported =
+                satelliteController.isDtcSatelliteTechnologySupported(subId, registeredPlmn);
+        logd("isNtn=" + isNtn);
+        logd("isDtcSupported=" + isDtcSupported);
+
         for (String satellitePlmn : allSatellitePlmns) {
-            if ((TextUtils.equals(satellitePlmn, registeredPlmn) || isNtn)) {
+            if (isNtn || (TextUtils.equals(satellitePlmn, registeredPlmn) && isDtcSupported)) {
+                networkRegistrationInfo.setIsNonTerrestrialNetwork(true);
                 List<Integer> supportedServices =
                         satelliteController.getSupportedSatelliteServicesForPlmn(
-                                subId, satellitePlmn);
-                networkRegistrationInfo.setIsNonTerrestrialNetwork(true);
+                                subId, registeredPlmn);
                 networkRegistrationInfo.setAvailableServices(supportedServices);
-                logd("Registered to satellite PLMN " + satellitePlmn
+                logd("Registered to satellite PLMN " + registeredPlmn
                         + ", supportedServices = " + supportedServices);
                 return;
             }

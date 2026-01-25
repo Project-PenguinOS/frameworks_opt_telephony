@@ -2068,7 +2068,6 @@ public class TelephonyRegistryTest extends TelephonyTest {
 
 
     @Test
-    @EnableFlags(Flags.FLAG_SECURITY_ALGORITHMS_UPDATE_INDICATIONS)
     public void testNotifySecurityAlgorithmsChanged() {
         int subId = 1;
         int[] events = {TelephonyCallback.EVENT_SECURITY_ALGORITHMS_CHANGED};

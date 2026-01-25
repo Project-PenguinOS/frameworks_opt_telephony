@@ -494,7 +494,6 @@ public class TelephonyNetworkRequestTest extends TelephonyTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_UNSUPPORTED_NETWORK_CAPABILITIES_PER_CARRIER)
     public void testGetAllSupportedNetworkCapabilities() {
         List<Integer> caps = TelephonyNetworkRequest.getAllSupportedNetworkCapabilities();
         assertThat(caps).containsExactly(NetworkCapabilities.NET_CAPABILITY_MMS,
@@ -517,7 +516,6 @@ public class TelephonyNetworkRequestTest extends TelephonyTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_UNSUPPORTED_NETWORK_CAPABILITIES_PER_CARRIER)
     public void testGetAllSupportedNetworkCapabilitiesOldHal() {
         doReturn(RIL.RADIO_HAL_VERSION_1_5).when(mPhone).getHalVersion();
         List<Integer> caps = TelephonyNetworkRequest.getAllSupportedNetworkCapabilities();
