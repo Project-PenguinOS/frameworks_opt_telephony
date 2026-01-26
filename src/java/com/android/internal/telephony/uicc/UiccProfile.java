@@ -507,7 +507,7 @@ public class UiccProfile extends IccCard {
             // carrier id
             Phone phone = PhoneFactory.getPhone(mPhoneId);
             if (phone != null) {
-                String currPnn = phone.getPlmn();   // Get the name from EF_PNN.
+                String currPnn = phone.getPnnHomeNetworkName();   // Get the name from EF_PNN.
                 if (!TextUtils.isEmpty(currPnn)) {
                     newCarrierName = currPnn;
                     nameSource = SubscriptionManager.NAME_SOURCE_SIM_PNN;

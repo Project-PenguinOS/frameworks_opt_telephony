@@ -98,3 +98,27 @@ flag {
     description: "Skip available eSIM port check for opportunistic subscription."
     bug: "469500968"
 }
+
+# OWNER=melhuishj TARGET=26Q2
+flag {
+  name: "ons_handler_thread"
+  namespace: "telephony"
+  description: "Switch to using HandlerThread"
+  bug: "240081918"
+  is_exported: false
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}
+
+# OWNER=kevinching TARGET=26Q2
+flag {
+  name: "remote_sim_sub_id_set"
+  namespace: "telephony"
+  description: "Put remote SIMs in their own set instead of the slot index mapping"
+  bug: "455587208"
+  is_exported: false
+  metadata {
+      purpose: PURPOSE_BUGFIX
+  }
+}
