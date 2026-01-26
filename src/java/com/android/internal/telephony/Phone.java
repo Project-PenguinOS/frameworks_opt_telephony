@@ -3721,7 +3721,7 @@ public abstract class Phone extends Handler implements PhoneInternalInterface {
     /**
      * Retrieves the EF_PNN from the UICC For GSM/UMTS phones.
      */
-    public String getPlmn() {
+    public String getPnnHomeNetworkName() {
         return null;
     }
 
