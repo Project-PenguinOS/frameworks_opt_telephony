@@ -2903,7 +2903,8 @@ public abstract class SMSDispatcher extends Handler {
             final long identity = Binder.clearCallingIdentity();
             final ContentResolver resolver = context.getContentResolver();
             try {
-                final Uri uri =  resolver.insert(Telephony.Sms.Sent.CONTENT_URI, values);
+                final Uri uri =  resolver.insert(messageType == Sms.MESSAGE_TYPE_DRAFT
+                        ? Telephony.Sms.Draft.CONTENT_URI : Telephony.Sms.Sent.CONTENT_URI, values);
                 if (uri != null && messageType == Sms.MESSAGE_TYPE_FAILED) {
                     // Since we can't persist a message directly into FAILED box,
                     // we have to update the column after we persist it into SENT box.
