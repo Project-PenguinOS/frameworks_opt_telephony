@@ -161,7 +161,7 @@ public class EmergencyStateTracker {
     private final Runnable mExitEcmRunnable = () -> exitEmergencyCallbackMode(
             STOP_REASON_TIMER_EXPIRED);
     // Tracks emergency calls by callId that have reached {@link Call.State#ACTIVE}.
-    private final Set<android.telecom.Connection> mActiveEmergencyCalls = new ArraySet<>();
+    private final ArraySet<android.telecom.Connection> mActiveEmergencyCalls = new ArraySet<>();
     private Phone mPhone;
     // Tracks ongoing emergency connection to handle a second emergency call
     private android.telecom.Connection mOngoingConnection;
@@ -762,9 +762,18 @@ public class EmergencyStateTracker {
         boolean wasActive = mActiveEmergencyCalls.remove(c);
 
         if (Objects.equals(mOngoingConnection, c)) {
-            mOngoingConnection = null;
+            if (mFeatureFlags.handleSecondEmergencyCall()) {
+                if (mActiveEmergencyCalls.isEmpty()) {
+                    mOngoingConnection = null;
+                    sendEmergencyCallStateChange(mPhone, false);
+                } else {
+                    mOngoingConnection = mActiveEmergencyCalls.valueAt(0);
+                }
+            } else {
+                mOngoingConnection = null;
+                sendEmergencyCallStateChange(mPhone, false);
+            }
             mOngoingCallProperties = 0;
-            sendEmergencyCallStateChange(mPhone, false);
             unregisterForVoiceRegStateOrRatChanged();
         }
 
