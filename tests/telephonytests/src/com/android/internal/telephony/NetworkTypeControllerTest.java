@@ -2500,4 +2500,28 @@ public class NetworkTypeControllerTest extends TelephonyTest {
         assertEquals(TelephonyDisplayInfo.OVERRIDE_NETWORK_TYPE_NONE,
             mNetworkTypeController.getOverrideNetworkType());
     }
+
+    @Test
+    public void testUpdateBandwidthConstrainedStatus() throws Exception {
+        // Verify initial state
+        assertFalse(mNetworkTypeController.getSatelliteConstrainedData());
+
+        // Invoke updateBandwidthConstrainedStatus(true) via reflection
+        // to bypass the StateMachine handler which might be outdated in the test environment.
+        Method method = NetworkTypeController.class.getDeclaredMethod(
+                "updateBandwidthConstrainedStatus", boolean.class);
+        method.setAccessible(true);
+        method.invoke(mNetworkTypeController, true);
+        processAllMessages();
+
+        // Verify state changed to true
+        assertTrue(mNetworkTypeController.getSatelliteConstrainedData());
+
+        // Invoke updateBandwidthConstrainedStatus(false)
+        method.invoke(mNetworkTypeController, false);
+        processAllMessages();
+
+        // Verify state changed to false
+        assertFalse(mNetworkTypeController.getSatelliteConstrainedData());
+    }
 }
