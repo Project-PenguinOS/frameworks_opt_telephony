@@ -6173,7 +6173,14 @@ public class SatelliteController extends Handler {
         return allPlmnListFromStorage;
     }
 
-    private List<String> getCarrierPlmnList(int subId) {
+    /**
+     * Retrieves a list of satellite PLMNs for the given subscription ID.
+     * Returns an empty list if the configuration is not available.
+     *
+     * @param subId The subscription ID to retrieve the satellite PLMNs for.
+     * @return A list of satellite PLMNs for the given subscription ID.
+     */
+    public List<String> getCarrierPlmnList(int subId) {
         return mMergedPlmnListPerCarrier.computeIfAbsent(
                 subId, k -> new ArrayList<>()).stream().toList();
     }
