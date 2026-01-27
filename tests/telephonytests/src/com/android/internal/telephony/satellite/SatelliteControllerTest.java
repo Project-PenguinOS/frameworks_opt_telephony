@@ -177,6 +177,7 @@ import android.telephony.SignalStrength;
 import android.telephony.SubscriptionInfo;
 import android.telephony.SubscriptionManager;
 import android.telephony.satellite.EarfcnRange;
+import android.telephony.satellite.EnableRequestAttributes;
 import android.telephony.satellite.INtnSignalStrengthCallback;
 import android.telephony.satellite.ISatelliteCapabilitiesCallback;
 import android.telephony.satellite.ISatelliteDatagramCallback;
@@ -191,6 +192,8 @@ import android.telephony.satellite.SatelliteDatagram;
 import android.telephony.satellite.SatelliteInfo;
 import android.telephony.satellite.SatelliteManager;
 import android.telephony.satellite.SatelliteManager.SatelliteException;
+import android.telephony.satellite.SatelliteManager.SatelliteCommunicationRestrictionReason;
+import android.telephony.satellite.SatelliteManager.NTRadioTechnology;
 import android.telephony.satellite.SatelliteModemEnableRequestAttributes;
 import android.telephony.satellite.SatellitePosition;
 import android.telephony.satellite.SatelliteSubscriberInfo;
@@ -202,6 +205,7 @@ import android.testing.TestableLooper;
 import android.util.IntArray;
 import android.util.Pair;
 
+import com.android.internal.os.SomeArgs;
 import com.android.internal.R;
 import com.android.internal.telephony.IBooleanConsumer;
 import com.android.internal.telephony.IIntegerConsumer;
@@ -213,6 +217,7 @@ import com.android.internal.telephony.configupdate.ConfigProviderAdaptor;
 import com.android.internal.telephony.configupdate.TelephonyConfigUpdateInstallReceiver;
 import com.android.internal.telephony.flags.FeatureFlags;
 import com.android.internal.telephony.metrics.SatelliteStats;
+import com.android.internal.telephony.flags.Flags;
 import com.android.internal.telephony.satellite.metrics.CarrierRoamingSatelliteControllerStats;
 import com.android.internal.telephony.satellite.metrics.CarrierRoamingSatelliteSessionStats;
 import com.android.internal.telephony.satellite.metrics.ControllerMetricsStats;
@@ -1530,6 +1535,93 @@ public class SatelliteControllerTest extends TelephonyTest {
         // All timers waiting for enablement response should be stopped
         assertFalse(mSatelliteControllerUT.isAnyWaitForSatelliteEnablingResponseTimerStarted());
         verifySatelliteEnabled(false, SATELLITE_RESULT_SUCCESS);
+    }
+
+    @Test
+    public void testRequestSatelliteEnabled_Auto_ForPurchase_Success() {
+        doReturn(true).when(mFeatureFlags).satelliteUpsell();
+        mIIntegerConsumerResults.clear();
+        mIIntegerConsumerSemaphore.drainPermits();
+        setupRequestSatelliteEnabled_Auto_ForPurchase_Success();
+        mSatelliteControllerUT.requestEnableSatellite(
+                SUB_ID,
+                new EnableRequestAttributes.Builder(true)
+                        .build(),
+                mIIntegerConsumer);
+        processAllMessages();
+        assertTrue(waitForIIntegerConsumerResult(1));
+        assertEquals(SATELLITE_RESULT_SUCCESS,
+                (long) mIIntegerConsumerResults.get(0));
+    }
+
+    private void setupRequestSatelliteEnabled_Auto_ForPurchase_Success() {
+        mCarrierConfigBundle.putBoolean(CarrierConfigManager.
+                KEY_CARRIER_ROAMING_SATELLITE_UPSELL_SUPPORTED_BOOL, true);
+
+        for (Pair<Executor, CarrierConfigManager.CarrierConfigChangeListener> pair
+                : mCarrierConfigChangedListenerList) {
+            pair.first.execute(() -> pair.second.onCarrierConfigChanged(
+                    /*slotIndex*/ 0, /*subId*/ SUB_ID, /*carrierId*/ 0, /*specificCarrierId*/ 0)
+            );
+        }
+    }
+
+    @Test
+    public void testRequestSatelliteEnabled_Auto_ForPurchase_UpsellNotSupported() {
+        doReturn(false).when(mFeatureFlags).satelliteUpsell();
+        mIIntegerConsumerResults.clear();
+        mIIntegerConsumerSemaphore.drainPermits();
+        setupRequestSatelliteEnabled_Auto_ForPurchase_UpsellNotSupported();
+        mSatelliteControllerUT.requestEnableSatellite(
+                SUB_ID,
+                new EnableRequestAttributes.Builder(true)
+                        .build(),
+                mIIntegerConsumer);
+        processAllMessages();
+        assertTrue(waitForIIntegerConsumerResult(1));
+        assertEquals(SATELLITE_RESULT_SUCCESS,
+                (long) mIIntegerConsumerResults.get(0));
+    }
+
+    private void setupRequestSatelliteEnabled_Auto_ForPurchase_UpsellNotSupported() {
+        mCarrierConfigBundle.putBoolean(CarrierConfigManager.
+                KEY_CARRIER_ROAMING_SATELLITE_UPSELL_SUPPORTED_BOOL, false);
+
+        for (Pair<Executor, CarrierConfigManager.CarrierConfigChangeListener> pair
+                : mCarrierConfigChangedListenerList) {
+            pair.first.execute(() -> pair.second.onCarrierConfigChanged(
+                    /*slotIndex*/ 0, /*subId*/ SUB_ID, /*carrierId*/ 0, /*specificCarrierId*/ 0)
+            );
+        }
+    }
+
+    @Test
+    public void testRequestSatelliteEnabled_Auto_ForPurchase_RequestInProgress() {
+        doReturn(true).when(mFeatureFlags).satelliteUpsell();
+        mIIntegerConsumerResults.clear();
+        mIIntegerConsumerSemaphore.drainPermits();
+        setupRequestSatelliteEnabled_Auto_ForPurchase_Success();
+        mSatelliteControllerUT.requestEnableSatellite(
+                SUB_ID,
+                new EnableRequestAttributes.Builder(true)
+                        .build(),
+                mIIntegerConsumer);
+        processAllMessages();
+        assertTrue(waitForIIntegerConsumerResult(1));
+        assertEquals(SATELLITE_RESULT_SUCCESS,
+                (long) mIIntegerConsumerResults.get(0));
+
+        mIIntegerConsumerResults.clear();
+        mIIntegerConsumerSemaphore.drainPermits();
+        mSatelliteControllerUT.requestEnableSatellite(
+                SUB_ID,
+                new EnableRequestAttributes.Builder(true)
+                        .build(),
+                mIIntegerConsumer);
+        processAllMessages();
+        assertTrue(waitForIIntegerConsumerResult(1));
+        assertEquals(SATELLITE_RESULT_SUCCESS,
+                (long) mIIntegerConsumerResults.get(0));
     }
 
     @Test
