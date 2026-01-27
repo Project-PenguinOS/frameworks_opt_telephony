@@ -335,6 +335,23 @@ public final class CellBroadcastConfigTrackerTest extends TelephonyTest {
     }
 
     @Test
+    public void testSetCellBroadcastIdRangesRuntimeException() throws Exception {
+        List<CellBroadcastIdRange> ranges = new ArrayList<>();
+        ranges.add(new CellBroadcastIdRange(0, 999, SmsCbMessage.MESSAGE_FORMAT_3GPP, true));
+
+        Mockito.doThrow(new RuntimeException("test"))
+                .when(mSpyCi).setGsmBroadcastConfig(any(), any());
+
+        mPhone.setCellBroadcastIdRanges(ranges, r -> assertEquals(
+                TelephonyManager.CELL_BROADCAST_RESULT_FAIL_CONFIG, (int) r));
+        processAllMessages();
+
+        verify(mSpyCi, times(1)).setGsmBroadcastConfig(any(), any());
+        verify(mSpyCi, times(0)).setGsmBroadcastActivation(anyBoolean(), any());
+        assertTrue(mPhone.getCellBroadcastIdRanges().isEmpty());
+    }
+
+    @Test
     public void testClearCellBroadcastConfigOnRadioOff() {
         List<CellBroadcastIdRange> ranges = new ArrayList<>();
         ranges.add(new CellBroadcastIdRange(0, 999, SmsCbMessage.MESSAGE_FORMAT_3GPP, true));
