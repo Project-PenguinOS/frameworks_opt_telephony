@@ -2369,4 +2369,82 @@ public class NetworkTypeControllerTest extends TelephonyTest {
         assertEquals(TelephonyManager.NETWORK_TYPE_LTE,
                 mNetworkTypeController.getDataNetworkType());
     }
+
+    @Test
+    public void testModemOverrideReleaseDuringEndcHandover() throws Exception {
+        // Enable the modem override feature via CarrierConfig
+        mBundle.putBoolean(CarrierConfigManager.KEY_USE_MODEM_DISPLAY_NETWORK_TYPE_BOOL, true);
+        sendCarrierConfigChanged();
+
+        // --- Step 1: Start in 5G SA (NR Connected + mmWave) ---
+        // Mock Physical RAT as NR (SA) and set frequency to mmWave so we start with 5G UW.
+        doReturn(NetworkRegistrationInfo.NR_STATE_CONNECTED).when(mServiceState).getNrState();
+        doReturn(ServiceState.FREQUENCY_RANGE_MMWAVE).when(mServiceState).getNrFrequencyRange();
+        mNetworkRegistrationInfo = new NetworkRegistrationInfo.Builder()
+            .setAccessNetworkTechnology(TelephonyManager.NETWORK_TYPE_NR)
+            .setRegistrationState(NetworkRegistrationInfo.REGISTRATION_STATE_HOME)
+            .build();
+        doReturn(mNetworkRegistrationInfo).when(mServiceState).getNetworkRegistrationInfo(
+            anyInt(), anyInt());
+
+        mNetworkTypeController.sendMessage(3 /* EVENT_SERVICE_STATE_CHANGED */);
+        processAllMessages();
+
+        // Verify initial state is 5G UW (NR_ADVANCED).
+        assertEquals("Initial state should be 5G UW",
+            TelephonyDisplayInfo.OVERRIDE_NETWORK_TYPE_NR_ADVANCED,
+            mNetworkTypeController.getOverrideNetworkType());
+
+        // --- Step 2: Modem forces "5G UW" (Override Active) ---
+        // Send a modem override event for NR_ADVANCED. This masks subsequent changes.
+        mNetworkTypeController.sendMessage(14 /* EVENT_MODEM_DISPLAY_NETWORK_TYPE_OVERRIDE */,
+            new AsyncResult(null, DisplayNetworkType.NR_ADVANCED, null));
+        processAllMessages();
+
+        // Verify override is active and forces getDataNetworkType() to report NR.
+        assertEquals("Override should be NR_ADVANCED",
+            TelephonyDisplayInfo.OVERRIDE_NETWORK_TYPE_NR_ADVANCED,
+            mNetworkTypeController.getOverrideNetworkType());
+        assertEquals(TelephonyManager.NETWORK_TYPE_NR, mNetworkTypeController.getDataNetworkType());
+
+        // --- Step 3: Handover to LTE (EN-DC) happens while override is active ---
+        // Update ServiceState to reflect Physical RAT = LTE and NR Connected (EN-DC).
+        // mmWave is lost (Frequency Range Low).
+        mNetworkRegistrationInfo = new NetworkRegistrationInfo.Builder()
+            .setAccessNetworkTechnology(TelephonyManager.NETWORK_TYPE_LTE)
+            .setRegistrationState(NetworkRegistrationInfo.REGISTRATION_STATE_HOME)
+            .build();
+        doReturn(mNetworkRegistrationInfo).when(mServiceState).getNetworkRegistrationInfo(
+            anyInt(), anyInt());
+        doReturn(NetworkRegistrationInfo.NR_STATE_CONNECTED).when(mServiceState).getNrState();
+        doReturn(ServiceState.FREQUENCY_RANGE_LOW).when(mServiceState).getNrFrequencyRange();
+
+        // Trigger update.
+        // The controller should now calculate the internal state based on the physical RAT (LTE),
+        // ignoring the override "NR" to avoid the "SA without mmWave" trap.
+        mNetworkTypeController.sendMessage(3 /* EVENT_SERVICE_STATE_CHANGED */);
+        processAllMessages();
+
+        // Verify override is STILL active (masking the internal calculation).
+        assertEquals("Display should still be 5G UW due to override",
+            TelephonyDisplayInfo.OVERRIDE_NETWORK_TYPE_NR_ADVANCED,
+            mNetworkTypeController.getOverrideNetworkType());
+
+        // --- Step 4: Modem releases the override ---
+        // Modem reports UNKNOWN to release the override.
+        mNetworkTypeController.sendMessage(14 /* EVENT_MODEM_DISPLAY_NETWORK_TYPE_OVERRIDE */,
+            new AsyncResult(null, DisplayNetworkType.UNKNOWN, null));
+        processAllMessages();
+
+        // --- Step 5: Verify the Fallback State ---
+        // The controller should immediately reveal the correctly calculated internal state (NR_NSA)
+        // Without the fix, this would have dropped to NONE (LTE icon).
+        assertEquals("Should fallback to NR_NSA (5G) after override release",
+            TelephonyDisplayInfo.OVERRIDE_NETWORK_TYPE_NR_NSA,
+            mNetworkTypeController.getOverrideNetworkType());
+
+        // Verify public API now reports the true physical state (LTE).
+        assertEquals(TelephonyManager.NETWORK_TYPE_LTE,
+            mNetworkTypeController.getDataNetworkType());
+    }
 }

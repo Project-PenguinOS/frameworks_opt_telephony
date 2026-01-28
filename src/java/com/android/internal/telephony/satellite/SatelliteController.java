@@ -66,6 +66,7 @@ import static android.telephony.satellite.SatelliteManager.SATELLITE_RESULT_MODE
 import static android.telephony.satellite.SatelliteManager.SATELLITE_RESULT_MODEM_TIMEOUT;
 import static android.telephony.satellite.SatelliteManager.SATELLITE_RESULT_NO_VALID_SATELLITE_SUBSCRIPTION;
 import static android.telephony.satellite.SatelliteManager.SATELLITE_RESULT_REQUEST_ABORTED;
+import static android.telephony.satellite.SatelliteManager.SATELLITE_RESULT_REQUEST_IN_PROGRESS;
 import static android.telephony.satellite.SatelliteManager.SATELLITE_RESULT_REQUEST_NOT_SUPPORTED;
 import static android.telephony.satellite.SatelliteManager.SATELLITE_RESULT_SUCCESS;
 
@@ -138,6 +139,7 @@ import android.telephony.SubscriptionInfo;
 import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyManager;
 import android.telephony.TelephonyRegistryManager;
+import android.telephony.satellite.EnableRequestAttributes;
 import android.telephony.satellite.INtnSignalStrengthCallback;
 import android.telephony.satellite.ISatelliteCapabilitiesCallback;
 import android.telephony.satellite.ISatelliteDatagramCallback;
@@ -152,6 +154,7 @@ import android.telephony.satellite.SatelliteCapabilities;
 import android.telephony.satellite.SatelliteCommunicationAccessStateCallback;
 import android.telephony.satellite.SatelliteDatagram;
 import android.telephony.satellite.SatelliteManager;
+import android.telephony.satellite.SatelliteManager.NTRadioTechnology;
 import android.telephony.satellite.SatelliteModemEnableRequestAttributes;
 import android.telephony.satellite.SatelliteSubscriberInfo;
 import android.telephony.satellite.SatelliteSubscriberProvisionStatus;
@@ -2977,6 +2980,30 @@ public class SatelliteController extends Handler {
         }
     }
 
+    /**
+     * Request to enable or disable the satellite.
+     *
+     * @param attributes The attributes of the enable request.
+     */
+    public void requestEnableSatellite(int subId, @NonNull EnableRequestAttributes attributes,
+            @NonNull IIntegerConsumer callback) {
+        plogd("requestEnableSatellite: " + attributes);
+
+        Consumer<Integer> result = FunctionalUtils.ignoreRemoteException(callback::accept);
+        plogd("requestEnableSatellite: not yet supported");
+        result.accept(SATELLITE_RESULT_SUCCESS);
+
+        if (!mFeatureFlags.satelliteUpsell()) {
+            plogd("requestEnableSatellite: satellite upsell is not enabled");
+            return;
+        }
+
+        // TODO: Support subId, connectType based satellite enablement.
+        plogd("requestEnableSatellite: falling back to manual satellite enablement");
+        handleRequestSatelliteEnabled(attributes.isEnabled(), attributes.isDemoMode(),
+                attributes.isEmergencyMode(), callback);
+    }
+
     private boolean isDisableSatelliteWhileEnableInProgressSupported() {
         if (mOverriddenDisableSatelliteWhileEnableInProgressSupported != null) {
             return mOverriddenDisableSatelliteWhileEnableInProgressSupported.get();
@@ -3152,6 +3179,28 @@ public class SatelliteController extends Handler {
 
         sendRequestAsync(CMD_IS_SATELLITE_ENABLED, result, null);
         incrementResultReceiverCount("SC:requestIsSatelliteEnabled");
+    }
+
+    /**
+     * Request to get whether the satellite modem is enabled.
+     *
+     * @param result The result receiver that returns whether the satellite modem is enabled
+     *               if the request is successful or an error code if the request failed.
+     */
+    public void requestEnableSatelliteStatus(int subId,
+            @CarrierConfigManager.CARRIER_ROAMING_NTN_CONNECT_TYPE int connectType,
+            @NonNull ResultReceiver result) {
+        plogd("requestEnableSatelliteStatus: subId: " + subId + ", connectType: " + connectType);
+
+        if (!mFeatureFlags.satelliteUpsell()) {
+            plogd("requestEnableSatellite: satellite upsell is not enabled");
+            result.send(SATELLITE_RESULT_SUCCESS, null);
+            return;
+        }
+
+        // TODO: Support subId, connectType based enablement status requests.
+        plogd("requestEnableSatelliteStatus not yet supported");
+        result.send(SATELLITE_RESULT_SUCCESS, null);
     }
 
     /**
@@ -6124,7 +6173,14 @@ public class SatelliteController extends Handler {
         return allPlmnListFromStorage;
     }
 
-    private List<String> getCarrierPlmnList(int subId) {
+    /**
+     * Retrieves a list of satellite PLMNs for the given subscription ID.
+     * Returns an empty list if the configuration is not available.
+     *
+     * @param subId The subscription ID to retrieve the satellite PLMNs for.
+     * @return A list of satellite PLMNs for the given subscription ID.
+     */
+    public List<String> getCarrierPlmnList(int subId) {
         return mMergedPlmnListPerCarrier.computeIfAbsent(
                 subId, k -> new ArrayList<>()).stream().toList();
     }
