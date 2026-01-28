@@ -16,8 +16,8 @@
 
 package com.android.internal.telephony.satellite.metrics;
 
-import static android.telephony.ims.stub.ImsRegistrationImplBase.REGISTRATION_TECH_IWLAN;
 import static android.telephony.TelephonyManager.ACTION_DATA_STALL_DETECTED;
+import static android.telephony.ims.stub.ImsRegistrationImplBase.REGISTRATION_TECH_IWLAN;
 
 import android.annotation.NonNull;
 import android.app.usage.NetworkStats;
@@ -127,6 +127,7 @@ public class CarrierRoamingSatelliteSessionStats {
     private @SatelliteConstants.SatelliteGlobalConnectType int mSupportedConnectionMode;
     private @SatelliteConstants.SatelliteSessionConnectType int mSessionConnectionMode;
     private String mPlmn;
+    private boolean mIsWifiConnected;
     private boolean mIsWifiEnabled;
     private boolean mIsWfcEnabled;
     private boolean mIsWfcRegistered;
@@ -315,7 +316,8 @@ public class CarrierRoamingSatelliteSessionStats {
     public void onSessionStart(
             int carrierId, Phone phone, int[] supportedServices, int serviceDataPolicy,
             List<String> satelliteApps, int supportedConnectionMode, int sessionConnectionMode,
-            String plmn, @NonNull FeatureFlags featureFlags, boolean isScreenOn) {
+            String plmn, @NonNull FeatureFlags featureFlags, boolean isScreenOn,
+            boolean isWifiConnected) {
         mPhone = phone;
         mContext = mPhone.getContext();
         mCarrierId = carrierId;
@@ -352,6 +354,7 @@ public class CarrierRoamingSatelliteSessionStats {
                 mScreenOnStartTimeMillis = 0;
             }
         }
+        mIsWifiConnected = isWifiConnected;
     }
 
     /** Log carrier roaming satellite connection start */
@@ -884,6 +887,7 @@ public class CarrierRoamingSatelliteSessionStats {
                         .setSatelliteSupportedUids(mSatelliteAppsUidArray)
                         .setPerAppSatelliteDataConsumedBytes(mPerAppSatelliteDataConsumedBytesArray)
                         .setIsWifiEnabled(mIsWifiEnabled)
+                        .setIsWifiConnected(mIsWifiConnected)
                         .setIsWfcEnabled(mIsWfcEnabled)
                         .setIsWfcRegistered(mIsWfcRegistered)
                         .setEligibilitySource(
@@ -918,6 +922,7 @@ public class CarrierRoamingSatelliteSessionStats {
         mRsrpList = new ArrayList<>();
         mRssnrList = new ArrayList<>();
         mIsWifiEnabled = false;
+        mIsWifiConnected = false;
         mIsWfcEnabled = false;
         mIsWfcRegistered = false;
         mAccumulatedScreenOnTimeSec = 0;
@@ -1087,6 +1092,18 @@ public class CarrierRoamingSatelliteSessionStats {
         public boolean isValid() {
             return mEndTime > mStartTime && mStartTime > 0;
         }
+    }
+
+    /**
+     * Updates the wifi-connected state. If Wi-Fi has been connected at least once
+     * since the current session start, the state remains true.
+     */
+    public void onWifiConnectivityStateChanged(boolean isWifiConnected) {
+        if (isWifiConnected) {
+            mIsWifiConnected = true;
+        }
+        logd("onWifiConnectivityStateChanged: isWifiConnected=" + isWifiConnected
+                + ", mIsWifiConnected=" + mIsWifiConnected);
     }
 
     /**
