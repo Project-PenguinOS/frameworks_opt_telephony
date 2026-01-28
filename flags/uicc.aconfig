@@ -28,14 +28,6 @@ flag {
     is_exported: true
 }
 
-# OWNER=mewan TARGET=24Q4
-flag {
-    name: "optimization_apdu_sender"
-    namespace: "telephony"
-    description: "This flag controls optimization of apdu sender class."
-    bug:"335257880"
-}
-
 # OWNER=jhyoon TARGET=25Q2
 flag {
     name: "support_isim_record"
