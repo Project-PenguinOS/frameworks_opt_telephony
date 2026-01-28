@@ -2447,4 +2447,57 @@ public class NetworkTypeControllerTest extends TelephonyTest {
         assertEquals(TelephonyManager.NETWORK_TYPE_LTE,
             mNetworkTypeController.getDataNetworkType());
     }
+
+    @Test
+    public void testNrTimerResetWhenTransitToEndcToSa() throws Exception {
+        // Enable the feature
+        mBundle.putBoolean(CarrierConfigManager.KEY_NR_TIMERS_RESET_ON_ENDC_TO_SA_TRANSIT_BOOL,
+            true);
+        // Configure grace periods so timers are active during the transition
+        mBundle.putString(CarrierConfigManager.KEY_5G_ICON_DISPLAY_GRACE_PERIOD_STRING,
+            "connected_mmwave,any,10;connected,any,10");
+        sendCarrierConfigChanged();
+
+        // 1. Establish NR Advanced (NSA mmWave)
+        // This sets mWasPreviousStateEndc = true in the next transition
+        doReturn(TelephonyManager.NETWORK_TYPE_LTE).when(mServiceState).getDataNetworkType();
+        doReturn(NetworkRegistrationInfo.NR_STATE_CONNECTED).when(mServiceState).getNrState();
+        doReturn(ServiceState.FREQUENCY_RANGE_MMWAVE).when(mServiceState).getNrFrequencyRange();
+
+        mNetworkTypeController.sendMessage(3 /* EVENT_SERVICE_STATE_CHANGED */);
+        processAllMessages();
+        assertEquals(TelephonyDisplayInfo.OVERRIDE_NETWORK_TYPE_NR_ADVANCED,
+            mNetworkTypeController.getOverrideNetworkType());
+
+        // 2. Trigger a grace period timer by dropping to plain NR NSA (Sub-6)
+        // IMPORTANT: We must stay in an ENDC state (LTE + NR state != NONE)
+        // so that mWasPreviousStateEndc remains true for the SA transition.
+        doReturn(ServiceState.FREQUENCY_RANGE_HIGH).when(mServiceState).getNrFrequencyRange();
+
+        mNetworkTypeController.sendMessage(3 /* EVENT_SERVICE_STATE_CHANGED */);
+        processAllMessages();
+
+        // Verify that the timer is active
+        assertTrue(mNetworkTypeController.areAnyTimersActive());
+
+        // 3. Transit to NR SA (RAT becomes NR)
+        doReturn(TelephonyManager.NETWORK_TYPE_NR).when(mServiceState).getDataNetworkType();
+        // NR SA logic in NetworkRegistrationInfo
+        mNetworkRegistrationInfo = new NetworkRegistrationInfo.Builder()
+            .setAccessNetworkTechnology(TelephonyManager.NETWORK_TYPE_NR)
+            .setRegistrationState(NetworkRegistrationInfo.REGISTRATION_STATE_HOME)
+            .build();
+        doReturn(mNetworkRegistrationInfo).when(mServiceState).getNetworkRegistrationInfo(
+            anyInt(), anyInt());
+        // In SA, the NSA-specific NR state is usually NONE
+        doReturn(NetworkRegistrationInfo.NR_STATE_NONE).when(mServiceState).getNrState();
+
+        mNetworkTypeController.sendMessage(3 /* EVENT_SERVICE_STATE_CHANGED */);
+        processAllMessages();
+
+        // 4. Verify timers are reset because previousIsEndc was true
+        assertFalse(mNetworkTypeController.areAnyTimersActive());
+        assertEquals(TelephonyDisplayInfo.OVERRIDE_NETWORK_TYPE_NONE,
+            mNetworkTypeController.getOverrideNetworkType());
+    }
 }
