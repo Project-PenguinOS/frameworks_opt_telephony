@@ -1718,15 +1718,13 @@ public class DataNetworkController extends Handler {
             evaluation.addDataDisallowedReason(DataDisallowedReason.DATA_CONFIG_NOT_READY);
         }
 
-        if (mFeatureFlags.dataServiceCheck()) {
-            if (!isPsAttachAllowedForLegacyNetwork(mServiceState)) {
-                NetworkRegistrationInfo nri = mServiceState.getNetworkRegistrationInfo(
-                        NetworkRegistrationInfo.DOMAIN_PS, transport);
-                if (nri != null && !nri.getAvailableServices().contains(
-                        NetworkRegistrationInfo.SERVICE_TYPE_DATA)) {
-                    evaluation.addDataDisallowedReason(
-                            DataDisallowedReason.SERVICE_OPTION_NOT_SUPPORTED);
-                }
+        if (!isPsAttachAllowedForLegacyNetwork(mServiceState)) {
+            NetworkRegistrationInfo nri = mServiceState.getNetworkRegistrationInfo(
+                    NetworkRegistrationInfo.DOMAIN_PS, transport);
+            if (nri != null && !nri.getAvailableServices().contains(
+                    NetworkRegistrationInfo.SERVICE_TYPE_DATA)) {
+                evaluation.addDataDisallowedReason(
+                        DataDisallowedReason.SERVICE_OPTION_NOT_SUPPORTED);
             }
         }
 
@@ -2081,14 +2079,12 @@ public class DataNetworkController extends Handler {
             evaluation.addDataDisallowedReason(DataDisallowedReason.CDMA_EMERGENCY_CALLBACK_MODE);
         }
 
-        if (mFeatureFlags.dataServiceCheck()) {
-            NetworkRegistrationInfo nri = mServiceState.getNetworkRegistrationInfo(
-                    NetworkRegistrationInfo.DOMAIN_PS, dataNetwork.getTransport());
-            if (nri != null && nri.isInService() && !nri.getAvailableServices().contains(
-                    NetworkRegistrationInfo.SERVICE_TYPE_DATA)) {
-                evaluation.addDataDisallowedReason(
-                        DataDisallowedReason.SERVICE_OPTION_NOT_SUPPORTED);
-            }
+        NetworkRegistrationInfo psNri = mServiceState.getNetworkRegistrationInfo(
+                NetworkRegistrationInfo.DOMAIN_PS, dataNetwork.getTransport());
+        if (psNri != null && psNri.isInService() && !psNri.getAvailableServices().contains(
+                NetworkRegistrationInfo.SERVICE_TYPE_DATA)) {
+            evaluation.addDataDisallowedReason(
+                    DataDisallowedReason.SERVICE_OPTION_NOT_SUPPORTED);
         }
 
         // Check whether data limit reached for bootstrap sim, else re-evaluate based on the timer
@@ -2335,13 +2331,9 @@ public class DataNetworkController extends Handler {
                 NetworkCapabilities.NET_CAPABILITY_NOT_RESTRICTED)) {
 
             int dataPolicy;
-            if (mFeatureFlags.dataServiceCheck()) {
-                final SatelliteController satelliteController = SatelliteController.getInstance();
-                dataPolicy = satelliteController.getSatelliteDataServicePolicyForPlmn(mSubId,
-                        mPhone.getServiceState().getOperatorNumeric());
-            } else {
-                dataPolicy = mDataConfigManager.getSatelliteDataSupportMode();
-            }
+            final SatelliteController satelliteController = SatelliteController.getInstance();
+            dataPolicy = satelliteController.getSatelliteDataServicePolicyForPlmn(mSubId,
+                    mPhone.getServiceState().getOperatorNumeric());
             switch (dataPolicy) {
                 case CarrierConfigManager.SATELLITE_DATA_SUPPORT_ONLY_RESTRICTED -> {
                     return false;

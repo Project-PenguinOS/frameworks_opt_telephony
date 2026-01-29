@@ -885,14 +885,6 @@ public class DataConfigManager extends Handler {
     }
 
     /**
-     * @return What kind of traffic is supported on an unrestricted satellite network.
-     */
-    @CarrierConfigManager.SATELLITE_DATA_SUPPORT_MODE
-    public int getSatelliteDataSupportMode() {
-        return mCarrierConfig.getInt(CarrierConfigManager.KEY_SATELLITE_DATA_SUPPORT_MODE_INT);
-    }
-
-    /**
      * Returns whether data roaming is allowed on satellite even if the data roaming setting is
      * disabled.
      *
