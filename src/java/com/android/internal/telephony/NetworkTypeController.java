@@ -254,6 +254,8 @@ public class NetworkTypeController extends StateMachine {
     private boolean mIsSatelliteConstrainedData = false;
     private boolean mIsSatelliteNetworkCallbackRegistered = false;
     private ConnectivityManager mConnectivityManager;
+    private boolean mEndcStatus = false;
+    private boolean mIsTimerResetEnabledOnEndcToSaTransit;
 
     private final ConnectivityManager.NetworkCallback mNetworkCallback =
             new ConnectivityManager.NetworkCallback() {
@@ -497,6 +499,8 @@ public class NetworkTypeController extends StateMachine {
                 CarrierConfigManager.KEY_NR_TIMERS_RESET_ON_PLMN_CHANGE_BOOL);
         mIsTimerResetEnabledOnVoiceQos = config.getBoolean(
                 CarrierConfigManager.KEY_NR_TIMERS_RESET_ON_VOICE_QOS_BOOL);
+        mIsTimerResetEnabledOnEndcToSaTransit = config.getBoolean(
+            CarrierConfigManager.KEY_NR_TIMERS_RESET_ON_ENDC_TO_SA_TRANSIT_BOOL);
         mLtePlusThresholdBandwidth = config.getInt(
                 CarrierConfigManager.KEY_LTE_PLUS_THRESHOLD_BANDWIDTH_KHZ_INT);
         mNrAdvancedThresholdBandwidth = config.getInt(
@@ -1620,7 +1624,26 @@ public class NetworkTypeController extends StateMachine {
         }
     }
 
+    /**
+     * Updates the current ENDC status and returns the previous value.
+     * @param currentRat The current data network type.
+     * @return The ENDC status before the update.
+     */
+    private boolean updateEndcStateAndGetPrevious(int currentRat) {
+        boolean previous = mEndcStatus;
+        mEndcStatus = isLte(currentRat) &&
+            mServiceState.getNrState() != NetworkRegistrationInfo.NR_STATE_NONE;
+        if (DBG) {
+            log("endc state currRat: " + currentRat + " (Endc: " + mEndcStatus + ")"
+                + ", prevIsEndc: " + previous);
+        }
+        return previous;
+    }
+
     private void updateTimers() {
+        int currentRat = getDataNetworkType();
+        boolean previousIsEndc = updateEndcStateAndGetPrevious(currentRat);
+
         if ((mPhone.getCachedAllowedNetworkTypesBitmask()
                 & TelephonyManager.NETWORK_TYPE_BITMASK_NR) == 0) {
             if (DBG) log("Reset timers since NR is not allowed.");
@@ -1668,15 +1691,18 @@ public class NetworkTypeController extends StateMachine {
                     && !mSecondaryTimerState.equals(STATE_CONNECTED_NR_ADVANCED)) {
                 if (DBG) log("Reset non-NR advanced timers since state is NR connected/idle");
                 resetAllTimers();
-            // TODO: We should create a new config for this rather than reusing this config
+            } else if (mIsTimerResetEnabledOnEndcToSaTransit
+                && currentRat == TelephonyManager.NETWORK_TYPE_NR && previousIsEndc) {
+                if (DBG) log("Reset timers since SA transit (from ENDC).");
+                resetAllTimers();
+              // TODO: We should create a new config for this rather than reusing this config
             } else if (mIsTimerResetEnabledForLegacyStateRrcIdle
                     && mPrimaryTimerState.equals(STATE_CONNECTED_NR_ADVANCED)
                     && currentState.equals(STATE_CONNECTED_RRC_IDLE)) {
                 if (DBG) log("Reset NR advanced timers since state is NR idle");
                 resetAllTimers();
             } else {
-                int rat = getDataNetworkType();
-                if (!isLte(rat) && rat != TelephonyManager.NETWORK_TYPE_NR) {
+                if (!isLte(currentRat) && currentRat != TelephonyManager.NETWORK_TYPE_NR) {
                     if (DBG) log("Reset timers since 2G and 3G don't need NR timers.");
                     resetAllTimers();
                 }

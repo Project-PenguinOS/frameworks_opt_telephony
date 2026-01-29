@@ -1369,6 +1369,13 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
         mImsManager.open(mMmTelFeatureListener, mPhone.getImsEcbmStateListener(),
                 externalCallStateListener);
         mImsManager.addRegistrationCallback(mPhone.getImsMmTelRegistrationCallback(), this::post);
+        try {
+            mImsManager.addEmergencyRegistrationCallbackForSubscription(
+                    mPhone.getImsMmTelEmergencyRegistrationCallback().getBinder(), subId);
+        } catch (RemoteException e) {
+            throw new ImsException("addEmergencyRegistrationCallbackForSubscription failed",
+                    ImsReasonInfo.CODE_LOCAL_IMS_SERVICE_DOWN);
+        }
         mImsManager.addCapabilitiesCallback(mImsCapabilityCallback, this::post);
 
         ImsManager.setImsStatsCallback(mPhone.getPhoneId(), mImsStatsCallback);
@@ -1455,6 +1462,9 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
         // Only close on valid session.
         if (mImsManager != null) {
             mImsManager.removeRegistrationListener(mPhone.getImsMmTelRegistrationCallback());
+            mImsManager.removeEmergencyRegistrationCallbackForSubscription(
+                    mPhone.getImsMmTelEmergencyRegistrationCallback().getBinder(),
+                    mPhone.getSubId());
             mImsManager.removeCapabilitiesCallback(mImsCapabilityCallback);
             try {
                 ImsManager.setImsStatsCallback(mPhone.getPhoneId(), null);
