@@ -210,6 +210,7 @@ flag {
   metadata {
     purpose: PURPOSE_FEATURE
   }
+  is_exported: true
 }
 
 # OWNER=hakjunc TARGET=26Q2
@@ -277,4 +278,5 @@ flag {
   metadata {
     purpose: PURPOSE_BUGFIX
   }
+  is_exported: true
 }

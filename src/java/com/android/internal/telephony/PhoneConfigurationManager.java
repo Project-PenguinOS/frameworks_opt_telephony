@@ -411,9 +411,9 @@ public class PhoneConfigurationManager {
                     if ((ar != null && ar.exception == null) ||
                             generateSimultaneousCallingSupport) {
                         List<Integer> returnedArrayList = generateSimultaneousCallingSupport ?
+// QTI_END: 2025-01-28: Telephony: Use MultiSimVoiceCapability to support simultaneous calling
                                 mQtiMultiSimVoiceCallTracker.generateSimultaneousCallingSupport() :
                                 (List<Integer>) ar.result;
-// QTI_END: 2025-01-28: Telephony: Use MultiSimVoiceCapability to support simultaneous calling
                         if (!mSlotsSupportingSimultaneousCellularCalls.isEmpty()) {
                             mSlotsSupportingSimultaneousCellularCalls.clear();
                         }

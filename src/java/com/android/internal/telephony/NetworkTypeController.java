@@ -127,7 +127,8 @@ public class NetworkTypeController extends StateMachine {
     private static final int EVENT_QOS_SESSION_CHANGED = 13;
     private static final int EVENT_MODEM_DISPLAY_NETWORK_TYPE_OVERRIDE = 14;
 
-    private static final String[] sEvents = new String[EVENT_QOS_SESSION_CHANGED + 1];
+    private static final String[] sEvents = new String[EVENT_MODEM_DISPLAY_NETWORK_TYPE_OVERRIDE
+            + 1];
     static {
         sEvents[EVENT_UPDATE] = "EVENT_UPDATE";
         sEvents[EVENT_QUIT] = "EVENT_QUIT";
@@ -144,6 +145,8 @@ public class NetworkTypeController extends StateMachine {
         sEvents[EVENT_PHYSICAL_CHANNEL_CONFIGS_CHANGED] = "EVENT_PHYSICAL_CHANNEL_CONFIGS_CHANGED";
         sEvents[EVENT_DEVICE_IDLE_MODE_CHANGED] = "EVENT_DEVICE_IDLE_MODE_CHANGED";
         sEvents[EVENT_QOS_SESSION_CHANGED] = "EVENT_QOS_SESSION_CHANGED";
+        sEvents[EVENT_MODEM_DISPLAY_NETWORK_TYPE_OVERRIDE] =
+                "EVENT_MODEM_DISPLAY_NETWORK_TYPE_OVERRIDE";
     }
 
     @NonNull private final Phone mPhone;
@@ -399,6 +402,18 @@ public class NetworkTypeController extends StateMachine {
         if (mModemOverrideNetworkType.isOverridden()) {
             return mModemOverrideNetworkType.dataNetworkType();
         }
+        return getRawDataNetworkType();
+    }
+
+    /**
+     * Returns the raw data network type from ServiceState, ignoring any modem overrides.
+     * <p>
+     * This is required for internal calculations to determine the correct fallback state
+     * independent of the active display override.
+     *
+     * @return The raw data network type from the registration info.
+     */
+    private @Annotation.NetworkType int getRawDataNetworkType() {
         NetworkRegistrationInfo nri = mServiceState.getNetworkRegistrationInfo(
                 NetworkRegistrationInfo.DOMAIN_PS, AccessNetworkConstants.TRANSPORT_TYPE_WWAN);
         return nri == null ? TelephonyManager.NETWORK_TYPE_UNKNOWN
@@ -640,9 +655,22 @@ public class NetworkTypeController extends StateMachine {
         mDisplayInfoController.updateTelephonyDisplayInfo();
     }
 
+    /**
+     * Calculates the current override network type based on the underlying network registration
+     * state.
+     * <p>
+     * This method determines the internal state ignoring any active modem override.
+     * This ensures that when a modem override is released, the system falls back to
+     * the correct state instead of a stale or invalid state.
+     *
+     * @return The calculated override network type.
+     */
     private @Annotation.OverrideNetworkType int getCurrentOverrideNetworkType() {
         int displayNetworkType = TelephonyDisplayInfo.OVERRIDE_NETWORK_TYPE_NONE;
-        int dataNetworkType = getDataNetworkType();
+
+        // Use underlying network type for fallback calculation, ignoring modem override.
+        int dataNetworkType = getRawDataNetworkType();
+
         boolean nrNsa = isLte(dataNetworkType)
                 && mServiceState.getNrState() != NetworkRegistrationInfo.NR_STATE_NONE;
         boolean nrSa = dataNetworkType == TelephonyManager.NETWORK_TYPE_NR;

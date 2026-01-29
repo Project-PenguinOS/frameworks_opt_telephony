@@ -60,8 +60,10 @@ import android.provider.Settings;
 // QTI_END: 2019-03-21: Telephony: IMS: Use AOSP RTT_CALLING_MODE key for RTT settings.
 // QTI_BEGIN: 2019-02-07: Telephony: IMS: Decouple ims-ext-common from boot jars
 import android.telephony.CarrierConfigManager;
+// QTI_END: 2019-02-07: Telephony: IMS: Decouple ims-ext-common from boot jars
 import android.telephony.ims.stub.ImsRegistrationImplBase;
 import android.telephony.ims.ImsCallProfile;
+// QTI_BEGIN: 2019-02-07: Telephony: IMS: Decouple ims-ext-common from boot jars
 import android.telephony.SubscriptionInfo;
 import android.telephony.SubscriptionManager;
 import android.util.Log;
@@ -69,10 +71,10 @@ import android.util.Log;
 // QTI_END: 2019-02-07: Telephony: IMS: Decouple ims-ext-common from boot jars
 // QTI_BEGIN: 2025-02-03: Telephony: Decouple Qualcomm value adds.
 import com.android.internal.telephony.CallStateException;
+// QTI_END: 2025-02-03: Telephony: Decouple Qualcomm value adds.
 import com.android.internal.telephony.IccCardConstants;
 import com.android.internal.telephony.Phone;
 
-// QTI_END: 2025-02-03: Telephony: Decouple Qualcomm value adds.
 // QTI_BEGIN: 2019-02-07: Telephony: IMS: Decouple ims-ext-common from boot jars
 /**
  * This class contains QtiImsExt specific utiltity functions.
@@ -442,7 +444,6 @@ public class QtiImsUtils {
         return numberParts[0];
     }
 // QTI_END: 2025-02-03: Telephony: Decouple Qualcomm value adds.
-// QTI_BEGIN: 2019-02-07: Telephony: IMS: Decouple ims-ext-common from boot jars
 
     /**
      * RTT call is allowed if RTT is supported by carrier and RTT setting is ON
@@ -488,5 +489,6 @@ public class QtiImsUtils {
         return false;
     }
 
+// QTI_BEGIN: 2019-02-07: Telephony: IMS: Decouple ims-ext-common from boot jars
 }
 // QTI_END: 2019-02-07: Telephony: IMS: Decouple ims-ext-common from boot jars

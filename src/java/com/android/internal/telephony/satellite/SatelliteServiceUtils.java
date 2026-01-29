@@ -703,6 +703,8 @@ public class SatelliteServiceUtils {
         }
         convertedSpecifier.satelliteInfos = halSatelliteInfos;
         convertedSpecifier.tagIds = systemSelectionSpecifier.getTagIds();
+        convertedSpecifier.mIccId = systemSelectionSpecifier.getIccId();
+        convertedSpecifier.mMccMncs = systemSelectionSpecifier.getMccMncs();
         return convertedSpecifier;
     }
 
