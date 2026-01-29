@@ -39,12 +39,17 @@ import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyDisplayInfo;
 import android.telephony.TelephonyManager;
 import android.telephony.data.ApnSetting;
+import android.telephony.data.TrafficDescriptor;
 import android.text.TextUtils;
 import android.util.ArraySet;
 import android.util.IndentingPrintWriter;
 
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.internal.hidden_from_bootclasspath.com.android.internal.telephony.flags.Flags;
 import com.android.internal.telephony.Phone;
+import com.android.internal.telephony.configupdate.ConfigParser;
+import com.android.internal.telephony.configupdate.ConfigProviderAdaptor;
+import com.android.internal.telephony.configupdate.TelephonyConfigUpdateInstallReceiver;
 import com.android.internal.telephony.data.DataNetworkController.HandoverRule;
 import com.android.internal.telephony.data.DataRetryManager.DataHandoverRetryRule;
 import com.android.internal.telephony.data.DataRetryManager.DataSetupRetryRule;
@@ -339,6 +344,10 @@ public class DataConfigManager extends Handler {
     private final Map<String, int[]> mAutoDataSwitchNetworkTypeSignalMap =
             new ConcurrentHashMap<>();
 
+    /** The dynamically updated DataConfig. */
+    @Nullable
+    private DataConfig mDataConfig = null;
+
     /**
      * Constructor
      *
@@ -379,6 +388,29 @@ public class DataConfigManager extends Handler {
         updateCarrierConfig();
         // Must be called to set anomaly report threshold to non-null values
         updateDeviceConfig();
+
+        // Register for Config Updates
+        TelephonyConfigUpdateInstallReceiver.getInstance().registerCallback(
+                this::post,
+                new ConfigProviderAdaptor.Callback() {
+                    @Override
+                    public void onChanged(@Nullable ConfigParser config) {
+                        if (config instanceof DataConfigParser
+                                && Flags.enableTrafficDescriptorConnectionCapability()) {
+                            mDataConfig = (DataConfig) config.getConfig();
+                            log("DataConfig updated: version=" + (mDataConfig != null
+                                    ? mDataConfig.getVersion() : "null"));
+                        }
+                    }
+                }
+        );
+
+        // Initial load of the config
+        ConfigParser parser = TelephonyConfigUpdateInstallReceiver.getInstance()
+                .getConfigParser(ConfigProviderAdaptor.DOMAIN_DATA);
+        if (parser != null && Flags.enableTrafficDescriptorConnectionCapability()) {
+            mDataConfig = (DataConfig) parser.getConfig();
+        }
     }
 
     /**
@@ -640,12 +672,25 @@ public class DataConfigManager extends Handler {
                 .filter(cap -> cap >= 0)
                 .collect(Collectors.toSet());
 
-        // Consumer slices are the slices that are allowed to be accessed by regular application to
-        // get better performance. They should be metered. This can be turned into configurations in
-        // the future.
-        meteredCapabilities.add(NetworkCapabilities.NET_CAPABILITY_PRIORITIZE_BANDWIDTH);
-        meteredCapabilities.add(NetworkCapabilities.NET_CAPABILITY_PRIORITIZE_LATENCY);
-        meteredCapabilities.add(DataUtils.NET_CAPABILITY_PRIORITIZE_UNIFIED_COMMUNICATIONS);
+        Set<Integer> dynamicCaps = null;
+        if (mDataConfig != null) {
+            // This returns NULL if no config (default or specific) exists.
+            // It returns an Empty Set if config exists but is empty (carrier explicitly wants no
+            // metering).
+            dynamicCaps = mDataConfig.getMeteredNetworkCapabilities(
+                    mPhone.getCarrierId(), isRoaming);
+        }
+
+        if (dynamicCaps != null) {
+            // Case: Config exists (either specific or default). Use it strictly.
+            meteredCapabilities.addAll(dynamicCaps);
+        } else {
+            // Case: No config found in Proto (or DataConfig not loaded). Revert to Hardcoded
+            // Defaults.
+            meteredCapabilities.add(NetworkCapabilities.NET_CAPABILITY_PRIORITIZE_BANDWIDTH);
+            meteredCapabilities.add(NetworkCapabilities.NET_CAPABILITY_PRIORITIZE_LATENCY);
+            meteredCapabilities.add(DataUtils.NET_CAPABILITY_PRIORITIZE_UNIFIED_COMMUNICATIONS);
+        }
 
         return Collections.unmodifiableSet(meteredCapabilities);
     }
@@ -1564,6 +1609,117 @@ public class DataConfigManager extends Handler {
         return Arrays.stream(forcedCellularTransportCapabilities)
                 .map(DataUtils::getNetworkCapabilityFromString)
                 .collect(Collectors.toSet());
+    }
+
+    /**
+     * Convert NetworkCapability to ConnectionCapability.
+     * Checks dynamic config first, then falls back to DataUtils static mapping.
+     */
+    public int networkCapabilityToConnectionCapability(@NetCapability int netCap) {
+        if (mDataConfig != null) {
+            // Get the parsed map from DataConfig
+            Map<Integer, Integer> map = mDataConfig.getConnectionCapabilities(
+                    mPhone.getCarrierId());
+            if (map != null && map.containsKey(netCap)) {
+                return map.get(netCap);
+            }
+        }
+        // Fallback to static logic
+        return networkCapabilityToConnectionCapabilityStatic(netCap);
+    }
+
+    /**
+     * Convert ConnectionCapability to NetworkCapability.
+     * Checks dynamic config first, then falls back to DataUtils static mapping.
+     */
+    public int connectionCapabilityToNetworkCapability(
+            @TrafficDescriptor.ConnectionCapability int connCap) {
+        if (mDataConfig != null) {
+            // Get the parsed map from DataConfig
+            Map<Integer, Integer> map = mDataConfig.getConnectionCapabilities(
+                    mPhone.getCarrierId());
+            // Reverse lookup
+            if (map != null) {
+                for (Map.Entry<Integer, Integer> entry : map.entrySet()) {
+                    if (entry.getValue() == connCap) {
+                        return entry.getKey();
+                    }
+                }
+            }
+        }
+        // Fallback to static logic
+        return connectionCapabilityToNetworkCapabilityStatic(connCap);
+    }
+
+    /**
+     * Checks if APN match is required for the given NetworkCapability using dynamic config.
+     */
+    public boolean isApnMatchedRequired(@NetCapability int netCap) {
+        if (mDataConfig != null) {
+            Map<Integer, Boolean> map = mDataConfig.getApnRequired(mPhone.getCarrierId());
+            if (map != null && map.containsKey(netCap)) {
+                return map.get(netCap);
+            }
+        }
+        // Default to carrier config value if no config found
+        return isApnMatchedRequired();
+    }
+
+    /**
+     * Convert NetworkCapability to ConnectionCapability. This is the static logic used as the
+     * default in case the Dynamic mapping is absent OR null.
+     *
+     * @param netCap The {@code NetworkCapabilities.NET_CAPABILITY_*} constant.
+     * @return The {@code TrafficDescriptor.CONNECTION_CAPABILITY_*} constant.
+     */
+    @TrafficDescriptor.ConnectionCapability
+    private int networkCapabilityToConnectionCapabilityStatic(@NetCapability int netCap) {
+        return switch (netCap) {
+            case NetworkCapabilities.NET_CAPABILITY_MMS ->
+                    TrafficDescriptor.CONNECTION_CAPABILITY_MMS;
+            case NetworkCapabilities.NET_CAPABILITY_SUPL ->
+                    TrafficDescriptor.CONNECTION_CAPABILITY_SUPL;
+            case NetworkCapabilities.NET_CAPABILITY_IMS ->
+                    TrafficDescriptor.CONNECTION_CAPABILITY_IMS;
+            case NetworkCapabilities.NET_CAPABILITY_INTERNET ->
+                    TrafficDescriptor.CONNECTION_CAPABILITY_INTERNET;
+            case NetworkCapabilities.NET_CAPABILITY_PRIORITIZE_LATENCY ->
+                    TrafficDescriptor.CONNECTION_CAPABILITY_REAL_TIME_INTERACTIVE;
+            case NetworkCapabilities.NET_CAPABILITY_PRIORITIZE_BANDWIDTH ->
+                    TrafficDescriptor.CONNECTION_CAPABILITY_DOWNLINK_STREAMING;
+            case DataUtils.NET_CAPABILITY_PRIORITIZE_UNIFIED_COMMUNICATIONS ->
+                    TrafficDescriptor.CONNECTION_CAPABILITY_UNIFIED_COMMUNICATIONS;
+            default -> TrafficDescriptor.CONNECTION_CAPABILITY_UNKNOWN;
+        };
+    }
+
+    /**
+     * Convert ConnectionCapability to NetworkCapability. This is the static logic used as the
+     * default in case the Dynamic mapping is absent OR null.
+     *
+     * @param connCap The {@code TrafficDescriptor.CONNECTION_CAPABILITY_*} constant.
+     * @return The {@code NetworkCapabilities.NET_CAPABILITY_*} constant.
+     */
+    @NetCapability
+    private int connectionCapabilityToNetworkCapabilityStatic(
+            @TrafficDescriptor.ConnectionCapability int connCap) {
+        return switch (connCap) {
+            case TrafficDescriptor.CONNECTION_CAPABILITY_MMS ->
+                    NetworkCapabilities.NET_CAPABILITY_MMS;
+            case TrafficDescriptor.CONNECTION_CAPABILITY_SUPL ->
+                    NetworkCapabilities.NET_CAPABILITY_SUPL;
+            case TrafficDescriptor.CONNECTION_CAPABILITY_IMS ->
+                    NetworkCapabilities.NET_CAPABILITY_IMS;
+            case TrafficDescriptor.CONNECTION_CAPABILITY_INTERNET ->
+                    NetworkCapabilities.NET_CAPABILITY_INTERNET;
+            case TrafficDescriptor.CONNECTION_CAPABILITY_REAL_TIME_INTERACTIVE ->
+                    NetworkCapabilities.NET_CAPABILITY_PRIORITIZE_LATENCY;
+            case TrafficDescriptor.CONNECTION_CAPABILITY_DOWNLINK_STREAMING ->
+                    NetworkCapabilities.NET_CAPABILITY_PRIORITIZE_BANDWIDTH;
+            case TrafficDescriptor.CONNECTION_CAPABILITY_UNIFIED_COMMUNICATIONS ->
+                    DataUtils.NET_CAPABILITY_PRIORITIZE_UNIFIED_COMMUNICATIONS;
+            default -> -1; // Corresponds to no capability
+        };
     }
 
     /**

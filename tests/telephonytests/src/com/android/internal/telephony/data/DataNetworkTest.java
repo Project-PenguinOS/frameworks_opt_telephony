@@ -490,6 +490,10 @@ public class DataNetworkTest extends TelephonyTest {
         doReturn(CarrierConfigManager.SATELLITE_DATA_SUPPORT_ONLY_RESTRICTED)
                 .when(mSatelliteController)
                 .getSatelliteDataServicePolicyForPlmn(anyInt(), anyString());
+        doAnswer(inv -> getTestConnectionCapability(inv.getArgument(0)))
+                .when(mDataConfigManager).networkCapabilityToConnectionCapability(anyInt());
+        doAnswer(inv -> getTestNetworkCapability(inv.getArgument(0)))
+                .when(mDataConfigManager).connectionCapabilityToNetworkCapability(anyInt());
 
         serviceStateChanged(TelephonyManager.NETWORK_TYPE_LTE,
                 NetworkRegistrationInfo.REGISTRATION_STATE_HOME, false/*isNtn*/);

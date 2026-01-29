@@ -737,8 +737,9 @@ public class DataProfileManager extends Handler {
                 int highestPriorityCapability =
                         networkRequest.getHighestPrioritySupportedNetworkCapability();
                 // Convert it to ConnectionCapability using the utility method.
-                int connectionCapability = DataUtils.networkCapabilityToConnectionCapability(
-                        highestPriorityCapability);
+                int connectionCapability =
+                        mDataConfigManager.networkCapabilityToConnectionCapability(
+                                highestPriorityCapability);
                 if (connectionCapability != TrafficDescriptor.CONNECTION_CAPABILITY_UNKNOWN) {
                     trafficDescriptorBuilder.setConnectionCapability(connectionCapability);
                 }

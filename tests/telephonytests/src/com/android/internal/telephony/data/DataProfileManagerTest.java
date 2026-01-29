@@ -2087,6 +2087,11 @@ public class DataProfileManagerTest extends TelephonyTest {
     @Test
     @EnableFlags(Flags.FLAG_ENABLE_TRAFFIC_DESCRIPTOR_CONNECTION_CAPABILITY)
     public void testGetDataProfileForRequest_withConnectionCapability() {
+        doReturn(TrafficDescriptor.CONNECTION_CAPABILITY_IMS)
+                .when(mDataConfigManager)
+                .networkCapabilityToConnectionCapability(
+                        eq(NetworkCapabilities.NET_CAPABILITY_IMS));
+
         // Set priority of IMS capability to return a non-zero value (the actual value is 40).
         doReturn(40).when(mDataConfigManager)
                 .getNetworkCapabilityPriority(NetworkCapabilities.NET_CAPABILITY_IMS);
