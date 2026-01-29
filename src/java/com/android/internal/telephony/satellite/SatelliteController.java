@@ -149,6 +149,7 @@ import android.telephony.satellite.ISatelliteTransmissionUpdateCallback;
 import android.telephony.satellite.ISelectedNbIotSatelliteSubscriptionCallback;
 import android.telephony.satellite.NtnSignalStrength;
 import android.telephony.satellite.PlmnSatelliteConfig;
+import android.telephony.satellite.PointingUiAppLaunchIntentAttributes;
 import android.telephony.satellite.SatelliteAccessConfiguration;
 import android.telephony.satellite.SatelliteCapabilities;
 import android.telephony.satellite.SatelliteCommunicationAccessStateCallback;
@@ -376,6 +377,7 @@ public class SatelliteController extends Handler {
     private static final int EVENT_PACKAGE_CHANGED = 94;
     private static final int EVENT_SCREEN_STATE_CHANGED = 95;
     private static final int EVENT_SET_SATELLITE_NETWORK_INFO_DONE = 96;
+    private static final int REQUEST_POINTING_UI_APP_LAUNCH_INTENT = 97;
 
     private static final int TRUE = 1;
     private static final int FALSE = 0;
@@ -2758,6 +2760,20 @@ public class SatelliteController extends Handler {
             case EVENT_PACKAGE_CHANGED:
                 handlePackageChangeEvent();
                 break;
+
+            case REQUEST_POINTING_UI_APP_LAUNCH_INTENT: {
+                plogd("REQUEST_POINTING_UI_APP_LAUNCH_INTENT");
+                SomeArgs args = (SomeArgs) msg.obj;
+                PointingUiAppLaunchIntentAttributes launchIntentAttributes =
+                        (PointingUiAppLaunchIntentAttributes) args.arg1;
+                ResultReceiver result = (ResultReceiver) args.arg2;
+                try {
+                    handleRequestPointingUiAppLaunchIntent(launchIntentAttributes, result);
+                } finally {
+                    args.recycle();
+                }
+                break;
+            }
 
             case EVENT_SCREEN_STATE_CHANGED:
                 handleEventScreenStateChanged((AsyncResult) msg.obj);
@@ -8905,6 +8921,29 @@ public class SatelliteController extends Handler {
     }
 
     /**
+     * Request to get the PendingIntent to launch the PointingUI app.
+     *
+     * @param launchIntentAttributes The attributes to create the launch intent.
+     * @param result The result receiver that returns the {@link PendingIntent} to launch the
+     * PointingUI app if the request is successful or an error code if the request failed.
+     */
+    public void requestPointingUiAppLaunchIntent(
+            @NonNull PointingUiAppLaunchIntentAttributes launchIntentAttributes,
+            @NonNull ResultReceiver result) {
+        logd("requestPointingUiAppLaunchIntent: launchIntentAttributes=" + launchIntentAttributes);
+        if (!mFeatureFlags.systemSelectionSpecifierEnhancement()) {
+            logd("requestPointingUiAppLaunchIntent: systemSelectionSpecifierEnhancement flag"
+                    +" is disabled");
+            result.send(SATELLITE_RESULT_REQUEST_NOT_SUPPORTED, null);
+            return;
+        }
+        SomeArgs args = SomeArgs.obtain();
+        args.arg1 = launchIntentAttributes;
+        args.arg2 = result;
+        sendMessage(obtainMessage(REQUEST_POINTING_UI_APP_LAUNCH_INTENT, args));
+    }
+
+    /**
      * Request to get list of prioritized satellite tokens to be used for provision.
      *
      * @param result The result receiver, which returns the list of prioritized satellite tokens
@@ -11133,5 +11172,22 @@ public class SatelliteController extends Handler {
 
         return mSatelliteEligibilitySource.getOrDefault(subId,
                 SatelliteConstants.SATELLITE_ELIGIBILITY_SOURCE_UNKNOWN);
+    }
+
+    private void handleRequestPointingUiAppLaunchIntent(
+            @NonNull PointingUiAppLaunchIntentAttributes launchIntentAttributes,
+            @NonNull ResultReceiver result) {
+        plogd("handleRequestPointingUiAppLaunchIntent: launchIntentAttributes="
+                + launchIntentAttributes);
+        PendingIntent pendingIntent =
+                mPointingAppController.createPointingUiAppPendingIntent(launchIntentAttributes);
+
+        Bundle bundle = new Bundle();
+        if (pendingIntent != null) {
+            bundle.putParcelable(SatelliteManager.KEY_POINTING_UI_APP_LAUNCH_INTENT, pendingIntent);
+            result.send(SATELLITE_RESULT_SUCCESS, bundle);
+        } else {
+            result.send(SatelliteManager.SATELLITE_RESULT_REQUEST_FAILED, null);
+        }
     }
 }
