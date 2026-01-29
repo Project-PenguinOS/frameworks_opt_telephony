@@ -832,6 +832,12 @@ public class DataNetworkControllerTest extends TelephonyTest {
 
         mCarrierConfig.putLongArray(CarrierConfigManager.KEY_DATA_STALL_RECOVERY_TIMERS_LONG_ARRAY,
                 new long[] {100, 100, 100, 100});
+
+        // Add this line to provide a default value for the new randomization key
+        mCarrierConfig.putLongArray(
+                CarrierConfigManager.KEY_DATA_STALL_RECOVERY_TIMERS_RANDOMIZATION_MILLIS_LONG_ARRAY,
+                new long[] {0L, 0L, 0L, 0L});
+
         mCarrierConfig.putBooleanArray(
                 CarrierConfigManager.KEY_DATA_STALL_RECOVERY_SHOULD_SKIP_BOOL_ARRAY,
                 new boolean[] {false, false, true, false, false});
@@ -906,6 +912,8 @@ public class DataNetworkControllerTest extends TelephonyTest {
         infoList.add(mMockSubInfo);
         doReturn(0).when(mSubscriptionManagerService).getPhoneId(1);
         doReturn(1).when(mSubscriptionManagerService).getPhoneId(2);
+        doReturn(true).when(mFeatureFlags).enableDataStallRecoveryRandomization();
+
 
         for (int transport : new int[]{AccessNetworkConstants.TRANSPORT_TYPE_WWAN,
                 AccessNetworkConstants.TRANSPORT_TYPE_WLAN}) {

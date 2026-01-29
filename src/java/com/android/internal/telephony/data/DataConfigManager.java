@@ -1469,6 +1469,18 @@ public class DataConfigManager extends Handler {
     }
 
     /**
+     * @return Get recovery timers in milliseconds that will be randomly added to the delay time
+     * between recovery actions.
+     *
+     * @see CarrierConfigManager#KEY_DATA_STALL_RECOVERY_TIMERS_RANDOMIZATION_MILLIS_LONG_ARRAY
+     */
+    @NonNull
+    public long[] getDataStallRecoveryRandomizationMillis() {
+        return mCarrierConfig.getLongArray(
+            CarrierConfigManager.KEY_DATA_STALL_RECOVERY_TIMERS_RANDOMIZATION_MILLIS_LONG_ARRAY);
+    }
+
+    /**
      * @return Get the data stall recovery should skip boolean array.
      *
      * @see CarrierConfigManager#KEY_DATA_STALL_RECOVERY_SHOULD_SKIP_BOOL_ARRAY
