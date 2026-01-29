@@ -122,3 +122,12 @@ flag {
       purpose: PURPOSE_BUGFIX
   }
 }
+
+# OWNER=gargakash TARGET=26Q2
+flag {
+    name: "enable_new_display_name_apis"
+    namespace: "telephony"
+    description: "Enables the new setDisplayName and clearDisplayName SystemAPIs in SubscriptionManager"
+    bug: "455463446"
+    is_exported: true
+}
