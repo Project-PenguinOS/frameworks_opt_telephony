@@ -68,17 +68,6 @@ flag {
   is_exported: true
 }
 
-# OWNER=melhuishj TARGET=25Q4
-flag {
-  name: "ignore_initial_data_stall_recovered"
-  namespace: "telephony"
-  description: "Prevent DataStallRecoveryManager from broadcasting a data stall event during initial setup when no data stall has occurred"
-  bug:"432293174"
-  metadata {
-    purpose: PURPOSE_BUGFIX
-  }
-}
-
 # OWNER=rambowang TARGET=26Q2
 flag {
   name: "expose_oppt_auto_data_switch_policies"
