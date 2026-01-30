@@ -1722,7 +1722,8 @@ public class MetricsCollector implements StatsManager.StatsPullAtomCallback {
                 stats.wasChargingDuringSession,
                 stats.batteryDesignCapacityMah,
                 stats.energyConsumedNwh,
-                stats.eligibilitySource);
+                stats.eligibilitySource,
+                stats.isWifiConnected);
     }
 
     private static StatsEvent buildStatsEvent(CarrierRoamingSatelliteControllerStats stats) {

@@ -18,6 +18,7 @@ package com.android.internal.telephony.satellite;
 
 import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.verify;
 
@@ -92,7 +93,8 @@ public class CarrierRoamingSatelliteSessionStatsTest extends TelephonyTest {
                 0,
                 "12345",
                 mMockFeatureFlags,
-                true /* isScreenOn */);
+                true /* isScreenOn */,
+                true /* isWiFiConnected */);
 
         // Advance time by 5 seconds
         mCarrierRoamingSatelliteSessionStats.increaseElapsedTime(5_000L);
@@ -117,6 +119,73 @@ public class CarrierRoamingSatelliteSessionStatsTest extends TelephonyTest {
         SatelliteStats.CarrierRoamingSatelliteSessionParams params = captor.getValue();
         // 5s + 8s = 13s
         assertEquals(13, params.getScreenOnTimeSec());
+    }
+
+    @Test
+    public void testWifiConnectivityState() {
+        doReturn(true).when(mMockFeatureFlags).satelliteMetricsEnhancement();
+        doReturn(new int[]{SUB_ID}).when(mSubscriptionManagerService).getActiveSubIdList(
+                anyBoolean());
+
+        // Test scenario 1:  WiFi was disconnected when session start.
+        mCarrierRoamingSatelliteSessionStats.onSessionStart(CARRIER_ID, mMockPhone, new int[]{}, 0,
+                Collections.emptyList(), 0, 0, "12345", mMockFeatureFlags, true /* isScreenOn */,
+                false /* isWiFiConnected */);
+
+        // WiFi was connected.
+        boolean expectedWifiConnectedStatus = true;
+        mCarrierRoamingSatelliteSessionStats.onWifiConnectivityStateChanged(
+                expectedWifiConnectedStatus);
+        mCarrierRoamingSatelliteSessionStats.onSessionEnd(SUB_ID, Collections.emptyList());
+
+        ArgumentCaptor<SatelliteStats.CarrierRoamingSatelliteSessionParams> captor =
+                ArgumentCaptor.forClass(SatelliteStats.CarrierRoamingSatelliteSessionParams.class);
+        verify(mMockSatelliteStats).onCarrierRoamingSatelliteSessionMetrics(captor.capture());
+
+        SatelliteStats.CarrierRoamingSatelliteSessionParams params = captor.getValue();
+        // WiFi connected stats should betrue
+        assertEquals(expectedWifiConnectedStatus, params.isWifiConnected());
+
+        // Test scenario 2: WiFi was disconnected when session start.
+        clearInvocations(mMockSatelliteStats);
+        mCarrierRoamingSatelliteSessionStats.onSessionStart(CARRIER_ID, mMockPhone, new int[]{}, 0,
+                Collections.emptyList(), 0, 0, "12345", mMockFeatureFlags, true /* isScreenOn */,
+                false /* isWiFiConnected */);
+
+        // WiFi was connected.
+        expectedWifiConnectedStatus = true;
+        mCarrierRoamingSatelliteSessionStats.onWifiConnectivityStateChanged(
+                expectedWifiConnectedStatus);
+
+        // Then disconnected
+        mCarrierRoamingSatelliteSessionStats.onWifiConnectivityStateChanged(false);
+        mCarrierRoamingSatelliteSessionStats.onSessionEnd(SUB_ID, Collections.emptyList());
+
+        captor = ArgumentCaptor.forClass(SatelliteStats.CarrierRoamingSatelliteSessionParams.class);
+        verify(mMockSatelliteStats).onCarrierRoamingSatelliteSessionMetrics(captor.capture());
+        params = captor.getValue();
+
+        // WiFi connected stats should be true
+        assertEquals(expectedWifiConnectedStatus, params.isWifiConnected());
+
+        // Test scenario 3: WiFi was connected when session start.
+        clearInvocations(mMockSatelliteStats);
+        mCarrierRoamingSatelliteSessionStats.onSessionStart(CARRIER_ID, mMockPhone, new int[]{}, 0,
+                Collections.emptyList(), 0, 0, "12345", mMockFeatureFlags, true /* isScreenOn */,
+                false /* isWiFiConnected */);
+
+        // WiFi was disconnected.
+        expectedWifiConnectedStatus = false;
+        mCarrierRoamingSatelliteSessionStats.onWifiConnectivityStateChanged(
+                expectedWifiConnectedStatus);
+        mCarrierRoamingSatelliteSessionStats.onSessionEnd(SUB_ID, Collections.emptyList());
+
+        captor = ArgumentCaptor.forClass(SatelliteStats.CarrierRoamingSatelliteSessionParams.class);
+        verify(mMockSatelliteStats).onCarrierRoamingSatelliteSessionMetrics(captor.capture());
+        params = captor.getValue();
+
+        // WiFi connected stats should be false
+        assertEquals(expectedWifiConnectedStatus, params.isWifiConnected());
     }
 
     private static class TestCarrierRoamingSatelliteSessionStats

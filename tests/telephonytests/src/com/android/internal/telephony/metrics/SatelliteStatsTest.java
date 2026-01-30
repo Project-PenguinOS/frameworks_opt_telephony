@@ -477,6 +477,7 @@ public class SatelliteStatsTest extends TelephonyTest {
                         .setIsWfcRegistered(false)
                         .setEligibilitySource(
                                 SatelliteConstants.SATELLITE_ELIGIBILITY_SOURCE_ENTITLEMENT)
+                        .setIsWifiConnected(true)
                         .build();
 
         mSatelliteStats.onCarrierRoamingSatelliteSessionMetrics(param);
@@ -511,6 +512,7 @@ public class SatelliteStatsTest extends TelephonyTest {
         assertEquals(param.isWfcEnabled(), stats.isWfcEnabled);
         assertEquals(param.isWfcRegistered(), stats.isWfcRegistered);
         assertEquals(param.getEligibilitySource(), stats.eligibilitySource);
+        assertEquals(param.isWifiConnected(), stats.isWifiConnected);
 
         verifyNoMoreInteractions(mPersistAtomsStorage);
     }

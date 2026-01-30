@@ -193,8 +193,6 @@ import android.telephony.satellite.SatelliteDatagram;
 import android.telephony.satellite.SatelliteInfo;
 import android.telephony.satellite.SatelliteManager;
 import android.telephony.satellite.SatelliteManager.SatelliteException;
-import android.telephony.satellite.SatelliteManager.SatelliteCommunicationRestrictionReason;
-import android.telephony.satellite.SatelliteManager.NTRadioTechnology;
 import android.telephony.satellite.SatelliteModemEnableRequestAttributes;
 import android.telephony.satellite.SatellitePosition;
 import android.telephony.satellite.PointingUiAppLaunchIntentAttributes;
@@ -207,7 +205,6 @@ import android.testing.TestableLooper;
 import android.util.IntArray;
 import android.util.Pair;
 
-import com.android.internal.os.SomeArgs;
 import com.android.internal.R;
 import com.android.internal.telephony.IBooleanConsumer;
 import com.android.internal.telephony.IIntegerConsumer;
@@ -219,7 +216,6 @@ import com.android.internal.telephony.configupdate.ConfigProviderAdaptor;
 import com.android.internal.telephony.configupdate.TelephonyConfigUpdateInstallReceiver;
 import com.android.internal.telephony.flags.FeatureFlags;
 import com.android.internal.telephony.metrics.SatelliteStats;
-import com.android.internal.telephony.flags.Flags;
 import com.android.internal.telephony.satellite.metrics.CarrierRoamingSatelliteControllerStats;
 import com.android.internal.telephony.satellite.metrics.CarrierRoamingSatelliteSessionStats;
 import com.android.internal.telephony.satellite.metrics.ControllerMetricsStats;
@@ -6484,6 +6480,14 @@ public class SatelliteControllerTest extends TelephonyTest {
         msg.sendToTarget();
     }
 
+    private void sendEventWifiConnectivityStateChanged(boolean isWifiConnected,
+            Throwable exception) {
+        Message msg = mSatelliteControllerUT.obtainMessage(
+                47 /* EVENT_WIFI_CONNECTIVITY_STATE_CHANGED */, null);
+        msg.obj = new AsyncResult(null, isWifiConnected, exception);
+        msg.sendToTarget();
+    }
+
     private void sendSatelliteRegistrationFailureEvent(int errorCode, Throwable exception) {
         Message msg = mSatelliteControllerUT.obtainMessage(
                 54 /* EVENT_SATELLITE_REGISTRATION_FAILURE */);
@@ -9110,13 +9114,13 @@ public class SatelliteControllerTest extends TelephonyTest {
         stats1.onSessionStart(CARRIER_ID_1, mPhone, SUPPORTED_SERVICES_1,
                 SATELLITE_ENTITLEMENT_SERVICE_POLICY_CONSTRAINED, SATELLITE_APPS_1,
                 GLOBAL_NTN_CONNECT_TYPE_AUTOMATIC,
-                SESSION_NTN_CONNECT_TYPE_AUTOMATIC, SATELLITE_PLMN_1, mFeatureFlags, true);
+                SESSION_NTN_CONNECT_TYPE_AUTOMATIC, SATELLITE_PLMN_1, mFeatureFlags, true, true);
 
         TestCarrierRoamingSatelliteSessionStats.increaseCurrentTime(10_000L);
         stats2.onSessionStart(CARRIER_ID_2, mPhone2, SUPPORTED_SERVICES_2,
                 SATELLITE_ENTITLEMENT_SERVICE_POLICY_UNCONSTRAINED, SATELLITE_APPS_2,
                 GLOBAL_NTN_CONNECT_TYPE_MANUAL,
-                SESSION_NTN_CONNECT_TYPE_MANUAL, SATELLITE_PLMN_2, mFeatureFlags, true);
+                SESSION_NTN_CONNECT_TYPE_MANUAL, SATELLITE_PLMN_2, mFeatureFlags, true, false);
 
         TestCarrierRoamingSatelliteSessionStats.increaseCurrentTime(30_000L);
         sendEventScreenStateChanged(false, null);
@@ -9138,6 +9142,7 @@ public class SatelliteControllerTest extends TelephonyTest {
 
         TestCarrierRoamingSatelliteSessionStats.increaseCurrentTime(30_000L);
         sendEventScreenStateChanged(true, null);
+        sendEventWifiConnectivityStateChanged(true, null);
         processAllMessages();
 
         TestCarrierRoamingSatelliteSessionStats.increaseCurrentTime(480_000L);
@@ -9163,9 +9168,11 @@ public class SatelliteControllerTest extends TelephonyTest {
 
         assertThat(param1.getTotalSatelliteModeTimeSec()).isEqualTo(59);
         assertThat(param1.getScreenOnTimeSec()).isEqualTo(54);
+        assertThat(param1.isWifiConnected()).isEqualTo(true);
 
         assertThat(param2.getTotalSatelliteModeTimeSec()).isEqualTo(599);
         assertThat(param2.getScreenOnTimeSec()).isEqualTo(564);
+        assertThat(param1.isWifiConnected()).isEqualTo(true);
     }
 
     @Test
