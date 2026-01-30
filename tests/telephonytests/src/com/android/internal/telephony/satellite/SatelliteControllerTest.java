@@ -139,6 +139,7 @@ import android.annotation.Nullable;
 import android.app.AlarmManager;
 import android.app.Notification;
 import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.app.usage.NetworkStatsManager;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -196,6 +197,7 @@ import android.telephony.satellite.SatelliteManager.SatelliteCommunicationRestri
 import android.telephony.satellite.SatelliteManager.NTRadioTechnology;
 import android.telephony.satellite.SatelliteModemEnableRequestAttributes;
 import android.telephony.satellite.SatellitePosition;
+import android.telephony.satellite.PointingUiAppLaunchIntentAttributes;
 import android.telephony.satellite.SatelliteSubscriberInfo;
 import android.telephony.satellite.SatelliteSubscriberProvisionStatus;
 import android.telephony.satellite.SatelliteSubscriptionInfo;
@@ -9164,6 +9166,42 @@ public class SatelliteControllerTest extends TelephonyTest {
 
         assertThat(param2.getTotalSatelliteModeTimeSec()).isEqualTo(599);
         assertThat(param2.getScreenOnTimeSec()).isEqualTo(564);
+    }
+
+    @Test
+    public void testRequestPointingUiAppLaunchIntent() {
+        PointingUiAppLaunchIntentAttributes attributes =
+                new PointingUiAppLaunchIntentAttributes(true, true, true);
+        ResultReceiver resultReceiver = mock(ResultReceiver.class);
+
+        // Feature flag disabled
+        when(mFeatureFlags.systemSelectionSpecifierEnhancement()).thenReturn(false);
+        mSatelliteControllerUT.requestPointingUiAppLaunchIntent(attributes, resultReceiver);
+        processAllMessages();
+        verify(resultReceiver).send(SATELLITE_RESULT_REQUEST_NOT_SUPPORTED, null);
+
+        // Feature flag enabled
+        when(mFeatureFlags.systemSelectionSpecifierEnhancement()).thenReturn(true);
+
+        // PendingIntent creation successful
+        PendingIntent pendingIntent = PendingIntent.getActivity(mContext, 0, new Intent(),
+                PendingIntent.FLAG_IMMUTABLE);
+        when(mMockPointingAppController.createPointingUiAppPendingIntent(any()))
+                .thenReturn(pendingIntent);
+        mSatelliteControllerUT.requestPointingUiAppLaunchIntent(attributes, resultReceiver);
+        processAllMessages();
+        ArgumentCaptor<Bundle> bundleCaptor = ArgumentCaptor.forClass(Bundle.class);
+        verify(resultReceiver).send(eq(SATELLITE_RESULT_SUCCESS), bundleCaptor.capture());
+        assertEquals(pendingIntent, bundleCaptor.getValue().getParcelable(
+                SatelliteManager.KEY_POINTING_UI_APP_LAUNCH_INTENT, PendingIntent.class));
+
+        // PendingIntent creation failed
+        reset(resultReceiver);
+        when(mMockPointingAppController.createPointingUiAppPendingIntent(any()))
+                .thenReturn(null);
+        mSatelliteControllerUT.requestPointingUiAppLaunchIntent(attributes, resultReceiver);
+        processAllMessages();
+        verify(resultReceiver).send(SatelliteManager.SATELLITE_RESULT_REQUEST_FAILED, null);
     }
 
     private static class TestCarrierRoamingSatelliteSessionStats extends

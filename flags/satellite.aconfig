@@ -99,17 +99,6 @@ flag {
     }
 }
 
-# OWNER=nagendranb TARGET=25Q3
-flag {
-  name: "satellite_data_metrics"
-  namespace: "telephony"
-  description: "Support Satellite Data metrics at satellite session"
-  bug: "405107194"
-  metadata {
-    purpose: PURPOSE_BUGFIX
-  }
-}
-
 # OWNER=youngtaecha TARGET=26Q2
 flag {
   name: "telephony_satellite_mainline_phase1"

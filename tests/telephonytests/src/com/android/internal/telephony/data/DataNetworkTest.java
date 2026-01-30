@@ -2902,42 +2902,6 @@ public class DataNetworkTest extends TelephonyTest {
     }
 
     @Test
-    public void testUnrestrictedSatelliteNetworkCapabilities_WithDataServiceCheckFlagDisabled() {
-        doReturn(false).when(mFeatureFlags).dataServiceCheck();
-        setupNonTerrestrialDataNetwork();
-
-        assertThat(mDataNetworkUT.getNetworkCapabilities()
-                .hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_RESTRICTED)).isFalse();
-
-        // Test constrained traffic
-        doReturn(CarrierConfigManager.SATELLITE_DATA_SUPPORT_BANDWIDTH_CONSTRAINED)
-                .when(mDataConfigManager).getSatelliteDataSupportMode();
-        mDataNetworkUT.sendMessage(22/*EVENT_VOICE_CALL_STARTED*/); // update network capabilities
-        processAllMessages();
-
-        assertThat(mDataNetworkUT.getNetworkCapabilities()
-                .hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_RESTRICTED)).isTrue();
-        try {
-            assertThat(mDataNetworkUT.getNetworkCapabilities().hasCapability(
-                    NetworkCapabilities.NET_CAPABILITY_NOT_BANDWIDTH_CONSTRAINED)).isFalse();
-        } catch (Exception ignored) { }
-
-        // Test not constrained traffic
-        doReturn(CarrierConfigManager.SATELLITE_DATA_SUPPORT_ALL)
-                .when(mDataConfigManager).getSatelliteDataSupportMode();
-        mDataNetworkUT.sendMessage(22/*EVENT_VOICE_CALL_STARTED*/); // update network capabilities
-        processAllMessages();
-
-        assertThat(mDataNetworkUT.getNetworkCapabilities()
-                .hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_RESTRICTED)).isTrue();
-        // TODO(enable after NET_CAPABILITY_NOT_BANDWIDTH_CONSTRAINED become a default cap)
-//        try {
-//            assertThat(mDataNetworkUT.getNetworkCapabilities()
-//                    .hasCapability(DataUtils.NET_CAPABILITY_NOT_BANDWIDTH_CONSTRAINED)).isTrue();
-//        } catch (Exception ignored) {}
-    }
-
-    @Test
     public void testIsTransportSatelliteSupportNonImsNonTerrestrialNetwork() throws Exception {
         // Service state at Non-terrestrial network
         serviceStateChanged(TelephonyManager.NETWORK_TYPE_LTE,

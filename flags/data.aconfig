@@ -41,17 +41,6 @@ flag {
   }
 }
 
-# OWNER=nagendranb TARGET=25Q2
-flag {
-  name: "data_service_check"
-  namespace: "telephony"
-  description: "Support data service check based on nri available services."
-  bug:"381338283"
-  metadata {
-    purpose: PURPOSE_BUGFIX
-  }
-}
-
 # OWNER=kuenyuet TARGET=26Q2
 flag {
   name: "data_service_user_data_toggle_notify"
@@ -99,6 +88,16 @@ flag {
   bug:"448973795"
 }
 
+# OWNER=willycwhu TARGET=26Q2
+flag {
+  name: "enable_data_stall_recovery_randomization"
+  namespace: "telephony"
+  description: "Enables adding a random offset to data stall recovery timers to prevent network overload issues."
+  bug: "478980391"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}
 
 # OWNER=sewookseo TARGET=26Q2
 flag {

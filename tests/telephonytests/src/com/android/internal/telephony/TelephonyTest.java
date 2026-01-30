@@ -559,7 +559,6 @@ public abstract class TelephonyTest {
         mDomainSelectionResolver = Mockito.mock(DomainSelectionResolver.class);
         mNullCipherNotifier = Mockito.mock(NullCipherNotifier.class);
 
-        lenient().doReturn(true).when(mFeatureFlags).dataServiceCheck();
         lenient().doReturn(true).when(mFeatureFlags).dataServiceNotifyImsDataNetwork();
         lenient().doReturn(true).when(mFeatureFlags).keepWfcOnApm();
         lenient().doReturn(true).when(mFeatureFlags).deleteCdma();
@@ -572,6 +571,7 @@ public abstract class TelephonyTest {
         lenient().doReturn(true).when(mFeatureFlags).subscriptionPlanEnhancement();
         lenient().doReturn(true).when(mFeatureFlags)
                 .removeTetheringConditionWhenEnablingIndications();
+        lenient().doReturn(true).when(mFeatureFlags).enableDataStallRecoveryRandomization();
 
         WorkerThread.reset();
         TelephonyManager.disableServiceHandleCaching();

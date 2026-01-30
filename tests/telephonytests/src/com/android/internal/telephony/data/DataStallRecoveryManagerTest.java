@@ -57,6 +57,7 @@ import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 
 import java.lang.reflect.Field;
+import java.util.Arrays;
 import java.util.Set;
 
 @RunWith(AndroidTestingRunner.class)
@@ -74,6 +75,8 @@ public class DataStallRecoveryManagerTest extends TelephonyTest {
     private TelephonyCallback.ActiveDataSubscriptionIdListener mActiveSubIdListener;
 
     private static final int FAKE_SUB_ID = 42;
+
+    private long mTestRandomOffsets = 0L;
 
     /**
      * The fake content resolver used to receive change event from global settings
@@ -115,12 +118,17 @@ public class DataStallRecoveryManagerTest extends TelephonyTest {
         mCarrierConfigManager = mPhone.getContext().getSystemService(CarrierConfigManager.class);
         long[] dataStallRecoveryTimersArray = new long[] {100, 100, 100, 100};
         boolean[] dataStallRecoveryStepsArray = new boolean[] {false, false, true, false, false};
+        long[] dataStallRecoveryRandomizationArray = new long[] {0, 0, 0, 0};
+
         doReturn(dataStallRecoveryTimersArray)
                 .when(mDataConfigManager)
                 .getDataStallRecoveryDelayMillis();
         doReturn(dataStallRecoveryStepsArray)
                 .when(mDataConfigManager)
                 .getDataStallRecoveryShouldSkipArray();
+        doReturn(dataStallRecoveryRandomizationArray)
+                .when(mDataConfigManager)
+                .getDataStallRecoveryRandomizationMillis();
         doReturn(true).when(mDataNetworkController).isInternetDataAllowed(true);
         doReturn(FAKE_SUB_ID).when(mPhone).getSubId();
 
@@ -663,14 +671,14 @@ public class DataStallRecoveryManagerTest extends TelephonyTest {
     // set private boolean field using reflection
     private void setPrivateBooleanField(Object obj, String fieldName, boolean value)
             throws Exception {
-        Field field = obj.getClass().getDeclaredField(fieldName);
+        Field field = DataStallRecoveryManager.class.getDeclaredField(fieldName);
         field.setAccessible(true);
         field.setBoolean(obj, value);
     }
 
     // get private boolean field using reflection
     private boolean getPrivateBooleanField(Object obj, String fieldName) throws Exception {
-        Field field = obj.getClass().getDeclaredField(fieldName);
+        Field field = DataStallRecoveryManager.class.getDeclaredField(fieldName);
         field.setAccessible(true);
         return field.getBoolean(obj);
     }
@@ -842,4 +850,50 @@ public class DataStallRecoveryManagerTest extends TelephonyTest {
 
         verify(mPhone.getContext(), times(1)).sendBroadcast(any());
     }
+
+    @Test
+    public void testRandomizedDelayInitialization() throws Exception {
+        // Enable randomization and provide config data.
+        doReturn(true).when(mFeatureFlags).enableDataStallRecoveryRandomization();
+
+        long[] baseDelays = new long[] {1000, 2000, 3000, 4000};
+        doReturn(baseDelays).when(mDataConfigManager).getDataStallRecoveryDelayMillis();
+
+        long[] maxRandomOffsets = new long[4];
+        // Set max randomization for all indices
+        Arrays.fill(maxRandomOffsets, 100L);
+        doReturn(maxRandomOffsets)
+                .when(mDataConfigManager)
+                .getDataStallRecoveryRandomizationMillis();
+
+        mTestRandomOffsets = 10L;
+
+        mDataStallRecoveryManager =
+                new DataStallRecoveryManager(
+                        mPhone,
+                        mDataNetworkController,
+                        mMockedWwanDataServiceManager,
+                        mFeatureFlags,
+                        mTestableLooper.getLooper(),
+                        mDataStallRecoveryManagerCallback) {
+                    @Override
+                    protected long getRandomOffsetsMillis(long bound) {
+                        assertThat(bound).isEqualTo(100L);
+                        return mTestRandomOffsets;
+                    }
+                };
+        mTestableLooper.processAllMessages(); // Process initial messages from constructor
+
+        // Verify the randomized delays using getDataStallRecoveryDelayMillis.
+        assertThat(mDataStallRecoveryManager.getDataStallRecoveryDelayMillis(0))
+                .isEqualTo(baseDelays[0] + mTestRandomOffsets); // 1000 + 10
+        assertThat(mDataStallRecoveryManager.getDataStallRecoveryDelayMillis(1))
+                .isEqualTo(baseDelays[1] + mTestRandomOffsets); // 2000 + 10
+        assertThat(mDataStallRecoveryManager.getDataStallRecoveryDelayMillis(2))
+                .isEqualTo(baseDelays[2] + mTestRandomOffsets); // 3000 + 10
+        assertThat(mDataStallRecoveryManager.getDataStallRecoveryDelayMillis(3))
+                .isEqualTo(baseDelays[3] + mTestRandomOffsets); // 4000 + 10
+    }
+
+    //TODO: b/479295438, Ceate the test case for Random timer for each recovery actions.
 }

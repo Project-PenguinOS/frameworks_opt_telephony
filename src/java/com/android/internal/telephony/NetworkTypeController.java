@@ -28,8 +28,6 @@ import android.net.Network;
 import android.net.NetworkCapabilities;
 import android.net.NetworkRequest;
 import android.os.AsyncResult;
-import android.os.Handler;
-import android.os.HandlerThread;
 import android.os.Message;
 import android.os.PersistableBundle;
 import android.os.PowerManager;
@@ -125,10 +123,13 @@ public class NetworkTypeController extends StateMachine {
     private static final int EVENT_DEVICE_IDLE_MODE_CHANGED = 12;
     /** Event for qos sessions changed. */
     private static final int EVENT_QOS_SESSION_CHANGED = 13;
+    /** Event for modem display network type override */
     private static final int EVENT_MODEM_DISPLAY_NETWORK_TYPE_OVERRIDE = 14;
+    /** Event for update request for satellite bandwidth constrained status */
+    private static final int EVENT_UPDATE_BANDWIDTH_CONSTRAINED_STATUS = 15;
 
-    private static final String[] sEvents = new String[EVENT_MODEM_DISPLAY_NETWORK_TYPE_OVERRIDE
-            + 1];
+    private static final String[] sEvents =
+            new String[EVENT_UPDATE_BANDWIDTH_CONSTRAINED_STATUS + 1];
     static {
         sEvents[EVENT_UPDATE] = "EVENT_UPDATE";
         sEvents[EVENT_QUIT] = "EVENT_QUIT";
@@ -147,6 +148,8 @@ public class NetworkTypeController extends StateMachine {
         sEvents[EVENT_QOS_SESSION_CHANGED] = "EVENT_QOS_SESSION_CHANGED";
         sEvents[EVENT_MODEM_DISPLAY_NETWORK_TYPE_OVERRIDE] =
                 "EVENT_MODEM_DISPLAY_NETWORK_TYPE_OVERRIDE";
+        sEvents[EVENT_UPDATE_BANDWIDTH_CONSTRAINED_STATUS] =
+                "EVENT_UPDATE_BANDWIDTH_CONSTRAINED_STATUS";
     }
 
     @NonNull private final Phone mPhone;
@@ -265,7 +268,7 @@ public class NetworkTypeController extends StateMachine {
                         NetworkCapabilities capabilities =
                                 mConnectivityManager.getNetworkCapabilities(network);
                         if (capabilities != null) {
-                            updateBandwidthConstrainedStatus(
+                            sendMessage(EVENT_UPDATE_BANDWIDTH_CONSTRAINED_STATUS,
                                     isBandwidthConstrainedCapabilitySupported(capabilities));
                         }
                     }
@@ -274,13 +277,13 @@ public class NetworkTypeController extends StateMachine {
                 @Override
                 public void onCapabilitiesChanged(@NonNull Network network,
                         @NonNull NetworkCapabilities networkCapabilities) {
-                    updateBandwidthConstrainedStatus(
+                    sendMessage(EVENT_UPDATE_BANDWIDTH_CONSTRAINED_STATUS,
                             isBandwidthConstrainedCapabilitySupported(networkCapabilities));
                 }
 
                 @Override
                 public void onLost(@NonNull Network network) {
-                    updateBandwidthConstrainedStatus(false);
+                    sendMessage(EVENT_UPDATE_BANDWIDTH_CONSTRAINED_STATUS, false);
                 }
             };
 
@@ -358,10 +361,6 @@ public class NetworkTypeController extends StateMachine {
     public synchronized void registerForSatelliteNetwork() {
         if (!mIsSatelliteNetworkCallbackRegistered) {
             mIsSatelliteNetworkCallbackRegistered = true;
-            HandlerThread handlerThread = new HandlerThread("SatelliteDataUsageThread");
-            handlerThread.start();
-            Handler handler = new Handler(handlerThread.getLooper());
-
             NetworkRequest.Builder builder = new NetworkRequest.Builder();
             builder.addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET);
             // TODO (b/382002908: Remove try catch exception for
@@ -378,7 +377,7 @@ public class NetworkTypeController extends StateMachine {
                             .getSystemService(Context.CONNECTIVITY_SERVICE);
             if (mConnectivityManager != null) {
                 mConnectivityManager.registerBestMatchingNetworkCallback(
-                        builder.build(), mNetworkCallback, handler);
+                        builder.build(), mNetworkCallback, getHandler());
             } else {
                 loge("network callback not registered");
             }
@@ -897,6 +896,10 @@ public class NetworkTypeController extends StateMachine {
                         resetAllTimers();
                         transitionToCurrentState();
                     }
+                    break;
+                case EVENT_UPDATE_BANDWIDTH_CONSTRAINED_STATUS:
+                    boolean isConstrained = (boolean) msg.obj;
+                    updateBandwidthConstrainedStatus(isConstrained);
                     break;
                 default:
                     throw new RuntimeException("Received invalid event: " + msg.what);
