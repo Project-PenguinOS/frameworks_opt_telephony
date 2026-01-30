@@ -228,4 +228,19 @@ public class SatelliteConstants {
     })
     @Retention(RetentionPolicy.SOURCE)
     public @interface SatelliteEligibilitySource {}
+
+    // Defines the source of emergency number used in emergency call handover intent
+    // Emergency number source is unknown
+    public static final int EMERGENCY_NUMBER_SOURCE_UNKNOWN = 0;
+    // Emergency number source is the number manually dialed by user
+    public static final int EMERGENCY_NUMBER_SOURCE_USER_DIALED = 1;
+    // Emergency number source is the redirection number provided by carrier
+    public static final int EMERGENCY_NUMBER_SOURCE_CARRIER_REDIRECTION = 2;
+    @IntDef(prefix = {"EMERGENCY_NUMBER_SOURCE_"}, value = {
+        EMERGENCY_NUMBER_SOURCE_UNKNOWN,
+        EMERGENCY_NUMBER_SOURCE_USER_DIALED,
+        EMERGENCY_NUMBER_SOURCE_CARRIER_REDIRECTION
+    })
+    @Retention(RetentionPolicy.SOURCE)
+    public @interface EmergencyNumberSource {}
 }

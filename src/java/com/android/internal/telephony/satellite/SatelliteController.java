@@ -27,6 +27,8 @@ import static android.telephony.CarrierConfigManager.KEY_CARRIER_CONFIG_APPLIED_
 import static android.telephony.CarrierConfigManager.KEY_CARRIER_ROAMING_NTN_CONNECT_TYPE_INT;
 import static android.telephony.CarrierConfigManager.KEY_CARRIER_ROAMING_NTN_EMERGENCY_CALL_TO_SATELLITE_HANDOVER_TYPE_INT;
 import static android.telephony.CarrierConfigManager.KEY_CARRIER_ROAMING_SATELLITE_DEFAULT_SERVICES_INT_ARRAY;
+import static android.telephony.CarrierConfigManager.KEY_CARRIER_ROAMING_SATELLITE_EMERGENCY_MESSAGING_PROVIDER_PER_COUNTRY_BUNDLE;
+import static android.telephony.CarrierConfigManager.KEY_CARRIER_ROAMING_SATELLITE_EMERGENCY_MESSAGING_REDIRECTION_DESTINATION_STRING;
 import static android.telephony.CarrierConfigManager.KEY_CARRIER_SUPPORTED_SATELLITE_NOTIFICATION_HYSTERESIS_SEC_INT;
 import static android.telephony.CarrierConfigManager.KEY_CARRIER_SUPPORTED_SATELLITE_SERVICES_PER_PROVIDER_BUNDLE;
 import static android.telephony.CarrierConfigManager.KEY_EMERGENCY_CALL_TO_SATELLITE_T911_HANDOVER_TIMEOUT_MILLIS_INT;
@@ -687,10 +689,11 @@ public class SatelliteController extends Handler {
         public String plmn = "";
 
         // The handover type for emergency calls on this PLMN.
-        public int handoverType = SatelliteManager.EMERGENCY_CALL_TO_SATELLITE_HANDOVER_TYPE_T911;
+        public int handoverType =
+            SatelliteManager.EMERGENCY_CALL_TO_SATELLITE_HANDOVER_TYPE_UNKNOWN;
 
         // The connect type for this PLMN.
-        public int connectType = CarrierConfigManager.CARRIER_ROAMING_NTN_CONNECT_AUTOMATIC;
+        public int connectType = CarrierConfigManager.CARRIER_ROAMING_NTN_CONNECT_UNKNOWN;
 
         // The supported satellite technology list for this PLMN
         public List<Integer> supportedSatelliteTechs = new ArrayList<>();
@@ -4836,7 +4839,11 @@ public class SatelliteController extends Handler {
             return false;
         }
         PersistableBundle config = getPersistableBundle(subId);
-        return config.getBoolean(KEY_EMERGENCY_MESSAGING_SUPPORTED_BOOL);
+        if (!config.getBoolean(KEY_EMERGENCY_MESSAGING_SUPPORTED_BOOL)) {
+            return false;
+        }
+
+        return isSatelliteEmergencyMessagingProviderSupportedInCurrentRegion(subId);
     }
 
     /**
@@ -6525,7 +6532,9 @@ public class SatelliteController extends Handler {
                         KEY_SATELLITE_CONNECTED_NOTIFICATION_THROTTLE_MILLIS_INT,
                         KEY_SATELLITE_CONFIGS_PER_PLMN_BUNDLE,
                         KEY_SATELLITE_SUPPORTED_EMERGENCY_PLMN_STRING_ARRAY,
-                        KEY_SATELLITE_SUPPORTED_DISASTER_PLMN_STRING_ARRAY
+                        KEY_SATELLITE_SUPPORTED_DISASTER_PLMN_STRING_ARRAY,
+                        KEY_CARRIER_ROAMING_SATELLITE_EMERGENCY_MESSAGING_PROVIDER_PER_COUNTRY_BUNDLE,
+                        KEY_CARRIER_ROAMING_SATELLITE_EMERGENCY_MESSAGING_REDIRECTION_DESTINATION_STRING
                 );
             } catch (Exception e) {
                 logw("getConfigForSubId: " + e);
@@ -6852,10 +6861,10 @@ public class SatelliteController extends Handler {
         if (mFeatureFlags.vzwAstSkyloFallback()) {
             plogd("getCarrierRoamingNtnConnectType: Checking connect "
                         + "type from PLMN config for subId: " + subId);
-            SatellitePerPlmnConfiguration config = mCurrentSatellitePerPlmnConfigurations
-                    .get(subId);
+            SatellitePerPlmnConfiguration config = getSatellitePerPlmnConfiguration(subId);
             plogd("getCarrierRoamingNtnConnectType: config: " + config);
-            if (config != null) {
+            if (config != null
+                && config.connectType != CarrierConfigManager.CARRIER_ROAMING_NTN_CONNECT_UNKNOWN) {
                 plogd("getCarrierRoamingNtnConnectType: Connect type from"
                         + " config: " + config.connectType);
                 return config.connectType;
@@ -6918,10 +6927,10 @@ public class SatelliteController extends Handler {
         if (mFeatureFlags.vzwAstSkyloFallback()) {
             plogd("getCarrierRoamingNtnEmergencyCallToSatelliteHandoverType: Checking handover "
                         + "type from PLMN config for subId: " + subId);
-            SatellitePerPlmnConfiguration config = mCurrentSatellitePerPlmnConfigurations
-                    .get(subId);
+            SatellitePerPlmnConfiguration config = getSatellitePerPlmnConfiguration(subId);
             plogd("getCarrierRoamingNtnEmergencyCallToSatelliteHandoverType: config: " + config);
-            if (config != null) {
+            if (config != null && config.handoverType
+                != SatelliteManager.EMERGENCY_CALL_TO_SATELLITE_HANDOVER_TYPE_UNKNOWN) {
                 plogd("getCarrierRoamingNtnEmergencyCallToSatelliteHandoverType: Handover type from"
                         + " config: " + config.handoverType);
                 return config.handoverType;
@@ -7296,7 +7305,8 @@ public class SatelliteController extends Handler {
                                 nri.getAvailableServices());
                     }
                 }
-                populateSatelliteConfigsForPlmn(subId, serviceState.getOperatorNumeric());
+                updateCurrentSatellitePerPlmnConfiguration(
+                    subId, serviceState.getOperatorNumeric());
 
             } else {
                 Boolean wasSatelliteConnectedViaCarrier = mWasSatelliteConnectedViaCarrier
@@ -7481,47 +7491,39 @@ public class SatelliteController extends Handler {
      * @param subId The subscription ID.
      * @param plmn The PLMN string.
      */
-    private void populateSatelliteConfigsForPlmn(int subId, String plmn) {
+    private void updateCurrentSatellitePerPlmnConfiguration(int subId, String plmn) {
         if (!mFeatureFlags.vzwAstSkyloFallback()) {
             plogd(
-                    "populateSatelliteConfigsForPlmn: vzwAstSkyloFallback isn't enabled. So not"
-                            + " populating satellite configs for plmn: "
+                    "updateCurrentSatellitePerPlmnConfiguration: vzwAstSkyloFallback isn't enabled."
+                            + " So notpopulating satellite configs for plmn: "
                             + plmn);
             return;
         }
-        PersistableBundle allConfigs = getPersistableBundle(subId);
-        if (allConfigs == null) {
-            plogd("populateSatelliteConfigsForPlmn: allConfigs is null");
-            mCurrentSatellitePerPlmnConfigurations.remove(subId);
-            return;
-        }
-        PersistableBundle perPlmnConfigs =
-                allConfigs.getPersistableBundle(
-                        CarrierConfigManager.KEY_SATELLITE_CONFIGS_PER_PLMN_BUNDLE);
-        plogd("populateSatelliteConfigsForPlmn: device is in NTN mode, with subId: " + subId
-                + " with plmn: " + plmn);
-        if (TextUtils.isEmpty(plmn)
-                || perPlmnConfigs == null
-                || perPlmnConfigs.getPersistableBundle(plmn) == null) {
-            // PLMN is not in the config, clear any stale satellite configurations.
-            plogd(
-                    "populateSatelliteConfigsForPlmn: plmn is empty or perPlmnConfigs is null or "
-                            + "perPlmnConfigs.getPersistableBundle(plmn) is null");
-            mCurrentSatellitePerPlmnConfigurations.remove(subId);
-            return;
-        }
-        PersistableBundle plmnSpecificConfig = perPlmnConfigs.getPersistableBundle(plmn);
+
+        plogd("updateCurrentSatellitePerPlmnConfiguration: device is in NTN mode, with subId: "
+            + subId + " with plmn: " + plmn);
+
         SatellitePerPlmnConfiguration config = new SatellitePerPlmnConfiguration();
         config.plmn = plmn;
+
+        PersistableBundle perPlmnConfigs = getPersistableBundle(subId).getPersistableBundle(
+            CarrierConfigManager.KEY_SATELLITE_CONFIGS_PER_PLMN_BUNDLE);
+        PersistableBundle plmnSpecificConfig = perPlmnConfigs.getPersistableBundle(plmn);
+        if (plmnSpecificConfig == null) {
+            plogd("updateCurrentSatellitePerPlmnConfiguration: plmnSpecificConfig is null");
+            mCurrentSatellitePerPlmnConfigurations.put(subId, config);
+            return;
+        }
+
         config.handoverType =
                 plmnSpecificConfig.getInt(
                         CarrierConfigManager
                             .KEY_CARRIER_ROAMING_NTN_EMERGENCY_CALL_TO_SATELLITE_HANDOVER_TYPE_INT,
-                        SatelliteManager.EMERGENCY_CALL_TO_SATELLITE_HANDOVER_TYPE_T911);
+                        SatelliteManager.EMERGENCY_CALL_TO_SATELLITE_HANDOVER_TYPE_UNKNOWN);
         config.connectType =
                 plmnSpecificConfig.getInt(
                         CarrierConfigManager.KEY_CARRIER_ROAMING_NTN_CONNECT_TYPE_INT,
-                        CarrierConfigManager.CARRIER_ROAMING_NTN_CONNECT_AUTOMATIC);
+                        CarrierConfigManager.CARRIER_ROAMING_NTN_CONNECT_UNKNOWN);
 
         int[] supportedSatelliteTechs = plmnSpecificConfig.getIntArray(
                 CarrierConfigManager.KEY_SATELLITE_TECHNOLOGY_INT_ARRAY);
@@ -7532,9 +7534,10 @@ public class SatelliteController extends Handler {
                 }
             }
         }
+
         mCurrentSatellitePerPlmnConfigurations.put(subId, config);
         plogd(
-                "populateSatelliteConfigsForPlmn: set up satellite configs for subId: "
+                "updateCurrentSatellitePerPlmnConfiguration: set up satellite configs for subId: "
                         + subId
                         + " plmn: "
                         + plmn
@@ -10203,6 +10206,7 @@ public class SatelliteController extends Handler {
      * @return The {@link SatellitePerPlmnConfiguration} object containing the current satellite
      *         config.
      */
+    @Nullable
     public SatellitePerPlmnConfiguration getSatellitePerPlmnConfiguration(int subId) {
         if (!isValidSubscriptionId(subId) || !isSatelliteSupportedViaCarrier(subId)) {
             plogd("getSatellitePerPlmnConfiguration: invalid subId or not supported via carrier.");
@@ -11194,5 +11198,81 @@ public class SatelliteController extends Handler {
         } else {
             result.send(SatelliteManager.SATELLITE_RESULT_REQUEST_FAILED, null);
         }
+    }
+
+    /**
+     * Get the carrier roaming satellite emergency messaging redirection number for the given
+     * subscription ID.
+     *
+     * @param subId current subscription id.
+     * @return the carrier roaming satellite emergency messaging redirection number.
+     */
+    @NonNull
+    protected String getCarrierRoamingSatelliteEmergencyMessagingRedirectionDestination(int subId) {
+        if (!mFeatureFlags.emergencyMessagingRoutingForInternationalRoaming()) {
+            plogd("getCarrierRoamingSatelliteEmergencyMessagingRedirectionDestination: "
+                + "flag disabled");
+            return "";
+        }
+
+        String destination = getConfigForSubId(subId).getString(
+            KEY_CARRIER_ROAMING_SATELLITE_EMERGENCY_MESSAGING_REDIRECTION_DESTINATION_STRING, "");
+        plogd("getCarrierRoamingSatelliteEmergencyMessagingRedirectionDestination: "
+            + "destination=" + destination);
+        return destination;
+    }
+
+    private boolean isSatelliteEmergencyMessagingProviderSupportedInCurrentRegion(int subId) {
+        if (!mFeatureFlags.emergencyMessagingRoutingForInternationalRoaming()) {
+            plogd("isSatelliteEmergencyMessagingProviderSupportedInCurrentRegion: "
+                + "flag disabled - return true");
+            return true;
+        }
+
+        int emergencyMessagingProvider =
+            getCarrierRoamingSatelliteEmergencyMessagingProviderForCurrentRegion(subId);
+        boolean supported = emergencyMessagingProvider
+            != SatelliteManager.CARRIER_ROAMING_SATELLITE_EMERGENCY_MESSAGING_PROVIDER_UNSUPPORTED;
+        plogd("isSatelliteEmergencyMessagingProviderSupportedInCurrentRegion: "
+            + "supported=" + supported);
+        return supported;
+    }
+
+    /**
+     * Get the carrier roaming satellite emergency messaging provider for the given subscription ID
+     * in current country.
+     *
+     * @param subId current subscription id.
+     * @return the carrier roaming satellite emergency messaging provider.
+     */
+    @SatelliteManager.CarrierRoamingSatelliteEmergencyMessagingProvider
+    protected int getCarrierRoamingSatelliteEmergencyMessagingProviderForCurrentRegion(int subId) {
+        if (!mFeatureFlags.emergencyMessagingRoutingForInternationalRoaming()) {
+            plogd("getCarrierRoamingSatelliteEmergencyMessagingProvider: flag disabled");
+            return SatelliteManager.CARRIER_ROAMING_SATELLITE_EMERGENCY_MESSAGING_PROVIDER_UNKNOWN;
+        }
+
+        SatellitePerPlmnConfiguration config = getSatellitePerPlmnConfiguration(subId);
+        if (config == null) {
+            plogd("getCarrierRoamingSatelliteEmergencyMessagingProvider: perPlmnConfig is null");
+            return SatelliteManager.CARRIER_ROAMING_SATELLITE_EMERGENCY_MESSAGING_PROVIDER_UNKNOWN;
+        }
+
+        String plmn = config.plmn;
+        if (TextUtils.isEmpty(plmn) || plmn.length() < 3) {
+            plogd("getCarrierRoamingSatelliteEmergencyMessagingProvider: plmn is empty "
+                + "or too short. plmn=" + plmn);
+            return SatelliteManager.CARRIER_ROAMING_SATELLITE_EMERGENCY_MESSAGING_PROVIDER_UNKNOWN;
+        }
+
+        String networkMcc = plmn.substring(0, 3);
+        PersistableBundle providerBundle = getConfigForSubId(subId).getPersistableBundle(
+                KEY_CARRIER_ROAMING_SATELLITE_EMERGENCY_MESSAGING_PROVIDER_PER_COUNTRY_BUNDLE);
+        int provider = providerBundle.getInt(networkMcc,
+            SatelliteManager.CARRIER_ROAMING_SATELLITE_EMERGENCY_MESSAGING_PROVIDER_UNKNOWN);
+        plogd("getCarrierRoamingSatelliteEmergencyMessagingProvider: mcc=" + networkMcc
+            + ", provider=" + provider);
+
+        return provider;
     }
 }

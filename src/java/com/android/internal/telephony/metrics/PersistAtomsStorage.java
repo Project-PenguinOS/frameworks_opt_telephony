@@ -2502,7 +2502,12 @@ public class PersistAtomsStorage {
                     && stats.carrierId == key.carrierId
                     && stats.supportedConnectionMode == key.supportedConnectionMode
                     && stats.sessionConnectionMode == key.sessionConnectionMode
-                    && Objects.equals(stats.plmn, key.plmn)) {
+                    && Objects.equals(stats.plmn, key.plmn)
+                    && stats.isInCarrierRoamingNtnMode == key.isInCarrierRoamingNtnMode
+                    && stats.carrierRoamingSatelliteEmergencyMessagingProvider
+                    == key.carrierRoamingSatelliteEmergencyMessagingProvider
+                    && stats.emergencyNumberSourceUsedInHandoverIntent
+                    == key.emergencyNumberSourceUsedInHandoverIntent) {
                 return stats;
             }
         }
