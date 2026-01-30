@@ -554,6 +554,76 @@ public class PinStorage extends Handler {
     }
 
     /**
+     * Returns the platform-managed PINs in an opaque byte array for backing up.
+     * As it contains the PINs in cleartext, must only be called if the user's backup
+     * is encrypted (or this is a device-to-device transfer scenario).
+     *
+     * @return The SIM PINs database to be backed up.
+     */
+    public synchronized byte[] getPlatformManagedPinsForBackup() {
+        StoredPinProto.PlatformManagedPins pins = readPlatformManagedPins();
+        return StoredPinProto.PlatformManagedPins.toByteArray(pins);
+    }
+
+    /**
+     * Restores platform-managed PINs from backup. Does not override existing PINs
+     * for known SIMs.
+     *
+     * @param data the data to restore from.
+     */
+    public void restorePlatformManagedPinsFromBackup(byte[] data) {
+        if (data == null || data.length == 0) {
+            loge("Restoring of platform-managed PINs backup failed: data is null or empty.");
+            return;
+        }
+        StoredPinProto.PlatformManagedPins pinsFromBackup;
+        try {
+            pinsFromBackup = StoredPinProto.PlatformManagedPins.parseFrom(data);
+        } catch (IOException e) {
+            loge("Failed parsing platform-managed PINs backup: %s", e);
+            return;
+        }
+
+        StoredPinProto.PlatformManagedPins existingPins = readPlatformManagedPins();
+        List<PlatformManagedPin> mergedPins = mergeExistingAndBackupPins(existingPins,
+                pinsFromBackup);
+
+        SharedPreferences.Editor editor =
+                mContext.getSharedPreferences(SHARED_PREFS_NAME, Context.MODE_PRIVATE)
+                        .edit();
+        savePlatformManagedPins(editor, mergedPins);
+        editor.commit();
+        logi("Restored %d pins", mergedPins.size() - existingPins.pins.length);
+    }
+
+    /**
+     * Merges pins from backup with existing pins.
+     *
+     * @param existingPins Pins to merge with, which must not be overwritten.
+     * @param pinsFromBackup Pins to be merged.
+     * @return A list of platform-managed PINs containing the existing PINs and ones from backup.
+     */
+    @NonNull
+    @VisibleForTesting
+    public static List<PlatformManagedPin> mergeExistingAndBackupPins(
+            StoredPinProto.PlatformManagedPins existingPins,
+            StoredPinProto.PlatformManagedPins pinsFromBackup) {
+
+        List<PlatformManagedPin> currentPins = new ArrayList<>(existingPins.pins.length);
+        currentPins.addAll(Arrays.asList(existingPins.pins));
+
+        for (PlatformManagedPin backupPin : pinsFromBackup.pins) {
+            if (findPinByIccid(currentPins, backupPin.iccid) >= 0) {
+                logw("Pin for ICCID %s already exists, not restoring", backupPin.iccid);
+            } else {
+                currentPins.add(backupPin);
+            }
+        }
+
+        return currentPins;
+    }
+
+    /**
      * Prepare for an unattended reboot.
      *
      * All PINs in AVAILABLE and VERIFICATION_READY state are moved to REBOOT_READY state. A
@@ -1230,7 +1300,7 @@ public class PinStorage extends Handler {
         return true;
     }
 
-    private int findPinByIccid(List<PlatformManagedPin> pins, String iccid) {
+    private static int findPinByIccid(List<PlatformManagedPin> pins, String iccid) {
         for (int i = 0; i < pins.size(); i++) {
             PlatformManagedPin pin = pins.get(i);
             if (pin != null && pin.iccid.equals(iccid)) {
@@ -1824,6 +1894,11 @@ public class PinStorage extends Handler {
     @FormatMethod
     private static void logw(@FormatString String format, Object... args) {
         Rlog.w(TAG, String.format(format, args));
+    }
+
+    @FormatMethod
+    private static void logi(@FormatString String format, Object... args) {
+        Rlog.i(TAG, String.format(format, args));
     }
 
     void dump(FileDescriptor fd, PrintWriter printWriter, String[] args) {

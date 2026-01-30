@@ -6195,6 +6195,22 @@ public class SubscriptionManagerService extends ISub.Stub {
         return TextUtils.equals(spn, overlaySpn);
     }
 
+    @Override
+    @EnforcePermission(Manifest.permission.CONTROL_SIM_AUTO_PIN_MANAGEMENT)
+    public byte[] getAllPlatformManagedPinsForBackup() {
+        getAllPlatformManagedPinsForBackup_enforcePermission();
+
+        return mUiccController.getPinStorage().getPlatformManagedPinsForBackup();
+    }
+
+    @Override
+    @EnforcePermission(Manifest.permission.CONTROL_SIM_AUTO_PIN_MANAGEMENT)
+    public void restorePlatformManagedSimPins(byte[] data) {
+        restorePlatformManagedSimPins_enforcePermission();
+
+        mUiccController.getPinStorage().restorePlatformManagedPinsFromBackup(data);
+    }
+
     private boolean isMockModemAllowed() {
         boolean isAllowed = SystemProperties.getBoolean(ALLOW_MOCK_MODEM_PROPERTY, false);
         return (SystemProperties.getBoolean(ALLOW_MOCK_MODEM_PROPERTY, false)
