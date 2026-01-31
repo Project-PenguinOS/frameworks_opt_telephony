@@ -903,6 +903,7 @@ message CarrierRoamingSatelliteSession {
     optional int32 battery_design_capacity_mah = 44;
     optional int64 energy_consumed_nwh = 45;
     optional int32 eligibility_source = 46;
+    optional bool is_wifi_connected = 47;
 }
 
 message CarrierRoamingSatelliteControllerStats {

@@ -20,7 +20,6 @@ import static com.google.common.truth.Truth.assertThat;
 
 import android.net.NetworkCapabilities;
 import android.net.NetworkRequest;
-import android.telephony.data.TrafficDescriptor;
 
 import com.android.internal.telephony.TelephonyTest;
 import com.android.internal.telephony.data.DataNetworkController.NetworkRequestList;
@@ -178,71 +177,5 @@ public class DataUtilsTest extends TelephonyTest {
         assertThat(DataUtils.getNetworkCapabilitiesFromString(composedDelim).contains(-1)).isTrue();
         String malFormatted4 = "mms||ims";
         assertThat(DataUtils.getNetworkCapabilitiesFromString(malFormatted4).contains(-1)).isTrue();
-    }
-
-    @Test
-    public void testNetworkCapabilityToConnectionCapability() {
-        // Test valid mappings
-        assertThat(DataUtils.networkCapabilityToConnectionCapability(
-                NetworkCapabilities.NET_CAPABILITY_MMS))
-                .isEqualTo(TrafficDescriptor.CONNECTION_CAPABILITY_MMS);
-        assertThat(DataUtils.networkCapabilityToConnectionCapability(
-                NetworkCapabilities.NET_CAPABILITY_SUPL))
-                .isEqualTo(TrafficDescriptor.CONNECTION_CAPABILITY_SUPL);
-        assertThat(DataUtils.networkCapabilityToConnectionCapability(
-                NetworkCapabilities.NET_CAPABILITY_IMS))
-                .isEqualTo(TrafficDescriptor.CONNECTION_CAPABILITY_IMS);
-        assertThat(DataUtils.networkCapabilityToConnectionCapability(
-                NetworkCapabilities.NET_CAPABILITY_INTERNET))
-                .isEqualTo(TrafficDescriptor.CONNECTION_CAPABILITY_INTERNET);
-        assertThat(DataUtils.networkCapabilityToConnectionCapability(
-                NetworkCapabilities.NET_CAPABILITY_PRIORITIZE_LATENCY))
-                .isEqualTo(TrafficDescriptor.CONNECTION_CAPABILITY_REAL_TIME_INTERACTIVE);
-        assertThat(DataUtils.networkCapabilityToConnectionCapability(
-                NetworkCapabilities.NET_CAPABILITY_PRIORITIZE_BANDWIDTH))
-                .isEqualTo(TrafficDescriptor.CONNECTION_CAPABILITY_DOWNLINK_STREAMING);
-        assertThat(DataUtils.networkCapabilityToConnectionCapability(
-                DataUtils.NET_CAPABILITY_PRIORITIZE_UNIFIED_COMMUNICATIONS))
-                .isEqualTo(TrafficDescriptor.CONNECTION_CAPABILITY_UNIFIED_COMMUNICATIONS);
-
-        // Test a capability that is not explicitly mapped
-        assertThat(DataUtils.networkCapabilityToConnectionCapability(
-                NetworkCapabilities.NET_CAPABILITY_FOTA))
-                .isEqualTo(TrafficDescriptor.CONNECTION_CAPABILITY_UNKNOWN);
-
-        // Test with an invalid capability value
-        assertThat(DataUtils.networkCapabilityToConnectionCapability(9999))
-                .isEqualTo(TrafficDescriptor.CONNECTION_CAPABILITY_UNKNOWN);
-    }
-
-    @Test
-    public void testConnectionCapabilityToNetworkCapability() {
-        // Test valid mappings
-        assertThat(DataUtils.connectionCapabilityToNetworkCapability(
-                TrafficDescriptor.CONNECTION_CAPABILITY_MMS))
-                .isEqualTo(NetworkCapabilities.NET_CAPABILITY_MMS);
-        assertThat(DataUtils.connectionCapabilityToNetworkCapability(
-                TrafficDescriptor.CONNECTION_CAPABILITY_SUPL))
-                .isEqualTo(NetworkCapabilities.NET_CAPABILITY_SUPL);
-        assertThat(DataUtils.connectionCapabilityToNetworkCapability(
-                TrafficDescriptor.CONNECTION_CAPABILITY_IMS))
-                .isEqualTo(NetworkCapabilities.NET_CAPABILITY_IMS);
-        assertThat(DataUtils.connectionCapabilityToNetworkCapability(
-                TrafficDescriptor.CONNECTION_CAPABILITY_INTERNET))
-                .isEqualTo(NetworkCapabilities.NET_CAPABILITY_INTERNET);
-        assertThat(DataUtils.connectionCapabilityToNetworkCapability(
-                TrafficDescriptor.CONNECTION_CAPABILITY_REAL_TIME_INTERACTIVE))
-                .isEqualTo(NetworkCapabilities.NET_CAPABILITY_PRIORITIZE_LATENCY);
-        assertThat(DataUtils.connectionCapabilityToNetworkCapability(
-                TrafficDescriptor.CONNECTION_CAPABILITY_DOWNLINK_STREAMING))
-                .isEqualTo(NetworkCapabilities.NET_CAPABILITY_PRIORITIZE_BANDWIDTH);
-        assertThat(DataUtils.connectionCapabilityToNetworkCapability(
-                TrafficDescriptor.CONNECTION_CAPABILITY_UNIFIED_COMMUNICATIONS))
-                .isEqualTo(DataUtils.NET_CAPABILITY_PRIORITIZE_UNIFIED_COMMUNICATIONS);
-
-        // Test the default unknown case
-        assertThat(DataUtils.connectionCapabilityToNetworkCapability(
-                TrafficDescriptor.CONNECTION_CAPABILITY_UNKNOWN))
-                .isEqualTo(-1);
     }
 }

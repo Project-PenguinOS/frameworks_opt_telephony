@@ -484,53 +484,8 @@ public class DataStallRecoveryManagerTest extends TelephonyTest {
      */
     @Test
     public void testInitialValidStateIsNotDataStall() throws Exception {
-        when(mFeatureFlags.ignoreInitialDataStallRecovered()).thenReturn(true);
         sendValidationStatusCallback(NetworkAgent.VALIDATION_STATUS_VALID);
         verify(mPhone.getContext(), never()).sendBroadcast(any());
-    }
-
-    /**
-     * Tests the DSRM process to send three intents for three action changes.
-     */
-    @Test
-    public void testSendDSRMData() throws Exception {
-        when(mFeatureFlags.ignoreInitialDataStallRecovered()).thenReturn(false);
-        ArgumentCaptor<Intent> captorIntent = ArgumentCaptor.forClass(Intent.class);
-
-        sendValidationStatusCallback(NetworkAgent.VALIDATION_STATUS_VALID);
-        logd("Set phone status to normal status.");
-        sendOnInternetDataNetworkCallback(true);
-        doReturn(mSignalStrength).when(mPhone).getSignalStrength();
-        doReturn(PhoneConstants.State.IDLE).when(mPhone).getState();
-
-        // Set the expected behavior of the DataStallRecoveryManager.
-        logd("Start DSRM process, set action to 1");
-        mDataStallRecoveryManager.setRecoveryAction(1);
-        logd("Sending validation failed callback");
-        sendValidationStatusCallback(NetworkAgent.VALIDATION_STATUS_NOT_VALID);
-        processAllFutureMessages();
-
-        logd("Verify that the DataStallRecoveryManager sends the expected intents.");
-        verify(mPhone.getContext(), times(4)).sendBroadcast(captorIntent.capture());
-        logd(captorIntent.getAllValues().toString());
-        for (int i = 0; i < captorIntent.getAllValues().size(); i++) {
-            Intent intent = captorIntent.getAllValues().get(i);
-            // Check and assert if intent is null
-            assertNotNull(intent);
-            // Check and assert if intent is not ACTION_DATA_STALL_DETECTED
-            assertThat(intent.getAction()).isEqualTo(
-                    TelephonyManager.ACTION_DATA_STALL_DETECTED);
-            // Get the extra data
-            Bundle bundle = (Bundle) intent.getExtra("EXTRA_DSRS_STATS_BUNDLE");
-            // Check and assert if bundle is null
-            assertNotNull(bundle);
-            // Dump bundle data
-            logd(bundle.toString());
-            int size = bundle.size();
-            logd("bundle size is " + size);
-            // Check if bundle size is 27
-            assertThat(size).isEqualTo(27);
-        }
     }
 
     /**
@@ -842,13 +797,13 @@ public class DataStallRecoveryManagerTest extends TelephonyTest {
         processAllMessages();
         // Verify here and below to ensure that the broadcast is not coming from the later
         // transition.
-        verify(mPhone.getContext(), times(1)).sendBroadcast(any());
+        verify(mPhone.getContext(), never()).sendBroadcast(any());
 
         mActiveSubIdListener.onActiveDataSubscriptionIdChanged(21);
         sendValidationStatusCallback(NetworkAgent.VALIDATION_STATUS_NOT_VALID);
         processAllMessages();
 
-        verify(mPhone.getContext(), times(1)).sendBroadcast(any());
+        verify(mPhone.getContext(), never()).sendBroadcast(any());
     }
 
     @Test

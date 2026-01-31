@@ -1435,6 +1435,7 @@ public class PersistAtomsStorageTest extends TelephonyTest {
         mCarrierRoamingSatelliteSession1.energyConsumedNwh = 700_000_000L;
         mCarrierRoamingSatelliteSession1.eligibilitySource =
                 SATELLITE_ELIGIBILITY_SOURCE_ENTITLEMENT;
+        mCarrierRoamingSatelliteSession1.isWifiConnected = false;
 
         mCarrierRoamingSatelliteSession2 = new CarrierRoamingSatelliteSession();
         mCarrierRoamingSatelliteSession2.carrierId = 2;
@@ -1468,6 +1469,7 @@ public class PersistAtomsStorageTest extends TelephonyTest {
         mCarrierRoamingSatelliteSession2.energyConsumedNwh = 1_400_000_000L;
         mCarrierRoamingSatelliteSession2.eligibilitySource =
                 SATELLITE_ELIGIBILITY_SOURCE_CARRIER_CONFIG;
+        mCarrierRoamingSatelliteSession2.isWifiConnected = true;
 
         mCarrierRoamingSatelliteSessions = new CarrierRoamingSatelliteSession[] {
                 mCarrierRoamingSatelliteSession1, mCarrierRoamingSatelliteSession2};

@@ -66,7 +66,6 @@ import static android.telephony.satellite.SatelliteManager.SATELLITE_RESULT_MODE
 import static android.telephony.satellite.SatelliteManager.SATELLITE_RESULT_MODEM_TIMEOUT;
 import static android.telephony.satellite.SatelliteManager.SATELLITE_RESULT_NO_VALID_SATELLITE_SUBSCRIPTION;
 import static android.telephony.satellite.SatelliteManager.SATELLITE_RESULT_REQUEST_ABORTED;
-import static android.telephony.satellite.SatelliteManager.SATELLITE_RESULT_REQUEST_IN_PROGRESS;
 import static android.telephony.satellite.SatelliteManager.SATELLITE_RESULT_REQUEST_NOT_SUPPORTED;
 import static android.telephony.satellite.SatelliteManager.SATELLITE_RESULT_SUCCESS;
 
@@ -155,7 +154,6 @@ import android.telephony.satellite.SatelliteCapabilities;
 import android.telephony.satellite.SatelliteCommunicationAccessStateCallback;
 import android.telephony.satellite.SatelliteDatagram;
 import android.telephony.satellite.SatelliteManager;
-import android.telephony.satellite.SatelliteManager.NTRadioTechnology;
 import android.telephony.satellite.SatelliteModemEnableRequestAttributes;
 import android.telephony.satellite.SatelliteSubscriberInfo;
 import android.telephony.satellite.SatelliteSubscriberProvisionStatus;
@@ -183,7 +181,6 @@ import com.android.internal.telephony.configupdate.ConfigParser;
 import com.android.internal.telephony.configupdate.ConfigProviderAdaptor;
 import com.android.internal.telephony.configupdate.TelephonyConfigUpdateInstallReceiver;
 import com.android.internal.telephony.flags.FeatureFlags;
-import com.android.internal.telephony.flags.Flags;
 import com.android.internal.telephony.satellite.metrics.CarrierRoamingSatelliteControllerStats;
 import com.android.internal.telephony.satellite.metrics.CarrierRoamingSatelliteSessionStats;
 import com.android.internal.telephony.satellite.metrics.ControllerMetricsStats;
@@ -2253,10 +2250,12 @@ public class SatelliteController extends Handler {
 
             case EVENT_WIFI_CONNECTIVITY_STATE_CHANGED: {
                 ar = (AsyncResult) msg.obj;
-                mIsWifiConnected.set((boolean) ar.result);
+                boolean isWifiConnected = (boolean) ar.result;
+                mIsWifiConnected.set(isWifiConnected);
                 plogd("EVENT_WIFI_CONNECTIVITY_STATE_CHANGED: mIsWifiConnected="
-                        + mIsWifiConnected.get());
+                        + isWifiConnected);
                 evaluateCarrierRoamingNtnEligibilityChange();
+                handleEventWifiConnectivityStateChanged(isWifiConnected);
                 break;
             }
 
@@ -7636,7 +7635,7 @@ public class SatelliteController extends Handler {
             sessionStats.onSessionStart(phone.getCarrierId(), phone,
                     supported_satellite_services, dataPolicy, satelliteApps,
                     getSupportedConnectTypeMetrics(subId), getSessionConnectTypeMetrics(subId),
-                    satellitePlmn, mFeatureFlags, isScreenOn());
+                    satellitePlmn, mFeatureFlags, isScreenOn(), mIsWifiConnected.get());
             mCarrierRoamingSatelliteSessionStatsMap.put(subId, sessionStats);
             mCarrierRoamingSatelliteControllerStats.onSessionStart(subId);
         } else if (lastNotifiedNtnMode && !currNtnMode) {
@@ -10993,6 +10992,12 @@ public class SatelliteController extends Handler {
         plogd("handleEventScreenStateChanged: " + isScreenOn);
         mCarrierRoamingSatelliteSessionStatsMap.values().forEach(stats -> {
             stats.onScreenStateChanged(isScreenOn);
+        });
+    }
+
+    private void handleEventWifiConnectivityStateChanged(boolean isWifiConnected) {
+        mCarrierRoamingSatelliteSessionStatsMap.values().forEach(stats -> {
+            stats.onWifiConnectivityStateChanged(isWifiConnected);
         });
     }
 

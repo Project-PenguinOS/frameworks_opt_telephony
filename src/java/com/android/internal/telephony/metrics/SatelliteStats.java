@@ -2311,6 +2311,7 @@ public class SatelliteStats {
         private final int mBatteryDesignCapacityMah;
         private final long mEnergyConsumedNwh;
         private final @SatelliteConstants.SatelliteEligibilitySource int mEligibilitySource;
+        private final boolean mIsWifiConnected;
 
         private CarrierRoamingSatelliteSessionParams(Builder builder) {
             this.mCarrierId = builder.mCarrierId;
@@ -2361,6 +2362,7 @@ public class SatelliteStats {
             this.mBatteryDesignCapacityMah = builder.mBatteryDesignCapacityMah;
             this.mEnergyConsumedNwh = builder.mEnergyConsumedNwh;
             this.mEligibilitySource = builder.mEligibilitySource;
+            this.mIsWifiConnected = builder.mIsWifiConnected;
         }
 
         public int getCarrierId() {
@@ -2568,6 +2570,13 @@ public class SatelliteStats {
         }
 
         /**
+         * Returns whether wifi was connected during the session.
+         */
+        public boolean isWifiConnected() {
+            return mIsWifiConnected;
+        }
+
+        /**
          * A builder class to create {@link CarrierRoamingSatelliteSessionParams} data structure
          * class
          */
@@ -2622,6 +2631,7 @@ public class SatelliteStats {
             private long mEnergyConsumedNwh = 0;
             private @SatelliteConstants.SatelliteEligibilitySource int mEligibilitySource =
                     SatelliteConstants.SATELLITE_ELIGIBILITY_SOURCE_UNKNOWN;
+            private boolean mIsWifiConnected = false;
 
 
             /**
@@ -3047,6 +3057,14 @@ public class SatelliteStats {
             }
 
             /**
+             * Sets whether wifi was connected during the session.
+             */
+            public Builder setIsWifiConnected(boolean isWifiConnected) {
+                this.mIsWifiConnected = isWifiConnected;
+                return this;
+            }
+
+            /**
              * Returns CarrierRoamingSatelliteSessionParams, which contains whole component of
              * {@link CarrierRoamingSatelliteSession} atom
              */
@@ -3106,6 +3124,7 @@ public class SatelliteStats {
                     + ", BatteryDesignCapacityMah=" + mBatteryDesignCapacityMah
                     + ", EnergyConsumedNwh=" + mEnergyConsumedNwh
                     + ", eligibilitySource=" + mEligibilitySource
+                    + ", isWifiConnected=" + mIsWifiConnected
                     + ")";
         }
     }
@@ -4301,6 +4320,7 @@ public class SatelliteStats {
         proto.energyConsumedNwh = param.getEnergyConsumedNwh();
         proto.eligibilitySource = param.getEligibilitySource();
         proto.plmn = param.getPlmn();
+        proto.isWifiConnected = param.isWifiConnected();
         if (DBG) logd("onCarrierRoamingSatelliteSessionMetrics: " + param);
         mAtomsStorage.addCarrierRoamingSatelliteSessionStats(proto);
     }
