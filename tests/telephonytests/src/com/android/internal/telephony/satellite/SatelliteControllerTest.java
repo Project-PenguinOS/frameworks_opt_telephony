@@ -3270,6 +3270,7 @@ public class SatelliteControllerTest extends TelephonyTest {
     @Test
     public void testSatellitePerPlmnConfigurationUpdate_ForCarrierWithBothAutoAndManualSatellite() {
         when(mFeatureFlags.vzwAstSkyloFallback()).thenReturn(true);
+        mSatelliteControllerUT.setCallOnlySuperMethod();
 
         PersistableBundle satelliteConfigsPerPlmnBundle = new PersistableBundle();
         PersistableBundle autoSatelliteConfigBundle = new PersistableBundle();
@@ -6762,6 +6763,8 @@ public class SatelliteControllerTest extends TelephonyTest {
 
         private boolean mLocationServiceEnabled = true;
 
+        public SatellitePerPlmnConfiguration mSatellitePerPlmnConfiguration = null;
+
         public TestSatelliteController(
                 Context context, Looper looper, @NonNull FeatureFlags featureFlags) {
             super(context, looper, featureFlags);
@@ -6888,7 +6891,10 @@ public class SatelliteControllerTest extends TelephonyTest {
 
         @Override
         public SatellitePerPlmnConfiguration getSatellitePerPlmnConfiguration(int subId) {
-            return super.getSatellitePerPlmnConfiguration(subId);
+            if (callOnlySuperMethod) {
+                return super.getSatellitePerPlmnConfiguration(subId);
+            }
+            return mSatellitePerPlmnConfiguration;
         }
 
         @Override
@@ -7021,6 +7027,125 @@ public class SatelliteControllerTest extends TelephonyTest {
         public void clearCarrierRoamingSatelliteSessionStatsMap() {
             mCarrierRoamingSatelliteSessionStatsMap.clear();
         }
+        @Override
+        protected String getCarrierRoamingSatelliteEmergencyMessagingRedirectionDestination(
+            int subId) {
+            return super.getCarrierRoamingSatelliteEmergencyMessagingRedirectionDestination(subId);
+        }
+
+        @Override
+        protected int getCarrierRoamingSatelliteEmergencyMessagingProviderForCurrentRegion(
+            int subId) {
+            return super.getCarrierRoamingSatelliteEmergencyMessagingProviderForCurrentRegion(
+                subId);
+        }
+    }
+
+    @Test
+    public void testGetCarrierRoamingSatelliteEmergencyMessagingRedirectionNumber_flagDisabled() {
+        when(mFeatureFlags.emergencyMessagingRoutingForInternationalRoaming()).thenReturn(false);
+        String redirectionNumber = mSatelliteControllerUT
+            .getCarrierRoamingSatelliteEmergencyMessagingRedirectionDestination(SUB_ID);
+        assertEquals("", redirectionNumber);
+    }
+
+    @Test
+    public void testGetCarrierRoamingSatelliteEmergencyMessagingRedirectionNumber_keyNotPresent() {
+        when(mFeatureFlags.emergencyMessagingRoutingForInternationalRoaming()).thenReturn(true);
+        mCarrierConfigBundle.putString(CarrierConfigManager
+                .KEY_CARRIER_ROAMING_SATELLITE_EMERGENCY_MESSAGING_REDIRECTION_DESTINATION_STRING,
+                null);
+        invokeCarrierConfigChanged();
+
+        String redirectionNumber = mSatelliteControllerUT
+            .getCarrierRoamingSatelliteEmergencyMessagingRedirectionDestination(SUB_ID);
+        assertEquals("", redirectionNumber);
+    }
+
+    @Test
+    public void testGetCarrierRoamingSatelliteEmergencyMessagingRedirectionNumber_keyPresent() {
+        when(mFeatureFlags.emergencyMessagingRoutingForInternationalRoaming()).thenReturn(true);
+        String expectedNumber = "12345";
+        mCarrierConfigBundle.putString(CarrierConfigManager
+                .KEY_CARRIER_ROAMING_SATELLITE_EMERGENCY_MESSAGING_REDIRECTION_DESTINATION_STRING,
+                expectedNumber);
+        invokeCarrierConfigChanged();
+
+        String redirectionNumber = mSatelliteControllerUT
+            .getCarrierRoamingSatelliteEmergencyMessagingRedirectionDestination(SUB_ID);
+        assertEquals(expectedNumber, redirectionNumber);
+    }
+
+    @Test
+    public void testGetCarrierRoamingSatelliteEmergencyMessagingProvider_flagDisabled() {
+        when(mFeatureFlags.emergencyMessagingRoutingForInternationalRoaming()).thenReturn(false);
+        int provider = mSatelliteControllerUT
+            .getCarrierRoamingSatelliteEmergencyMessagingProviderForCurrentRegion(SUB_ID);
+        assertEquals(
+                SatelliteManager.CARRIER_ROAMING_SATELLITE_EMERGENCY_MESSAGING_PROVIDER_UNKNOWN,
+                provider);
+    }
+
+    @Test
+    public void testGetCarrierRoamingSatelliteEmergencyMessagingProvider_emptyNetworkMcc() {
+        when(mFeatureFlags.emergencyMessagingRoutingForInternationalRoaming()).thenReturn(true);
+        mSatelliteControllerUT.callOnlySuperMethod = false;
+        SatellitePerPlmnConfiguration config = new SatellitePerPlmnConfiguration();
+        config.plmn = "";
+        mSatelliteControllerUT.mSatellitePerPlmnConfiguration = config;
+
+        int provider = mSatelliteControllerUT
+            .getCarrierRoamingSatelliteEmergencyMessagingProviderForCurrentRegion(SUB_ID);
+        assertEquals(
+                SatelliteManager.CARRIER_ROAMING_SATELLITE_EMERGENCY_MESSAGING_PROVIDER_UNKNOWN,
+                provider);
+        mSatelliteControllerUT.setCallOnlySuperMethod();
+    }
+
+    @Test
+    public void testGetCarrierRoamingSatelliteEmergencyMessagingProvider_keyNotPresent() {
+        when(mFeatureFlags.emergencyMessagingRoutingForInternationalRoaming()).thenReturn(true);
+        mSatelliteControllerUT.callOnlySuperMethod = false;
+        SatellitePerPlmnConfiguration config = new SatellitePerPlmnConfiguration();
+        config.plmn = "310260";
+        mSatelliteControllerUT.mSatellitePerPlmnConfiguration = config;
+
+        PersistableBundle bundle = new PersistableBundle();
+        mCarrierConfigBundle.putPersistableBundle(CarrierConfigManager
+                .KEY_CARRIER_ROAMING_SATELLITE_EMERGENCY_MESSAGING_PROVIDER_PER_COUNTRY_BUNDLE,
+                bundle);
+        invokeCarrierConfigChanged();
+
+        int provider = mSatelliteControllerUT
+            .getCarrierRoamingSatelliteEmergencyMessagingProviderForCurrentRegion(SUB_ID);
+        assertEquals(
+                SatelliteManager.CARRIER_ROAMING_SATELLITE_EMERGENCY_MESSAGING_PROVIDER_UNKNOWN,
+                provider);
+        mSatelliteControllerUT.setCallOnlySuperMethod();
+    }
+
+    @Test
+    public void testGetCarrierRoamingSatelliteEmergencyMessagingProvider_keyPresent() {
+        when(mFeatureFlags.emergencyMessagingRoutingForInternationalRoaming()).thenReturn(true);
+        mSatelliteControllerUT.callOnlySuperMethod = false;
+        SatellitePerPlmnConfiguration config = new SatellitePerPlmnConfiguration();
+        config.plmn = "310260";
+        mSatelliteControllerUT.mSatellitePerPlmnConfiguration = config;
+
+        PersistableBundle bundle = new PersistableBundle();
+        bundle.putInt("310",
+                SatelliteManager.CARRIER_ROAMING_SATELLITE_EMERGENCY_MESSAGING_PROVIDER_CONCIERGE);
+        mCarrierConfigBundle.putPersistableBundle(CarrierConfigManager
+                .KEY_CARRIER_ROAMING_SATELLITE_EMERGENCY_MESSAGING_PROVIDER_PER_COUNTRY_BUNDLE,
+                bundle);
+        invokeCarrierConfigChanged();
+
+        int provider = mSatelliteControllerUT
+            .getCarrierRoamingSatelliteEmergencyMessagingProviderForCurrentRegion(SUB_ID);
+        assertEquals(
+                SatelliteManager.CARRIER_ROAMING_SATELLITE_EMERGENCY_MESSAGING_PROVIDER_CONCIERGE,
+                provider);
+        mSatelliteControllerUT.setCallOnlySuperMethod();
     }
 
     @Test

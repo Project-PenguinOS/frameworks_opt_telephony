@@ -190,9 +190,16 @@ public class MockModem {
     }
 
     /** Binding interfaces with mock modem service */
-    public void bindAllMockModemService() {
+    public void bindAllMockModemServices() {
         for (int service = RIL.MIN_SERVICE_IDX; service <= RIL.MAX_SERVICE_IDX; service++) {
             bindToMockModemService(service);
+        }
+    }
+
+    /** Unbinding interfaces with mock modem service */
+    public void unbindAllMockModemServices() {
+        for (int service = RIL.MIN_SERVICE_IDX; service <= RIL.MAX_SERVICE_IDX; service++) {
+            unbindMockModemService(service);
         }
     }
 

@@ -1659,7 +1659,10 @@ public class MetricsCollector implements StatsManager.StatsPullAtomCallback {
                 stats.isNtnOnlyCarrier,
                 stats.supportedConnectionMode,
                 stats.sessionConnectionMode,
-                stats.plmn);
+                stats.plmn,
+                stats.isInCarrierRoamingNtnMode,
+                stats.carrierRoamingSatelliteEmergencyMessagingProvider,
+                stats.emergencyNumberSourceUsedInHandoverIntent);
     }
 
     private static StatsEvent buildStatsEvent(DataNetworkValidation stats) {
