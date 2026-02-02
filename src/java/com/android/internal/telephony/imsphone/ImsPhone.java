@@ -807,6 +807,17 @@ public class ImsPhone extends ImsPhoneBase {
         return true;
     }
 
+
+    /**
+     * Handle Call Waiting Supplementary Service for MMI Code 1.
+     * As per ETSI TS 122 030 6.5.5.1:
+     *
+     * "Releases all active calls (if any exist) and accepts the other (held or
+     * waiting) call."
+     *
+     * This implementation answers the ringing call if there is no held call.
+     * If there is a held call, we unhold it.
+     */
     private boolean handleCallWaitingIncallSupplementaryService(
 // QTI_BEGIN: 2025-01-27: Telephony: Revert "DSDA: Add support for MMI codes, adhoc conference"
             String dialString) {
@@ -824,14 +835,15 @@ public class ImsPhone extends ImsPhoneBase {
                 if (DBG) logd("not support 1X SEND");
                 notifySuppServiceFailed(Phone.SuppService.HANGUP);
             } else {
-                if (call.getState() != ImsPhoneCall.State.IDLE) {
-                    if (DBG) logd("MmiCode 1: hangup foreground");
+                if (DBG) logd("MmiCode 1: Call Waiting");
+                if (call.getImsCall() != null) {
                     mCT.hangup(call);
-// QTI_BEGIN: 2025-01-27: Telephony: Revert "DSDA: Add support for MMI codes, adhoc conference"
-                } else {
-                    if (DBG) logd("MmiCode 1: holdActiveCallForWaitingCall");
-                    mCT.holdActiveCallForWaitingCall();
-// QTI_END: 2025-01-27: Telephony: Revert "DSDA: Add support for MMI codes, adhoc conference"
+                }
+                if (getRingingCall().getState() != ImsPhoneCall.State.IDLE) {
+                    mCT.acceptCall(VideoProfile.STATE_AUDIO_ONLY);
+                } else if (getBackgroundCall().getImsCall() != null &&
+                           getBackgroundCall().getState() == ImsPhoneCall.State.HOLDING) {
+                    unholdHeldCall();
                 }
             }
         } catch (CallStateException e) {
