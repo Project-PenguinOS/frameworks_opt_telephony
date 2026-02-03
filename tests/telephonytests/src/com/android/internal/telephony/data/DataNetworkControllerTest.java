@@ -3471,11 +3471,8 @@ public class DataNetworkControllerTest extends TelephonyTest {
         msg2.what = 4 /*EVENT_DATA_HANDOVER_RETRY*/;
         msg2.obj = retry2;
 
-        Field field = DataRetryManager.class.getDeclaredField("mDataRetryEntries");
-        field.setAccessible(true);
         List<DataRetryManager.DataRetryEntry> dataRetryEntries =
-                (List<DataRetryManager.DataRetryEntry>)
-                        field.get(mDataNetworkControllerUT.getDataRetryManager());
+                mDataNetworkControllerUT.getDataRetryManager().getDataRetryEntries();
         dataRetryEntries.add(retry1);
         dataRetryEntries.add(retry2);
 
@@ -5167,11 +5164,9 @@ public class DataNetworkControllerTest extends TelephonyTest {
                 eq(DataService.REQUEST_REASON_NORMAL), any(Message.class));
 
         // Get the scheduled retry
-        Field field = DataRetryManager.class.getDeclaredField("mDataRetryEntries");
-        field.setAccessible(true);
         DataRetryManager.DataHandoverRetryEntry dataRetryEntry =
-                (DataRetryManager.DataHandoverRetryEntry) ((List<DataRetryManager.DataRetryEntry>)
-                        field.get(mDataNetworkControllerUT.getDataRetryManager())).get(0);
+                (DataRetryManager.DataHandoverRetryEntry)
+                        mDataNetworkControllerUT.getDataRetryManager().getDataRetryEntries().get(0);
 
         // Process the retry
         moveTimeForward(1000 /*The retry delay of the first attempt*/);

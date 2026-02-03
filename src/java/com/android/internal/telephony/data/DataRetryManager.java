@@ -199,6 +199,14 @@ public class DataRetryManager extends Handler {
     private final List<DataRetryEntry> mDataRetryEntries = new ArrayList<>();
 
     /**
+     * @return The list of data retry entries.
+     */
+    @VisibleForTesting
+    public List<DataRetryEntry> getDataRetryEntries() {
+        return mDataRetryEntries;
+    }
+
+    /**
      * Data throttling entries. Note this only stores throttling requested by networks. We intended
      * not to store frameworks-initiated throttling because they are not explicit/strong throttling
      * requests.
@@ -1180,8 +1188,24 @@ public class DataRetryManager extends Handler {
     public void evaluateDataSetupRetry(@NonNull DataProfile dataProfile,
             @TransportType int transport, @NonNull NetworkRequestList requestList,
             @DataFailureCause int cause, long retryDelayMillis) {
-        post(() -> onEvaluateDataSetupRetry(dataProfile, transport, requestList, cause,
-                retryDelayMillis));
+
+        // There is a race condition between SETUP_DATA_CALL failure and UNSOL_UNTHROTTLE_APN.
+        // If SETUP_DATA_CALL fails with a throttle duration, RIL posts a message to
+        // DataNetworkController, which eventually calls this method. If UNSOL_UNTHROTTLE_APN
+        // arrives immediately after, it is also posted to this handler. If we always post retry
+        // evaluation logic here, it will be appended to the end of the queue, potentially AFTER
+        // the unthrottle message.
+        // This results in the unthrottle logic running first (finding nothing to unthrottle) and
+        // then the throttle logic running (applying the throttle), effectively ignoring the
+        // unthrottle request.
+        // To avoid this, if we are already on the handler thread, we should execute immediately
+        // to ensure the throttle entry is added before the unthrottle message is processed.
+        if (mFlags.fixDataSetupRetryRaceCondition() && getLooper().isCurrentThread()) {
+            onEvaluateDataSetupRetry(dataProfile, transport, requestList, cause, retryDelayMillis);
+        } else {
+            post(() -> onEvaluateDataSetupRetry(dataProfile, transport, requestList, cause,
+                    retryDelayMillis));
+        }
     }
 
     private void onEvaluateDataSetupRetry(@NonNull DataProfile dataProfile,
