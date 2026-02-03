@@ -324,8 +324,7 @@ public class EmergencyStateTracker {
                         // Therefore, based on the emergency registration result and current
                         // subscription status, the current phone is not available for an emergency
                         // call, so we check if an emergency call is possible through cross stack.
-                        if (mFeatureFlags.performCrossStackRedialCheckForEmergencyCall()
-                                && mLastEmergencyRegistrationResult == null
+                        if (mLastEmergencyRegistrationResult == null
                                 && mPhone != null
                                 && !SubscriptionManager.isValidSubscriptionId(mPhone.getSubId())
                                 && needToSwitchPhone(mPhone)) {
