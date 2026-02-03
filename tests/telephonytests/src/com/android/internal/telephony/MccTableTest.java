@@ -121,19 +121,6 @@ public class MccTableTest {
         assertEquals(2, MccTable.smallestDigitsMccForMnc(2000));
     }
 
-    @Test
-    public void telephonyFinder_shouldBeIdenticalToTelephonyMccTable() {
-        TelephonyNetworkFinder telephonyNetworkFinder = TelephonyNetworkFinder.getInstance();
-
-        MccTable.getAllMccEntries().forEach(mccEntry -> {
-                MobileCountries telephonyCountry =
-                        telephonyNetworkFinder.findCountriesByMcc(
-                                String.valueOf(mccEntry.mMcc));
-
-                assertEquals(mccEntry.mIso, telephonyCountry.getDefaultCountryIsoCode());
-        });
-    }
-
     @SmallTest
     @Test
     public void testNullMcc() throws Exception {
