@@ -136,7 +136,6 @@ public class EmergencyStateTrackerTest extends TelephonyTest {
 
         doReturn(TelephonyManager.SIM_STATE_READY)
                 .when(mTelephonyManagerProxy).getSimState(anyInt());
-        doReturn(true).when(mFeatureFlags).performCrossStackRedialCheckForEmergencyCall();
     }
 
     @After
@@ -3666,40 +3665,6 @@ public class EmergencyStateTrackerTest extends TelephonyTest {
         // Expect: DisconnectCause#EMERGENCY_PERM_FAILURE
         assertEquals(future.getNow(DisconnectCause.NOT_DISCONNECTED),
                 Integer.valueOf(DisconnectCause.EMERGENCY_PERM_FAILURE));
-    }
-
-    @Test
-    @SmallTest
-    public void testSwitchPhoneWhenNonEmergencyNtnSessionInProgressAndFlagDisabled() {
-        doReturn(false).when(mFeatureFlags).performCrossStackRedialCheckForEmergencyCall();
-        EmergencyStateTracker emergencyStateTracker = setupEmergencyStateTracker(
-                /* isSuplDdsSwitchRequiredForEmergencyCall= */ true);
-        Phone phone0 = setupTestPhoneForEmergencyCall(/* isRoaming= */ true,
-                /* isRadioOn= */ true);
-        setUpAsyncResultForSetEmergencyMode(
-                phone0, UNKNOWN_E_REG_RESULT, RILConstants.INTERNAL_ERR);
-        // Start an emergency call over Phone0
-        CompletableFuture<Integer> future = emergencyStateTracker.startEmergencyCall(phone0,
-                mTestConnection1, false);
-
-        Phone phone1 = getPhone(1);
-        // Phone0: Disable NTN
-        doReturn(SubscriptionManager.INVALID_SUBSCRIPTION_ID)
-                .when(phone0).getSubId();
-        doReturn(TelephonyManager.SIM_STATE_ABSENT)
-                .when(mTelephonyManagerProxy).getSimState(eq(0));
-        // Phone1: Enable TN
-        doReturn(2).when(phone1).getSubId();
-        doReturn(TelephonyManager.SIM_STATE_READY)
-                .when(mTelephonyManagerProxy).getSimState(eq(1));
-
-        processAllMessages();
-
-        verify(phone0).setEmergencyMode(eq(MODE_EMERGENCY_WWAN), any(Message.class));
-        assertTrue(future.isDone());
-        // Expect: DisconnectCause#NOT_DISCONNECTED
-        assertEquals(future.getNow(DisconnectCause.NOT_DISCONNECTED),
-                Integer.valueOf(DisconnectCause.NOT_DISCONNECTED));
     }
 
     @Test
