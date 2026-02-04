@@ -119,3 +119,11 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+# OWNER=nharold TARGET=26Q3
+flag {
+    name: "downloadable_subscription_include_carrier_identifier_internal"
+    namespace: "telephony"
+    description: "Add the CarrierIdentifier to the DownloadableSubscription"
+    bug:"477378293"
+}

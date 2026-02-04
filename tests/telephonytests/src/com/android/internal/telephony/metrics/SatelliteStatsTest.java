@@ -29,6 +29,7 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 
 import android.telephony.SatelliteProtoEnums;
 import android.telephony.TelephonyProtoEnums;
+import android.telephony.satellite.SatelliteManager;
 
 import com.android.internal.telephony.TelephonyTest;
 import com.android.internal.telephony.nano.PersistAtomsProto.CarrierRoamingSatelliteControllerStats;
@@ -420,6 +421,11 @@ public class SatelliteStatsTest extends TelephonyTest {
                         .setSessionConnectionMode(
                                 SatelliteConstants.SESSION_NTN_CONNECT_TYPE_UNKNOWN)
                         .setPlmn("")
+                        .setIsInCarrierRoamingNtnMode(true)
+                        .setCarrierRoamingSatelliteEmergencyMessagingProvider(SatelliteManager
+                            .CARRIER_ROAMING_SATELLITE_EMERGENCY_MESSAGING_PROVIDER_CONCIERGE)
+                        .setEmergencyNumberSourceUsedInHandoverIntent(
+                            SatelliteConstants.EMERGENCY_NUMBER_SOURCE_CARRIER_REDIRECTION)
                         .build();
 
         mSatelliteStats.onSatelliteSosMessageRecommender(param);
@@ -442,6 +448,11 @@ public class SatelliteStatsTest extends TelephonyTest {
         assertEquals(param.getSupportedConnectionMode(), stats.supportedConnectionMode);
         assertEquals(param.getSessionConnectionMode(), stats.sessionConnectionMode);
         assertEquals(param.getPlmn(), stats.plmn);
+        assertEquals(param.getIsInCarrierRoamingNtnMode(), stats.isInCarrierRoamingNtnMode);
+        assertEquals(param.getCarrierRoamingSatelliteEmergencyMessagingProvider(),
+            stats.carrierRoamingSatelliteEmergencyMessagingProvider);
+        assertEquals(param.getEmergencyNumberSourceUsedInHandoverIntent(),
+            stats.emergencyNumberSourceUsedInHandoverIntent);
         verifyNoMoreInteractions(mPersistAtomsStorage);
     }
 
@@ -477,6 +488,7 @@ public class SatelliteStatsTest extends TelephonyTest {
                         .setIsWfcRegistered(false)
                         .setEligibilitySource(
                                 SatelliteConstants.SATELLITE_ELIGIBILITY_SOURCE_ENTITLEMENT)
+                        .setIsWifiConnected(true)
                         .build();
 
         mSatelliteStats.onCarrierRoamingSatelliteSessionMetrics(param);
@@ -511,6 +523,7 @@ public class SatelliteStatsTest extends TelephonyTest {
         assertEquals(param.isWfcEnabled(), stats.isWfcEnabled);
         assertEquals(param.isWfcRegistered(), stats.isWfcRegistered);
         assertEquals(param.getEligibilitySource(), stats.eligibilitySource);
+        assertEquals(param.isWifiConnected(), stats.isWifiConnected);
 
         verifyNoMoreInteractions(mPersistAtomsStorage);
     }

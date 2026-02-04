@@ -1659,7 +1659,10 @@ public class MetricsCollector implements StatsManager.StatsPullAtomCallback {
                 stats.isNtnOnlyCarrier,
                 stats.supportedConnectionMode,
                 stats.sessionConnectionMode,
-                stats.plmn);
+                stats.plmn,
+                stats.isInCarrierRoamingNtnMode,
+                stats.carrierRoamingSatelliteEmergencyMessagingProvider,
+                stats.emergencyNumberSourceUsedInHandoverIntent);
     }
 
     private static StatsEvent buildStatsEvent(DataNetworkValidation stats) {
@@ -1722,7 +1725,8 @@ public class MetricsCollector implements StatsManager.StatsPullAtomCallback {
                 stats.wasChargingDuringSession,
                 stats.batteryDesignCapacityMah,
                 stats.energyConsumedNwh,
-                stats.eligibilitySource);
+                stats.eligibilitySource,
+                stats.isWifiConnected);
     }
 
     private static StatsEvent buildStatsEvent(CarrierRoamingSatelliteControllerStats stats) {

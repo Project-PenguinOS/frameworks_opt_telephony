@@ -78,6 +78,7 @@ import android.telephony.SignalStrength;
 import android.telephony.TelephonyManager;
 import android.telephony.TelephonyProtoEnums;
 import android.telephony.data.ApnSetting;
+import android.telephony.satellite.SatelliteManager;
 import android.telephony.ims.ImsReasonInfo;
 import android.telephony.ims.SipDelegateManager;
 
@@ -125,6 +126,7 @@ import com.android.internal.telephony.nano.PersistAtomsProto.VoiceCallRatUsage;
 import com.android.internal.telephony.nano.PersistAtomsProto.VoiceCallSession;
 import com.android.internal.telephony.nano.TelephonyProto.TelephonyCallSession.Event.AudioCodec;
 import com.android.internal.telephony.protobuf.nano.MessageNano;
+import com.android.internal.telephony.satellite.SatelliteConstants;
 
 import org.junit.After;
 import org.junit.Before;
@@ -1380,6 +1382,11 @@ public class PersistAtomsStorageTest extends TelephonyTest {
         mSatelliteSosMessageRecommender1.sessionConnectionMode = 0;
         mSatelliteSosMessageRecommender1.count = 1;
         mSatelliteSosMessageRecommender1.plmn = "123456";
+        mSatelliteSosMessageRecommender1.isInCarrierRoamingNtnMode = true;
+        mSatelliteSosMessageRecommender1.carrierRoamingSatelliteEmergencyMessagingProvider =
+            SatelliteManager.CARRIER_ROAMING_SATELLITE_EMERGENCY_MESSAGING_PROVIDER_CONCIERGE;
+        mSatelliteSosMessageRecommender1.emergencyNumberSourceUsedInHandoverIntent =
+            SatelliteConstants.EMERGENCY_NUMBER_SOURCE_CARRIER_REDIRECTION;
 
         mSatelliteSosMessageRecommender2 = new SatelliteSosMessageRecommender();
         mSatelliteSosMessageRecommender2.isDisplaySosMessageSent = false;
@@ -1395,6 +1402,11 @@ public class PersistAtomsStorageTest extends TelephonyTest {
         mSatelliteSosMessageRecommender2.supportedConnectionMode = 0;
         mSatelliteSosMessageRecommender2.sessionConnectionMode = 0;
         mSatelliteSosMessageRecommender2.plmn = "123456";
+        mSatelliteSosMessageRecommender2.isInCarrierRoamingNtnMode = false;
+        mSatelliteSosMessageRecommender2.carrierRoamingSatelliteEmergencyMessagingProvider =
+            SatelliteManager.CARRIER_ROAMING_SATELLITE_EMERGENCY_MESSAGING_PROVIDER_LOCAL_PSAP;
+        mSatelliteSosMessageRecommender2.emergencyNumberSourceUsedInHandoverIntent =
+            SatelliteConstants.EMERGENCY_NUMBER_SOURCE_USER_DIALED;
 
         mSatelliteSosMessageRecommender2.count = 1;
 
@@ -1435,6 +1447,7 @@ public class PersistAtomsStorageTest extends TelephonyTest {
         mCarrierRoamingSatelliteSession1.energyConsumedNwh = 700_000_000L;
         mCarrierRoamingSatelliteSession1.eligibilitySource =
                 SATELLITE_ELIGIBILITY_SOURCE_ENTITLEMENT;
+        mCarrierRoamingSatelliteSession1.isWifiConnected = false;
 
         mCarrierRoamingSatelliteSession2 = new CarrierRoamingSatelliteSession();
         mCarrierRoamingSatelliteSession2.carrierId = 2;
@@ -1468,6 +1481,7 @@ public class PersistAtomsStorageTest extends TelephonyTest {
         mCarrierRoamingSatelliteSession2.energyConsumedNwh = 1_400_000_000L;
         mCarrierRoamingSatelliteSession2.eligibilitySource =
                 SATELLITE_ELIGIBILITY_SOURCE_CARRIER_CONFIG;
+        mCarrierRoamingSatelliteSession2.isWifiConnected = true;
 
         mCarrierRoamingSatelliteSessions = new CarrierRoamingSatelliteSession[] {
                 mCarrierRoamingSatelliteSession1, mCarrierRoamingSatelliteSession2};
@@ -6533,7 +6547,12 @@ public class PersistAtomsStorageTest extends TelephonyTest {
                     && stats.carrierId == expectedStats.carrierId
                     && stats.supportedConnectionMode == expectedStats.supportedConnectionMode
                     && stats.sessionConnectionMode == expectedStats.sessionConnectionMode
-                    && Objects.equals(stats.plmn, expectedStats.plmn)) {
+                    && Objects.equals(stats.plmn, expectedStats.plmn)
+                    && stats.isInCarrierRoamingNtnMode == expectedStats.isInCarrierRoamingNtnMode
+                    && stats.carrierRoamingSatelliteEmergencyMessagingProvider
+                    == expectedStats.carrierRoamingSatelliteEmergencyMessagingProvider
+                    && stats.emergencyNumberSourceUsedInHandoverIntent
+                    == expectedStats.emergencyNumberSourceUsedInHandoverIntent) {
                 actualCount = stats.count;
             }
         }

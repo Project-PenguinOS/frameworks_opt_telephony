@@ -1148,7 +1148,16 @@ public class UiccController extends Handler {
             log("onGetIccCardStatusDone: shutdown in progress ignore event");
             return;
         }
-
+        // Defensive check to avoid ClassCastException from RIL response mismatch
+        if (!(ar.result instanceof IccCardStatus)) {
+            logel("onGetIccCardStatusDone: Expected IccCardStatus but got "
+                    + ar.result.getClass().getName());
+            final String unExpectedError =
+                    "Unexpected result type while onGetIccCardStatusDone";
+            AnomalyReporter.reportAnomaly(UUID.fromString("52a70831-c9e7-465b-944d-bfc7968f31e1"),
+                    unExpectedError + ar.result.getClass().getName());
+            return;
+        }
         IccCardStatus status = (IccCardStatus)ar.result;
 
         logl("onGetIccCardStatusDone: phoneId-" + index + " IccCardStatus: " + status);
