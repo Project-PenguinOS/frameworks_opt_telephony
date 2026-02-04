@@ -46,15 +46,6 @@ flag {
   bug: "325045841"
 }
 
-# OWNER=jmattis TARGET=25Q2
-flag {
-  name: "subscription_plan_allow_status_and_end_date"
-  namespace: "telephony"
-  description: "Provide APIs to retrieve the status and recurrence rule info on a subscription plan"
-  bug: "357272015"
-  is_exported: true
-}
-
 # OWNER=melhuishj TARGET=25Q3
 flag {
   name: "ons_thread_consolidation"
