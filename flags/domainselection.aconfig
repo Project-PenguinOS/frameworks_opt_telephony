@@ -35,17 +35,6 @@ flag {
     is_exported: true
 }
 
-#OWNER=hwangoo TARGET=25Q4
-flag {
-    name: "ignore_state_details_update_for_domain_reselection"
-    namespace: "telephony"
-    description: "This flag ignores the state details update of the connection while domain reselection is performing due to a call failure."
-    bug:"429443154"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
 # OWNER=hwangoo TARGET=26Q2
 flag {
     name: "domain_selection_emergency_mode_notification"
