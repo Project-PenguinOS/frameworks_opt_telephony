@@ -28,14 +28,6 @@ flag {
     is_exported: true
 }
 
-# OWNER=mewan TARGET=24Q4
-flag {
-    name: "optimization_apdu_sender"
-    namespace: "telephony"
-    description: "This flag controls optimization of apdu sender class."
-    bug:"335257880"
-}
-
 # OWNER=jhyoon TARGET=25Q2
 flag {
     name: "support_isim_record"
@@ -115,4 +107,15 @@ flag {
     namespace: "telephony"
     description: "Add new permission to secure SIM auth"
     bug:"343796688"
+}
+
+# OWNER=jayachandranc TARGET=26Q2
+flag {
+    name: "cache_adn_record_loader_exceptions"
+    namespace: "telephony"
+    description: "Cache AdnRecordLoader exceptions to prevent infinite retry loops"
+    bug:"477430965"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
 }

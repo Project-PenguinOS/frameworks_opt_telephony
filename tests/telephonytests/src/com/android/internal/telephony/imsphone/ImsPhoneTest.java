@@ -1781,6 +1781,47 @@ public class ImsPhoneTest extends TelephonyTest {
 
     @Test
     @SmallTest
+    public void testImsNrSaModeHandlerNormalRegInteraction() {
+        // Get normal registration callback
+        RegistrationManager.RegistrationCallback callback =
+                mImsPhoneUT.getImsMmTelRegistrationCallback();
+
+        ImsRegistrationAttributes attributes = new ImsRegistrationAttributes.Builder(
+                ImsRegistrationImplBase.REGISTRATION_TECH_IWLAN).build();
+        callback.onRegistered(attributes);
+        verify(mImsNrSaModeHandler).onImsRegistered(
+                eq(ImsRegistrationImplBase.REGISTRATION_TECH_IWLAN));
+
+        ImsReasonInfo info = new ImsReasonInfo(
+                ImsReasonInfo.CODE_LOCAL_ENDED_BY_CONFERENCE_MERGE, 0);
+        callback.onUnregistered(info, RegistrationManager.SUGGESTED_ACTION_NONE,
+                ImsRegistrationImplBase.REGISTRATION_TECH_LTE);
+        verify(mImsNrSaModeHandler).onImsUnregistered(
+                eq(ImsRegistrationImplBase.REGISTRATION_TECH_LTE));
+    }
+
+    @Test
+    @SmallTest
+    public void testImsNrSaModeHandlerEmergencyRegInteraction() {
+        // Get emergency registration callback
+        RegistrationManager.RegistrationCallback emergencyCallback =
+                mImsPhoneUT.getImsMmTelEmergencyRegistrationCallback();
+
+        ImsRegistrationAttributes attributes = new ImsRegistrationAttributes.Builder(
+                ImsRegistrationImplBase.REGISTRATION_TECH_IWLAN).build();
+        emergencyCallback.onRegistered(attributes);
+        verify(mImsNrSaModeHandler).onImsEmergencyRegistered(
+                eq(ImsRegistrationImplBase.REGISTRATION_TECH_IWLAN));
+
+        ImsReasonInfo info = new ImsReasonInfo(ImsReasonInfo.CODE_UNSPECIFIED, 0);
+        emergencyCallback.onUnregistered(info, RegistrationManager.SUGGESTED_ACTION_NONE,
+                ImsRegistrationImplBase.REGISTRATION_TECH_LTE);
+        verify(mImsNrSaModeHandler).onImsEmergencyUnregistered(
+                eq(ImsRegistrationImplBase.REGISTRATION_TECH_LTE));
+    }
+
+    @Test
+    @SmallTest
     public void testImsDialArgsBuilderFromForAlternateService() {
         ImsPhone.ImsDialArgs dialArgs = new ImsPhone.ImsDialArgs.Builder()
                 .setIsEmergency(true)
