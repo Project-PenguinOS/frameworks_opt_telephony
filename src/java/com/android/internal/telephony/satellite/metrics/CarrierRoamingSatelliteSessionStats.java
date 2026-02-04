@@ -341,9 +341,7 @@ public class CarrierRoamingSatelliteSessionStats {
         logd("mIsWifiEnabled: " + mIsWifiEnabled + ", mIsWfcEnabled: " + mIsWfcEnabled
                 + ", mIsWfcRegistered: " + mIsWfcRegistered);
         registerForSatelliteDataNetworkCallback();
-        if (mFeatureFlags.satelliteDataMetrics()) {
-            mPerAppDataUsageOnSessionStartMap = getPerAppSatelliteDataUsage(satelliteApps);
-        }
+        mPerAppDataUsageOnSessionStartMap = getPerAppSatelliteDataUsage(satelliteApps);
         mAccumulatedScreenOnTimeSec = 0;
         if (mFeatureFlags.satelliteMetricsEnhancement()) {
             if (isScreenOn) {
@@ -371,10 +369,6 @@ public class CarrierRoamingSatelliteSessionStats {
     }
 
     private void registerForSatelliteDataNetworkCallback() {
-        if (!mFeatureFlags.satelliteDataMetrics()) {
-            return;
-        }
-
         NetworkRequest.Builder builder = new NetworkRequest.Builder();
         builder.addTransportType(NetworkCapabilities.TRANSPORT_SATELLITE);
         builder.removeCapability(NetworkCapabilities.NET_CAPABILITY_NOT_BANDWIDTH_CONSTRAINED);
@@ -592,19 +586,17 @@ public class CarrierRoamingSatelliteSessionStats {
         }
         logd("satellite data consumed at session: " + mSatelliteDataConsumedBytes);
 
-        if (mFeatureFlags.satelliteDataMetrics()) {
-            Map<String, Long> perAppDataUsageOnSessionEndMap = getPerAppSatelliteDataUsage(
-                    satelliteApps);
-            if (!perAppDataUsageOnSessionEndMap.isEmpty()) {
-                Map<String, Long> currSatelliteSessionPerAppDataUsageMap =
-                        computePerAppSatelliteDataUsageWithSession(perAppDataUsageOnSessionEndMap);
-                Map<String, Long> top5PackagesWithMaxDataMap =
-                        findTopNPackagesWithMaxData(currSatelliteSessionPerAppDataUsageMap);
-                logd("top 5 satellite data usage apps:" + top5PackagesWithMaxDataMap);
-                updatePerAppDataConsumedMaptoArray(top5PackagesWithMaxDataMap);
-            } else {
-                loge("per app satellite consumed array is empty");
-            }
+        Map<String, Long> perAppDataUsageOnSessionEndMap = getPerAppSatelliteDataUsage(
+                satelliteApps);
+        if (!perAppDataUsageOnSessionEndMap.isEmpty()) {
+            Map<String, Long> currSatelliteSessionPerAppDataUsageMap =
+                    computePerAppSatelliteDataUsageWithSession(perAppDataUsageOnSessionEndMap);
+            Map<String, Long> top5PackagesWithMaxDataMap =
+                    findTopNPackagesWithMaxData(currSatelliteSessionPerAppDataUsageMap);
+            logd("top 5 satellite data usage apps:" + top5PackagesWithMaxDataMap);
+            updatePerAppDataConsumedMaptoArray(top5PackagesWithMaxDataMap);
+        } else {
+            loge("per app satellite consumed array is empty");
         }
 
         if (mSumOfDownlinkBandwidthKbps > 0 && mCountOfDataConnections > 0) {
@@ -740,9 +732,6 @@ public class CarrierRoamingSatelliteSessionStats {
     }
 
     private void resetSatelliteDataState() {
-        if (!mFeatureFlags.satelliteDataMetrics()) {
-            return;
-        }
         deregisterSatelliteDataNetworkCallback();
         Arrays.fill(mLastFailCauses, 0);
         mFailCauseIndex = 0;

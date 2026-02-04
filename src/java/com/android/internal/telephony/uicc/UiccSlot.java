@@ -264,7 +264,7 @@ public class UiccSlot extends Handler {
                                 + " CARDSTATE_ABSENT is not received. Handle port disposal to"
                                 + " avoid stale phoneId and port mapping");
                         int radioState = SubscriptionManager.isValidPhoneId(oldPhoneId)
-                                ? ci[phoneId].getRadioState()
+                                ? ci[oldPhoneId].getRadioState()
                                 : TelephonyManager.RADIO_POWER_UNAVAILABLE;
                         updateCardStateAbsent(radioState, oldPhoneId, i);
                     }

@@ -832,6 +832,12 @@ public class DataNetworkControllerTest extends TelephonyTest {
 
         mCarrierConfig.putLongArray(CarrierConfigManager.KEY_DATA_STALL_RECOVERY_TIMERS_LONG_ARRAY,
                 new long[] {100, 100, 100, 100});
+
+        // Add this line to provide a default value for the new randomization key
+        mCarrierConfig.putLongArray(
+                CarrierConfigManager.KEY_DATA_STALL_RECOVERY_TIMERS_RANDOMIZATION_MILLIS_LONG_ARRAY,
+                new long[] {0L, 0L, 0L, 0L});
+
         mCarrierConfig.putBooleanArray(
                 CarrierConfigManager.KEY_DATA_STALL_RECOVERY_SHOULD_SKIP_BOOL_ARRAY,
                 new boolean[] {false, false, true, false, false});
@@ -906,6 +912,8 @@ public class DataNetworkControllerTest extends TelephonyTest {
         infoList.add(mMockSubInfo);
         doReturn(0).when(mSubscriptionManagerService).getPhoneId(1);
         doReturn(1).when(mSubscriptionManagerService).getPhoneId(2);
+        doReturn(true).when(mFeatureFlags).enableDataStallRecoveryRandomization();
+
 
         for (int transport : new int[]{AccessNetworkConstants.TRANSPORT_TYPE_WWAN,
                 AccessNetworkConstants.TRANSPORT_TYPE_WLAN}) {
@@ -6264,32 +6272,6 @@ public class DataNetworkControllerTest extends TelephonyTest {
     }
 
     @Test
-    public void testConnection_WithDataServiceCheckFlagDisabled_WithoutDataServiceSupport()
-            throws Exception {
-        doReturn(false).when(mFeatureFlags).dataServiceCheck();
-        mCarrierSupportedServices.clear();
-        mCarrierSupportedServices.add(NetworkRegistrationInfo.SERVICE_TYPE_VOICE);
-        serviceStateChanged(TelephonyManager.NETWORK_TYPE_LTE,
-                NetworkRegistrationInfo.REGISTRATION_STATE_HOME);
-
-        // Set network request transport with Internet capability + Not Restricted
-        mDataNetworkControllerUT.addNetworkRequest(
-                createNetworkRequest(NetworkCapabilities.NET_CAPABILITY_INTERNET));
-        mDataNetworkControllerUT.obtainMessage(5 /*EVENT_REEVALUATE_UNSATISFIED_NETWORK_REQUESTS*/,
-                DataEvaluationReason.PREFERRED_TRANSPORT_CHANGED).sendToTarget();
-        processAllMessages();
-
-        // Verify internet is connected
-        verifyInternetConnected();
-        Mockito.clearInvocations(mMockedDataNetworkControllerCallback);
-
-        // reset satellite network and roaming registration
-        mCarrierSupportedServices.clear();
-        serviceStateChanged(TelephonyManager.NETWORK_TYPE_LTE,
-                NetworkRegistrationInfo.REGISTRATION_STATE_HOME);
-    }
-
-    @Test
     public void testRestrictedDataConnectionRequest_WithoutDataServiceSupport()
             throws Exception {
         mCarrierSupportedServices.clear();
@@ -6394,34 +6376,6 @@ public class DataNetworkControllerTest extends TelephonyTest {
         // Verify internet is not connected
         verifyNoConnectedNetworkHasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET);
         Mockito.clearInvocations(mMockedDataNetworkControllerCallback);
-    }
-
-    @Test
-    public void testWithDataServiceCheckFlagDisabled_DataPolicySupportMode()
-            throws Exception {
-        doReturn(false).when(mFeatureFlags).dataServiceCheck();
-        // set up satellite network and register data roaming
-        serviceStateChanged(TelephonyManager.NETWORK_TYPE_LTE,
-                NetworkRegistrationInfo.REGISTRATION_STATE_HOME, true);
-
-        // Set network request transport with Internet capability + Not Restricted
-        mCarrierConfig.putInt(CarrierConfigManager.KEY_SATELLITE_DATA_SUPPORT_MODE_INT,
-                CarrierConfigManager.SATELLITE_DATA_SUPPORT_BANDWIDTH_CONSTRAINED);
-        carrierConfigChanged();
-        // Set network request transport as satellite in satellite network
-        NetworkCapabilities netCaps = new NetworkCapabilities();
-        netCaps.addTransportType(NetworkCapabilities.TRANSPORT_SATELLITE);
-        netCaps.addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET);
-        netCaps.removeCapability(NetworkCapabilities.NET_CAPABILITY_NOT_BANDWIDTH_CONSTRAINED);
-        mDataNetworkControllerUT.addNetworkRequest(new TelephonyNetworkRequest(
-                new NetworkRequest(netCaps, ConnectivityManager.TYPE_MOBILE, ++mNetworkRequestId,
-                        NetworkRequest.Type.REQUEST), mPhone, mFeatureFlags));
-        mDataNetworkControllerUT.obtainMessage(5 /*EVENT_REEVALUATE_UNSATISFIED_NETWORK_REQUESTS*/,
-                DataEvaluationReason.PREFERRED_TRANSPORT_CHANGED).sendToTarget();
-        processAllMessages();
-
-        // Verify internet is connected
-        verifyInternetConnected();
     }
 
     @Test

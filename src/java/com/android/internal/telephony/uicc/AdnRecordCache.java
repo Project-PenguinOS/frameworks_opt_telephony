@@ -21,9 +21,11 @@ import android.os.AsyncResult;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Message;
+import android.telephony.Rlog;
 import android.util.SparseArray;
 
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.internal.telephony.flags.Flags;
 import com.android.internal.telephony.gsm.UsimPhoneBookManager;
 
 import java.util.ArrayList;
@@ -35,6 +37,7 @@ import java.util.Locale;
  */
 public class AdnRecordCache extends Handler implements IccConstants {
     //***** Instance Variables
+    private static final String LOG_TAG = "AdnRecordCache";
 
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     private IccFileHandler mFh;
@@ -44,6 +47,9 @@ public class AdnRecordCache extends Handler implements IccConstants {
     // Indexed by EF ID
     SparseArray<ArrayList<AdnRecord>> mAdnLikeFiles
         = new SparseArray<ArrayList<AdnRecord>>();
+
+    // Indexed by EF ID, value is the exception that occurred during loading
+    SparseArray<Throwable> mAdnLikeFilesLoadingIssues = new SparseArray<>();
 
     // People waiting for ADN-like files to be loaded
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
@@ -78,6 +84,9 @@ public class AdnRecordCache extends Handler implements IccConstants {
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     public void reset() {
         mAdnLikeFiles.clear();
+        if (Flags.cacheAdnRecordLoaderExceptions()) {
+            mAdnLikeFilesLoadingIssues.clear();
+        }
         mUsimPhoneBookManager.reset();
 
         clearWaiters();
@@ -280,6 +289,19 @@ public class AdnRecordCache extends Handler implements IccConstants {
             return;
         }
 
+        // Have we previously failed to load this efid?
+        if (Flags.cacheAdnRecordLoaderExceptions()) {
+            if (mAdnLikeFilesLoadingIssues.indexOfKey(efid) >= 0) {
+                if (response != null) {
+                    AsyncResult.forMessage(response).exception =
+                                mAdnLikeFilesLoadingIssues.get(efid);
+                    Rlog.e(LOG_TAG, "Error(cached) loading ADN records for efid: " + efid);
+                    response.sendToTarget();
+                }
+                return;
+            }
+        }
+
         // Have we already *started* loading this efid?
 
         waiters = mAdnLikeWaiters.get(efid);
@@ -353,6 +375,10 @@ public class AdnRecordCache extends Handler implements IccConstants {
 
                 if (ar.exception == null) {
                     mAdnLikeFiles.put(efid, (ArrayList<AdnRecord>) ar.result);
+                } else {
+                    if (Flags.cacheAdnRecordLoaderExceptions()) {
+                        mAdnLikeFilesLoadingIssues.put(efid, ar.exception);
+                    }
                 }
                 notifyWaiters(waiters, ar);
                 break;

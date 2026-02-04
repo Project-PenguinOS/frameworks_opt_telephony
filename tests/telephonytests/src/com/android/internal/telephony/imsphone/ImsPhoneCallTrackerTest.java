@@ -95,6 +95,7 @@ import android.telephony.ims.ImsMmTelManager;
 import android.telephony.ims.ImsReasonInfo;
 import android.telephony.ims.ImsStreamMediaProfile;
 import android.telephony.ims.ProvisioningManager;
+import android.telephony.ims.RegistrationManager;
 import android.telephony.ims.RtpHeaderExtensionType;
 import android.telephony.ims.SrvccCall;
 import android.telephony.ims.aidl.IImsTrafficSessionCallback;
@@ -174,6 +175,8 @@ public class ImsPhoneCallTrackerTest extends TelephonyTest {
     private ImsPhoneCallTracker.ConnectorFactory mConnectorFactory;
     private CommandsInterface mMockCi;
     private CarrierConfigManager.CarrierConfigChangeListener mCarrierConfigChangeListener;
+    private RegistrationManager.RegistrationCallback mRegistrationCallback;
+    private RegistrationManager.RegistrationCallback mEmergencyRegistrationCallback;
 
     private final Executor mExecutor = Runnable::run;
 
@@ -242,6 +245,8 @@ public class ImsPhoneCallTrackerTest extends TelephonyTest {
         mImsConfig = mock(ImsConfig.class);
         mVtDataUsageProviderCb = mock(INetworkStatsProviderCallback.class);
         mConnectorFactory = mock(ImsPhoneCallTracker.ConnectorFactory.class);
+        mRegistrationCallback = mock(RegistrationManager.RegistrationCallback.class);
+        mEmergencyRegistrationCallback = mock(RegistrationManager.RegistrationCallback.class);
         mImsCallProfile.mCallExtras = mBundle;
         mImsCall = spy(new ImsCall(mContext, mImsCallProfile));
         mSecondImsCall = spy(new ImsCall(mContext, mImsCallProfile));
@@ -254,6 +259,9 @@ public class ImsPhoneCallTrackerTest extends TelephonyTest {
         doReturn(mImsCallProfile).when(mImsManager).createCallProfile(anyInt(), anyInt());
         mContextFixture.addSystemFeature(PackageManager.FEATURE_TELEPHONY_IMS);
 
+        doReturn(mRegistrationCallback).when(mImsPhone).getImsMmTelRegistrationCallback();
+        doReturn(mEmergencyRegistrationCallback).when(mImsPhone)
+                .getImsMmTelEmergencyRegistrationCallback();
         doReturn(new SubscriptionInfoInternal.Builder().setSimSlotIndex(0).setId(1).build())
                 .when(mSubscriptionManagerService).getSubscriptionInfoInternal(anyInt());
 
@@ -319,6 +327,10 @@ public class ImsPhoneCallTrackerTest extends TelephonyTest {
 
         verify(mMockConnector).connect();
         mConnectorListener.connectionReady(mImsManager, SUB_0);
+
+        verify(mImsManager).addRegistrationCallback(eq(mRegistrationCallback), any());
+        verify(mImsManager).addEmergencyRegistrationCallbackForSubscription(
+                any(), eq(SUB_0));
 
         final ArgumentCaptor<ProvisioningManager.Callback> configCallbackCaptor =
                 ArgumentCaptor.forClass(ProvisioningManager.Callback.class);

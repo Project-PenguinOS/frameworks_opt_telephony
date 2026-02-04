@@ -28,8 +28,6 @@ import android.net.Network;
 import android.net.NetworkCapabilities;
 import android.net.NetworkRequest;
 import android.os.AsyncResult;
-import android.os.Handler;
-import android.os.HandlerThread;
 import android.os.Message;
 import android.os.PersistableBundle;
 import android.os.PowerManager;
@@ -125,10 +123,13 @@ public class NetworkTypeController extends StateMachine {
     private static final int EVENT_DEVICE_IDLE_MODE_CHANGED = 12;
     /** Event for qos sessions changed. */
     private static final int EVENT_QOS_SESSION_CHANGED = 13;
+    /** Event for modem display network type override */
     private static final int EVENT_MODEM_DISPLAY_NETWORK_TYPE_OVERRIDE = 14;
+    /** Event for update request for satellite bandwidth constrained status */
+    private static final int EVENT_UPDATE_BANDWIDTH_CONSTRAINED_STATUS = 15;
 
-    private static final String[] sEvents = new String[EVENT_MODEM_DISPLAY_NETWORK_TYPE_OVERRIDE
-            + 1];
+    private static final String[] sEvents =
+            new String[EVENT_UPDATE_BANDWIDTH_CONSTRAINED_STATUS + 1];
     static {
         sEvents[EVENT_UPDATE] = "EVENT_UPDATE";
         sEvents[EVENT_QUIT] = "EVENT_QUIT";
@@ -147,6 +148,8 @@ public class NetworkTypeController extends StateMachine {
         sEvents[EVENT_QOS_SESSION_CHANGED] = "EVENT_QOS_SESSION_CHANGED";
         sEvents[EVENT_MODEM_DISPLAY_NETWORK_TYPE_OVERRIDE] =
                 "EVENT_MODEM_DISPLAY_NETWORK_TYPE_OVERRIDE";
+        sEvents[EVENT_UPDATE_BANDWIDTH_CONSTRAINED_STATUS] =
+                "EVENT_UPDATE_BANDWIDTH_CONSTRAINED_STATUS";
     }
 
     @NonNull private final Phone mPhone;
@@ -254,6 +257,8 @@ public class NetworkTypeController extends StateMachine {
     private boolean mIsSatelliteConstrainedData = false;
     private boolean mIsSatelliteNetworkCallbackRegistered = false;
     private ConnectivityManager mConnectivityManager;
+    private boolean mEndcStatus = false;
+    private boolean mIsTimerResetEnabledOnEndcToSaTransit;
 
     private final ConnectivityManager.NetworkCallback mNetworkCallback =
             new ConnectivityManager.NetworkCallback() {
@@ -263,7 +268,7 @@ public class NetworkTypeController extends StateMachine {
                         NetworkCapabilities capabilities =
                                 mConnectivityManager.getNetworkCapabilities(network);
                         if (capabilities != null) {
-                            updateBandwidthConstrainedStatus(
+                            sendMessage(EVENT_UPDATE_BANDWIDTH_CONSTRAINED_STATUS,
                                     isBandwidthConstrainedCapabilitySupported(capabilities));
                         }
                     }
@@ -272,13 +277,13 @@ public class NetworkTypeController extends StateMachine {
                 @Override
                 public void onCapabilitiesChanged(@NonNull Network network,
                         @NonNull NetworkCapabilities networkCapabilities) {
-                    updateBandwidthConstrainedStatus(
+                    sendMessage(EVENT_UPDATE_BANDWIDTH_CONSTRAINED_STATUS,
                             isBandwidthConstrainedCapabilitySupported(networkCapabilities));
                 }
 
                 @Override
                 public void onLost(@NonNull Network network) {
-                    updateBandwidthConstrainedStatus(false);
+                    sendMessage(EVENT_UPDATE_BANDWIDTH_CONSTRAINED_STATUS, false);
                 }
             };
 
@@ -356,10 +361,6 @@ public class NetworkTypeController extends StateMachine {
     public synchronized void registerForSatelliteNetwork() {
         if (!mIsSatelliteNetworkCallbackRegistered) {
             mIsSatelliteNetworkCallbackRegistered = true;
-            HandlerThread handlerThread = new HandlerThread("SatelliteDataUsageThread");
-            handlerThread.start();
-            Handler handler = new Handler(handlerThread.getLooper());
-
             NetworkRequest.Builder builder = new NetworkRequest.Builder();
             builder.addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET);
             // TODO (b/382002908: Remove try catch exception for
@@ -376,7 +377,7 @@ public class NetworkTypeController extends StateMachine {
                             .getSystemService(Context.CONNECTIVITY_SERVICE);
             if (mConnectivityManager != null) {
                 mConnectivityManager.registerBestMatchingNetworkCallback(
-                        builder.build(), mNetworkCallback, handler);
+                        builder.build(), mNetworkCallback, getHandler());
             } else {
                 loge("network callback not registered");
             }
@@ -497,6 +498,8 @@ public class NetworkTypeController extends StateMachine {
                 CarrierConfigManager.KEY_NR_TIMERS_RESET_ON_PLMN_CHANGE_BOOL);
         mIsTimerResetEnabledOnVoiceQos = config.getBoolean(
                 CarrierConfigManager.KEY_NR_TIMERS_RESET_ON_VOICE_QOS_BOOL);
+        mIsTimerResetEnabledOnEndcToSaTransit = config.getBoolean(
+            CarrierConfigManager.KEY_NR_TIMERS_RESET_ON_ENDC_TO_SA_TRANSIT_BOOL);
         mLtePlusThresholdBandwidth = config.getInt(
                 CarrierConfigManager.KEY_LTE_PLUS_THRESHOLD_BANDWIDTH_KHZ_INT);
         mNrAdvancedThresholdBandwidth = config.getInt(
@@ -893,6 +896,10 @@ public class NetworkTypeController extends StateMachine {
                         resetAllTimers();
                         transitionToCurrentState();
                     }
+                    break;
+                case EVENT_UPDATE_BANDWIDTH_CONSTRAINED_STATUS:
+                    boolean isConstrained = (boolean) msg.obj;
+                    updateBandwidthConstrainedStatus(isConstrained);
                     break;
                 default:
                     throw new RuntimeException("Received invalid event: " + msg.what);
@@ -1620,7 +1627,26 @@ public class NetworkTypeController extends StateMachine {
         }
     }
 
+    /**
+     * Updates the current ENDC status and returns the previous value.
+     * @param currentRat The current data network type.
+     * @return The ENDC status before the update.
+     */
+    private boolean updateEndcStateAndGetPrevious(int currentRat) {
+        boolean previous = mEndcStatus;
+        mEndcStatus = isLte(currentRat) &&
+            mServiceState.getNrState() != NetworkRegistrationInfo.NR_STATE_NONE;
+        if (DBG) {
+            log("endc state currRat: " + currentRat + " (Endc: " + mEndcStatus + ")"
+                + ", prevIsEndc: " + previous);
+        }
+        return previous;
+    }
+
     private void updateTimers() {
+        int currentRat = getDataNetworkType();
+        boolean previousIsEndc = updateEndcStateAndGetPrevious(currentRat);
+
         if ((mPhone.getCachedAllowedNetworkTypesBitmask()
                 & TelephonyManager.NETWORK_TYPE_BITMASK_NR) == 0) {
             if (DBG) log("Reset timers since NR is not allowed.");
@@ -1668,15 +1694,18 @@ public class NetworkTypeController extends StateMachine {
                     && !mSecondaryTimerState.equals(STATE_CONNECTED_NR_ADVANCED)) {
                 if (DBG) log("Reset non-NR advanced timers since state is NR connected/idle");
                 resetAllTimers();
-            // TODO: We should create a new config for this rather than reusing this config
+            } else if (mIsTimerResetEnabledOnEndcToSaTransit
+                && currentRat == TelephonyManager.NETWORK_TYPE_NR && previousIsEndc) {
+                if (DBG) log("Reset timers since SA transit (from ENDC).");
+                resetAllTimers();
+              // TODO: We should create a new config for this rather than reusing this config
             } else if (mIsTimerResetEnabledForLegacyStateRrcIdle
                     && mPrimaryTimerState.equals(STATE_CONNECTED_NR_ADVANCED)
                     && currentState.equals(STATE_CONNECTED_RRC_IDLE)) {
                 if (DBG) log("Reset NR advanced timers since state is NR idle");
                 resetAllTimers();
             } else {
-                int rat = getDataNetworkType();
-                if (!isLte(rat) && rat != TelephonyManager.NETWORK_TYPE_NR) {
+                if (!isLte(currentRat) && currentRat != TelephonyManager.NETWORK_TYPE_NR) {
                     if (DBG) log("Reset timers since 2G and 3G don't need NR timers.");
                     resetAllTimers();
                 }

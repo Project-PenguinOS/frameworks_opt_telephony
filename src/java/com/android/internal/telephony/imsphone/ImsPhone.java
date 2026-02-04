@@ -323,6 +323,9 @@ public class ImsPhone extends ImsPhoneBase {
     // The helper class to receive and store the MmTel registration status updated.
     private ImsRegistrationCallbackHelper mImsMmTelRegistrationHelper;
 
+    // The helper class to receive and store the MmTel emergency registration status updated.
+    private ImsRegistrationCallbackHelper mImsMmTelEmergencyRegistrationHelper;
+
     // The roaming state if currently in service, or the last roaming state when was in service.
     private boolean mLastKnownRoamingState = false;
     private boolean mLastKnownIsUsingNtnState = false;
@@ -534,6 +537,8 @@ public class ImsPhone extends ImsPhoneBase {
 
         mImsMmTelRegistrationHelper = new ImsRegistrationCallbackHelper(mMmTelRegistrationUpdate,
                 context.getMainExecutor());
+        mImsMmTelEmergencyRegistrationHelper = new ImsRegistrationCallbackHelper(
+                mMmTelEmergencyRegistrationUpdate, context.getMainExecutor());
 
         PowerManager pm = (PowerManager) context.getSystemService(Context.POWER_SERVICE);
         mWakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, LOG_TAG);
@@ -2575,11 +2580,20 @@ public class ImsPhone extends ImsPhoneBase {
     }
 
     /**
+     * @return the {@link RegistrationManager.RegistrationCallback} to be used for emergency
+     * registration associated with this {@link ImsPhone}.
+     */
+    public RegistrationManager.RegistrationCallback getImsMmTelEmergencyRegistrationCallback() {
+        return mImsMmTelEmergencyRegistrationHelper.getCallback();
+    }
+
+    /**
      * Reset the IMS registration state.
      */
     public void resetImsRegistrationState() {
         if (DBG) logd("resetImsRegistrationState");
         mImsMmTelRegistrationHelper.reset();
+        mImsMmTelEmergencyRegistrationHelper.reset();
         int subId = getSubId();
         if (SubscriptionManager.isValidSubscriptionId(subId)) {
             updateImsRegistrationInfo(REGISTRATION_STATE_NOT_REGISTERED,
@@ -2601,8 +2615,7 @@ public class ImsPhone extends ImsPhoneBase {
             setServiceState(ServiceState.STATE_IN_SERVICE);
             getDefaultPhone().setImsRegistrationState(true);
             mImsStats.onImsRegistered(attributes);
-            mImsNrSaModeHandler.onImsRegistered(
-                    attributes.getRegistrationTechnology(), attributes.getFeatureTags());
+            mImsNrSaModeHandler.onImsRegistered(attributes.getRegistrationTechnology());
             updateImsRegistrationInfo(REGISTRATION_STATE_REGISTERED,
                     attributes.getRegistrationTechnology(), SUGGESTED_ACTION_NONE,
                     imsTransportType);
@@ -2715,6 +2728,38 @@ public class ImsPhone extends ImsPhoneBase {
             setPhoneNumberForSourceIms(uris);
         }
     };
+
+    private ImsRegistrationCallbackHelper.ImsRegistrationUpdate mMmTelEmergencyRegistrationUpdate =
+            new ImsRegistrationCallbackHelper.ImsRegistrationUpdate() {
+                @Override
+                public void handleImsRegistered(@NonNull ImsRegistrationAttributes attributes) {
+                    mImsNrSaModeHandler.onImsEmergencyRegistered(
+                            attributes.getRegistrationTechnology());
+                }
+
+                @Override
+                public void handleImsRegistering(int imsRadioTech) {
+                }
+
+                @Override
+                public void handleImsUnregistered(ImsReasonInfo imsReasonInfo,
+                        @RegistrationManager.SuggestedAction int suggestedAction,
+                        @ImsRegistrationImplBase.ImsRegistrationTech int imsRadioTech) {
+                    mImsNrSaModeHandler.onImsEmergencyUnregistered(imsRadioTech);
+                }
+
+                @Override
+                public void handleImsUnregistered(ImsReasonInfo imsReasonInfo,
+                        @RegistrationManager.SuggestedAction int suggestedAction,
+                        @ImsRegistrationImplBase.ImsRegistrationTech int imsRadioTech,
+                        int throttlingTimeSec) {
+                    mImsNrSaModeHandler.onImsEmergencyUnregistered(imsRadioTech);
+                }
+
+                @Override
+                public void handleImsSubscriberAssociatedUriChanged(Uri[] uris) {
+                }
+            };
 
     /** Processes IMS unregistration, updates state, and performs suggested actions. */
     @VisibleForTesting
@@ -3200,6 +3245,8 @@ public class ImsPhone extends ImsPhoneBase {
         pw.println("  mSilentRedialRegistrants = " + mSilentRedialRegistrants);
         pw.println("  mImsMmTelRegistrationState = "
                 + mImsMmTelRegistrationHelper.getImsRegistrationState());
+        pw.println("  mImsMmTelEmergencyRegistrationState = "
+                + mImsMmTelEmergencyRegistrationHelper.getImsRegistrationState());
         pw.println("  mLastKnownRoamingState = " + mLastKnownRoamingState);
         pw.println(" mLastKnownIsUsingNtn = " + mLastKnownIsUsingNtnState);
         pw.println("  mSsnRegistrants = " + mSsnRegistrants);
