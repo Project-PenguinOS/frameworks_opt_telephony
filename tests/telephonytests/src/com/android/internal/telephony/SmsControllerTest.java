@@ -341,6 +341,72 @@ public class SmsControllerTest extends TelephonyTest {
     }
 
     @Test
+    public void sendStoredText_associatedUser_sendsSms() {
+        int subId = 1;
+        doReturn(new String[]{"hi", "1234"}).when(mIccSmsInterfaceManager).loadTextAndAddress(
+            any(), any());
+        doReturn(true).when(mSubscriptionManager)
+            .isSubscriptionAssociatedWithUser(eq(subId), any());
+
+        mSmsControllerUT.sendStoredText(subId, getCallingPackage(), null, null, null, null, null);
+
+        verify(mIccSmsInterfaceManager).sendStoredText(eq(getCallingPackage()),
+            eq(mCallingUserId), isNull(), isNull(), isNull(), isNull(), isNull(), anyInt());
+    }
+
+    @Test
+    public void sendStoredText_notAssociatedUser_fails() {
+        int subId = 1;
+        doReturn(new String[]{"hi", "1234"}).when(mIccSmsInterfaceManager).loadTextAndAddress(
+            any(), any());
+        doReturn(false).when(mSubscriptionManager)
+            .isSubscriptionAssociatedWithUser(eq(subId), any());
+
+        mSmsControllerUT.sendStoredText(subId, getCallingPackage(), null, null, null, null, null);
+
+        verify(mIccSmsInterfaceManager, never()).sendStoredText(any(), anyInt(), any(),
+            any(), any(), any(), any(), anyInt());
+    }
+
+    @Test
+    public void sendStoredMultipartText_associatedUser_sendsSms() {
+        int subId = 1;
+        doReturn(new String[]{"hi", "1234"}).when(mIccSmsInterfaceManager).loadTextAndAddress(
+            any(), any());
+        doReturn(true).when(mSubscriptionManager)
+            .isSubscriptionAssociatedWithUser(eq(subId), any());
+
+        mSmsControllerUT.sendStoredMultipartText(subId, getCallingPackage(), null,
+            null, null, null, null);
+
+        verify(mIccSmsInterfaceManager).sendStoredMultipartText(eq(getCallingPackage()),
+            eq(mCallingUserId), isNull(), isNull(), isNull(), isNull(), isNull(), anyInt());
+    }
+
+    @Test
+    public void sendStoredMultipartText_notAssociatedUser_fails() {
+        int subId = 1;
+        doReturn(new String[]{"hi", "1234"}).when(mIccSmsInterfaceManager).loadTextAndAddress(
+            any(), any());
+        doReturn(false).when(mSubscriptionManager)
+            .isSubscriptionAssociatedWithUser(eq(subId), any());
+
+        mSmsControllerUT.sendStoredMultipartText(subId, getCallingPackage(), null,
+            null, null, null, null);
+
+        verify(mIccSmsInterfaceManager, never()).sendStoredMultipartText(any(), anyInt(), any(),
+            any(), any(), any(), any(), anyInt());
+    }
+
+    private String getCallingPackage() {
+        PackageManager pm = mContext.createContextAsUser(Binder.getCallingUserHandle(), 0)
+            .getPackageManager();
+        String[] packages = pm.getPackagesForUid(Binder.getCallingUid());
+        if (packages == null || packages.length == 0) return "";
+        return packages[0];
+    }
+
+    @Test
     public void sendRawPduForSubscriberTest() {
         int subId = 1;
         doReturn(true).when(mSubscriptionManager)
