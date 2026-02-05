@@ -1,7 +1,7 @@
 package: "com.android.internal.telephony.flags"
 container: "system"
 
-# OWNER=arunvoddu TARGET=24Q4
+# OWNER=arunvoddu TARGET=24Q4 USED_BY_APP=true
 flag {
     name: "carrier_restriction_status"
     is_exported: true
@@ -19,8 +19,7 @@ flag {
     bug:"318348580"
 }
 
-# Due to an external dependency, the flag is not being cleaned up here, even though it has been cleaned up in the framework.
-# OWNER=arunvoddu TARGET=24Q4
+# OWNER=arunvoddu TARGET=24Q4 USED_BY_APP=true
 flag {
     name: "set_carrier_restriction_status"
     namespace: "telephony"
