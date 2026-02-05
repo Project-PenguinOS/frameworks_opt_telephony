@@ -3488,7 +3488,7 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
     @Test
     @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
     public void testUpdateGroupDisabledUngroupedOpportunistic() {
-        doReturn(true).when(mFeatureFlags).preventDisablingUngroupedOppSub();
+        doReturn(true).when(mFeatureFlags).enableIsPrivateNetworkApi();
         mContextFixture.addCallingOrSelfPermission(Manifest.permission.READ_PHONE_STATE);
         mContextFixture.addCallingOrSelfPermission(Manifest.permission.READ_PRIVILEGED_PHONE_STATE);
         mContextFixture.addCallingOrSelfPermission(
