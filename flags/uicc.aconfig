@@ -19,6 +19,7 @@ flag {
     bug:"318348580"
 }
 
+# Due to an external dependency, the flag is not being cleaned up here, even though it has been cleaned up in the framework.
 # OWNER=arunvoddu TARGET=24Q4
 flag {
     name: "set_carrier_restriction_status"
