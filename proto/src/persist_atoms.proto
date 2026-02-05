@@ -844,6 +844,9 @@ message SatelliteSosMessageRecommender {
     optional int32 supported_connection_mode = 12;
     optional int32 session_connection_mode = 13;
     optional string plmn = 14;
+    optional bool is_in_carrier_roaming_ntn_mode = 15;
+    optional int32 carrier_roaming_satellite_emergency_messaging_provider = 16;
+    optional int32 emergency_number_source_used_in_handover_intent = 17;
 }
 
 message DataNetworkValidation {
@@ -903,6 +906,7 @@ message CarrierRoamingSatelliteSession {
     optional int32 battery_design_capacity_mah = 44;
     optional int64 energy_consumed_nwh = 45;
     optional int32 eligibility_source = 46;
+    optional bool is_wifi_connected = 47;
 }
 
 message CarrierRoamingSatelliteControllerStats {

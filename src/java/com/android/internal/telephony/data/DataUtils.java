@@ -38,7 +38,6 @@ import android.telephony.data.ApnSetting;
 import android.telephony.data.ApnSetting.ApnType;
 import android.telephony.data.DataCallResponse;
 import android.telephony.data.DataCallResponse.LinkStatus;
-import android.telephony.data.TrafficDescriptor;
 import android.telephony.ims.feature.ImsFeature;
 import android.util.ArrayMap;
 
@@ -368,61 +367,6 @@ public class DataUtils {
             case TelephonyManager.NETWORK_TYPE_IWLAN -> AccessNetworkType.IWLAN;
             case TelephonyManager.NETWORK_TYPE_NR -> AccessNetworkType.NGRAN;
             default -> AccessNetworkType.UNKNOWN;
-        };
-    }
-
-    /**
-     * Convert NetworkCapability to ConnectionCapability.
-     *
-     * @param netCap The {@code NetworkCapabilities.NET_CAPABILITY_*} constant.
-     * @return The {@code TrafficDescriptor.CONNECTION_CAPABILITY_*} constant.
-     */
-    @TrafficDescriptor.ConnectionCapability
-    public static int networkCapabilityToConnectionCapability(@NetCapability int netCap) {
-        return switch (netCap) {
-            case NetworkCapabilities.NET_CAPABILITY_MMS ->
-                    TrafficDescriptor.CONNECTION_CAPABILITY_MMS;
-            case NetworkCapabilities.NET_CAPABILITY_SUPL ->
-                    TrafficDescriptor.CONNECTION_CAPABILITY_SUPL;
-            case NetworkCapabilities.NET_CAPABILITY_IMS ->
-                    TrafficDescriptor.CONNECTION_CAPABILITY_IMS;
-            case NetworkCapabilities.NET_CAPABILITY_INTERNET ->
-                    TrafficDescriptor.CONNECTION_CAPABILITY_INTERNET;
-            case NetworkCapabilities.NET_CAPABILITY_PRIORITIZE_LATENCY ->
-                    TrafficDescriptor.CONNECTION_CAPABILITY_REAL_TIME_INTERACTIVE;
-            case NetworkCapabilities.NET_CAPABILITY_PRIORITIZE_BANDWIDTH ->
-                    TrafficDescriptor.CONNECTION_CAPABILITY_DOWNLINK_STREAMING;
-            case DataUtils.NET_CAPABILITY_PRIORITIZE_UNIFIED_COMMUNICATIONS ->
-                    TrafficDescriptor.CONNECTION_CAPABILITY_UNIFIED_COMMUNICATIONS;
-            default -> TrafficDescriptor.CONNECTION_CAPABILITY_UNKNOWN;
-        };
-    }
-
-    /**
-     * Convert ConnectionCapability to NetworkCapability.
-     *
-     * @param connCap The {@code TrafficDescriptor.CONNECTION_CAPABILITY_*} constant.
-     * @return The {@code NetworkCapabilities.NET_CAPABILITY_*} constant.
-     */
-    @NetCapability
-    public static int connectionCapabilityToNetworkCapability(
-            @TrafficDescriptor.ConnectionCapability int connCap) {
-        return switch (connCap) {
-            case TrafficDescriptor.CONNECTION_CAPABILITY_MMS ->
-                    NetworkCapabilities.NET_CAPABILITY_MMS;
-            case TrafficDescriptor.CONNECTION_CAPABILITY_SUPL ->
-                    NetworkCapabilities.NET_CAPABILITY_SUPL;
-            case TrafficDescriptor.CONNECTION_CAPABILITY_IMS ->
-                    NetworkCapabilities.NET_CAPABILITY_IMS;
-            case TrafficDescriptor.CONNECTION_CAPABILITY_INTERNET ->
-                    NetworkCapabilities.NET_CAPABILITY_INTERNET;
-            case TrafficDescriptor.CONNECTION_CAPABILITY_REAL_TIME_INTERACTIVE ->
-                    NetworkCapabilities.NET_CAPABILITY_PRIORITIZE_LATENCY;
-            case TrafficDescriptor.CONNECTION_CAPABILITY_DOWNLINK_STREAMING ->
-                    NetworkCapabilities.NET_CAPABILITY_PRIORITIZE_BANDWIDTH;
-            case TrafficDescriptor.CONNECTION_CAPABILITY_UNIFIED_COMMUNICATIONS ->
-                    DataUtils.NET_CAPABILITY_PRIORITIZE_UNIFIED_COMMUNICATIONS;
-            default -> -1; // Corresponds to no capability
         };
     }
 

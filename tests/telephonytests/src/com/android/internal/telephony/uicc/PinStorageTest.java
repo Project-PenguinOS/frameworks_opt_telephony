@@ -68,6 +68,7 @@ import java.security.GeneralSecurityException;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
+import java.util.List;
 import java.util.Set;
 
 import javax.crypto.KeyGenerator;
@@ -81,6 +82,18 @@ public class PinStorageTest extends TelephonyTest {
 
     private static final String ICCID_1 = "89010003006562472370";
     private static final String ICCID_2 = "89010003006562472399";
+    private static final String ICCID_3 = "8981100022152967705F";
+    private static final String PIN_1 = "1234";
+    private static final String PIN_2 = "2345";
+    private static final String PIN_3 = "3456";
+
+    private static final StoredPinProto.PlatformManagedPin PLATFORM_PIN_1 =
+            new StoredPinProto.PlatformManagedPin();
+    private static final StoredPinProto.PlatformManagedPin PLATFORM_PIN_2 =
+            new StoredPinProto.PlatformManagedPin();
+    private static final StoredPinProto.PlatformManagedPin PLATFORM_PIN_3 =
+            new StoredPinProto.PlatformManagedPin();
+
     private static final String ICCID_INVALID = "1234";
     private static final String PACKAGE_NAME = "com.package.name";
     private static final int UID = -1;
@@ -139,6 +152,13 @@ public class PinStorageTest extends TelephonyTest {
         // Simulate the device is not secure by default
         when(mKeyguardManager.isDeviceSecure()).thenReturn(false);
         when(mKeyguardManager.isDeviceLocked()).thenReturn(false);
+
+        PLATFORM_PIN_1.iccid = ICCID_1;
+        PLATFORM_PIN_1.pin = PIN_1;
+        PLATFORM_PIN_2.iccid = ICCID_2;
+        PLATFORM_PIN_2.pin = PIN_2;
+        PLATFORM_PIN_3.iccid = ICCID_3;
+        PLATFORM_PIN_3.pin = PIN_3;
 
         createPinStorageAndCaptureListener();
     }
@@ -666,5 +686,55 @@ public class PinStorageTest extends TelephonyTest {
 
         Set<String> deserialized = PinStorage.deserializeIccids(serialized);
         assertThat(deserialized).containsExactly(iccid1, iccid2);
+    }
+
+    @RequiresFlagsEnabled(FLAG_AUTO_SIM_PIN_MANAGEMENT)
+    @Test
+    public void testGetPlatformManagedPinsForBackup() {
+        mPinStorage.storePlatformManagedPin(0, "1234", "0000");
+        assertThat(mPinStorage.getPlatformManagedPinsForBackup()).isNotEmpty();
+    }
+
+    @RequiresFlagsEnabled(FLAG_AUTO_SIM_PIN_MANAGEMENT)
+    @Test
+    public void testMergingOfPlatformManagedPins() {
+        StoredPinProto.PlatformManagedPin platformPin2Modified =
+                new StoredPinProto.PlatformManagedPin();
+        platformPin2Modified.iccid = PLATFORM_PIN_2.iccid;
+        platformPin2Modified.pin = "7890";
+
+        StoredPinProto.PlatformManagedPins existingPins = new StoredPinProto.PlatformManagedPins();
+        existingPins.pins = new StoredPinProto.PlatformManagedPin[]{PLATFORM_PIN_1, PLATFORM_PIN_2};
+
+        StoredPinProto.PlatformManagedPins backupPins = new StoredPinProto.PlatformManagedPins();
+        backupPins.pins =
+                new StoredPinProto.PlatformManagedPin[]{platformPin2Modified, PLATFORM_PIN_3};
+
+        List<StoredPinProto.PlatformManagedPin> merged = PinStorage.mergeExistingAndBackupPins(
+                existingPins, backupPins);
+
+        assertThat(merged).containsExactly(PLATFORM_PIN_1, PLATFORM_PIN_2, PLATFORM_PIN_3);
+    }
+
+    @RequiresFlagsEnabled(FLAG_AUTO_SIM_PIN_MANAGEMENT)
+    @Test
+    public void testRestorePlatformManagedPinsFromBackup() {
+        mPinStorage.storePlatformManagedPin(0, PIN_1, "0000");
+
+        StoredPinProto.PlatformManagedPin platformPin1Modified =
+                new StoredPinProto.PlatformManagedPin();
+        platformPin1Modified.iccid = PLATFORM_PIN_1.iccid;
+        platformPin1Modified.pin = "7890";
+
+        StoredPinProto.PlatformManagedPins pinsToRestore = new StoredPinProto.PlatformManagedPins();
+        pinsToRestore.pins =
+                new StoredPinProto.PlatformManagedPin[]{platformPin1Modified, PLATFORM_PIN_2,
+                        PLATFORM_PIN_3};
+        byte[] blobToRestore = StoredPinProto.PlatformManagedPins.toByteArray(pinsToRestore);
+
+        mPinStorage.restorePlatformManagedPinsFromBackup(blobToRestore);
+        assertThat(mPinStorage.getPin(0, ICCID_1)).isEqualTo(PIN_1);
+        assertThat(mPinStorage.getPin(0, ICCID_2)).isEqualTo(PIN_2);
+        assertThat(mPinStorage.getPin(0, ICCID_3)).isEqualTo(PIN_3);
     }
 }
