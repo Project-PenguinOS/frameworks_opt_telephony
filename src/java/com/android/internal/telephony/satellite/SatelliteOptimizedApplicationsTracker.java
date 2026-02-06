@@ -195,9 +195,8 @@ public class SatelliteOptimizedApplicationsTracker {
                     metadata = serviceInfo.metaData;
                     if (metadata != null) {
                         value = metadata.getString(APP_PROPERTY);
-                        loge(String.format("service: %s, value: %s", serviceInfo.packageName,
-                                (value == null ? null : value)));
                         if (value != null && TextUtils.equals(value, serviceInfo.packageName)) {
+                            logd("serviceInfo: " + serviceInfo.packageName + " is optimized");
                             return true;
                         }
                     }
