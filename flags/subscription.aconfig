@@ -46,15 +46,6 @@ flag {
   bug: "325045841"
 }
 
-# OWNER=jmattis TARGET=25Q2
-flag {
-  name: "subscription_plan_allow_status_and_end_date"
-  namespace: "telephony"
-  description: "Provide APIs to retrieve the status and recurrence rule info on a subscription plan"
-  bug: "357272015"
-  is_exported: true
-}
-
 # OWNER=melhuishj TARGET=25Q3
 flag {
   name: "ons_thread_consolidation"
@@ -80,23 +71,6 @@ flag {
     description: "Adds SubscriptionInfo#isPrivateNetwork and the corresponding carrier config."
     bug: "458746638"
     is_exported: true
-}
-
-# OWNER=ysnam TARGET=26Q2
-flag {
-    name: "prevent_disabling_ungrouped_opp_sub"
-    namespace: "telephony"
-    description: "Prevent disabling ungrouped opportunistic subscription when it is the only active subscription."
-    bug: "465531655"
-    is_exported: false
-}
-
-# OWNER=ysnam TARGET=26Q2
-flag {
-    name: "skip_available_esim_port_check_for_opportunistic_sub"
-    namespace: "telephony"
-    description: "Skip available eSIM port check for opportunistic subscription."
-    bug: "469500968"
 }
 
 # OWNER=melhuishj TARGET=26Q2

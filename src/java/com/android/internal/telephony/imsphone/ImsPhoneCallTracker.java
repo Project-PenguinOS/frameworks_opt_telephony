@@ -6833,7 +6833,8 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
             // QNS will then call getWfcMode() to get the latest value.
             if (mTelephonyManager != null) {
                 TelephonyManager tm = mTelephonyManager.createForSubscriptionId(mPhone.getSubId());
-                boolean isNetworkRoaming = tm.getServiceState().getRoaming();
+                ServiceState serviceState = tm.getServiceState();
+                boolean isNetworkRoaming = serviceState != null && serviceState.getRoaming();
                 mImsManager.setWfcRoamingSettingInternal(mImsManager.isWfcRoamingEnabledByUser());
                 mImsManager.setWfcModeInternal(mImsManager.getWfcMode(isNetworkRoaming));
             }
