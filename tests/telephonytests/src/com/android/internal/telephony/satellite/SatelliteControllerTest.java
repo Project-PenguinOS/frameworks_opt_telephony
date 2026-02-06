@@ -9336,6 +9336,116 @@ public class SatelliteControllerTest extends TelephonyTest {
         verify(resultReceiver).send(SatelliteManager.SATELLITE_RESULT_REQUEST_FAILED, null);
     }
 
+    @Test
+    public void testGetManualConnectSatellitePlmnsForCarrier() {
+        doReturn(true).when(mFeatureFlags).nrNtn();
+        doReturn(true).when(mFeatureFlags).systemSelectionSpecifierEnhancement();
+
+        // Setup supported satellite services (PLMN list)
+        mCarrierConfigBundle.putBoolean(
+                CarrierConfigManager.KEY_SATELLITE_ATTACH_SUPPORTED_BOOL, true);
+        PersistableBundle carrierSupportedSatelliteServicesPerProvider = new PersistableBundle();
+        String plmn1 = "00101"; // NB-IOT
+        String plmn2 = "00102"; // NR-NTN
+        String plmn3 = "00103"; // NB-IOT + NR-NTN
+        String plmn4 = "00104"; // No technology info, but Manual connect via per-PLMN config
+        String plmn5 = "00105"; // NR-NTN, but Manual connect via per-PLMN config
+
+        carrierSupportedSatelliteServicesPerProvider.putIntArray(
+                plmn1, new int[]{NetworkRegistrationInfo.SERVICE_TYPE_SMS});
+        carrierSupportedSatelliteServicesPerProvider.putIntArray(
+                plmn2, new int[]{NetworkRegistrationInfo.SERVICE_TYPE_SMS});
+        carrierSupportedSatelliteServicesPerProvider.putIntArray(
+                plmn3, new int[]{NetworkRegistrationInfo.SERVICE_TYPE_SMS});
+        carrierSupportedSatelliteServicesPerProvider.putIntArray(
+                plmn4, new int[]{NetworkRegistrationInfo.SERVICE_TYPE_SMS});
+        carrierSupportedSatelliteServicesPerProvider.putIntArray(
+                plmn5, new int[]{NetworkRegistrationInfo.SERVICE_TYPE_SMS});
+        mCarrierConfigBundle.putPersistableBundle(CarrierConfigManager
+                        .KEY_CARRIER_SUPPORTED_SATELLITE_SERVICES_PER_PROVIDER_BUNDLE,
+                carrierSupportedSatelliteServicesPerProvider);
+
+        // Setup satellite technologies per PLMN
+        PersistableBundle satelliteConfigsPerPlmnBundle = new PersistableBundle();
+
+        PersistableBundle plmn1Config = new PersistableBundle();
+        plmn1Config.putIntArray(CarrierConfigManager.KEY_SATELLITE_TECHNOLOGY_INT_ARRAY,
+                new int[]{SatelliteManager.NT_RADIO_TECHNOLOGY_NB_IOT_NTN});
+        satelliteConfigsPerPlmnBundle.putPersistableBundle(plmn1, plmn1Config);
+
+        PersistableBundle plmn2Config = new PersistableBundle();
+        plmn2Config.putIntArray(CarrierConfigManager.KEY_SATELLITE_TECHNOLOGY_INT_ARRAY,
+                new int[]{SatelliteManager.NT_RADIO_TECHNOLOGY_NR_NTN});
+        satelliteConfigsPerPlmnBundle.putPersistableBundle(plmn2, plmn2Config);
+
+        PersistableBundle plmn3Config = new PersistableBundle();
+        plmn3Config.putIntArray(CarrierConfigManager.KEY_SATELLITE_TECHNOLOGY_INT_ARRAY,
+                new int[]{
+                        SatelliteManager.NT_RADIO_TECHNOLOGY_NB_IOT_NTN,
+                        SatelliteManager.NT_RADIO_TECHNOLOGY_NR_NTN});
+        satelliteConfigsPerPlmnBundle.putPersistableBundle(plmn3, plmn3Config);
+
+        PersistableBundle plmn4Config = new PersistableBundle();
+        plmn4Config.putInt(CarrierConfigManager.KEY_CARRIER_ROAMING_NTN_CONNECT_TYPE_INT,
+                CarrierConfigManager.CARRIER_ROAMING_NTN_CONNECT_MANUAL);
+        satelliteConfigsPerPlmnBundle.putPersistableBundle(plmn4, plmn4Config);
+
+        PersistableBundle plmn5Config = new PersistableBundle();
+        plmn5Config.putIntArray(CarrierConfigManager.KEY_SATELLITE_TECHNOLOGY_INT_ARRAY,
+                new int[]{SatelliteManager.NT_RADIO_TECHNOLOGY_NR_NTN});
+        plmn5Config.putInt(CarrierConfigManager.KEY_CARRIER_ROAMING_NTN_CONNECT_TYPE_INT,
+                CarrierConfigManager.CARRIER_ROAMING_NTN_CONNECT_MANUAL);
+        satelliteConfigsPerPlmnBundle.putPersistableBundle(plmn5, plmn5Config);
+
+        mCarrierConfigBundle.putPersistableBundle(
+                CarrierConfigManager.KEY_SATELLITE_CONFIGS_PER_PLMN_BUNDLE,
+                satelliteConfigsPerPlmnBundle);
+
+        // Case 1: Carrier Config is MANUAL. All PLMNs should be returned.
+        mCarrierConfigBundle.putInt(CarrierConfigManager.KEY_CARRIER_ROAMING_NTN_CONNECT_TYPE_INT,
+                CarrierConfigManager.CARRIER_ROAMING_NTN_CONNECT_MANUAL);
+        invokeCarrierConfigChanged();
+
+        List<String> manualPlmns =
+                mSatelliteControllerUT.getManualConnectSatellitePlmnsForCarrier(SUB_ID);
+        assertEquals(5, manualPlmns.size());
+        assertTrue(manualPlmns.containsAll(Arrays.asList(plmn1, plmn2, plmn3, plmn4, plmn5)));
+
+        // Case 2: Carrier Config is HYBRID.
+        // plmn1: NB-IOT -> Included
+        // plmn2: NR-NTN -> Excluded
+        // plmn3: NB-IOT + NR-NTN -> Included
+        // plmn4: No tech, Manual connect -> Included
+        // plmn5: NR-NTN, Manual connect -> Included
+        mCarrierConfigBundle.putInt(CarrierConfigManager.KEY_CARRIER_ROAMING_NTN_CONNECT_TYPE_INT,
+                CarrierConfigManager.CARRIER_ROAMING_NTN_CONNECT_HYBRID);
+        invokeCarrierConfigChanged();
+
+        manualPlmns = mSatelliteControllerUT.getManualConnectSatellitePlmnsForCarrier(SUB_ID);
+        assertEquals(4, manualPlmns.size());
+        assertTrue(manualPlmns.contains(plmn1));
+        assertFalse(manualPlmns.contains(plmn2));
+        assertTrue(manualPlmns.contains(plmn3));
+        assertTrue(manualPlmns.contains(plmn4));
+        assertTrue(manualPlmns.contains(plmn5));
+
+        // Case 3: Carrier Config is AUTOMATIC.
+        mCarrierConfigBundle.putInt(CarrierConfigManager.KEY_CARRIER_ROAMING_NTN_CONNECT_TYPE_INT,
+                CarrierConfigManager.CARRIER_ROAMING_NTN_CONNECT_AUTOMATIC);
+        invokeCarrierConfigChanged();
+
+        manualPlmns = mSatelliteControllerUT.getManualConnectSatellitePlmnsForCarrier(SUB_ID);
+        assertTrue(manualPlmns.isEmpty());
+
+        // Case 4: Feature flag disabled.
+        doReturn(false).when(mFeatureFlags).systemSelectionSpecifierEnhancement();
+        mCarrierConfigBundle.putInt(CarrierConfigManager.KEY_CARRIER_ROAMING_NTN_CONNECT_TYPE_INT,
+                CarrierConfigManager.CARRIER_ROAMING_NTN_CONNECT_MANUAL);
+        invokeCarrierConfigChanged();
+        manualPlmns = mSatelliteControllerUT.getManualConnectSatellitePlmnsForCarrier(SUB_ID);
+        assertTrue(manualPlmns.isEmpty());
+    }
+
     private static class TestCarrierRoamingSatelliteSessionStats extends
             CarrierRoamingSatelliteSessionStats {
         // Time should be shared for every stats.
