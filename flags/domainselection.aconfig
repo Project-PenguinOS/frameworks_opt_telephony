@@ -64,3 +64,11 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+# OWNER=kimjiny TARGET=26Q2
+flag {
+    name: "enable_emergency_sms_roaming_pdn_selection"
+    namespace: "telephony"
+    description: "This flag controls the PDN selection for sending emergency SMS while roaming."
+    bug:"461740128"
+}
