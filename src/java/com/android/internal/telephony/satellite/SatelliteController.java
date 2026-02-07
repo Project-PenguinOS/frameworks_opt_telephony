@@ -4661,6 +4661,60 @@ public class SatelliteController extends Handler {
         return getCarrierPlmnList(subId);
     }
 
+    private int getCarrierRoamingNtnConnectTypeForPlmn(int subId, String plmn) {
+        plogd("getCarrierRoamingNtnConnectTypeForPlmn: subId=" + subId + ", plmn=" + plmn);
+        PersistableBundle perPlmnConfigs = getPersistableBundle(subId).getPersistableBundle(
+            CarrierConfigManager.KEY_SATELLITE_CONFIGS_PER_PLMN_BUNDLE);
+        if (perPlmnConfigs == null) {
+            plogd("getCarrierRoamingNtnConnectTypeForPlmn: perPlmnConfigs is null");
+            return CarrierConfigManager.CARRIER_ROAMING_NTN_CONNECT_UNKNOWN;
+        }
+        PersistableBundle plmnSpecificConfig = perPlmnConfigs.getPersistableBundle(plmn);
+        if (plmnSpecificConfig == null) {
+            plogd("getCarrierRoamingNtnConnectTypeForPlmn: plmnSpecificConfig is null");
+            return CarrierConfigManager.CARRIER_ROAMING_NTN_CONNECT_UNKNOWN;
+        }
+        return plmnSpecificConfig.getInt(
+                        CarrierConfigManager.KEY_CARRIER_ROAMING_NTN_CONNECT_TYPE_INT,
+                        CarrierConfigManager.CARRIER_ROAMING_NTN_CONNECT_UNKNOWN);
+    }
+
+    /**
+     * @param subId Subscription ID.
+     * @return The list of satellite PLMNs used for connecting to satellite networks.
+     * <p>
+     * <li>If the carrier roaming NTN connect type is
+     * {@link CarrierConfigManager#CARRIER_ROAMING_NTN_CONNECT_MANUAL}, returns all carrier
+     * satellite PLMNs.
+     * <li>If the connect type is {@link CarrierConfigManager#CARRIER_ROAMING_NTN_CONNECT_HYBRID},
+     * returns PLMNs that are configured as manual connect or support
+     * {@link SatelliteManager#NT_RADIO_TECHNOLOGY_NB_IOT_NTN}.
+     */
+    @NonNull
+    public List<String> getManualConnectSatellitePlmnsForCarrier(int subId) {
+        List<String> result = new ArrayList<>();
+        if (!mFeatureFlags.systemSelectionSpecifierEnhancement()) {
+            logd("getManualConnectSatellitePlmnsForCarrier: system selection specifier enhancement"
+                    + " is not enabled");
+            return result;
+        }
+        List<String> allCarrierPlmns = getSatellitePlmnsForCarrier(subId);
+        int carrierRoamingNtnConnectType = getCarrierRoamingNtnConnectType(subId);
+        if (carrierRoamingNtnConnectType == CARRIER_ROAMING_NTN_CONNECT_MANUAL) {
+            return allCarrierPlmns;
+        } else if (carrierRoamingNtnConnectType == CARRIER_ROAMING_NTN_CONNECT_HYBRID) {
+            for (String plmn : allCarrierPlmns) {
+                if ((getCarrierRoamingNtnConnectTypeForPlmn(subId, plmn)
+                        == CARRIER_ROAMING_NTN_CONNECT_MANUAL)
+                        || getSupportedSatelliteTechnologies(subId, plmn).contains(
+                        SatelliteManager.NT_RADIO_TECHNOLOGY_NB_IOT_NTN)) {
+                    result.add(plmn);
+                }
+            }
+        }
+        return result;
+    }
+
     /**
      *  checks if data service is allowed, to add part of list of services supported by satellite
      *  plmn, when data supported mode
