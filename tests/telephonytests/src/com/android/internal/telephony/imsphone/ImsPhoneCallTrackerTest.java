@@ -3032,4 +3032,12 @@ public class ImsPhoneCallTrackerTest extends TelephonyTest {
         mCTUT.getCarrierRoamingNtnListener().onCarrierRoamingNtnModeChanged(true);
         verify(mImsManager, times(1)).setWfcModeInternal(anyInt());
     }
+
+    @Test
+    public void testCarrierRoamingNtnListener_NullServiceState() {
+        doReturn(null).when(mTelephonyManager).getServiceState();
+
+        mCTUT.getCarrierRoamingNtnListener().onCarrierRoamingNtnModeChanged(true);
+        verify(mImsManager, times(1)).setWfcModeInternal(anyInt());
+    }
 }

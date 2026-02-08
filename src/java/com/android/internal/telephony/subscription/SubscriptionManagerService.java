@@ -5193,7 +5193,7 @@ public class SubscriptionManagerService extends ISub.Stub {
         for (SubscriptionInfo oppSubInfo : getOpportunisticSubscriptions(
                 mContext.getOpPackageName(), mContext.getFeatureId())) {
             boolean groupDisabled;
-            if (mFeatureFlags.preventDisablingUngroupedOppSub()) {
+            if (mFeatureFlags.enableIsPrivateNetworkApi()) {
                 groupDisabled = oppSubInfo.getGroupUuid() != null
                         && activeSubscriptions.stream().noneMatch(subInfo ->
                         !subInfo.isOpportunistic() && Objects.equals(oppSubInfo.getGroupUuid(),

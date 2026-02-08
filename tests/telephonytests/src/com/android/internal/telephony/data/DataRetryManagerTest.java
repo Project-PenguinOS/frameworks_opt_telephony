@@ -363,10 +363,7 @@ public class DataRetryManagerTest extends TelephonyTest {
 
         DataNetworkController.NetworkRequestList mockNrl = Mockito.mock(
                 DataNetworkController.NetworkRequestList.class);
-        Field field = DataRetryManager.class.getDeclaredField("mDataRetryEntries");
-        field.setAccessible(true);
-        List<DataRetryEntry> mDataRetryEntries =
-                (List<DataRetryEntry>) field.get(mDataRetryManagerUT);
+        List<DataRetryEntry> mDataRetryEntries = mDataRetryManagerUT.getDataRetryEntries();
         assertThat(mDataRetryEntries.size()).isEqualTo(2);
 
         // Suppose we set the data profile as permanently failed.
@@ -651,10 +648,7 @@ public class DataRetryManagerTest extends TelephonyTest {
         doReturn(networkRequestList).when(mockDn).getAttachedNetworkRequestList();
         doReturn(AccessNetworkConstants.TRANSPORT_TYPE_WWAN).when(mockDn).getTransport();
         doReturn(mDataProfile3).when(mockDn).getDataProfile();
-        Field field = DataRetryManager.class.getDeclaredField("mDataRetryEntries");
-        field.setAccessible(true);
-        List<DataRetryEntry> mDataRetryEntries =
-                (List<DataRetryEntry>) field.get(mDataRetryManagerUT);
+        List<DataRetryEntry> mDataRetryEntries = mDataRetryManagerUT.getDataRetryEntries();
         mDataRetryManagerUT.evaluateDataHandoverRetry(mockDn, 123, 1000);
         processAllMessages();
         mDataRetryManagerUT.cancelPendingHandoverRetry(mockDn);
@@ -676,6 +670,67 @@ public class DataRetryManagerTest extends TelephonyTest {
                 .isEqualTo(AccessNetworkConstants.TRANSPORT_TYPE_WLAN);
         assertThat(mDataRetryManagerUT.isAnyHandoverRetryScheduled(mockDn)).isFalse();
         assertThat(retry.getState()).isEqualTo(DataRetryEntry.RETRY_STATE_CANCELLED);
+    }
+
+    @Test
+    public void testRaceConditionSetupRetryAndUnthrottle() throws Exception {
+        doReturn(true).when(mFeatureFlags).fixDataSetupRetryRaceCondition();
+        NetworkRequest request = new NetworkRequest.Builder()
+                .addCapability(NetworkCapabilities.NET_CAPABILITY_IMS)
+                .build();
+        TelephonyNetworkRequest tnr = new TelephonyNetworkRequest(request, mPhone, mFeatureFlags);
+        DataNetworkController.NetworkRequestList
+                networkRequestList = new DataNetworkController.NetworkRequestList(tnr);
+
+        // Step 1: Send Unthrottle message. This simulates the unthrottle message arriving
+        // at the handler while we are currently processing the setup data failure (but before
+        // the retry logic has executed if it were posted).
+        // Since we are in the handler thread (TestableLooper), this message is queued.
+        mDataRetryManagerUT.obtainMessage(6/*EVENT_DATA_PROFILE_UNTHROTTLED*/,
+                new AsyncResult(AccessNetworkConstants.TRANSPORT_TYPE_WWAN,
+                        mDataProfile3, null))
+                .sendToTarget();
+
+        // Step 2: Call evaluateDataSetupRetry.
+        // With the fix, this should execute immediately (synchronously) because we are on the
+        // handler thread.
+        // Without the fix, this would post a Runnable to the end of the queue (behind the
+        // unthrottle message).
+        mDataRetryManagerUT.evaluateDataSetupRetry(mDataProfile3,
+                AccessNetworkConstants.TRANSPORT_TYPE_WWAN, networkRequestList, 123,
+                10000);
+
+        // Step 3: Process messages.
+        // Expected order with fix:
+        // 1. evaluateDataSetupRetry logic runs (immediately in step 2). Adds throttle (10s).
+        // 2. Unthrottle message runs. Cancels the 10s retry. Schedules immediate retry (0s).
+        // Result: 10s retry CANCELLED. 0s retry NOT_RETRIED.
+        //
+        // Order without fix:
+        // 1. Unthrottle message runs. Removes nothing (nothing throttled yet).
+        // 2. evaluateDataSetupRetry Runnable runs. Adds throttle (10s).
+        // Result: 10s retry NOT_RETRIED. No 0s retry.
+        processAllMessages();
+
+        // Step 4: Verify result.
+        List<DataRetryEntry> mDataRetryEntries = mDataRetryManagerUT.getDataRetryEntries();
+
+        // Verify the original throttled retry is cancelled
+        boolean hasThrottledRetryCancelled = mDataRetryEntries.stream()
+                .anyMatch(e -> e instanceof DataSetupRetryEntry
+                        && ((DataSetupRetryEntry) e).dataProfile.equals(mDataProfile3)
+                        && e.retryDelayMillis == 10000
+                        && e.getState() == DataRetryEntry.RETRY_STATE_CANCELLED);
+
+        // Verify the new immediate retry is active
+        boolean hasImmediateRetryActive = mDataRetryEntries.stream()
+                .anyMatch(e -> e instanceof DataSetupRetryEntry
+                        && ((DataSetupRetryEntry) e).dataProfile.equals(mDataProfile3)
+                        && e.retryDelayMillis == 0
+                        && e.getState() == DataRetryEntry.RETRY_STATE_NOT_RETRIED);
+
+        assertThat(hasThrottledRetryCancelled).isTrue();
+        assertThat(hasImmediateRetryActive).isTrue();
     }
 
     @Test
