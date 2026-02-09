@@ -6400,7 +6400,7 @@ public class DataNetworkControllerTest extends TelephonyTest {
         // Verify IMS PDN remains intact on Wi-Fi after camping to NTN
         // because it's on WLAN transport and QNS hasn't reported a handover yet.
         verifyConnectedNetworkHasCapabilitiesOnTransport(
-            AccessNetworkConstants.TRANSPORT_TYPE_WLAN, NetworkCapabilities.NET_CAPABILITY_IMS);
+                AccessNetworkConstants.TRANSPORT_TYPE_WLAN, NetworkCapabilities.NET_CAPABILITY_IMS);
 
         updateTransport(NetworkCapabilities.NET_CAPABILITY_IMS,
                 AccessNetworkConstants.TRANSPORT_TYPE_WWAN);

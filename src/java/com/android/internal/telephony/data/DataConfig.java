@@ -77,6 +77,12 @@ public class DataConfig {
      */
     private final Map<Integer, Set<Integer>> mRoamingMeteredCapabilities = new ArrayMap<>();
 
+    /**
+     * Stores all unique Network Capabilities defined in this configuration.
+     * Populated during parsing to avoid recalculation.
+     */
+    private final Set<Integer> mAllNetworkCapabilities = new HashSet<>();
+
     private final TelephonyConfigData.DataConfigProto mConfigData;
 
     public DataConfig(@NonNull TelephonyConfigData.DataConfigProto configData) {
@@ -174,6 +180,7 @@ public class DataConfig {
 
         mConnectionCapabilities.put(carrierId, capsMap);
         mApnRequiredMap.put(carrierId, apnReqMap);
+        mAllNetworkCapabilities.addAll(capsMap.keySet());
     }
 
     public int getVersion() {
@@ -260,6 +267,15 @@ public class DataConfig {
             return targetMap.get(carrierId);
         }
         return targetMap.getOrDefault(DEFAULT_CARRIER_ID, null);
+    }
+
+    /**
+     * @return A set of all unique Network Capabilities defined in the dynamic configuration.
+     *         This includes capabilities from both default and carrier-specific rules.
+     */
+    @NonNull
+    public Set<Integer> getAllNetworkCapabilities() {
+        return mAllNetworkCapabilities;
     }
 
     private static void logd(String log) {

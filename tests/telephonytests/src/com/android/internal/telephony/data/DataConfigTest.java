@@ -356,4 +356,44 @@ public class DataConfigTest extends TelephonyTest {
         DataConfig dataConfig = new DataConfig(proto);
         assertThat(dataConfig.getVersion()).isEqualTo(123);
     }
+
+    @Test
+    public void testGetAllNetworkCapabilities() {
+        // Setup:
+        // Default Rule: 10->20, 11->21
+        // Carrier 1 Rule: 12->22
+        // Carrier 2 Rule: 13->23
+        int carrierId1 = 1;
+        int carrierId2 = 2;
+
+        TelephonyConfigData.DataConfigProto proto = TelephonyConfigData.DataConfigProto.newBuilder()
+                .setConnectionCapabilityConfigs(
+                        TelephonyConfigData.ConnectionCapabilityConfig.newBuilder()
+                                .setDefaultConnectionCapabilityConfig(
+                                        TelephonyConfigData.ConnectionCapabilityMap.newBuilder()
+                                                .addRules("10:20:false")
+                                                .addRules("11:21:false")
+                                                .build())
+                                .addCarrierConnectionCapabilityConfigs(
+                                        TelephonyConfigData.ConnectionCapabilityMap.newBuilder()
+                                                .setCarrierId(carrierId1)
+                                                .addRules("12:22:false")
+                                                .build())
+                                .addCarrierConnectionCapabilityConfigs(
+                                        TelephonyConfigData.ConnectionCapabilityMap.newBuilder()
+                                                .setCarrierId(carrierId2)
+                                                .addRules("13:23:false")
+                                                .build())
+                                .build())
+                .build();
+
+        DataConfig dataConfig = new DataConfig(proto);
+
+        Set<Integer> allCaps = dataConfig.getAllNetworkCapabilities();
+
+        assertThat(allCaps).containsExactly(10, 11, 12, 13);
+
+        // Verify idempotency / consistency
+        assertThat(dataConfig.getAllNetworkCapabilities()).isEqualTo(allCaps);
+    }
 }
