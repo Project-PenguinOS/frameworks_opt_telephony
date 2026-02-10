@@ -33,6 +33,7 @@ import static android.telephony.TelephonyManager.ACTION_MULTI_SIM_CONFIG_CHANGED
 import static android.telephony.TelephonyManager.RADIO_POWER_OFF;
 import static android.telephony.TelephonyManager.RADIO_POWER_ON;
 import static android.telephony.TelephonyManager.RADIO_POWER_UNAVAILABLE;
+import static android.telephony.TelephonyManager.SATELLITE_PURCHASE_MODE_STATE_ACTIVE;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -145,6 +146,8 @@ public class TelephonyRegistryTest extends TelephonyTest {
     private int mCallbackModeStopReason = TelephonyManager.STOP_REASON_UNKNOWN;
     private long mCallbackModeDurationMillis;
     private boolean mCarrierRoamingNtnMode;
+    public boolean mIsPurchaseModeActive;
+    public int mPurchaseModeState;
     private boolean mCarrierRoamingNtnEligible;
     private int[] mCarrierRoamingNtnAvailableServices;
     private NtnSignalStrength mCarrierRoamingNtnSignalStrength;
@@ -238,7 +241,8 @@ public class TelephonyRegistryTest extends TelephonyTest {
                     TelephonyCallback.CellularIdentifierDisclosedListener,
                     TelephonyCallback.CallAttributesListener,
                     TelephonyCallback.DomainSelectionEmergencyModeListener,
-                    TelephonyCallback.NetworkSecurityEventsListener {
+                    TelephonyCallback.NetworkSecurityEventsListener,
+                    TelephonyCallback.SatellitePurchaseModeListener {
         // This class isn't mockable to get invocation counts because the IBinder is null and
         // crashes the TelephonyRegistry. Make a cheesy verify(times()) alternative.
         public AtomicInteger invocationCount = new AtomicInteger(0);
@@ -333,6 +337,14 @@ public class TelephonyRegistryTest extends TelephonyTest {
         public void onDataActivity(@Annotation.DataActivityType int direction) {
             invocationCount.incrementAndGet();
             mDataActivity = direction;
+        }
+
+        @Override
+        public void onSatellitePurchaseModeChanged(int subId, boolean isEnabled,
+                @TelephonyManager.SatellitePurchaseModeState int purchaseModeState) {
+            invocationCount.incrementAndGet();
+            mIsPurchaseModeActive = isEnabled;
+            mPurchaseModeState = purchaseModeState;
         }
 
         @Override
@@ -1917,6 +1929,24 @@ public class TelephonyRegistryTest extends TelephonyTest {
         mTelephonyRegistry.notifyCarrierRoamingNtnModeChanged(subId, true);
         processAllMessages();
         assertTrue(mCarrierRoamingNtnMode);
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_SATELLITE_UPSELL_26Q4)
+    public void testNotifySatellitePurchaseModeChanged() {
+        int subId = INVALID_SUBSCRIPTION_ID;
+        doReturn(mMockSubInfo).when(mSubscriptionManager).getActiveSubscriptionInfo(anyInt());
+        doReturn(0/*slotIndex*/).when(mMockSubInfo).getSimSlotIndex();
+        int[] events = {TelephonyCallback.EVENT_SATELLITE_PURCHASE_MODE_CHANGED};
+
+        mTelephonyRegistry.listenWithEventList(false, false, subId, mContext.getOpPackageName(),
+                mContext.getAttributionTag(), mTelephonyCallback.callback, events, true);
+
+        mTelephonyRegistry.notifySatellitePurchaseModeChanged(
+                subId, true, SATELLITE_PURCHASE_MODE_STATE_ACTIVE);
+        processAllMessages();
+        assertTrue(mIsPurchaseModeActive);
+        assertEquals(SATELLITE_PURCHASE_MODE_STATE_ACTIVE, mPurchaseModeState);
     }
 
     @Test

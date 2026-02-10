@@ -605,6 +605,7 @@ public class SatelliteController extends Handler {
      */
     private final ConcurrentHashMap<IBinder, ISelectedNbIotSatelliteSubscriptionCallback>
             mSelectedNbIotSatelliteSubscriptionChangedListeners = new ConcurrentHashMap<>();
+
     protected ConcurrentHashMap<String, Integer> mResultReceiverCountPerMethodMap =
             new ConcurrentHashMap<>();
     /** Key: subId, value: (key: PLMN, value: set of
