@@ -11329,4 +11329,25 @@ public class SatelliteController extends Handler {
 
         return provider;
     }
+
+    /**
+     * Request to evaluate and potentially enable satellite for a specific carrier based on
+     * resolving a communication restriction.
+     * <p>
+     * This method is typically invoked when the connection mode is set to
+     * {@link CarrierConfigManager#CARRIER_ROAMING_NTN_CONNECT_AUTOMATIC} and a user or
+     * system event suggests that restrictions should be re-evaluated.
+     *
+     * @param subId The subscription ID to evaluate enablement for.
+     * @param reason The restriction reason to evaluate (e.g.,
+     *               {@link SatelliteManager#SATELLITE_COMMUNICATION_RESTRICTION_REASON_USER}).
+     * @param callback The callback used to return the result of the evaluation.
+     */
+    // TODO(b/323046234): Migrate to use Auto Satellite Enablement.
+    public void requestEnableSatelliteForCarrier(int subId,
+            @SatelliteManager.SatelliteCommunicationRestrictionReason int reason,
+            @NonNull IIntegerConsumer callback) {
+        Consumer<Integer> result = FunctionalUtils.ignoreRemoteException(callback::accept);
+        evaluateEnablingSatelliteForCarrier(subId, reason, result);
+    }
 }
