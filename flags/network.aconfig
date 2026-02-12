@@ -58,7 +58,7 @@ flag {
     is_exported: true
     namespace: "telephony"
     description: "Guard system API for network security events"
-    bug: "407790397"
+    bug: "411183432"
     metadata {
         purpose: PURPOSE_FEATURE
     }
