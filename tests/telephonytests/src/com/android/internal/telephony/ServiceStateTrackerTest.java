@@ -3081,10 +3081,14 @@ public class ServiceStateTrackerTest extends TelephonyTest {
         assertThat(b.getBoolean(TelephonyManager.EXTRA_SHOW_PLMN)).isTrue();
     }
 
-    @Test
+        @Test
     public void testShowOperatorName() throws Exception {
         doReturn(mUiccCard).when(mUiccController).getUiccCard(anyInt());
         doReturn(IccCardStatus.CardState.CARDSTATE_PRESENT).when(mUiccCard).getCardState();
+        doReturn(true).when(mSimRecords).getRecordsLoaded();
+
+        // Test with feature flag disabled first.
+        doReturn(false).when(mFeatureFlags).updateCarrierNameAfterSimReady();
 
         // Test case 1: config_update_operator_name_after_carrier_config_loaded is false.
         // showOperatorName() should be true regardless of carrier config loaded state.
@@ -3106,21 +3110,33 @@ public class ServiceStateTrackerTest extends TelephonyTest {
         assertFalse(sst.showOperatorName());
 
         // Test case 3: config_update_operator_name_after_carrier_config_loaded is true, and carrier
-        // config is applied. showOperatorName() should be true.
+        // config is applied. showOperatorName() should be false as the feature flag is disabled.
         mContextFixture.putBooleanResource(
                 com.android.internal.R.bool.config_update_operator_name_after_carrier_config_loaded,
                 true);
         mBundle.putBoolean(CarrierConfigManager.KEY_CARRIER_CONFIG_APPLIED_BOOL, true);
         sendCarrierConfigUpdate(PHONE_ID);
+        assertFalse(sst.showOperatorName());
+
+        // Test case 4: Now enable the feature flag and check again.
+        doReturn(true).when(mFeatureFlags).updateCarrierNameAfterSimReady();
+        sendCarrierConfigUpdate(PHONE_ID); // To update mIsSimReadyForDisplay
         assertTrue(sst.showOperatorName());
 
-        // Test case 4: SIM is absent. showOperatorName() should be false.
+        // Test case 5: SIM is absent. showOperatorName() should be false.
         doReturn(IccCardStatus.CardState.CARDSTATE_ABSENT).when(mUiccCard).getCardState();
         assertFalse(sst.showOperatorName());
 
-        // Test case 5: SIM is present again.
+        // Test case 6: SIM is present again.
         doReturn(IccCardStatus.CardState.CARDSTATE_PRESENT).when(mUiccCard).getCardState();
         assertTrue(sst.showOperatorName());
+
+        // Test case 7: SIM records are not loaded. showOperatorName() should be false.
+        // Trigger a SIM_READY event to reset the internal state before running this check.
+        sst.sendMessage(sst.obtainMessage(ServiceStateTracker.EVENT_SIM_READY));
+        doReturn(false).when(mSimRecords).getRecordsLoaded();
+        sendCarrierConfigUpdate(PHONE_ID);
+        assertFalse(sst.showOperatorName());
     }
 
     private Bundle getExtrasFromLastSpnUpdateIntent() {
