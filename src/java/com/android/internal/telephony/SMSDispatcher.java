@@ -60,6 +60,7 @@ import android.os.SystemClock;
 import android.os.UserHandle;
 import android.provider.Settings;
 import android.provider.Telephony;
+import android.provider.Telephony.ReadRestriction;
 import android.provider.Telephony.Sms;
 import android.service.carrier.CarrierMessagingService;
 import android.service.carrier.CarrierMessagingServiceWrapper;
@@ -1692,6 +1693,7 @@ public abstract class SMSDispatcher extends Handler {
                                 status -> {
                                 if (status != UPGRADE_STATUS_ACCEPTED) {
                                     Rlog.d(TAG, "sendText: message upgrade request failed.");
+                                    markMessageAsUnrestricted(tracker.mMessageUri);
                                     if (!sendSmsByCarrierApp(false /* isDataSms */, tracker)) {
                                         sendSubmitPdu(tracker);
                                     }
@@ -1699,12 +1701,13 @@ public abstract class SMSDispatcher extends Handler {
                             });
                         return;
                     }
-                } else {
+                } else if (tracker.mMessageUri != null) {
+                    // If the message promotion is not attempted, unrestrict the message.
+                    markMessageAsUnrestricted(tracker.mMessageUri);
                     Rlog.d(TAG, "sendText: message upgrade is not supported or the calling app"
                             + " is DMA.");
                 }
             }
-
             if (!sendSmsByCarrierApp(false /* isDataSms */, tracker)) {
                 sendSubmitPdu(tracker);
             }
@@ -1713,6 +1716,12 @@ public abstract class SMSDispatcher extends Handler {
                     + SmsController.formatCrossStackMessageId(messageId));
             triggerSentIntentForFailure(sentIntent);
         }
+    }
+
+    private void markMessageAsUnrestricted(Uri messageUri) {
+        Binder.withCleanCallingIdentity(() -> {
+            ReadRestriction.unrestrictMessage(mContext.getContentResolver(), messageUri);
+        });
     }
 
     private void triggerSentIntentForFailure(PendingIntent sentIntent) {
