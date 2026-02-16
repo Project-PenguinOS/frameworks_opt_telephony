@@ -187,6 +187,7 @@ import android.telephony.satellite.ISatelliteProvisionStateCallback;
 import android.telephony.satellite.ISatelliteTransmissionUpdateCallback;
 import android.telephony.satellite.ISelectedNbIotSatelliteSubscriptionCallback;
 import android.telephony.satellite.NtnSignalStrength;
+import android.telephony.satellite.PointingUiAppLaunchIntentAttributes;
 import android.telephony.satellite.SatelliteAccessConfiguration;
 import android.telephony.satellite.SatelliteCapabilities;
 import android.telephony.satellite.SatelliteDatagram;
@@ -195,7 +196,6 @@ import android.telephony.satellite.SatelliteManager;
 import android.telephony.satellite.SatelliteManager.SatelliteException;
 import android.telephony.satellite.SatelliteModemEnableRequestAttributes;
 import android.telephony.satellite.SatellitePosition;
-import android.telephony.satellite.PointingUiAppLaunchIntentAttributes;
 import android.telephony.satellite.SatelliteSubscriberInfo;
 import android.telephony.satellite.SatelliteSubscriberProvisionStatus;
 import android.telephony.satellite.SatelliteSubscriptionInfo;
@@ -1620,6 +1620,28 @@ public class SatelliteControllerTest extends TelephonyTest {
         assertTrue(waitForIIntegerConsumerResult(1));
         assertEquals(SATELLITE_RESULT_SUCCESS,
                 (long) mIIntegerConsumerResults.get(0));
+    }
+
+    @Test
+    public void testRequestEnableSatelliteForCarrier() {
+        mIIntegerConsumerResults.clear();
+        mIIntegerConsumerSemaphore.drainPermits();
+
+        // Setup carrier config for automatic mode
+        mCarrierConfigBundle.putInt(KEY_CARRIER_ROAMING_NTN_CONNECT_TYPE_INT,
+                CARRIER_ROAMING_NTN_CONNECT_AUTOMATIC);
+        mCarrierConfigBundle.putBoolean(KEY_SATELLITE_ATTACH_SUPPORTED_BOOL, true);
+        invokeCarrierConfigChanged();
+        processAllMessages();
+        clearInvocations(mPhone);
+
+        // Call requestEnableSatelliteForCarrier
+        mSatelliteControllerUT.requestEnableSatelliteForCarrier(SUB_ID,
+                SATELLITE_COMMUNICATION_RESTRICTION_REASON_USER, mIIntegerConsumer);
+        processAllMessages();
+
+        // Verify phone.setSatelliteEnabledForCarrier is called
+        verify(mPhone).setSatelliteEnabledForCarrier(anyInt(), anyBoolean(), any());
     }
 
     @Test
