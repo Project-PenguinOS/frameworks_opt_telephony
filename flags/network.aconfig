@@ -86,15 +86,3 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
-
-# OWNER=sanjeevmitt TARGET=26Q2
-flag {
-    name: "update_carrier_name_after_sim_ready"
-    namespace: "telephony"
-    description: "Ensure correct carrier name is displayed by waiting for SIM records and branding poll."
-    bug: "477934358"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
