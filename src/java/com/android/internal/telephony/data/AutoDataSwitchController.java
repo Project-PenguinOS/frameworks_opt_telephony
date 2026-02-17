@@ -947,7 +947,7 @@ public class AutoDataSwitchController extends Handler {
             return;
         }
 
-        StabilityEventExtra eventExtra = evaluateSwitchBackToDefaultRequest(defaultDataPhoneId,
+        StabilityEventExtra eventExtra = evaluateSwitchToTargetRequest(defaultDataPhoneId,
                 preferredPhoneId, debugMessage);
 
         logl(debugMessage.toString());
@@ -961,8 +961,8 @@ public class AutoDataSwitchController extends Handler {
         }
     }
 
-    private StabilityEventExtra evaluateSwitchBackToDefaultRequest(int defaultDataPhoneId,
-            int preferredPhoneId, StringBuilder debugMessage) {
+    private StabilityEventExtra evaluateSwitchToTargetRequest(int targetPhoneId,
+            int currentPhoneId, StringBuilder debugMessage) {
         if (mDefaultNetworkIsOnNonCellular) {
             debugMessage.append(", back to default as default network")
                     .append(" is active on nonCellular transport");
@@ -970,67 +970,52 @@ public class AutoDataSwitchController extends Handler {
                     false);
         }
 
-        PhoneSignalStatus.UsableState defaultUsableState =
-                mPhonesSignalStatus[defaultDataPhoneId].getUsableState();
+        PhoneSignalStatus.UsableState targetUsableState =
+                mPhonesSignalStatus[targetPhoneId].getUsableState();
         PhoneSignalStatus.UsableState currentUsableState =
-                mPhonesSignalStatus[preferredPhoneId].getUsableState();
+                mPhonesSignalStatus[currentPhoneId].getUsableState();
+
+        debugMessage.append(", default phone ").append(targetPhoneId)
+                .append(" : ").append(targetUsableState)
+                .append(" , backup phone: ").append(currentUsableState);
+
+        int comparison = comparePhones(currentPhoneId, targetPhoneId, debugMessage);
+
+        if (comparison > 0) {
+            // Current is better (meaning Candidate/Current > Target)
+            return null;
+        }
 
         boolean isCurrentUsable = currentUsableState.mScore
                 > PhoneSignalStatus.UsableState.NOT_USABLE.mScore;
 
-        if (currentUsableState.mScore > defaultUsableState.mScore) {
-            debugMessage.append(", no need to switch back to default phone ")
-                    .append(preferredPhoneId).append(" : ").append(defaultUsableState)
-                    .append(" , backup phone: ").append(currentUsableState);
-            return null;
-        }
-
-        if (currentUsableState.mScore < defaultUsableState.mScore) {
-            debugMessage.append(", back to default phone ").append(preferredPhoneId)
-                    .append(" : ").append(defaultUsableState)
-                    .append(" , backup phone: ").append(currentUsableState);
-
+        if (comparison < 0) {
+            // Target is strictly better (Target > Current)
             // Require validation if the current preferred phone is usable.
             return new StabilityEventExtra(DEFAULT_PHONE_INDEX, STABILITY_CHECK_AVAILABILITY_SWITCH,
                     isCurrentUsable && mRequirePingTestBeforeSwitch);
         }
 
-        // Both phones are in the same usable state.
-        debugMessage.append(", default phone ").append(preferredPhoneId)
-                .append(" : ").append(defaultUsableState)
-                .append(" , backup phone: ").append(currentUsableState);
-
+        // Comparison == 0. Both phones are in the same usable state and within score tolerance.
         if (!isCurrentUsable) {
             debugMessage.append(", back to default as both phones are unusable.");
             return new StabilityEventExtra(DEFAULT_PHONE_INDEX,
                     STABILITY_CHECK_AVAILABILITY_SWITCH_BACK, false);
         }
 
-        // Both phones are usable but not qualified for performance switch.
-        if (!isRatSignalStrengthBaseSwitchQualified(currentUsableState, defaultUsableState)) {
-            // Only OOS/in service switch is enabled, switch back.
-            debugMessage.append(", back to default as it's usable. ");
-            return new StabilityEventExtra(DEFAULT_PHONE_INDEX,
-                    STABILITY_CHECK_AVAILABILITY_SWITCH, mRequirePingTestBeforeSwitch);
-        }
-
-        // Both phones are usable and in the same usable state, compare RAT/signal score.
-        int defaultScore = mPhonesSignalStatus[defaultDataPhoneId]
-                .getRatSignalScore();
-        int currentScore = mPhonesSignalStatus[preferredPhoneId]
-                .getRatSignalScore();
-        if ((currentScore - defaultScore) <= mScoreTolerance) {
-            debugMessage
-                    .append(", back to default for score ")
-                    .append(defaultScore).append(" versus current ")
-                    .append(currentScore);
+        // Both phones are usable.
+        // Check if it was a performance comparison (meaning both are HOME and feature enabled)
+        if (isRatSignalStrengthBaseSwitchQualified(currentUsableState, targetUsableState)) {
+            // It was a score comparison, and they are within tolerance.
+            // Bias towards target (switch back).
             return new StabilityEventExtra(DEFAULT_PHONE_INDEX,
                     STABILITY_CHECK_PERFORMANCE_SWITCH, mRequirePingTestBeforeSwitch);
         } else {
-            debugMessage.append(", default's score ").append(defaultScore)
-                    .append(" doesn't justify the switch given the current ")
-                    .append(currentScore);
-            return null;
+            // Usability was equal (e.g. both ROAMING, or feature disabled), not a score comparison.
+            // Bias towards target.
+            debugMessage.append(", back to default as it's usable. ");
+            return new StabilityEventExtra(DEFAULT_PHONE_INDEX,
+                    STABILITY_CHECK_AVAILABILITY_SWITCH, mRequirePingTestBeforeSwitch);
         }
     }
 
@@ -1070,37 +1055,30 @@ public class AutoDataSwitchController extends Handler {
             return invalidResult;
         }
 
-        PhoneSignalStatus defaultPhoneStatus = mPhonesSignalStatus[defaultPhoneId];
         for (int phoneId = 0; phoneId < mPhonesSignalStatus.length; phoneId++) {
             if (phoneId == defaultPhoneId) continue;
 
             Phone secondaryDataPhone = null;
-            PhoneSignalStatus candidatePhoneStatus = mPhonesSignalStatus[phoneId];
-            PhoneSignalStatus.UsableState currentUsableState =
-                    mPhonesSignalStatus[defaultPhoneId].getUsableState();
-            PhoneSignalStatus.UsableState candidateUsableState =
-                    mPhonesSignalStatus[phoneId].getUsableState();
-            debugMessage.append(", found phone ").append(phoneId).append(" ")
-                    .append(candidateUsableState)
-                    .append(", default is ").append(currentUsableState);
-            if (candidateUsableState.mScore > currentUsableState.mScore) {
-                secondaryDataPhone = PhoneFactory.getPhone(phoneId);
-            } else if (isRatSignalStrengthBaseSwitchQualified(currentUsableState,
-                    candidateUsableState)) {
-                // Both phones are home, so compare RAT/signal score.
+            debugMessage.append(", found phone ").append(phoneId);
 
-                int defaultScore = defaultPhoneStatus.getRatSignalScore();
-                int candidateScore = candidatePhoneStatus.getRatSignalScore();
-                if ((candidateScore - defaultScore) > mScoreTolerance) {
-                    debugMessage.append(" with ").append(defaultScore)
-                            .append(" versus candidate higher score ").append(candidateScore);
-                    secondaryDataPhone = PhoneFactory.getPhone(phoneId);
+            int comparison = comparePhones(phoneId, defaultPhoneId, debugMessage);
+
+            if (comparison > 0) {
+                // Candidate is better
+                secondaryDataPhone = PhoneFactory.getPhone(phoneId);
+                // Determine switch type based on usability or performance
+                PhoneSignalStatus.UsableState currentUsableState =
+                        mPhonesSignalStatus[defaultPhoneId].getUsableState();
+                PhoneSignalStatus.UsableState candidateUsableState =
+                        mPhonesSignalStatus[phoneId].getUsableState();
+                if (isRatSignalStrengthBaseSwitchQualified(currentUsableState,
+                        candidateUsableState)) {
                     switchType = STABILITY_CHECK_PERFORMANCE_SWITCH;
                 } else {
-                    debugMessage.append(", candidate's score ").append(candidateScore)
-                            .append(" doesn't justify the switch given the current ")
-                            .append(defaultScore);
+                    switchType = STABILITY_CHECK_AVAILABILITY_SWITCH;
                 }
+            } else {
+                debugMessage.append(" not better than default");
             }
 
             if (secondaryDataPhone != null) {
@@ -1117,6 +1095,51 @@ public class AutoDataSwitchController extends Handler {
         }
         debugMessage.append(", found no qualified candidate.");
         return invalidResult;
+    }
+
+    /**
+     * Compares two phones to determine which one is "better".
+     *
+     * @param candidateId The phone ID of the candidate.
+     * @param baselineId The phone ID of the baseline (e.g. current default or preferred).
+     * @param debugMessage StringBuilder for debug logs.
+     * @return 1 if candidate is better, -1 if baseline is better, 0 if equal (within tolerance).
+     */
+    private int comparePhones(int candidateId, int baselineId, StringBuilder debugMessage) {
+        PhoneSignalStatus.UsableState candidateState =
+                mPhonesSignalStatus[candidateId].getUsableState();
+        PhoneSignalStatus.UsableState baselineState =
+                mPhonesSignalStatus[baselineId].getUsableState();
+
+        if (candidateState.mScore > baselineState.mScore) {
+            return 1;
+        } else if (candidateState.mScore < baselineState.mScore) {
+            return -1;
+        }
+
+        // Usable states are equal.
+        if (isRatSignalStrengthBaseSwitchQualified(baselineState, candidateState)) {
+            int baselineScore = mPhonesSignalStatus[baselineId].getRatSignalScore();
+            int candidateScore = mPhonesSignalStatus[candidateId].getRatSignalScore();
+            int diff = candidateScore - baselineScore;
+
+            if (diff > mScoreTolerance) {
+                debugMessage.append(" candidate score ").append(candidateScore)
+                        .append(" > baseline ").append(baselineScore);
+                return 1;
+            } else if (diff < -mScoreTolerance) {
+                // If candidate is significantly worse (baseline significantly better)
+                debugMessage.append(" candidate score ").append(candidateScore)
+                        .append(" < baseline ").append(baselineScore);
+                return -1;
+            } else {
+                debugMessage.append(" candidate score ").append(candidateScore)
+                        .append(" within tolerance of baseline ").append(baselineScore);
+                return 0;
+            }
+        }
+
+        return 0;
     }
 
     /**
