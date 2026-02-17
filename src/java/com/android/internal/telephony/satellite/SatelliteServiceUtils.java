@@ -111,6 +111,10 @@ public class SatelliteServiceUtils {
                 return SatelliteManager.NT_RADIO_TECHNOLOGY_EMTC_NTN;
             case NTRadioTechnology.PROPRIETARY:
                 return SatelliteManager.NT_RADIO_TECHNOLOGY_PROPRIETARY;
+            case NTRadioTechnology.LTE_DTC:
+                return SatelliteManager.NT_RADIO_TECHNOLOGY_LTE_DTC;
+            case NTRadioTechnology.NR_DTC:
+                return SatelliteManager.NT_RADIO_TECHNOLOGY_NR_DTC;
             default:
                 loge("Received invalid radio technology: " + radioTechnology);
                 return SatelliteManager.NT_RADIO_TECHNOLOGY_UNKNOWN;
@@ -699,6 +703,8 @@ public class SatelliteServiceUtils {
         }
         convertedSpecifier.satelliteInfos = halSatelliteInfos;
         convertedSpecifier.tagIds = systemSelectionSpecifier.getTagIds();
+        convertedSpecifier.mIccId = systemSelectionSpecifier.getIccId();
+        convertedSpecifier.mMccMncs = systemSelectionSpecifier.getMccMncs();
         return convertedSpecifier;
     }
 
@@ -783,6 +789,26 @@ public class SatelliteServiceUtils {
         return satelliteController.isInCarrierRoamingNbIotNtn(phone);
     }
 
+    /**
+     * Checks if the satellite technology type in the given configuration is valid.
+     * See {@link CarrierConfigManager#KEY_SATELLITE_TECHNOLOGY_TYPE_INT} for the valid values.
+     */
+    public static boolean isSatelliteTechSupported(int satelliteTech) {
+        return switch (satelliteTech) {
+            case SatelliteManager.NT_RADIO_TECHNOLOGY_NB_IOT_NTN,
+                 SatelliteManager.NT_RADIO_TECHNOLOGY_LTE_DTC,
+                 SatelliteManager.NT_RADIO_TECHNOLOGY_NR_DTC,
+                 SatelliteManager.NT_RADIO_TECHNOLOGY_NR_NTN -> {
+                logd("isSatelliteTechSupported: " + satelliteTech + ", return true");
+                yield true;
+            }
+            default -> {
+                logw("isSatelliteTechSupported: " + satelliteTech + ", return false");
+                yield false;
+            }
+        };
+    }
+
     /** Returns the carrier ID of the given subscription id. */
     public static int getCarrierIdFromSubscription(int subId) {
         int phoneId = SubscriptionManager.getPhoneId(subId);
@@ -804,6 +830,38 @@ public class SatelliteServiceUtils {
         }
         loge("isDeviceEntitledForSubscription: SatelliteController instance is null");
         return false;
+    }
+
+    /**
+     * Check if the device is able to scan satellite network for given subscription.
+     *
+     * @param subId The subscription ID to check.
+     * @return {@code true} if it is allowed, {@code false} otherwise, or if SatelliteController is
+     * not available.
+     */
+    public static boolean isSatelliteAttachSupported(int subId) {
+        SatelliteController satelliteController = SatelliteController.getInstance();
+        if (satelliteController != null) {
+            return satelliteController.isSatelliteSupportedViaCarrier(subId);
+        }
+        loge("isSatelliteAttachSupported: SatelliteController instance is null");
+        return false;
+    }
+
+    /**
+     * Returns the satellite eligibility source for given subscription.
+     *
+     * @param subId The subscription ID to check.
+     * @return {@link SatelliteConstants.SatelliteEligibilitySource}
+     */
+    public static @SatelliteConstants.SatelliteEligibilitySource int getSatelliteEligibilitySource(
+            int subId) {
+        SatelliteController satelliteController = SatelliteController.getInstance();
+        if (satelliteController != null) {
+            return satelliteController.getSatelliteEligibilitySource(subId);
+        }
+        loge("getSatelliteEligibilitySource: SatelliteController instance is null");
+        return SatelliteConstants.SATELLITE_ELIGIBILITY_SOURCE_UNKNOWN;
     }
 
     /**
@@ -831,5 +889,9 @@ public class SatelliteServiceUtils {
 
     private static void logv(@NonNull String log) {
         Log.v(TAG, log);
+    }
+
+    private static void logw(@NonNull String log) {
+        Log.w(TAG, log);
     }
 }

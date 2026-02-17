@@ -490,6 +490,10 @@ public class DataNetworkTest extends TelephonyTest {
         doReturn(CarrierConfigManager.SATELLITE_DATA_SUPPORT_ONLY_RESTRICTED)
                 .when(mSatelliteController)
                 .getSatelliteDataServicePolicyForPlmn(anyInt(), anyString());
+        doAnswer(inv -> getTestConnectionCapability(inv.getArgument(0)))
+                .when(mDataConfigManager).networkCapabilityToConnectionCapability(anyInt());
+        doAnswer(inv -> getTestNetworkCapability(inv.getArgument(0)))
+                .when(mDataConfigManager).connectionCapabilityToNetworkCapability(anyInt());
 
         serviceStateChanged(TelephonyManager.NETWORK_TYPE_LTE,
                 NetworkRegistrationInfo.REGISTRATION_STATE_HOME, false/*isNtn*/);
@@ -2889,42 +2893,6 @@ public class DataNetworkTest extends TelephonyTest {
         doReturn(CarrierConfigManager.SATELLITE_DATA_SUPPORT_ALL)
                 .when(mSatelliteController)
                 .getSatelliteDataServicePolicyForPlmn(anyInt(), anyString());
-        mDataNetworkUT.sendMessage(22/*EVENT_VOICE_CALL_STARTED*/); // update network capabilities
-        processAllMessages();
-
-        assertThat(mDataNetworkUT.getNetworkCapabilities()
-                .hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_RESTRICTED)).isTrue();
-        // TODO(enable after NET_CAPABILITY_NOT_BANDWIDTH_CONSTRAINED become a default cap)
-//        try {
-//            assertThat(mDataNetworkUT.getNetworkCapabilities()
-//                    .hasCapability(DataUtils.NET_CAPABILITY_NOT_BANDWIDTH_CONSTRAINED)).isTrue();
-//        } catch (Exception ignored) {}
-    }
-
-    @Test
-    public void testUnrestrictedSatelliteNetworkCapabilities_WithDataServiceCheckFlagDisabled() {
-        doReturn(false).when(mFeatureFlags).dataServiceCheck();
-        setupNonTerrestrialDataNetwork();
-
-        assertThat(mDataNetworkUT.getNetworkCapabilities()
-                .hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_RESTRICTED)).isFalse();
-
-        // Test constrained traffic
-        doReturn(CarrierConfigManager.SATELLITE_DATA_SUPPORT_BANDWIDTH_CONSTRAINED)
-                .when(mDataConfigManager).getSatelliteDataSupportMode();
-        mDataNetworkUT.sendMessage(22/*EVENT_VOICE_CALL_STARTED*/); // update network capabilities
-        processAllMessages();
-
-        assertThat(mDataNetworkUT.getNetworkCapabilities()
-                .hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_RESTRICTED)).isTrue();
-        try {
-            assertThat(mDataNetworkUT.getNetworkCapabilities().hasCapability(
-                    NetworkCapabilities.NET_CAPABILITY_NOT_BANDWIDTH_CONSTRAINED)).isFalse();
-        } catch (Exception ignored) { }
-
-        // Test not constrained traffic
-        doReturn(CarrierConfigManager.SATELLITE_DATA_SUPPORT_ALL)
-                .when(mDataConfigManager).getSatelliteDataSupportMode();
         mDataNetworkUT.sendMessage(22/*EVENT_VOICE_CALL_STARTED*/); // update network capabilities
         processAllMessages();
 

@@ -104,6 +104,7 @@ import com.android.internal.telephony.metrics.ServiceStateStats;
 import com.android.internal.telephony.satellite.SatelliteController;
 import com.android.internal.telephony.subscription.SubscriptionInfoInternal;
 import com.android.internal.telephony.uicc.IccCardApplicationStatus;
+import com.android.internal.telephony.uicc.IccCardStatus;
 import com.android.internal.telephony.uicc.IccRecords;
 
 import org.junit.After;
@@ -234,6 +235,8 @@ public class ServiceStateTrackerTest extends TelephonyTest {
                 mSatelliteController);
         doReturn(new ArrayList<>()).when(mSatelliteController).getSatellitePlmnsForCarrier(
                 anyInt());
+        doReturn(new Pair<>(false, null)).when(mSatelliteController)
+                .isUsingNonTerrestrialNetworkViaCarrier();
 
         mContextFixture.putResource(R.string.kg_text_message_separator, " \u2014 ");
 
@@ -3080,6 +3083,9 @@ public class ServiceStateTrackerTest extends TelephonyTest {
 
     @Test
     public void testShowOperatorName() throws Exception {
+        doReturn(mUiccCard).when(mUiccController).getUiccCard(anyInt());
+        doReturn(IccCardStatus.CardState.CARDSTATE_PRESENT).when(mUiccCard).getCardState();
+
         // Test case 1: config_update_operator_name_after_carrier_config_loaded is false.
         // showOperatorName() should be true regardless of carrier config loaded state.
         mContextFixture.putBooleanResource(
@@ -3106,6 +3112,14 @@ public class ServiceStateTrackerTest extends TelephonyTest {
                 true);
         mBundle.putBoolean(CarrierConfigManager.KEY_CARRIER_CONFIG_APPLIED_BOOL, true);
         sendCarrierConfigUpdate(PHONE_ID);
+        assertTrue(sst.showOperatorName());
+
+        // Test case 4: SIM is absent. showOperatorName() should be false.
+        doReturn(IccCardStatus.CardState.CARDSTATE_ABSENT).when(mUiccCard).getCardState();
+        assertFalse(sst.showOperatorName());
+
+        // Test case 5: SIM is present again.
+        doReturn(IccCardStatus.CardState.CARDSTATE_PRESENT).when(mUiccCard).getCardState();
         assertTrue(sst.showOperatorName());
     }
 
@@ -3297,6 +3311,8 @@ public class ServiceStateTrackerTest extends TelephonyTest {
                 new CellIdentityGsm(0, 1, 900, 5, "101", "23", "test", "tst",
                         Collections.emptyList());
         doReturn(Set.of("10123")).when(mSatelliteController).getAllPlmnSet();
+        doReturn(true).when(mSatelliteController)
+                .isDtcSatelliteTechnologySupported(sst.mSubId, "10123");
         doReturn(satelliteSupportedServiceList).when(mSatelliteController)
                 .getSupportedSatelliteServicesForPlmn(sst.mSubId, "10123");
 

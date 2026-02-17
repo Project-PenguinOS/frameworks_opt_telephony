@@ -102,12 +102,9 @@ public class EuiccCardController extends IEuiccCardController.Stub {
         synchronized (EuiccCardController.class) {
             if (sInstance == null) {
                 sInstance = new EuiccCardController(context, featureFlags);
-                if (featureFlags.publishTelephonyServicesAfterConstruction()) {
-                    TelephonyFrameworkInitializer
-                            .getTelephonyServiceManager()
-                            .getEuiccCardControllerServiceRegisterer()
-                            .register(sInstance);
-                }
+                TelephonyFrameworkInitializer.getTelephonyServiceManager()
+                        .getEuiccCardControllerServiceRegisterer()
+                        .register(sInstance);
             } else {
                 Log.wtf(TAG, "init() called multiple times! sInstance = " + sInstance);
             }
@@ -130,12 +127,6 @@ public class EuiccCardController extends IEuiccCardController.Stub {
     private EuiccCardController(Context context, FeatureFlags featureFlags) {
         this(context, new Handler(), EuiccController.get(), UiccController.getInstance(),
                 featureFlags);
-        if (!mFeatureFlags.publishTelephonyServicesAfterConstruction()) {
-            TelephonyFrameworkInitializer
-                    .getTelephonyServiceManager()
-                    .getEuiccCardControllerServiceRegisterer()
-                    .register(this);
-        }
     }
 
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PRIVATE)

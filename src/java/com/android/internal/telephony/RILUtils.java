@@ -254,7 +254,9 @@ import static com.android.internal.telephony.RILConstants.RIL_UNSOL_CELLULAR_IDE
 import static com.android.internal.telephony.RILConstants.RIL_UNSOL_CELL_INFO_LIST;
 import static com.android.internal.telephony.RILConstants.RIL_UNSOL_CONNECTION_SETUP_FAILURE;
 import static com.android.internal.telephony.RILConstants.RIL_UNSOL_DATA_CALL_LIST_CHANGED;
+import static com.android.internal.telephony.RILConstants.RIL_UNSOL_DATA_CALL_LIST_UPDATED;
 import static com.android.internal.telephony.RILConstants.RIL_UNSOL_DC_RT_INFO_CHANGED;
+import static com.android.internal.telephony.RILConstants.RIL_UNSOL_DISPLAY_NETWORK_TYPE_CHANGED;
 import static com.android.internal.telephony.RILConstants.RIL_UNSOL_EMERGENCY_NETWORK_SCAN_RESULT;
 import static com.android.internal.telephony.RILConstants.RIL_UNSOL_EMERGENCY_NUMBER_LIST;
 import static com.android.internal.telephony.RILConstants.RIL_UNSOL_ENTER_EMERGENCY_CALLBACK_MODE;
@@ -322,6 +324,8 @@ import android.net.LinkProperties;
 import android.os.SystemClock;
 import android.service.carrier.CarrierIdentifier;
 import android.telephony.AccessNetworkConstants;
+import android.telephony.AccessNetworkConstants.RadioAccessNetworkType;
+import android.telephony.AccessNetworkConstants.TransportType;
 import android.telephony.Annotation;
 import android.telephony.Annotation.DataState;
 import android.telephony.BarringInfo;
@@ -4988,6 +4992,26 @@ public class RILUtils {
     }
 
     /**
+     * Convert to HAL IMS data network info.
+     * @param accessNetwork The access network type.
+     * @param dataNetworkState The data network connection state.
+     * @param physicalTransportType The physical transport type of the data network.
+     * @param physicalNetworkSlotIndex The slot index of physicalTransportType.
+     * @return The converted HAL IMS data network info.
+     */
+    public static android.hardware.radio.data.ImsDataNetworkInfo convertToHalImsDataNetworkInfo(
+            @RadioAccessNetworkType int accessNetwork, @DataState int dataNetworkState,
+            @TransportType int physicalTransportType, int physicalNetworkSlotIndex) {
+        android.hardware.radio.data.ImsDataNetworkInfo info =
+                new android.hardware.radio.data.ImsDataNetworkInfo();
+        info.accessNetwork = accessNetwork;
+        info.dataNetworkState = convertToHalDataNetworkState(dataNetworkState);
+        info.physicalTransportType = physicalTransportType;
+        info.physicalNetworkModemId = physicalNetworkSlotIndex;
+        return info;
+    }
+
+    /**
      * Convert to HAL data network state.
      * @param state Telephony data state.
      * @return The converted HAL data network state.
@@ -5704,6 +5728,10 @@ public class RILUtils {
                 return "UNSOL_PRIORITIZED_SCAN_MODE_CHANGED";
             case RIL_UNSOL_NETWORK_SECURITY_EVENTS:
                 return "UNSOL_NETWORK_SECURITY_EVENTS";
+            case RIL_UNSOL_DATA_CALL_LIST_UPDATED:
+                return "UNSOL_DATA_CALL_LIST_UPDATED";
+            case RIL_UNSOL_DISPLAY_NETWORK_TYPE_CHANGED:
+                return "UNSOL_DISPLAY_NETWORK_TYPE_CHANGED";
             default:
                 return "<unknown response " + response + ">";
         }

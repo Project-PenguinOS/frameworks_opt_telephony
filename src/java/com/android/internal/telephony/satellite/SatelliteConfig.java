@@ -24,7 +24,7 @@ import android.util.ArraySet;
 import android.util.Log;
 
 import com.android.internal.annotations.VisibleForTesting;
-import com.android.internal.telephony.satellite.nano.SatelliteConfigData;
+import com.android.internal.telephony.TelephonyConfigData;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
@@ -59,7 +59,7 @@ public class SatelliteConfig {
     private File mSatS2File;
     private File mSatelliteAccessConfigJsonFile;
     private List<String> mDeviceSatelliteProviders;
-    private SatelliteConfigData.SatelliteConfigProto mConfigData;
+    private TelephonyConfigData.SatelliteConfigProto mConfigData;
 
     public SatelliteConfig() {
         logd("SatelliteConfig: constructing from scratch");
@@ -71,13 +71,24 @@ public class SatelliteConfig {
             loge("SatelliteConfig: satelliteConfig.mConfigData is null, return");
             return;
         }
-        new SatelliteConfig(satelliteConfig.mConfigData);
+        // Lite proto messages are immutable, so we can just share the reference or use copyFrom if
+        // needed, but here the constructor logic expects to parse it again.
+        // Actually the original code did 'new SatelliteConfig(satelliteConfig.mConfigData)'.
+        // Since Lite objects are immutable, we can just call the other constructor.
+        // However, we need to be careful. The original code:
+        // new SatelliteConfig(satelliteConfig.mConfigData); -> calling the constructor below.
+        // I will replicate that behavior.
+        init(satelliteConfig.mConfigData);
     }
 
-    public SatelliteConfig(@NonNull SatelliteConfigData.SatelliteConfigProto configData) {
+    public SatelliteConfig(@NonNull TelephonyConfigData.SatelliteConfigProto configData) {
         logd("SatelliteConfig: constructing with configData: " + configData);
+        init(configData);
+    }
+
+    private void init(@NonNull TelephonyConfigData.SatelliteConfigProto configData) {
         mConfigData = configData;
-        mVersion = mConfigData.version;
+        mVersion = mConfigData.getVersion();
         logd("mVersion: " + mVersion);
         buildCarrierSupportedServicesPerCarrier();
         buildCarrierRoamingConfig();
@@ -86,7 +97,7 @@ public class SatelliteConfig {
 
     private void buildCarrierSupportedServicesPerCarrier() {
         logd("buildCarrierSupportedServicesPerCarrier");
-        if (mConfigData.carrierSupportedSatelliteServices == null) {
+        if (mConfigData.getCarrierSupportedSatelliteServicesCount() == 0) {
             logd("mSupportedServicesPerCarrier: empty");
         } else {
             mSupportedServicesPerCarrier = getCarrierSupportedSatelliteServices();
@@ -96,19 +107,20 @@ public class SatelliteConfig {
 
     private void buildCarrierRoamingConfig() {
         logd("buildCarrierRoamingConfig");
-        if (mConfigData.carrierRoamingConfig == null) {
+        if (!mConfigData.hasCarrierRoamingConfig()) {
             logd("buildCarrierRoamingConfig: carrierRoamingConfig empty");
         } else {
-            mCarrierRoamingMaxAllowedDataMode = mConfigData.carrierRoamingConfig.maxAllowedDataMode;
+            mCarrierRoamingMaxAllowedDataMode =
+                    mConfigData.getCarrierRoamingConfig().getMaxAllowedDataMode();
             logd("buildCarrierRoamingConfig: mCarrierRoamingMaxAllowedDataMode is "
                     + mCarrierRoamingMaxAllowedDataMode);
 
-            if (mConfigData.carrierRoamingConfig.deviceSatellitePlmn == null) {
+            if (mConfigData.getCarrierRoamingConfig().getDeviceSatellitePlmnCount() == 0) {
                 logd("buildCarrierRoamingConfig: deviceSatellitePlmn is null, set empty list");
                 mDeviceSatelliteProviders = new ArrayList<>();
             } else {
                 mDeviceSatelliteProviders =
-                        List.of(mConfigData.carrierRoamingConfig.deviceSatellitePlmn);
+                        mConfigData.getCarrierRoamingConfig().getDeviceSatellitePlmnList();
                 logd("buildCarrierRoamingConfig: mDeviceSatelliteProviders: "
                         + String.join(", ", mDeviceSatelliteProviders));
             }
@@ -117,33 +129,38 @@ public class SatelliteConfig {
 
     private void buildDeviceSatelliteRegion() {
         logd("buildDeviceSatelliteRegion");
-        if (mConfigData.deviceSatelliteRegion == null) {
+        if (!mConfigData.hasDeviceSatelliteRegion()) {
             logd("mConfigData.deviceSatelliteRegion: empty");
         } else {
-            if (mConfigData.deviceSatelliteRegion.countryCodes == null) {
+            if (mConfigData.getDeviceSatelliteRegion().getCountryCodesCount() == 0) {
                 logd("mConfigData.deviceSatelliteRegion.countryCodes is null, set empty list");
                 mSatelliteRegionCountryCodes = new ArrayList<>();
             } else {
-                mSatelliteRegionCountryCodes = List.of(
-                        mConfigData.deviceSatelliteRegion.countryCodes);
+                mSatelliteRegionCountryCodes =
+                        mConfigData.getDeviceSatelliteRegion().getCountryCodesList();
                 logd("mSatelliteRegionCountryCodes: "
                         + String.join(",", mSatelliteRegionCountryCodes));
             }
 
-            mIsSatelliteRegionAllowed = mConfigData.deviceSatelliteRegion.isAllowed;
+            mIsSatelliteRegionAllowed = mConfigData.getDeviceSatelliteRegion().getIsAllowed();
             logd("mIsSatelliteRegionAllowed: " + mIsSatelliteRegionAllowed);
 
             mSatS2File = null;
-            if (mConfigData.deviceSatelliteRegion.s2CellFile != null)  {
-                logd("s2CellFile size: " + mConfigData.deviceSatelliteRegion.s2CellFile.length);
+            if (mConfigData.getDeviceSatelliteRegion().hasS2CellFile()
+                    && !mConfigData.getDeviceSatelliteRegion().getS2CellFile().isEmpty()) {
+                logd("s2CellFile size: "
+                        + mConfigData.getDeviceSatelliteRegion().getS2CellFile().size());
             } else {
                 logd("s2CellFile: empty");
             }
 
             mSatelliteAccessConfigJsonFile = null;
-            if (mConfigData.deviceSatelliteRegion.satelliteAccessConfigFile != null)  {
+            if (mConfigData.getDeviceSatelliteRegion().hasSatelliteAccessConfigFile()
+                    && !mConfigData.getDeviceSatelliteRegion().getSatelliteAccessConfigFile()
+                            .isEmpty()) {
                 logd("satellite_access_config_json size: "
-                        + mConfigData.deviceSatelliteRegion.satelliteAccessConfigFile.length);
+                        + mConfigData.getDeviceSatelliteRegion()
+                                .getSatelliteAccessConfigFile().size());
             } else {
                 logd("satellite_access_config_json: empty");
             }
@@ -154,24 +171,24 @@ public class SatelliteConfig {
      * @return a Map data with carrier_id, plmns and allowed_services.
      */
     private Map<Integer, Map<String, Set<Integer>>> getCarrierSupportedSatelliteServices() {
-        SatelliteConfigData.CarrierSupportedSatelliteServicesProto[] satelliteServices =
-                mConfigData.carrierSupportedSatelliteServices;
+        List<TelephonyConfigData.CarrierSupportedSatelliteServicesProto> satelliteServices =
+                mConfigData.getCarrierSupportedSatelliteServicesList();
         Map<Integer, Map<String, Set<Integer>>> carrierToServicesMap = new HashMap<>();
-        for (SatelliteConfigData.CarrierSupportedSatelliteServicesProto carrierProto :
+        for (TelephonyConfigData.CarrierSupportedSatelliteServicesProto carrierProto :
                 satelliteServices) {
-            SatelliteConfigData.SatelliteProviderCapabilityProto[] satelliteCapabilities =
-                    carrierProto.supportedSatelliteProviderCapabilities;
+            List<TelephonyConfigData.SatelliteProviderCapabilityProto> satelliteCapabilities =
+                    carrierProto.getSupportedSatelliteProviderCapabilitiesList();
             Map<String, Set<Integer>> satelliteCapabilityMap = new HashMap<>();
-            for (SatelliteConfigData.SatelliteProviderCapabilityProto capabilityProto :
+            for (TelephonyConfigData.SatelliteProviderCapabilityProto capabilityProto :
                     satelliteCapabilities) {
-                String carrierPlmn = capabilityProto.carrierPlmn;
+                String carrierPlmn = capabilityProto.getCarrierPlmn();
                 Set<Integer> allowedServices = new HashSet<>();
-                for (int service : capabilityProto.allowedServices) {
+                for (int service : capabilityProto.getAllowedServicesList()) {
                     allowedServices.add(service);
                 }
                 satelliteCapabilityMap.put(carrierPlmn, allowedServices);
             }
-            carrierToServicesMap.put(carrierProto.carrierId, satelliteCapabilityMap);
+            carrierToServicesMap.put(carrierProto.getCarrierId(), satelliteCapabilityMap);
         }
         return carrierToServicesMap;
     }
@@ -307,9 +324,10 @@ public class SatelliteConfig {
             return mSatS2File;
         }
 
-        if (mConfigData != null && mConfigData.deviceSatelliteRegion != null) {
+        if (mConfigData != null && mConfigData.hasDeviceSatelliteRegion()) {
             mSatS2File = copySatelliteFileToPhoneDirectory(
-                    context, mConfigData.deviceSatelliteRegion.s2CellFile, S2_CELL_FILE_NAME);
+                    context, mConfigData.getDeviceSatelliteRegion().getS2CellFile().toByteArray(),
+                    S2_CELL_FILE_NAME);
             return mSatS2File;
         }
         logd("getSatelliteS2CellFile: "
@@ -333,9 +351,10 @@ public class SatelliteConfig {
             return mSatelliteAccessConfigJsonFile;
         }
 
-        if (mConfigData != null && mConfigData.deviceSatelliteRegion != null) {
+        if (mConfigData != null && mConfigData.hasDeviceSatelliteRegion()) {
             mSatelliteAccessConfigJsonFile = copySatelliteFileToPhoneDirectory(context,
-                    mConfigData.deviceSatelliteRegion.satelliteAccessConfigFile,
+                    mConfigData.getDeviceSatelliteRegion().getSatelliteAccessConfigFile()
+                            .toByteArray(),
                     SATELLITE_ACCESS_CONFIG_JSON_FILE_NAME);
             return mSatelliteAccessConfigJsonFile;
         }
@@ -423,9 +442,9 @@ public class SatelliteConfig {
      */
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PRIVATE)
     public boolean hasSatelliteS2CellFile() {
-        if (mConfigData != null && mConfigData.deviceSatelliteRegion != null) {
-            if (mConfigData.deviceSatelliteRegion.s2CellFile != null
-                    && mConfigData.deviceSatelliteRegion.s2CellFile.length > 0) {
+        if (mConfigData != null && mConfigData.hasDeviceSatelliteRegion()) {
+            if (mConfigData.getDeviceSatelliteRegion().hasS2CellFile()
+                    && !mConfigData.getDeviceSatelliteRegion().getS2CellFile().isEmpty()) {
                 logd("hasSatelliteS2CellFile: s2CellFile is exist");
                 return true;
             }
@@ -440,9 +459,10 @@ public class SatelliteConfig {
      */
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PRIVATE)
     public boolean hasSatelliteAccessConfigFile() {
-        if (mConfigData != null && mConfigData.deviceSatelliteRegion != null) {
-            if (mConfigData.deviceSatelliteRegion.satelliteAccessConfigFile != null
-                    && mConfigData.deviceSatelliteRegion.satelliteAccessConfigFile.length > 0) {
+        if (mConfigData != null && mConfigData.hasDeviceSatelliteRegion()) {
+            if (mConfigData.getDeviceSatelliteRegion().hasSatelliteAccessConfigFile()
+                    && !mConfigData.getDeviceSatelliteRegion().getSatelliteAccessConfigFile()
+                            .isEmpty()) {
                 logd("hasSatelliteAccessConfigFile: satelliteAccessConfigFile is exist");
                 return true;
             }

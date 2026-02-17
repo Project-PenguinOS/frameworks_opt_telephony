@@ -312,6 +312,7 @@ public class DataCallSessionStats {
         copy.isProvisioningProfile = call.isProvisioningProfile;
         copy.isNbIotNtn = call.isNbIotNtn;
         copy.sliceCapability = call.sliceCapability;
+        copy.plmn = call.plmn;
         return copy;
     }
 
@@ -342,9 +343,11 @@ public class DataCallSessionStats {
         if (mSatelliteController != null) {
             proto.isNtn = mSatelliteController.isInSatelliteModeForCarrierRoaming(mPhone);
             proto.isNbIotNtn = mSatelliteController.isInCarrierRoamingNbIotNtn(mPhone);
+            proto.plmn = mSatelliteController.getSatellitePlmnForMetrics(mPhone);
         } else {
             proto.isNtn = false;
             proto.isNbIotNtn = false;
+            proto.plmn = "";
         }
         proto.isSatelliteTransport = isSatellite;
         proto.isProvisioningProfile = getIsProvisioningProfile();

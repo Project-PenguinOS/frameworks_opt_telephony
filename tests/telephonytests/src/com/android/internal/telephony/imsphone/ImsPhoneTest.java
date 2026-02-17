@@ -1278,39 +1278,6 @@ public class ImsPhoneTest extends TelephonyTest {
 
     @Test
     @SmallTest
-    public void testClearPhoneNumberForSourceIms() {
-        doReturn(true).when(mFeatureFlags)
-                .clearCachedImsPhoneNumberWhenDeviceLostImsRegistration();
-        doReturn(false).when(mFeatureFlags)
-                .lastKnownPhoneNumber();
-
-        // In reality the method under test runs in phone process so has MODIFY_PHONE_STATE
-        mContextFixture.addCallingOrSelfPermission(MODIFY_PHONE_STATE);
-        int subId = 1;
-        doReturn(subId).when(mPhone).getSubId();
-        doReturn(new SubscriptionInfoInternal.Builder().setId(subId).setSimSlotIndex(0)
-                .setCountryIso("gb").build()).when(mSubscriptionManagerService)
-                .getSubscriptionInfoInternal(subId);
-
-        // 1. Two valid phone number; 1st is set.
-        Uri[] associatedUris = new Uri[] {
-                Uri.parse("sip:+447539447777@ims.x.com"),
-                Uri.parse("tel:+447539446666")
-        };
-        mImsPhoneUT.setPhoneNumberForSourceIms(associatedUris);
-
-        verify(mSubscriptionManagerService).setNumberFromIms(subId, "+447539447777");
-
-        mImsPhoneUT.clearPhoneNumberForSourceIms();
-
-        verify(mSubscriptionManagerService).setNumberFromIms(subId, "");
-
-        // Clean up
-        mContextFixture.addCallingOrSelfPermission("");
-    }
-
-    @Test
-    @SmallTest
     public void testParsePhoneNumberUsingApi() {
         doReturn(true).when(mFeatureFlags).enablePhoneNumberParsingApi();
         mImsPhoneUT.setPhoneNumberManager(mPhoneNumberManager);
@@ -1810,6 +1777,47 @@ public class ImsPhoneTest extends TelephonyTest {
                 && regInfo[1] == REGISTRATION_TECH_LTE
                 && regInfo[2] == SUGGESTED_ACTION_NONE
                 && regInfo[4] == testThrottleTimeSec);
+    }
+
+    @Test
+    @SmallTest
+    public void testImsNrSaModeHandlerNormalRegInteraction() {
+        // Get normal registration callback
+        RegistrationManager.RegistrationCallback callback =
+                mImsPhoneUT.getImsMmTelRegistrationCallback();
+
+        ImsRegistrationAttributes attributes = new ImsRegistrationAttributes.Builder(
+                ImsRegistrationImplBase.REGISTRATION_TECH_IWLAN).build();
+        callback.onRegistered(attributes);
+        verify(mImsNrSaModeHandler).onImsRegistered(
+                eq(ImsRegistrationImplBase.REGISTRATION_TECH_IWLAN));
+
+        ImsReasonInfo info = new ImsReasonInfo(
+                ImsReasonInfo.CODE_LOCAL_ENDED_BY_CONFERENCE_MERGE, 0);
+        callback.onUnregistered(info, RegistrationManager.SUGGESTED_ACTION_NONE,
+                ImsRegistrationImplBase.REGISTRATION_TECH_LTE);
+        verify(mImsNrSaModeHandler).onImsUnregistered(
+                eq(ImsRegistrationImplBase.REGISTRATION_TECH_LTE));
+    }
+
+    @Test
+    @SmallTest
+    public void testImsNrSaModeHandlerEmergencyRegInteraction() {
+        // Get emergency registration callback
+        RegistrationManager.RegistrationCallback emergencyCallback =
+                mImsPhoneUT.getImsMmTelEmergencyRegistrationCallback();
+
+        ImsRegistrationAttributes attributes = new ImsRegistrationAttributes.Builder(
+                ImsRegistrationImplBase.REGISTRATION_TECH_IWLAN).build();
+        emergencyCallback.onRegistered(attributes);
+        verify(mImsNrSaModeHandler).onImsEmergencyRegistered(
+                eq(ImsRegistrationImplBase.REGISTRATION_TECH_IWLAN));
+
+        ImsReasonInfo info = new ImsReasonInfo(ImsReasonInfo.CODE_UNSPECIFIED, 0);
+        emergencyCallback.onUnregistered(info, RegistrationManager.SUGGESTED_ACTION_NONE,
+                ImsRegistrationImplBase.REGISTRATION_TECH_LTE);
+        verify(mImsNrSaModeHandler).onImsEmergencyUnregistered(
+                eq(ImsRegistrationImplBase.REGISTRATION_TECH_LTE));
     }
 
     @Test

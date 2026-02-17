@@ -2068,7 +2068,6 @@ public class TelephonyRegistryTest extends TelephonyTest {
 
 
     @Test
-    @EnableFlags(Flags.FLAG_SECURITY_ALGORITHMS_UPDATE_INDICATIONS)
     public void testNotifySecurityAlgorithmsChanged() {
         int subId = 1;
         int[] events = {TelephonyCallback.EVENT_SECURITY_ALGORITHMS_CHANGED};
@@ -2090,7 +2089,6 @@ public class TelephonyRegistryTest extends TelephonyTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_CELLULAR_IDENTIFIER_DISCLOSURE_INDICATIONS)
     public void testNotifyCellularIdentifierDisclosedChanged() {
         int subId = 1;
         int[] events = {TelephonyCallback.EVENT_CELLULAR_IDENTIFIER_DISCLOSED_CHANGED};
@@ -2211,5 +2209,26 @@ public class TelephonyRegistryTest extends TelephonyTest {
                 eventsList);
         processAllMessages();
         assertEquals(2, mTelephonyCallback.invocationCount.get());
+
+        // Notify with an empty list. This should not trigger a callback for the existing
+        // listener, but it should clear the cache.
+        mTelephonyRegistry.notifyNetworkSecurityEvents(0, 1, new ArrayList<>());
+        processAllMessages();
+        assertEquals(2, mTelephonyCallback.invocationCount.get());
+
+        // Unregister the first listener
+        mTelephonyRegistry.listenWithEventList(false, false, subId, mContext.getOpPackageName(),
+                mContext.getAttributionTag(), mTelephonyCallback.callback, new int[0], false);
+        processAllMessages();
+
+        // Register a new listener. It should get the now-empty cache.
+        TelephonyCallbackWrapper newCallback = new TelephonyCallbackWrapper();
+        newCallback.init(mSimpleExecutor);
+        mTelephonyRegistry.listenWithEventList(false, false, subId, mContext.getOpPackageName(),
+                mContext.getAttributionTag(), newCallback.callback, events, true);
+        processAllMessages();
+
+        assertEquals(1, newCallback.invocationCount.get());
+        assertTrue(newCallback.mNetworkSecurityEvents.isEmpty());
     }
 }

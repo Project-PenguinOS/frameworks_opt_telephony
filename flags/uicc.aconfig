@@ -28,14 +28,6 @@ flag {
     is_exported: true
 }
 
-# OWNER=mewan TARGET=24Q4
-flag {
-    name: "optimization_apdu_sender"
-    namespace: "telephony"
-    description: "This flag controls optimization of apdu sender class."
-    bug:"335257880"
-}
-
 # OWNER=jhyoon TARGET=25Q2
 flag {
     name: "support_isim_record"
@@ -54,21 +46,6 @@ flag {
     is_exported: true
 }
 
-# OWNER=arunvoddu TARGET=25Q4
-flag {
-    name: "send_imsi_key_for_duplicate_sim"
-    namespace: "telephony"
-    description: "This will make sure to send the IMSIKey to Modem in case SIM2 operator is same as SIM1"
-    bug:"400888891"
-}
-
-# OWNER=arunvoddu TARGET=25Q4
-flag {
-    name: "cat_service_creation_fix"
-    namespace: "telephony"
-    description: "Flag fix is to create the catService object with valid SIM Application"
-    bug:"417398404"
-}
 
 # OWNER=juhokim TARGET=26Q2
 flag {
@@ -122,4 +99,31 @@ flag {
     metadata {
         purpose: PURPOSE_BUGFIX
     }
+}
+
+# OWNER=rgreenwalt TARGET=26Q2
+flag {
+    name: "new_sim_auth_permission"
+    namespace: "telephony"
+    description: "Add new permission to secure SIM auth"
+    bug:"343796688"
+}
+
+# OWNER=jayachandranc TARGET=26Q2
+flag {
+    name: "cache_adn_record_loader_exceptions"
+    namespace: "telephony"
+    description: "Cache AdnRecordLoader exceptions to prevent infinite retry loops"
+    bug:"477430965"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+# OWNER=nharold TARGET=26Q3
+flag {
+    name: "downloadable_subscription_include_carrier_identifier_internal"
+    namespace: "telephony"
+    description: "Add the CarrierIdentifier to the DownloadableSubscription"
+    bug:"477378293"
 }

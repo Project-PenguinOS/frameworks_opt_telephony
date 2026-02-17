@@ -41,17 +41,6 @@ flag {
   }
 }
 
-# OWNER=nagendranb TARGET=25Q2
-flag {
-  name: "data_service_check"
-  namespace: "telephony"
-  description: "Support data service check based on nri available services."
-  bug:"381338283"
-  metadata {
-    purpose: PURPOSE_BUGFIX
-  }
-}
-
 # OWNER=kuenyuet TARGET=26Q2
 flag {
   name: "data_service_user_data_toggle_notify"
@@ -79,17 +68,6 @@ flag {
   is_exported: true
 }
 
-# OWNER=melhuishj TARGET=25Q4
-flag {
-  name: "ignore_initial_data_stall_recovered"
-  namespace: "telephony"
-  description: "Prevent DataStallRecoveryManager from broadcasting a data stall event during initial setup when no data stall has occurred"
-  bug:"432293174"
-  metadata {
-    purpose: PURPOSE_BUGFIX
-  }
-}
-
 # OWNER=rambowang TARGET=26Q2
 flag {
   name: "expose_oppt_auto_data_switch_policies"
@@ -99,12 +77,12 @@ flag {
   bug:"448973795"
 }
 
-# OWNER=jackyu TARGET=26Q1
+# OWNER=willycwhu TARGET=26Q2
 flag {
-  name: "not_recreate_agent_when_immutable_capabilities_changed"
+  name: "enable_data_stall_recovery_randomization"
   namespace: "telephony"
-  description: "Do not recreate network agent when immutable capabilities changed"
-  bug:"448915789"
+  description: "Enables adding a random offset to data stall recovery timers to prevent network overload issues."
+  bug: "478980391"
   metadata {
     purpose: PURPOSE_BUGFIX
   }
@@ -116,28 +94,6 @@ flag {
   namespace: "telephony"
   description: "Fix QoS callback filter is not cleared from QosCT even after clients unregister QoS callback."
   bug:"446528114"
-  metadata {
-    purpose: PURPOSE_BUGFIX
-  }
-}
-
-# OWNER=sewookseo TARGET=26Q2
-flag {
-  name: "qos_filter_match_address_range"
-  namespace: "telephony"
-  description: "Support QosFilter address match function for IP address range based on the prefix length."
-  bug:"399960748"
-  metadata {
-    purpose: PURPOSE_BUGFIX
-  }
-}
-
-# OWNER=jackyu TARGET=26Q1
-flag {
-  name: "unsupported_network_capabilities_per_carrier"
-  namespace: "telephony"
-  description: "Support unsupported network capabilities per carrier"
-  bug:"450708553"
   metadata {
     purpose: PURPOSE_BUGFIX
   }
@@ -192,4 +148,15 @@ flag {
     metadata {
         purpose: PURPOSE_BUGFIX
     }
+}
+
+# OWNER=sangyun TARGET=26Q2
+flag {
+  name: "fix_data_setup_retry_race_condition"
+  namespace: "telephony"
+  description: "Fix race condition between setup throttle and unthrottle."
+  bug:"474435447"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
 }

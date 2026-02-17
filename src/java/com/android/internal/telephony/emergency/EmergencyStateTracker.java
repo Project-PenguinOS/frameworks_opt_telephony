@@ -161,7 +161,7 @@ public class EmergencyStateTracker {
     private final Runnable mExitEcmRunnable = () -> exitEmergencyCallbackMode(
             STOP_REASON_TIMER_EXPIRED);
     // Tracks emergency calls by callId that have reached {@link Call.State#ACTIVE}.
-    private final Set<android.telecom.Connection> mActiveEmergencyCalls = new ArraySet<>();
+    private final ArraySet<android.telecom.Connection> mActiveEmergencyCalls = new ArraySet<>();
     private Phone mPhone;
     // Tracks ongoing emergency connection to handle a second emergency call
     private android.telecom.Connection mOngoingConnection;
@@ -324,8 +324,7 @@ public class EmergencyStateTracker {
                         // Therefore, based on the emergency registration result and current
                         // subscription status, the current phone is not available for an emergency
                         // call, so we check if an emergency call is possible through cross stack.
-                        if (mFeatureFlags.performCrossStackRedialCheckForEmergencyCall()
-                                && mLastEmergencyRegistrationResult == null
+                        if (mLastEmergencyRegistrationResult == null
                                 && mPhone != null
                                 && !SubscriptionManager.isValidSubscriptionId(mPhone.getSubId())
                                 && needToSwitchPhone(mPhone)) {
@@ -762,9 +761,18 @@ public class EmergencyStateTracker {
         boolean wasActive = mActiveEmergencyCalls.remove(c);
 
         if (Objects.equals(mOngoingConnection, c)) {
-            mOngoingConnection = null;
+            if (mFeatureFlags.handleSecondEmergencyCall()) {
+                if (mActiveEmergencyCalls.isEmpty()) {
+                    mOngoingConnection = null;
+                    sendEmergencyCallStateChange(mPhone, false);
+                } else {
+                    mOngoingConnection = mActiveEmergencyCalls.valueAt(0);
+                }
+            } else {
+                mOngoingConnection = null;
+                sendEmergencyCallStateChange(mPhone, false);
+            }
             mOngoingCallProperties = 0;
-            sendEmergencyCallStateChange(mPhone, false);
             unregisterForVoiceRegStateOrRatChanged();
         }
 

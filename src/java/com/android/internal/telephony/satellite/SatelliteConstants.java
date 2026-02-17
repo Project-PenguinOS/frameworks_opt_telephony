@@ -176,4 +176,71 @@ public class SatelliteConstants {
     public @interface SatelliteSessionConnectType {}
 
     public static final String DEFAULT_PLMN = "UNKNOWN";
+
+    // Entitlement refresh trigger event is unknown
+    public static final int SATELLITE_ENTITLEMENT_QUERY_TRIGGER_UNKNOWN = 0;
+    // Entitlement refresh triggered on boot up
+    public static final int SATELLITE_ENTITLEMENT_QUERY_TRIGGER_BOOTUP = 1;
+    // Entitlement refresh triggered on daily timer
+    public static final int SATELLITE_ENTITLEMENT_QUERY_TRIGGER_REFRESH_TIMER = 2;
+    // Entitlement refresh triggered on internet status change
+    public static final int SATELLITE_ENTITLEMENT_QUERY_TRIGGER_INTERNET_CONNECTED = 3;
+    // Entitlement refresh triggered on carrier config
+    public static final int SATELLITE_ENTITLEMENT_QUERY_TRIGGER_CARRIER_CONFIG_CHANGED = 4;
+    // Entitlement refresh triggered on FCM tickle
+    public static final int SATELLITE_ENTITLEMENT_QUERY_TRIGGER_FCM_TICKLE = 5;
+    // Entitlement refresh triggered on SIM refresh
+    public static final int SATELLITE_ENTITLEMENT_QUERY_TRIGGER_SIM_REFRESH = 6;
+    // Entitlement refresh triggered on toggling airplane mode
+    public static final int SATELLITE_ENTITLEMENT_QUERY_TRIGGER_AIRPLANE_MODE_TOGGLE = 7;
+    // Entitlement query retry
+    public static final int SATELLITE_ENTITLEMENT_QUERY_TRIGGER_RETRY = 8;
+    @IntDef(prefix = {"SATELLITE_ENTITLEMENT_QUERY_"}, value = {
+            SATELLITE_ENTITLEMENT_QUERY_TRIGGER_UNKNOWN,
+            SATELLITE_ENTITLEMENT_QUERY_TRIGGER_BOOTUP,
+            SATELLITE_ENTITLEMENT_QUERY_TRIGGER_REFRESH_TIMER,
+            SATELLITE_ENTITLEMENT_QUERY_TRIGGER_INTERNET_CONNECTED,
+            SATELLITE_ENTITLEMENT_QUERY_TRIGGER_CARRIER_CONFIG_CHANGED,
+            SATELLITE_ENTITLEMENT_QUERY_TRIGGER_FCM_TICKLE,
+            SATELLITE_ENTITLEMENT_QUERY_TRIGGER_SIM_REFRESH,
+            SATELLITE_ENTITLEMENT_QUERY_TRIGGER_AIRPLANE_MODE_TOGGLE,
+            SATELLITE_ENTITLEMENT_QUERY_TRIGGER_RETRY
+    })
+    @Retention(RetentionPolicy.SOURCE)
+    public @interface SatelliteEntitlementQueryTrigger {}
+
+    /**
+     * Defines the source or reason for satellite service eligibility.
+     * Matches the SatelliteEligibilitySource enum in enums.proto.
+     */
+    // Unknown or unspecified eligibility source.
+    public static final int SATELLITE_ELIGIBILITY_SOURCE_UNKNOWN = 0;
+    // Service is available because the subscription is entitled.
+    public static final int SATELLITE_ELIGIBILITY_SOURCE_ENTITLEMENT = 1;
+    // Service is available based on a carrier configuration for the subscription.
+    public static final int SATELLITE_ELIGIBILITY_SOURCE_CARRIER_CONFIG = 2;
+
+    /** @hide */
+    @IntDef(prefix = {"SATELLITE_ELIGIBILITY_SOURCE_"}, value = {
+            SATELLITE_ELIGIBILITY_SOURCE_UNKNOWN,
+            SATELLITE_ELIGIBILITY_SOURCE_ENTITLEMENT,
+            SATELLITE_ELIGIBILITY_SOURCE_CARRIER_CONFIG
+    })
+    @Retention(RetentionPolicy.SOURCE)
+    public @interface SatelliteEligibilitySource {}
+
+    // Defines the source of emergency number used in emergency call handover intent
+    // Emergency number source is unknown
+    public static final int EMERGENCY_NUMBER_SOURCE_UNKNOWN = 0;
+    // Emergency number source is the number manually dialed by user
+    public static final int EMERGENCY_NUMBER_SOURCE_USER_DIALED = 1;
+    // Emergency number source is the redirection number provided by carrier
+    public static final int EMERGENCY_NUMBER_SOURCE_CARRIER_REDIRECTION = 2;
+    @IntDef(prefix = {"EMERGENCY_NUMBER_SOURCE_"}, value = {
+        EMERGENCY_NUMBER_SOURCE_UNKNOWN,
+        EMERGENCY_NUMBER_SOURCE_USER_DIALED,
+        EMERGENCY_NUMBER_SOURCE_CARRIER_REDIRECTION
+    })
+    @Retention(RetentionPolicy.SOURCE)
+    public @interface EmergencyNumberSource {}
 }

@@ -577,7 +577,7 @@ public class RIL extends BaseCommands implements CommandsInterface {
                 mDisabledRadioServices.get(HAL_SERVICE_RADIO).add(mPhoneId);
             }
 
-            mMockModem.bindAllMockModemService();
+            mMockModem.bindAllMockModemServices();
 
             for (int service = MIN_SERVICE_IDX; service <= MAX_SERVICE_IDX; service++) {
                 if (service == HAL_SERVICE_RADIO) continue;
@@ -620,6 +620,9 @@ public class RIL extends BaseCommands implements CommandsInterface {
             }
 
             if (mMockModem != null) {
+
+                mMockModem.unbindAllMockModemServices();
+
                 mMockModem = null;
                 for (int service = MIN_SERVICE_IDX; service <= MAX_SERVICE_IDX; service++) {
                     if (service == HAL_SERVICE_RADIO) {
@@ -4447,9 +4450,9 @@ public class RIL extends BaseCommands implements CommandsInterface {
         }
 
         radioServiceInvokeHelper(HAL_SERVICE_DATA, rr, "notifyImsDataNetwork", () -> {
-            dataProxy.notifyImsDataNetwork(rr.mSerial, accessNetwork,
-                    RILUtils.convertToHalDataNetworkState(dataNetworkState),
-                    physicalTransportType, physicalNetworkSlotIndex);
+            dataProxy.notifyImsDataNetwork(rr.mSerial,
+                    RILUtils.convertToHalImsDataNetworkInfo(accessNetwork, dataNetworkState,
+                    physicalTransportType, physicalNetworkSlotIndex));
         });
     }
 

@@ -36,7 +36,6 @@ import android.text.TextUtils;
 import android.util.Log;
 
 import com.android.internal.telephony.PackageChangeReceiver;
-import com.android.internal.telephony.flags.Flags;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -187,8 +186,7 @@ public class SatelliteOptimizedApplicationsTracker {
                     packageInfo.packageName);
 
             // check service metadata
-            if (!isOptimized && packageInfo.services != null
-                    && Flags.satelliteServiceMetadataCheck()) {
+            if (!isOptimized && packageInfo.services != null) {
                 Bundle metadata;
                 String value;
                 ServiceInfo serviceInfo;
@@ -197,9 +195,8 @@ public class SatelliteOptimizedApplicationsTracker {
                     metadata = serviceInfo.metaData;
                     if (metadata != null) {
                         value = metadata.getString(APP_PROPERTY);
-                        loge(String.format("service: %s, value: %s", serviceInfo.packageName,
-                                (value == null ? null : value)));
                         if (value != null && TextUtils.equals(value, serviceInfo.packageName)) {
+                            logd("serviceInfo: " + serviceInfo.packageName + " is optimized");
                             return true;
                         }
                     }
@@ -228,18 +225,10 @@ public class SatelliteOptimizedApplicationsTracker {
             // Iterate through the packages
             for (int i = 0; i < packages.size(); i++) {
                 packageInfo = packages.get(i);
-                if (Flags.satelliteServiceMetadataCheck()) {
-                    servicePackageInfo = getPackageInfo(packageInfo.packageName);
-                    if (servicePackageInfo != null
-                            && isOptimizedSatelliteAppOrService(servicePackageInfo)) {
-                        addCacheOptimizedSatelliteApplication(packageInfo.packageName);
-                    }
-                } else {
-                    if (packageInfo.applicationInfo != null
-                            && isOptimizedSatelliteApplication(packageInfo.applicationInfo,
-                            packageInfo.packageName)) {
-                        addCacheOptimizedSatelliteApplication(packageInfo.packageName);
-                    }
+                servicePackageInfo = getPackageInfo(packageInfo.packageName);
+                if (servicePackageInfo != null
+                        && isOptimizedSatelliteAppOrService(servicePackageInfo)) {
+                    addCacheOptimizedSatelliteApplication(packageInfo.packageName);
                 }
             }
         } catch (Exception e) {
@@ -253,11 +242,8 @@ public class SatelliteOptimizedApplicationsTracker {
     }
 
     private int getTrackerPackageFlags() {
-        int flags = PackageManager.GET_META_DATA;
-        if (Flags.satelliteServiceMetadataCheck()) {
-            flags |= PackageManager.GET_SERVICES | PackageManager.MATCH_DISABLED_COMPONENTS;
-        }
-        return flags;
+        return PackageManager.GET_META_DATA | PackageManager.GET_SERVICES
+                | PackageManager.MATCH_DISABLED_COMPONENTS;
     }
 
     private boolean isOptimizedSatelliteApplication(@NonNull ApplicationInfo applicationInfo,

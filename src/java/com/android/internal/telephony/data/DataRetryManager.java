@@ -42,10 +42,12 @@ import android.telephony.Annotation.DataFailureCause;
 import android.telephony.Annotation.NetCapability;
 import android.telephony.AnomalyReporter;
 import android.telephony.DataFailCause;
+import android.telephony.TelephonyManager;
 import android.telephony.data.DataCallResponse;
 import android.telephony.data.DataProfile;
 import android.telephony.data.ThrottleStatus;
 import android.telephony.data.ThrottleStatus.RetryType;
+import android.telephony.data.TrafficDescriptor;
 import android.text.TextUtils;
 import android.util.ArraySet;
 import android.util.IndentingPrintWriter;
@@ -54,7 +56,9 @@ import android.util.SparseArray;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.telephony.CommandsInterface;
+import com.android.internal.telephony.HalVersion;
 import com.android.internal.telephony.Phone;
+import com.android.internal.telephony.RIL;
 import com.android.internal.telephony.data.DataConfigManager.DataConfigManagerCallback;
 import com.android.internal.telephony.data.DataNetworkController.DataNetworkControllerCallback;
 import com.android.internal.telephony.data.DataNetworkController.NetworkRequestList;
@@ -218,6 +222,14 @@ public class DataRetryManager extends Handler {
     /** Data retry entries. */
     @NonNull
     private final List<DataRetryEntry> mDataRetryEntries = new ArrayList<>();
+
+    /**
+     * @return The list of data retry entries.
+     */
+    @VisibleForTesting
+    public List<DataRetryEntry> getDataRetryEntries() {
+        return mDataRetryEntries;
+    }
 
     /**
      * Data throttling entries. Note this only stores throttling requested by networks. We intended
@@ -1206,8 +1218,24 @@ public class DataRetryManager extends Handler {
     public void evaluateDataSetupRetry(@NonNull DataProfile dataProfile,
             @TransportType int transport, @NonNull NetworkRequestList requestList,
             @DataFailureCause int cause, long retryDelayMillis) {
-        post(() -> onEvaluateDataSetupRetry(dataProfile, transport, requestList, cause,
-                retryDelayMillis));
+
+        // There is a race condition between SETUP_DATA_CALL failure and UNSOL_UNTHROTTLE_APN.
+        // If SETUP_DATA_CALL fails with a throttle duration, RIL posts a message to
+        // DataNetworkController, which eventually calls this method. If UNSOL_UNTHROTTLE_APN
+        // arrives immediately after, it is also posted to this handler. If we always post retry
+        // evaluation logic here, it will be appended to the end of the queue, potentially AFTER
+        // the unthrottle message.
+        // This results in the unthrottle logic running first (finding nothing to unthrottle) and
+        // then the throttle logic running (applying the throttle), effectively ignoring the
+        // unthrottle request.
+        // To avoid this, if we are already on the handler thread, we should execute immediately
+        // to ensure the throttle entry is added before the unthrottle message is processed.
+        if (mFlags.fixDataSetupRetryRaceCondition() && getLooper().isCurrentThread()) {
+            onEvaluateDataSetupRetry(dataProfile, transport, requestList, cause, retryDelayMillis);
+        } else {
+            post(() -> onEvaluateDataSetupRetry(dataProfile, transport, requestList, cause,
+                    retryDelayMillis));
+        }
     }
 
 // QTI_BEGIN: 2022-03-30: Telephony: Add support for Telcel feature
@@ -1652,8 +1680,9 @@ public class DataRetryManager extends Handler {
                         .filter(entry -> entry.dataProfile.getApnSetting().getApnName()
                                 .equals(dataProfile.getApnSetting().getApnName()));
             }
-            stream = stream.filter(entry -> Objects.equals(entry.dataProfile.getTrafficDescriptor(),
-                    dataProfile.getTrafficDescriptor()));
+            stream = stream.filter(entry -> areTrafficDescriptorsEqual(
+                    entry.dataProfile.getTrafficDescriptor(),   // storedTd
+                    dataProfile.getTrafficDescriptor()));       // requestTd
 
             dataUnthrottlingEntries = stream.collect(Collectors.toList());
         } else if (apn != null) {
@@ -1717,6 +1746,51 @@ public class DataRetryManager extends Handler {
         if (remove) {
             mDataThrottlingEntries.removeAll(dataUnthrottlingEntries);
         }
+    }
+
+    /**
+     * Checks if two TrafficDescriptors are equal, considering the HAL version compatibility.
+     *
+     * @param storedTd The TrafficDescriptor from the stored throttling entry.
+     * @param requestTd The TrafficDescriptor from the unthrottle request (modem).
+     */
+    private boolean areTrafficDescriptorsEqual(
+            @Nullable TrafficDescriptor storedTd, @Nullable TrafficDescriptor requestTd) {
+        // Exact match (covers all versions including HAL > 2.4)
+        if (Objects.equals(storedTd, requestTd)) {
+            return true;
+        }
+
+        HalVersion halVersion = mRil.getHalVersion(TelephonyManager.HAL_SERVICE_DATA);
+
+        // HAL > 2.4: Exact match required. (Already checked above)
+        if (halVersion.greater(RIL.RADIO_HAL_VERSION_2_4)) {
+            return false;
+        }
+
+        if (storedTd == null || requestTd == null) {
+            // HAL <= 2.4: If one is null (and not equal), they are different.
+            return false;
+        }
+
+        // Compare DNN and OsAppId (Required for HAL <= 2.4)
+        if (!Objects.equals(storedTd.getDataNetworkName(), requestTd.getDataNetworkName())) {
+            return false;
+        }
+        if (!Arrays.equals(storedTd.getOsAppId(), requestTd.getOsAppId())) {
+            return false;
+        }
+
+        // Compare connectionCapability (HAL == 2.4)
+        if (halVersion.equals(RIL.RADIO_HAL_VERSION_2_4)) {
+            // HAL 2.4: Allow mismatch only if the request connection capability is
+            // CONNECTION_CAPABILITY_UNKNOWN (Legacy compatibility)
+            return requestTd.getConnectionCapability()
+                    == TrafficDescriptor.CONNECTION_CAPABILITY_UNKNOWN;
+        }
+
+        // HAL < 2.4: connectionCapability is not supported, so we consider them equal.
+        return true;
     }
 
     /**

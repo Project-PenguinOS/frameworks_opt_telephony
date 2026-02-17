@@ -146,6 +146,7 @@ import com.android.internal.telephony.EcbmHandler;
 import com.android.internal.telephony.IccCardConstants;
 import com.android.internal.telephony.Phone;
 import com.android.internal.telephony.PhoneConstants;
+import com.android.internal.telephony.QtiEmergencyModeTracker;
 import com.android.internal.telephony.SrvccConnection;
 import com.android.internal.telephony.d2d.RtpTransport;
 import com.android.internal.telephony.data.DataSettingsManager;
@@ -255,6 +256,8 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
     private Optional<Integer> mCurrentlyConnectedSubId = Optional.empty();
 
     private final MmTelFeatureListener mMmTelFeatureListener = new MmTelFeatureListener();
+
+    private final QtiEmergencyModeTracker mQtiEmergencyModeTracker;
 
     private class MmTelFeatureListener extends MmTelFeature.Listener {
 
@@ -828,11 +831,6 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
 
     private final ImsCallInfoTracker mImsCallInfoTracker;
 
-// QTI_BEGIN: 2022-02-02: Telephony: Exit both ECBM and SCBM before placing MO call
-    private boolean mPendingExitEcbmReq;
-    private boolean mPendingExitScbmReq;
-
-// QTI_END: 2022-02-02: Telephony: Exit both ECBM and SCBM before placing MO call
     /**
      * Listeners to changes in the phone state.  Intended for use by other interested IMS components
      * without the need to register a full blown {@link android.telephony.PhoneStateListener}.
@@ -1382,6 +1380,8 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
         mImsCallInfoTracker = new ImsCallInfoTracker(phone);
 
         mPhone.registerForConnectionSetupFailure(this, EVENT_CONNECTION_SETUP_FAILURE, null);
+
+        mQtiEmergencyModeTracker = new QtiEmergencyModeTracker();
     }
 
     /**
@@ -1431,6 +1431,13 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
             ecbmHandler.getImsEcbmStateListener(mPhone.getPhoneId()),
             externalCallStateListener);
         mImsManager.addRegistrationCallback(mPhone.getImsMmTelRegistrationCallback(), this::post);
+        try {
+            mImsManager.addEmergencyRegistrationCallbackForSubscription(
+                    mPhone.getImsMmTelEmergencyRegistrationCallback().getBinder(), subId);
+        } catch (RemoteException e) {
+            throw new ImsException("addEmergencyRegistrationCallbackForSubscription failed",
+                    ImsReasonInfo.CODE_LOCAL_IMS_SERVICE_DOWN);
+        }
         mImsManager.addCapabilitiesCallback(mImsCapabilityCallback, this::post);
 
         ImsManager.setImsStatsCallback(mPhone.getPhoneId(), mImsStatsCallback);
@@ -1450,8 +1457,8 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
             }
 // QTI_END: 2019-04-16: Telephony: Handle ECBM mode for both the SUBs to place calls in ECBM mode
         }
+        if (mQtiEmergencyModeTracker.canExitScbm(mPhone.mDefaultPhone)) {
 // QTI_BEGIN: 2022-01-27: Telephony: Exit SCBM if ims connection ready or phone type switched to CDMA
-        if (canExitScbm()) {
              try {
                  mPhone.mDefaultPhone.exitScbm();
              } catch (Exception e) {
@@ -1536,6 +1543,9 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
         // Only close on valid session.
         if (mImsManager != null) {
             mImsManager.removeRegistrationListener(mPhone.getImsMmTelRegistrationCallback());
+            mImsManager.removeEmergencyRegistrationCallbackForSubscription(
+                    mPhone.getImsMmTelEmergencyRegistrationCallback().getBinder(),
+                    mPhone.getSubId());
             mImsManager.removeCapabilitiesCallback(mImsCapabilityCallback);
             try {
                 ImsManager.setImsStatsCallback(mPhone.getPhoneId(), null);
@@ -1819,10 +1829,9 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
 
     public synchronized Connection dial(String dialString, ImsPhone.ImsDialArgs dialArgs)
             throws CallStateException {
-// QTI_BEGIN: 2021-12-28: Telephony: Add exit SCBM support
-        boolean isPhoneInEcmMode = isPhoneInEcbm();
-        boolean isPhoneInEmergencyMode = isPhoneInEmergencyMode();
-// QTI_END: 2021-12-28: Telephony: Add exit SCBM support
+        boolean isPhoneInEcmMode = mQtiEmergencyModeTracker.isPhoneInEcbm();
+        boolean isPhoneInEmergencyMode = mQtiEmergencyModeTracker.
+                    isPhoneInEmergencyMode(mPhone.mDefaultPhone);
         boolean isEmergencyNumber = dialArgs.isEmergency;
         boolean isWpsCall = dialArgs.isWpsCall;
 
@@ -1908,9 +1917,7 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
                         TelephonyManager.STOP_REASON_OUTGOING_NORMAL_CALL_INITIATED);
             } else {
                 try {
-// QTI_BEGIN: 2021-12-28: Telephony: Add exit SCBM support
-                    exitEmergencyMode();
-// QTI_END: 2021-12-28: Telephony: Add exit SCBM support
+                    mQtiEmergencyModeTracker.exitEmergencyMode(this, mPhone.mDefaultPhone);
 // QTI_BEGIN: 2019-04-16: Telephony: Handle ECBM mode for both the SUBs to place calls in ECBM mode
                 } catch (Exception e) {
 // QTI_END: 2019-04-16: Telephony: Handle ECBM mode for both the SUBs to place calls in ECBM mode
@@ -2306,10 +2313,6 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
                 setEmergencyCallInfo(profile, conn);
             }
 
-// QTI_BEGIN: 2019-09-17: Telephony: IMS: Add check for EXTRA_START_CALL_WITH_RTT
-            boolean isStartRttCall = true;
-
-// QTI_END: 2019-09-17: Telephony: IMS: Add check for EXTRA_START_CALL_WITH_RTT
             // Translate call subject intent-extra from Telecom-specific extra key to the
             // ImsCallProfile key.
             if (intentExtras != null) {
@@ -2321,7 +2324,6 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
                     profile.setCallExtra(ImsCallProfile.EXTRA_CALL_SUBJECT,
                             intentExtras.getString(TelecomManager.EXTRA_CALL_SUBJECT));
                 }
-
 // QTI_BEGIN: 2021-01-22: Telephony: IMS: Remove RTT related test code
                 boolean isExtraStartRttCall = intentExtras.getBoolean(
 // QTI_END: 2021-01-22: Telephony: IMS: Remove RTT related test code
@@ -2331,11 +2333,11 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
 // QTI_BEGIN: 2021-01-22: Telephony: IMS: Remove RTT related test code
                 boolean isSettingStartRttCall = QtiImsUtils.canStartRttCall(mPhone.getPhoneId(),
                                                                             mPhone.getContext());
-                isStartRttCall = isExtraStartRttCall && isSettingStartRttCall;
 // QTI_END: 2021-01-22: Telephony: IMS: Remove RTT related test code
-// QTI_BEGIN: 2019-09-17: Telephony: IMS: Add check for EXTRA_START_CALL_WITH_RTT
-                if (DBG) log("dialInternal: isStartRttCall = " + isStartRttCall);
-// QTI_END: 2019-09-17: Telephony: IMS: Add check for EXTRA_START_CALL_WITH_RTT
+// QTI_BEGIN: 2026-01-18: Telephony: RTT : Fix legacy conditions in RTT automatic mode for all RTT supported operators.
+
+                if (DBG) log("dialInternal: isSettingStartRttCall = " + isSettingStartRttCall);
+// QTI_END: 2026-01-18: Telephony: RTT : Fix legacy conditions in RTT automatic mode for all RTT supported operators.
 
                 if (intentExtras.containsKey(android.telecom.TelecomManager.EXTRA_PRIORITY)) {
                     profile.setCallExtraInt(ImsCallProfile.EXTRA_PRIORITY, intentExtras.getInt(
@@ -2355,18 +2357,16 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
                                     TelecomManager.EXTRA_OUTGOING_PICTURE)).getUuid());
                     profile.setCallExtra(ImsCallProfile.EXTRA_PICTURE_URL, url);
                 }
-
-// QTI_BEGIN: 2019-10-30: Telephony: Do not set RTT mode to full when there are no sims
-                // Set the RTT mode to 1 if sim supports RTT and if the connection has
-                // valid RTT text stream
-// QTI_END: 2019-10-30: Telephony: Do not set RTT mode to full when there are no sims
-// QTI_BEGIN: 2022-01-20: Telephony: IMS : Check RTT mode in AOSP implementation
-                if (isRttSupported() && conn.hasRttTextStream() && isStartRttCall && isRttOn()) {
-// QTI_END: 2022-01-20: Telephony: IMS : Check RTT mode in AOSP implementation
-// QTI_BEGIN: 2021-01-22: Telephony: IMS: Remove RTT related test code
-                    if (DBG) log("dialInternal: setting RTT mode to full");
-// QTI_END: 2021-01-22: Telephony: IMS: Remove RTT related test code
-                    profile.mMediaProfile.mRttMode = ImsStreamMediaProfile.RTT_MODE_FULL;
+                if (isExtraStartRttCall && QtiImsUtils.canMakeRttCall(profile, isEmergencyCall,
+                    mPhone, mAllowRttWhileRoaming)) {
+// QTI_BEGIN: 2026-01-18: Telephony: RTT : Fix legacy conditions in RTT automatic mode for all RTT supported operators.
+                    int mode = isSettingStartRttCall
+                            ? QtiImsUtils.getRttOperatingMode(
+                            mPhone.getPhoneId(), mPhone.getContext())
+                            : ImsStreamMediaProfile.RTT_MODE_DISABLED;
+                    if (DBG) log("dialInternal: setting RTT mode :" + mode);
+                    profile.getMediaProfile().setRttMode(mode);
+// QTI_END: 2026-01-18: Telephony: RTT : Fix legacy conditions in RTT automatic mode for all RTT supported operators.
                 }
 
                 if (intentExtras.containsKey(ImsCallProfile.EXTRA_IS_CALL_PULL)) {
@@ -2390,20 +2390,6 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
                 // intentExtras individually, with uniquely defined keys.
                 // These key-value pairs are processed by IMS Service before
                 // being sent to the lower layers/to the network.
-            }
-
-// QTI_BEGIN: 2019-10-30: Telephony: Do not set RTT mode to full when there are no sims
-            // Override RTT mode as per operator requirements not supported by AOSP
-// QTI_END: 2019-10-30: Telephony: Do not set RTT mode to full when there are no sims
-// QTI_BEGIN: 2021-08-25: Telephony: IMS: Fix wrong RTT operating mode for E911 call in roaming
-            if (isStartRttCall && canMakeRttCall(profile, isEmergencyCall)) {
-// QTI_END: 2021-08-25: Telephony: IMS: Fix wrong RTT operating mode for E911 call in roaming
-// QTI_BEGIN: 2021-05-06: Telephony: IMS: Check for roaming for RTT call in automatic mode
-                int mode = QtiImsUtils.getRttOperatingMode(
-                        mPhone.getPhoneId(), mPhone.getContext());
-                if (DBG) log("dialInternal: set RTT operation mode: " + mode);
-                profile.getMediaProfile().setRttMode(mode);
-// QTI_END: 2021-05-06: Telephony: IMS: Check for roaming for RTT call in automatic mode
             }
 
             mPhone.getVoiceCallSessionStats().onImsDial(conn);
@@ -3718,81 +3704,15 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
     }
 
     /**
-     * @return true if the phone is in Emergency Callback mode, otherwise false
-     */
-// QTI_BEGIN: 2021-12-28: Telephony: Add exit SCBM support
-    private boolean isPhoneInEcbm() {
-// QTI_END: 2021-12-28: Telephony: Add exit SCBM support
-// QTI_BEGIN: 2019-04-16: Telephony: Handle ECBM mode for both the SUBs to place calls in ECBM mode
-        return EcbmHandler.getInstance() != null && EcbmHandler.getInstance().isInEcm();
-// QTI_END: 2019-04-16: Telephony: Handle ECBM mode for both the SUBs to place calls in ECBM mode
-    }
-
-// QTI_BEGIN: 2021-12-28: Telephony: Add exit SCBM support
-    /**
-     * @return true if the phone is in SMS callback mode and
-     * exit SCBM supported, otherwise false
-     */
-    private boolean canExitScbm() {
-        return mPhone.mDefaultPhone.isInScbm() &&
-                mPhone.mDefaultPhone.isExitScbmFeatureSupported();
-    }
-
-    private boolean isPhoneInEmergencyMode() {
-        return isPhoneInEcbm() || canExitScbm();
-    }
-
-    private void exitEmergencyMode() throws Exception {
-        boolean isPhoneInEcbm = isPhoneInEcbm();
-// QTI_END: 2021-12-28: Telephony: Add exit SCBM support
-// QTI_BEGIN: 2022-02-02: Telephony: Exit both ECBM and SCBM before placing MO call
-        boolean isPhoneInScbm = canExitScbm();
-// QTI_END: 2022-02-02: Telephony: Exit both ECBM and SCBM before placing MO call
-// QTI_BEGIN: 2021-12-28: Telephony: Add exit SCBM support
-        if (isPhoneInEcbm) {
-            try {
-                EcbmHandler.getInstance().exitEmergencyCallbackMode();
-            } catch (Exception e) {
-                throw e;
-            }
-            EcbmHandler.getInstance().setOnEcbModeExitResponse(this,
-                    EVENT_EXIT_ECM_RESPONSE_CDMA, null);
-// QTI_END: 2021-12-28: Telephony: Add exit SCBM support
-// QTI_BEGIN: 2022-02-02: Telephony: Exit both ECBM and SCBM before placing MO call
-            mPendingExitEcbmReq = true;
-        }
-        if (isPhoneInScbm) {
-// QTI_END: 2022-02-02: Telephony: Exit both ECBM and SCBM before placing MO call
-// QTI_BEGIN: 2021-12-28: Telephony: Add exit SCBM support
-            try {
-                mPhone.mDefaultPhone.exitScbm();
-            } catch (Exception e) {
-                throw e;
-            }
-            mPhone.mDefaultPhone.setOnScbmExitResponse(this,
-              EVENT_EXIT_SCBM_RESPONSE_CDMA, null);
-// QTI_END: 2021-12-28: Telephony: Add exit SCBM support
-// QTI_BEGIN: 2022-02-02: Telephony: Exit both ECBM and SCBM before placing MO call
-            mPendingExitScbmReq = true;
-// QTI_END: 2022-02-02: Telephony: Exit both ECBM and SCBM before placing MO call
-// QTI_BEGIN: 2021-12-28: Telephony: Add exit SCBM support
-        }
-    }
-
-// QTI_END: 2021-12-28: Telephony: Add exit SCBM support
-    /**
      * Before dialing pending MO request, check for the Emergency Callback mode.
      * If device is in Emergency callback mode, then exit the mode before dialing pending MO.
      */
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     private void dialPendingMO() {
-// QTI_BEGIN: 2021-12-28: Telephony: Add exit SCBM support
-        boolean isPhoneInEmergencyMode = isPhoneInEmergencyMode();
-// QTI_END: 2021-12-28: Telephony: Add exit SCBM support
+        boolean isPhoneInEmergencyMode = mQtiEmergencyModeTracker.
+                    isPhoneInEmergencyMode(mPhone.mDefaultPhone);
         boolean isEmergencyNumber = mPendingMO.isEmergency();
-// QTI_BEGIN: 2021-12-28: Telephony: Add exit SCBM support
-        if ((!isPhoneInEmergencyMode()) || (isPhoneInEmergencyMode() && isEmergencyNumber)) {
-// QTI_END: 2021-12-28: Telephony: Add exit SCBM support
+        if ((!isPhoneInEmergencyMode) || (isPhoneInEmergencyMode && isEmergencyNumber)) {
             sendEmptyMessage(EVENT_DIAL_PENDINGMO);
         } else {
             sendEmptyMessage(EVENT_EXIT_ECBM_BEFORE_PENDINGMO);
@@ -5296,9 +5216,8 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
 // QTI_BEGIN: 2021-12-28: Telephony: Add exit SCBM support
     private void handlePendingMoCall() {
 // QTI_END: 2021-12-28: Telephony: Add exit SCBM support
-// QTI_BEGIN: 2022-02-02: Telephony: Exit both ECBM and SCBM before placing MO call
-        if (pendingCallInEcm && !mPendingExitEcbmReq && !mPendingExitScbmReq) {
-// QTI_END: 2022-02-02: Telephony: Exit both ECBM and SCBM before placing MO call
+        if (pendingCallInEcm && !mQtiEmergencyModeTracker.getPendingExitEcbmReq() &&
+               !mQtiEmergencyModeTracker.getPendingExitScbmReq()) {
 // QTI_BEGIN: 2021-12-28: Telephony: Add exit SCBM support
             dialInternal(mPendingMO, pendingCallClirMode,
                     mPendingCallVideoState, mPendingIntentExtras);
@@ -5354,9 +5273,7 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
                 if (mPendingMO != null) {
                     //Send ECBM exit request
                     try {
-// QTI_BEGIN: 2021-12-28: Telephony: Add exit SCBM support
-                        exitEmergencyMode();
-// QTI_END: 2021-12-28: Telephony: Add exit SCBM support
+                        mQtiEmergencyModeTracker.exitEmergencyMode(this, mPhone.mDefaultPhone);
                         pendingCallClirMode = mClirMode;
                         pendingCallInEcm = true;
 // QTI_BEGIN: 2019-04-16: Telephony: Handle ECBM mode for both the SUBs to place calls in ECBM mode
@@ -5370,9 +5287,7 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
                 break;
 
             case EVENT_EXIT_ECM_RESPONSE_CDMA:
-// QTI_BEGIN: 2022-02-02: Telephony: Exit both ECBM and SCBM before placing MO call
-                mPendingExitEcbmReq = false;
-// QTI_END: 2022-02-02: Telephony: Exit both ECBM and SCBM before placing MO call
+                mQtiEmergencyModeTracker.setPendingExitEcbmReq(false);
 // QTI_BEGIN: 2021-12-28: Telephony: Add exit SCBM support
                 handlePendingMoCall();
 // QTI_END: 2021-12-28: Telephony: Add exit SCBM support
@@ -5384,9 +5299,7 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
 
             case EVENT_EXIT_SCBM_RESPONSE_CDMA:
 // QTI_END: 2021-12-28: Telephony: Add exit SCBM support
-// QTI_BEGIN: 2022-02-02: Telephony: Exit both ECBM and SCBM before placing MO call
-                mPendingExitScbmReq = false;
-// QTI_END: 2022-02-02: Telephony: Exit both ECBM and SCBM before placing MO call
+                mQtiEmergencyModeTracker.setPendingExitScbmReq(false);
 // QTI_BEGIN: 2021-12-28: Telephony: Add exit SCBM support
                 handlePendingMoCall();
                 mPhone.mDefaultPhone.unsetOnScbmExitResponse(this);
@@ -6484,8 +6397,8 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
             ImsStreamMediaProfile mediaProfile) {
 
 // QTI_END: 2018-03-08: Telephony: IMS: RTT feature changes
+        if (!QtiImsUtils.isRttSupported(mPhone.getPhoneId(), mPhone.getContext())) {
 // QTI_BEGIN: 2021-01-22: Telephony: IMS: Remove RTT related test code
-        if (!isRttSupported()) {
             if (DBG) log("addRttAttributeIfRequired: RTT is not supported");
 // QTI_END: 2021-01-22: Telephony: IMS: Remove RTT related test code
 // QTI_BEGIN: 2018-03-08: Telephony: IMS: RTT feature changes
@@ -6511,83 +6424,6 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
     }
 // QTI_END: 2018-03-08: Telephony: IMS: RTT feature changes
 
-// QTI_BEGIN: 2021-01-22: Telephony: IMS: Remove RTT related test code
-    private boolean isRttSupported() {
-        return QtiImsUtils.isRttSupported(mPhone.getPhoneId(), mPhone.getContext());
-    }
-
-    private boolean isRttOn() {
-        return QtiImsUtils.isRttOn(mPhone.getPhoneId(), mPhone.getContext());
-    }
-
-// QTI_END: 2021-01-22: Telephony: IMS: Remove RTT related test code
-// QTI_BEGIN: 2022-01-17: Telephony: IMS : Add changes for caching the value based on sim state.
-    private boolean isSimLessRttSupported() {
-        return QtiImsUtils.isSimLessRttSupported(mPhone.getPhoneId(), mPhone.getContext());
-    }
-
-// QTI_END: 2022-01-17: Telephony: IMS : Add changes for caching the value based on sim state.
-// QTI_BEGIN: 2021-05-06: Telephony: IMS: Check for roaming for RTT call in automatic mode
-    /**
-     * RTT call is allowed if RTT is supported by carrier and RTT setting is ON
-     * and call is not a video call or RTT is supported for video calls.
-     * If device is roaming, either carrier should allow RTT while roaming
-// QTI_END: 2021-05-06: Telephony: IMS: Check for roaming for RTT call in automatic mode
-// QTI_BEGIN: 2021-08-25: Telephony: IMS: Fix wrong RTT operating mode for E911 call in roaming
-     * or device needs to be registered on WIFI or it should be an emergency call.
-// QTI_END: 2021-08-25: Telephony: IMS: Fix wrong RTT operating mode for E911 call in roaming
-// QTI_BEGIN: 2021-05-06: Telephony: IMS: Check for roaming for RTT call in automatic mode
-     */
-// QTI_END: 2021-05-06: Telephony: IMS: Check for roaming for RTT call in automatic mode
-// QTI_BEGIN: 2021-08-25: Telephony: IMS: Fix wrong RTT operating mode for E911 call in roaming
-    private boolean canMakeRttCall(ImsCallProfile profile, boolean isEmergency) {
-// QTI_END: 2021-08-25: Telephony: IMS: Fix wrong RTT operating mode for E911 call in roaming
-// QTI_BEGIN: 2022-01-17: Telephony: IMS : Add changes for caching the value based on sim state.
-        Phone defaultPhone = mPhone.getDefaultPhone();
-        IccCardConstants.State state = defaultPhone.getIccCard().getState();
-        /** RTT call needs to allowed based on carrier config if sim is present
-         * else we need to check the saved cache for simless RTT e911 call
-         */
-// QTI_END: 2022-01-17: Telephony: IMS : Add changes for caching the value based on sim state.
-// QTI_BEGIN: 2022-02-18: Telephony: IMS : Fix for SIM PIN lock use case
-        if ((state.iccCardExist() && !isRttSupported()) ||
-                (!state.iccCardExist() && isEmergency &&
-// QTI_END: 2022-02-18: Telephony: IMS : Fix for SIM PIN lock use case
-// QTI_BEGIN: 2022-01-17: Telephony: IMS : Add changes for caching the value based on sim state.
-                !isSimLessRttSupported())
-                || !isRttOn()) {
-// QTI_END: 2022-01-17: Telephony: IMS : Add changes for caching the value based on sim state.
-// QTI_BEGIN: 2021-05-06: Telephony: IMS: Check for roaming for RTT call in automatic mode
-            return false;
-        }
-        if (profile != null && profile.isVideoCall() && !QtiImsUtils.isRttSupportedOnVtCalls(
-                mPhone.getPhoneId(),mPhone.getContext())) {
-            return false;
-        }
-// QTI_END: 2021-05-06: Telephony: IMS: Check for roaming for RTT call in automatic mode
-// QTI_BEGIN: 2023-06-25: Telephony: Allow RTT calls over C_IWLAN.
-        boolean isOnWfc = mPhone.getImsRegistrationTech()
-                == ImsRegistrationImplBase.REGISTRATION_TECH_IWLAN
-                ||  mPhone.getImsRegistrationTech()
-                == ImsRegistrationImplBase.REGISTRATION_TECH_CROSS_SIM;
-// QTI_END: 2023-06-25: Telephony: Allow RTT calls over C_IWLAN.
-// QTI_BEGIN: 2021-05-06: Telephony: IMS: Check for roaming for RTT call in automatic mode
-        if (!mPhone.getDefaultPhone().getServiceState().getRoaming()
-                || mAllowRttWhileRoaming
-// QTI_END: 2021-05-06: Telephony: IMS: Check for roaming for RTT call in automatic mode
-// QTI_BEGIN: 2023-06-25: Telephony: Allow RTT calls over C_IWLAN.
-                || isOnWfc
-// QTI_END: 2023-06-25: Telephony: Allow RTT calls over C_IWLAN.
-// QTI_BEGIN: 2021-08-25: Telephony: IMS: Fix wrong RTT operating mode for E911 call in roaming
-                || isEmergency) {
-// QTI_END: 2021-08-25: Telephony: IMS: Fix wrong RTT operating mode for E911 call in roaming
-// QTI_BEGIN: 2021-05-06: Telephony: IMS: Check for roaming for RTT call in automatic mode
-            return true;
-        }
-        return false;
-    }
-
-// QTI_END: 2021-05-06: Telephony: IMS: Check for roaming for RTT call in automatic mode
     @Override
     public ImsPhone getPhone() {
         return mPhone;
@@ -6997,7 +6833,8 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
             // QNS will then call getWfcMode() to get the latest value.
             if (mTelephonyManager != null) {
                 TelephonyManager tm = mTelephonyManager.createForSubscriptionId(mPhone.getSubId());
-                boolean isNetworkRoaming = tm.getServiceState().getRoaming();
+                ServiceState serviceState = tm.getServiceState();
+                boolean isNetworkRoaming = serviceState != null && serviceState.getRoaming();
                 mImsManager.setWfcRoamingSettingInternal(mImsManager.isWfcRoamingEnabledByUser());
                 mImsManager.setWfcModeInternal(mImsManager.getWfcMode(isNetworkRoaming));
             }

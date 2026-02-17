@@ -75,15 +75,6 @@ flag {
   is_exported: true
 }
 
-# OWNER=arunvoddu TARGET=25Q2
-flag {
-  name: "starlink_data_bugfix"
-  namespace: "telephony"
-  description: "This flag controls the satellite related bug fixes"
-  bug: "393966687"
-  is_exported: true
-}
-
 # OWNER=amallampati TARGET=25Q3
 flag {
     name: "satellite_exit_p2p_session_outside_geofence"
@@ -106,17 +97,6 @@ flag {
     metadata {
         purpose: PURPOSE_BUGFIX
     }
-}
-
-# OWNER=nagendranb TARGET=25Q3
-flag {
-  name: "satellite_data_metrics"
-  namespace: "telephony"
-  description: "Support Satellite Data metrics at satellite session"
-  bug: "405107194"
-  metadata {
-    purpose: PURPOSE_BUGFIX
-  }
 }
 
 # OWNER=youngtaecha TARGET=26Q2
@@ -210,17 +190,6 @@ flag {
   }
 }
 
-# OWNER=gargakash TARGET=26Q2
-flag {
-  name: "satellite_service_metadata_check"
-  namespace: "telephony"
-  description: "Check for satellite optimization metadata in <service> tags."
-  bug: "427846736"
-  metadata {
-    purpose: PURPOSE_BUGFIX
-  }
-}
-
 # OWNER=karthickmj TARGET=26Q2
 flag {
   name: "satellite_upsell"
@@ -230,6 +199,7 @@ flag {
   metadata {
     purpose: PURPOSE_FEATURE
   }
+  is_exported: true
 }
 
 # OWNER=hakjunc TARGET=26Q2
@@ -246,6 +216,7 @@ flag {
 # OWNER=shilpasatish TARGET=26Q2
 flag {
   name: "satellite_suspend"
+  is_exported: true
   namespace: "telephony"
   description: "Enables the satellite network suspend API."
   bug: "460876921"
@@ -296,4 +267,5 @@ flag {
   metadata {
     purpose: PURPOSE_BUGFIX
   }
+  is_exported: true
 }

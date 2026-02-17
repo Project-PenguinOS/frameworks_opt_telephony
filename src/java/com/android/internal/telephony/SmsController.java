@@ -100,14 +100,6 @@ public class SmsController extends ISmsImplBase {
         mContext = context;
         mFlags = flags;
         mPackageManager = context.getPackageManager();
-        if (!mFlags.publishTelephonyServicesAfterConstruction()) {
-            ServiceRegisterer smsServiceRegisterer = TelephonyFrameworkInitializer
-                    .getTelephonyServiceManager()
-                    .getSmsServiceRegisterer();
-            if (smsServiceRegisterer.get() == null) {
-                smsServiceRegisterer.register(this);
-            }
-        }
 
         mVendorApiLevel = SystemProperties.getInt(
                 "ro.vendor.api_level", Build.VERSION.DEVICE_INITIAL_SDK_INT);

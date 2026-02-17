@@ -832,6 +832,12 @@ public class DataNetworkControllerTest extends TelephonyTest {
 
         mCarrierConfig.putLongArray(CarrierConfigManager.KEY_DATA_STALL_RECOVERY_TIMERS_LONG_ARRAY,
                 new long[] {100, 100, 100, 100});
+
+        // Add this line to provide a default value for the new randomization key
+        mCarrierConfig.putLongArray(
+                CarrierConfigManager.KEY_DATA_STALL_RECOVERY_TIMERS_RANDOMIZATION_MILLIS_LONG_ARRAY,
+                new long[] {0L, 0L, 0L, 0L});
+
         mCarrierConfig.putBooleanArray(
                 CarrierConfigManager.KEY_DATA_STALL_RECOVERY_SHOULD_SKIP_BOOL_ARRAY,
                 new boolean[] {false, false, true, false, false});
@@ -906,6 +912,8 @@ public class DataNetworkControllerTest extends TelephonyTest {
         infoList.add(mMockSubInfo);
         doReturn(0).when(mSubscriptionManagerService).getPhoneId(1);
         doReturn(1).when(mSubscriptionManagerService).getPhoneId(2);
+        doReturn(true).when(mFeatureFlags).enableDataStallRecoveryRandomization();
+
 
         for (int transport : new int[]{AccessNetworkConstants.TRANSPORT_TYPE_WWAN,
                 AccessNetworkConstants.TRANSPORT_TYPE_WLAN}) {
@@ -1077,6 +1085,11 @@ public class DataNetworkControllerTest extends TelephonyTest {
                 }
             }
 
+            doAnswer(inv -> getTestConnectionCapability(inv.getArgument(0)))
+                    .when(mDataConfigManager).networkCapabilityToConnectionCapability(anyInt());
+            doAnswer(inv -> getTestNetworkCapability(inv.getArgument(0)))
+                    .when(mDataConfigManager).connectionCapabilityToNetworkCapability(anyInt());
+
             boolean hasConnectionCapabilityAttribute = networkRequest.hasAttribute(
                     TelephonyNetworkRequest
                             .CAPABILITY_ATTRIBUTE_TRAFFIC_DESCRIPTOR_CONNECTION_CAPABILITY);
@@ -1095,7 +1108,7 @@ public class DataNetworkControllerTest extends TelephonyTest {
                 }
                 if (hasConnectionCapabilityAttribute) {
                     trafficDescriptorBuilder.setConnectionCapability(
-                            DataUtils.networkCapabilityToConnectionCapability(
+                            mDataConfigManager.networkCapabilityToConnectionCapability(
                                     networkRequest.getHighestPrioritySupportedNetworkCapability()));
                 }
 
@@ -2168,7 +2181,7 @@ public class DataNetworkControllerTest extends TelephonyTest {
     }
 
     @Test
-    public void testIgnoreDataRoamingSettingForSatellite() throws Exception {
+    public void testEvaluateNetworkRequest_RoamingDisabled_AllowSatellite() throws Exception {
         // set up satellite network and register data roaming
         doReturn(true).when(mServiceState).getDataRoaming();
         serviceStateChanged(TelephonyManager.NETWORK_TYPE_LTE,
@@ -2208,7 +2221,8 @@ public class DataNetworkControllerTest extends TelephonyTest {
     }
 
     @Test
-    public void testIgnoreDataRoamingSettingForSatelliteWithBandwithConstrained() throws Exception {
+    public void testEvaluateNetworkRequest_RoamingDisabled_AllowSatellite_BandwidthConstrained()
+            throws Exception {
         // set up satellite network and register data roaming
         doReturn(true).when(mServiceState).getDataRoaming();
         serviceStateChanged(TelephonyManager.NETWORK_TYPE_LTE,
@@ -2246,7 +2260,8 @@ public class DataNetworkControllerTest extends TelephonyTest {
     }
 
     @Test
-    public void testIgnoreDataRoamingSettingForSatelliteForUnrestrictedNetwork() throws Exception {
+    public void testEvaluateNetworkRequest_RoamingDisabled_AllowSatellite_Unrestricted()
+            throws Exception {
         // set up satellite network and register data roaming
         doReturn(true).when(mServiceState).getDataRoaming();
         serviceStateChanged(TelephonyManager.NETWORK_TYPE_LTE,
@@ -2287,7 +2302,7 @@ public class DataNetworkControllerTest extends TelephonyTest {
     }
 
     @Test
-    public void testIgnoreDataRoamingSettingForSatelliteConfigForTerrestrialNetwork()
+    public void testEvaluateNetworkRequest_Terrestrial_RoamingDisabled_WithSatelliteConfig()
             throws Exception {
         doReturn(true).when(mServiceState).getDataRoaming();
         serviceStateChanged(TelephonyManager.NETWORK_TYPE_LTE,
@@ -2334,6 +2349,83 @@ public class DataNetworkControllerTest extends TelephonyTest {
         // reset roaming registration
         serviceStateChanged(TelephonyManager.NETWORK_TYPE_LTE,
                 NetworkRegistrationInfo.REGISTRATION_STATE_HOME);
+    }
+
+    @Test
+    public void testEvaluateDataNetwork_RoamingDisabled_AllowSatellite() throws Exception {
+        // Initialize the device in a roaming state on a satellite network with data enabled.
+        mDataNetworkControllerUT.getDataSettingsManager().setDataRoamingEnabled(true);
+        serviceStateChanged(TelephonyManager.NETWORK_TYPE_LTE,
+            NetworkRegistrationInfo.REGISTRATION_STATE_ROAMING, true /* isNonTerrestrialNetwork */);
+
+        // Mock the satellite controller to support data services.
+        doReturn(CarrierConfigManager.SATELLITE_DATA_SUPPORT_ALL)
+            .when(mSatelliteController)
+            .getSatelliteDataServicePolicyForPlmn(anyInt(), any());
+
+        // Create a network request and verify the internet connection is established.
+        TelephonyNetworkRequest expectedRequest =
+            createNetworkRequest(NetworkCapabilities.NET_CAPABILITY_INTERNET);
+        mDataNetworkControllerUT.addNetworkRequest(expectedRequest);
+        processAllFutureMessages();
+        verifyInternetConnected();
+        Mockito.clearInvocations(mMockedDataNetworkControllerCallback);
+
+        // User disables data roaming, but the carrier config is set to ignore
+        // roaming settings for satellite networks (allowing data).
+        mDataNetworkControllerUT.getDataSettingsManager().setDataRoamingEnabled(false);
+        mCarrierConfig.putBoolean(
+            CarrierConfigManager.KEY_SATELLITE_IGNORE_DATA_ROAMING_SETTING_BOOL, true);
+        carrierConfigChanged();
+
+        // Trigger a re-evaluation of the existing networks.
+        mDataNetworkControllerUT.obtainMessage(EVENT_REEVALUATE_EXISTING_DATA_NETWORKS,
+            DataEvaluation.DataEvaluationReason.ROAMING_ENABLED_CHANGED).sendToTarget();
+        processAllFutureMessages();
+
+        // Verify that satellite data network should remain connected because the carrier config
+        // overrides the user's roaming setting.
+        assertThat(getDataNetworks()).hasSize(1);
+        verify(mMockedDataNetworkControllerCallback, never())
+            .onAnyDataNetworkExistingChanged(eq(false), anyBoolean());
+    }
+
+    @Test
+    public void testEvaluateDataNetwork_RoamingDisabled_DisallowSatellite() throws Exception {
+        // Initialize the device in a roaming state on a satellite network with data enabled.
+        mDataNetworkControllerUT.getDataSettingsManager().setDataRoamingEnabled(true);
+        serviceStateChanged(TelephonyManager.NETWORK_TYPE_LTE,
+            NetworkRegistrationInfo.REGISTRATION_STATE_ROAMING, true /* isNonTerrestrialNetwork */);
+
+        // Mock the satellite controller to support data services.
+        doReturn(CarrierConfigManager.SATELLITE_DATA_SUPPORT_ALL)
+            .when(mSatelliteController)
+            .getSatelliteDataServicePolicyForPlmn(anyInt(), any());
+
+        // Create a network request and verify the internet connection is established.
+        mDataNetworkControllerUT.addNetworkRequest(
+            createNetworkRequest(NetworkCapabilities.NET_CAPABILITY_INTERNET));
+        processAllFutureMessages();
+        verifyInternetConnected();
+        Mockito.clearInvocations(mMockedDataNetworkControllerCallback);
+
+        // User disables data roaming, and the carrier config is set to RESPECT
+        // roaming settings (disallowing data when roaming is off).
+        mDataNetworkControllerUT.getDataSettingsManager().setDataRoamingEnabled(false);
+        mCarrierConfig.putBoolean(
+            CarrierConfigManager.KEY_SATELLITE_IGNORE_DATA_ROAMING_SETTING_BOOL, false);
+        carrierConfigChanged();
+
+        // Trigger a re-evaluation of the existing networks.
+        mDataNetworkControllerUT.obtainMessage(EVENT_REEVALUATE_EXISTING_DATA_NETWORKS,
+            DataEvaluation.DataEvaluationReason.ROAMING_ENABLED_CHANGED).sendToTarget();
+        processAllFutureMessages();
+
+        // Verify that data network should be torn down because roaming is disabled and
+        // the carrier config does not allow ignoring this setting.
+        verifyAllDataDisconnected();
+        verify(mMockedDataNetworkControllerCallback)
+            .onAnyDataNetworkExistingChanged(eq(false), anyBoolean());
     }
 
     @Test
@@ -3379,11 +3471,8 @@ public class DataNetworkControllerTest extends TelephonyTest {
         msg2.what = 4 /*EVENT_DATA_HANDOVER_RETRY*/;
         msg2.obj = retry2;
 
-        Field field = DataRetryManager.class.getDeclaredField("mDataRetryEntries");
-        field.setAccessible(true);
         List<DataRetryManager.DataRetryEntry> dataRetryEntries =
-                (List<DataRetryManager.DataRetryEntry>)
-                        field.get(mDataNetworkControllerUT.getDataRetryManager());
+                mDataNetworkControllerUT.getDataRetryManager().getDataRetryEntries();
         dataRetryEntries.add(retry1);
         dataRetryEntries.add(retry2);
 
@@ -5075,11 +5164,9 @@ public class DataNetworkControllerTest extends TelephonyTest {
                 eq(DataService.REQUEST_REASON_NORMAL), any(Message.class));
 
         // Get the scheduled retry
-        Field field = DataRetryManager.class.getDeclaredField("mDataRetryEntries");
-        field.setAccessible(true);
         DataRetryManager.DataHandoverRetryEntry dataRetryEntry =
-                (DataRetryManager.DataHandoverRetryEntry) ((List<DataRetryManager.DataRetryEntry>)
-                        field.get(mDataNetworkControllerUT.getDataRetryManager())).get(0);
+                (DataRetryManager.DataHandoverRetryEntry)
+                        mDataNetworkControllerUT.getDataRetryManager().getDataRetryEntries().get(0);
 
         // Process the retry
         moveTimeForward(1000 /*The retry delay of the first attempt*/);
@@ -6185,32 +6272,6 @@ public class DataNetworkControllerTest extends TelephonyTest {
     }
 
     @Test
-    public void testConnection_WithDataServiceCheckFlagDisabled_WithoutDataServiceSupport()
-            throws Exception {
-        doReturn(false).when(mFeatureFlags).dataServiceCheck();
-        mCarrierSupportedServices.clear();
-        mCarrierSupportedServices.add(NetworkRegistrationInfo.SERVICE_TYPE_VOICE);
-        serviceStateChanged(TelephonyManager.NETWORK_TYPE_LTE,
-                NetworkRegistrationInfo.REGISTRATION_STATE_HOME);
-
-        // Set network request transport with Internet capability + Not Restricted
-        mDataNetworkControllerUT.addNetworkRequest(
-                createNetworkRequest(NetworkCapabilities.NET_CAPABILITY_INTERNET));
-        mDataNetworkControllerUT.obtainMessage(5 /*EVENT_REEVALUATE_UNSATISFIED_NETWORK_REQUESTS*/,
-                DataEvaluationReason.PREFERRED_TRANSPORT_CHANGED).sendToTarget();
-        processAllMessages();
-
-        // Verify internet is connected
-        verifyInternetConnected();
-        Mockito.clearInvocations(mMockedDataNetworkControllerCallback);
-
-        // reset satellite network and roaming registration
-        mCarrierSupportedServices.clear();
-        serviceStateChanged(TelephonyManager.NETWORK_TYPE_LTE,
-                NetworkRegistrationInfo.REGISTRATION_STATE_HOME);
-    }
-
-    @Test
     public void testRestrictedDataConnectionRequest_WithoutDataServiceSupport()
             throws Exception {
         mCarrierSupportedServices.clear();
@@ -6315,34 +6376,6 @@ public class DataNetworkControllerTest extends TelephonyTest {
         // Verify internet is not connected
         verifyNoConnectedNetworkHasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET);
         Mockito.clearInvocations(mMockedDataNetworkControllerCallback);
-    }
-
-    @Test
-    public void testWithDataServiceCheckFlagDisabled_DataPolicySupportMode()
-            throws Exception {
-        doReturn(false).when(mFeatureFlags).dataServiceCheck();
-        // set up satellite network and register data roaming
-        serviceStateChanged(TelephonyManager.NETWORK_TYPE_LTE,
-                NetworkRegistrationInfo.REGISTRATION_STATE_HOME, true);
-
-        // Set network request transport with Internet capability + Not Restricted
-        mCarrierConfig.putInt(CarrierConfigManager.KEY_SATELLITE_DATA_SUPPORT_MODE_INT,
-                CarrierConfigManager.SATELLITE_DATA_SUPPORT_BANDWIDTH_CONSTRAINED);
-        carrierConfigChanged();
-        // Set network request transport as satellite in satellite network
-        NetworkCapabilities netCaps = new NetworkCapabilities();
-        netCaps.addTransportType(NetworkCapabilities.TRANSPORT_SATELLITE);
-        netCaps.addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET);
-        netCaps.removeCapability(NetworkCapabilities.NET_CAPABILITY_NOT_BANDWIDTH_CONSTRAINED);
-        mDataNetworkControllerUT.addNetworkRequest(new TelephonyNetworkRequest(
-                new NetworkRequest(netCaps, ConnectivityManager.TYPE_MOBILE, ++mNetworkRequestId,
-                        NetworkRequest.Type.REQUEST), mPhone, mFeatureFlags));
-        mDataNetworkControllerUT.obtainMessage(5 /*EVENT_REEVALUATE_UNSATISFIED_NETWORK_REQUESTS*/,
-                DataEvaluationReason.PREFERRED_TRANSPORT_CHANGED).sendToTarget();
-        processAllMessages();
-
-        // Verify internet is connected
-        verifyInternetConnected();
     }
 
     @Test

@@ -915,6 +915,8 @@ public class PersistAtomsStorage {
                     stats.countOfSessionConnectionModeManual;
             existingStats.serviceDataPolicy = stats.serviceDataPolicy;
             existingStats.totalSessionDurationSec += stats.totalSessionDurationSec;
+            existingStats.satelliteAttachSupported = stats.satelliteAttachSupported;
+            existingStats.eligibilitySource = stats.eligibilitySource;
         } else {
             // A session gap of -1 is normal for a new entry where a session has not yet occurred.
             // The backend is expected to interpret this value as "not available".
@@ -2108,7 +2110,8 @@ public class PersistAtomsStorage {
                     && state.isIwlanCrossSim == key.isIwlanCrossSim
                     && state.isNtn == key.isNtn
                     && state.isNbIotNtn == key.isNbIotNtn
-                    && state.isOpportunistic == key.isOpportunistic) {
+                    && state.isOpportunistic == key.isOpportunistic
+                    && Objects.equals(state.plmn, key.plmn)) {
                 return state;
             }
         }
@@ -2499,7 +2502,12 @@ public class PersistAtomsStorage {
                     && stats.carrierId == key.carrierId
                     && stats.supportedConnectionMode == key.supportedConnectionMode
                     && stats.sessionConnectionMode == key.sessionConnectionMode
-                    && Objects.equals(stats.plmn, key.plmn)) {
+                    && Objects.equals(stats.plmn, key.plmn)
+                    && stats.isInCarrierRoamingNtnMode == key.isInCarrierRoamingNtnMode
+                    && stats.carrierRoamingSatelliteEmergencyMessagingProvider
+                    == key.carrierRoamingSatelliteEmergencyMessagingProvider
+                    && stats.emergencyNumberSourceUsedInHandoverIntent
+                    == key.emergencyNumberSourceUsedInHandoverIntent) {
                 return stats;
             }
         }

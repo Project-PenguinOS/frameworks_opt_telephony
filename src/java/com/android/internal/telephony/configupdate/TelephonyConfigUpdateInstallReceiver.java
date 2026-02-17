@@ -23,8 +23,10 @@ import android.content.Intent;
 import android.os.FileUtils;
 import android.util.Log;
 
-import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.internal.telephony.TelephonyConfigData;
+import com.android.internal.telephony.data.DataConfig;
+import com.android.internal.telephony.data.DataConfigParser;
 import com.android.internal.telephony.data.DataUtils;
 import com.android.internal.telephony.satellite.SatelliteConfig;
 import com.android.internal.telephony.satellite.SatelliteConfigParser;
@@ -61,10 +63,8 @@ public class TelephonyConfigUpdateInstallReceiver extends ConfigUpdateInstallRec
     public static final String BACKUP_VERSION = "backup_version";
 
     private ConcurrentHashMap<Executor, Callback> mCallbackHashMap = new ConcurrentHashMap<>();
-    @NonNull
-    private final Object mConfigParserLock = new Object();
-    @GuardedBy("mConfigParserLock")
-    private ConfigParser mConfigParser;
+    @VisibleForTesting
+    protected final Map<String, ConfigParser> mConfigParsers = new ConcurrentHashMap<>();
     @NonNull
     private final ConfigUpdaterMetricsStats mConfigUpdaterMetricsStats;
 
@@ -208,69 +208,261 @@ public class TelephonyConfigUpdateInstallReceiver extends ConfigUpdateInstallRec
         return true;
     }
 
+    /**
+     * @param parser target of validation.
+     * @return {@code true} if all the config data are valid {@code false} otherwise.
+     */
+    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PRIVATE)
+    public boolean isValidDataConfig(@NonNull ConfigParser parser) {
+        Log.d(TAG, "isValidDataConfig: parser class=" + parser.getClass().getName());
+        if (!(parser instanceof DataConfigParser)) {
+            Log.e(TAG, "isValidDataConfig: parser is not DataConfigParser!");
+            return false;
+        }
+        DataConfig dataConfig = (DataConfig) parser.getConfig();
+        if (dataConfig == null) {
+            Log.e(TAG, "dataConfig is null");
+            return false;
+        }
+
+        TelephonyConfigData.DataConfigProto configData = dataConfig.getConfigData();
+        if (!configData.hasConnectionCapabilityConfigs()) {
+            Log.d(TAG, "connection_capability_configs is null");
+            return true;
+        }
+
+        TelephonyConfigData.ConnectionCapabilityConfig connectionCapabilityConfigs =
+                configData.getConnectionCapabilityConfigs();
+
+        if (connectionCapabilityConfigs.hasDefaultConnectionCapabilityConfig()) {
+            if (!isConnectionCapabilityMapValid(
+                    connectionCapabilityConfigs.getDefaultConnectionCapabilityConfig())) {
+                return false;
+            }
+        }
+
+        if (connectionCapabilityConfigs.getCarrierConnectionCapabilityConfigsCount() > 0) {
+            for (TelephonyConfigData.ConnectionCapabilityMap map :
+                    connectionCapabilityConfigs.getCarrierConnectionCapabilityConfigsList()) {
+                if (!isConnectionCapabilityMapValid(map)) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Validates the rules within a {@link TelephonyConfigData.ConnectionCapabilityMap}.
+     * Each rule string must follow the format:
+     * "NetworkCapability:ConnectionCapability:isApnRequired".
+     * <ul>
+     *     <li>NetworkCapability: An integer representing the network capability.</li>
+     *     <li>ConnectionCapability: An integer representing the connection capability.</li>
+     *     <li>isApnRequired: A boolean ("true" or "false") indicating if APN is required.</li>
+     * </ul>
+     *
+     * @param map The {@link TelephonyConfigData.ConnectionCapabilityMap} to validate.
+     * @return {@code true} if all rules in the map are valid, {@code false} otherwise.
+     */
+    private boolean isConnectionCapabilityMapValid(
+            TelephonyConfigData.ConnectionCapabilityMap map) {
+        if (map.getRulesCount() == 0) return true;
+        for (String rule : map.getRulesList()) {
+            String[] parts = rule.split(":");
+            if (parts.length != 3) {
+                Log.e(TAG, "Invalid rule format: " + rule);
+                return false;
+            }
+            try {
+                // try parsing
+                Integer.parseInt(parts[0]); // NetworkCapability
+                Integer.parseInt(parts[1]); // ConnectionCapability
+                Boolean.parseBoolean(parts[2]);  //isApnRequired
+            } catch (NumberFormatException e) {
+                Log.e(TAG, "Invalid number format in rule: " + rule);
+                return false;
+            }
+        }
+        return true;
+    }
+
     @Override
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PROTECTED)
     public void postInstall(Context context, Intent intent) {
         postInstall();
     }
 
+    /**
+     * Posts the installed config to the valid config path and notifies the config changed for each
+     * domain.
+     */
     private void postInstall() {
-        Log.d(TAG, "Telephony config is updated in file partition");
+        // Create new config parsers for all domains.
+        ConfigParser newSatelliteConfigParser =
+                getNewConfigParser(DOMAIN_SATELLITE, getContentFromContentPath(updateContent));
+        ConfigParser newDataConfigParser =
+                getNewConfigParser(DOMAIN_DATA, getContentFromContentPath(updateContent));
 
-        ConfigParser newConfigParser = getNewConfigParser(DOMAIN_SATELLITE,
-                getContentFromContentPath(updateContent));
-
-        if (newConfigParser == null) {
-            Log.e(TAG, "newConfigParser is null");
+        // Check if the configs are valid for all domains.
+        boolean isValidSatelliteConfig = isValidConfig(newSatelliteConfigParser);
+        boolean isValidDataConfig = isValidConfig(newDataConfigParser);
+        // allow the config to be installed if any of the configs is valid.
+        if (!isValidSatelliteConfig && !isValidDataConfig) {
+            Log.e(TAG, "postInstall: All configs are invalid.");
             return;
         }
 
-        if (!isValidSatelliteCarrierConfigData(newConfigParser)) {
-            Log.e(TAG, "received config data has invalid satellite carrier config data");
-            return;
+        // Replace the config parsers if the new config version is upgradeable for each domain.
+        boolean isSatelliteConfigUpdated = false;
+        boolean isDataConfigUpdated = false;
+
+        if (isValidSatelliteConfig) {
+            getInstance().mConfigParsers.compute(newSatelliteConfigParser.getDomain(),
+                    (k, oldParser) -> {
+                        if (isUpgradableVersion(oldParser, newSatelliteConfigParser)) {
+                            return newSatelliteConfigParser;
+                        }
+                        return oldParser;
+                    });
+            // Check if the parser was updated and set version for metrics.
+            if (getInstance().mConfigParsers.get(newSatelliteConfigParser.getDomain())
+                    == newSatelliteConfigParser) {
+                isSatelliteConfigUpdated = true;
+                mConfigUpdaterMetricsStats.setConfigVersion(newSatelliteConfigParser.getVersion());
+            }
         }
 
-        if (!isValidMaxAllowedDataMode(newConfigParser)) {
-            Log.e(TAG, "received config data has invalid max allowed data mode");
-            return;
+        if (isValidDataConfig) {
+            getInstance().mConfigParsers.compute(newDataConfigParser.getDomain(),
+                    (k, oldParser) -> {
+                        if (isUpgradableVersion(oldParser, newDataConfigParser)) {
+                            return newDataConfigParser;
+                        }
+                        return oldParser;
+                    });
+            // Check if the parser was updated
+            if (getInstance().mConfigParsers.get(newDataConfigParser.getDomain())
+                    == newDataConfigParser) {
+                isDataConfigUpdated = true;
+                // TODO metrics for data config
+                // mConfigUpdaterMetricsStats.setConfigVersion(DOMAIN_DATA,
+                //         newDataConfigParser.getVersion());
+            }
         }
 
-        if (!isValidSatelliteProvider(newConfigParser)) {
-            Log.e(TAG, "received config data has invalid satellite plmn list");
-            return;
-        }
-
-        synchronized (getInstance().mConfigParserLock) {
-            if (getInstance().mConfigParser != null) {
-                int updatedVersion = newConfigParser.mVersion;
-                int previousVersion = getInstance().mConfigParser.mVersion;
-                Log.d(TAG, "previous proto version is " + previousVersion
-                        + " | updated proto version is " + updatedVersion);
-
-                if (updatedVersion <= previousVersion) {
-                    Log.e(TAG, "updated proto Version [" + updatedVersion
-                            + "] is smaller than previous proto Version [" + previousVersion + "]");
+        // Copy the new config to the valid config path if the config is updated for any domain.
+        if (isSatelliteConfigUpdated || isDataConfigUpdated) {
+            if (!copySourceFileToTargetFile(NEW_CONFIG_CONTENT_PATH, VALID_CONFIG_CONTENT_PATH)) {
+                Log.e(TAG, "fail to copy to the valid satellite carrier config data");
+                if (isSatelliteConfigUpdated) {
+                    // TODO metrics for data config, currently only satellite is supported.
                     mConfigUpdaterMetricsStats.reportOemAndCarrierConfigError(
-                            SatelliteConstants.CONFIG_UPDATE_RESULT_INVALID_VERSION);
-                    return;
+                            SatelliteConstants.CONFIG_UPDATE_RESULT_IO_ERROR);
                 }
             }
-            getInstance().mConfigParser = newConfigParser;
-            mConfigUpdaterMetricsStats.setConfigVersion(getInstance().mConfigParser.getVersion());
         }
 
-        if (!getInstance().mCallbackHashMap.keySet().isEmpty()) {
-            Iterator<Executor> iterator = getInstance().mCallbackHashMap.keySet().iterator();
-            while (iterator.hasNext()) {
-                Executor executor = iterator.next();
-                getInstance().mCallbackHashMap.get(executor).onChanged(newConfigParser);
+        // Notify the config changed for each domain.
+        if (isSatelliteConfigUpdated) {
+            notifyConfigChanged(newSatelliteConfigParser);
+        }
+        if (isDataConfigUpdated) {
+            notifyConfigChanged(newDataConfigParser);
+        }
+    }
+
+    /**
+     * Notifies the config changed for each domain.
+     *
+     * @param configParser the config parser that has been changed
+     */
+    private void notifyConfigChanged(@NonNull ConfigParser configParser) {
+        if (!getInstance().mCallbackHashMap.isEmpty()) {
+            for (Map.Entry<Executor, Callback> entry : getInstance().mCallbackHashMap.entrySet()) {
+                Executor executor = entry.getKey();
+                Callback callback = entry.getValue();
+                if (callback != null) {
+                    // run callback.onChanged() on the executor thread
+                    executor.execute(() -> callback.onChanged(configParser));
+                }
             }
         }
+    }
 
-        if (!copySourceFileToTargetFile(NEW_CONFIG_CONTENT_PATH, VALID_CONFIG_CONTENT_PATH)) {
-            Log.e(TAG, "fail to copy to the valid satellite carrier config data");
-            mConfigUpdaterMetricsStats.reportOemAndCarrierConfigError(
-                    SatelliteConstants.CONFIG_UPDATE_RESULT_IO_ERROR);
+    /**
+     * Checks if the config parser for the given domain is upgradable.
+     *
+     * @param oldConfigParser the old config parser
+     * @param newConfigParser the new config parser
+     * @return {@code true} if the config parser is upgradable, {@code false} otherwise.
+     */
+    private boolean isUpgradableVersion(@Nullable ConfigParser oldConfigParser,
+            @NonNull ConfigParser newConfigParser) {
+        String domain = newConfigParser.getDomain();
+        if (oldConfigParser == null) {
+            Log.d(TAG, "domain_" + domain + " is upgradable: never been installed previously.");
+            return true;
+        }
+        int updatedVersion = newConfigParser.mVersion;
+        int previousVersion = oldConfigParser.mVersion;
+        if (updatedVersion <= previousVersion) {
+            Log.e(TAG, "domain_" + domain + " is not upgradable: updated proto Version ["
+                    + updatedVersion + "] is smaller than previous proto Version ["
+                    + previousVersion + "]");
+            if (domain.equals(DOMAIN_SATELLITE)) {
+                // TODO metrics for data config, currently only satellite is supported.
+                mConfigUpdaterMetricsStats.reportOemAndCarrierConfigError(
+                        SatelliteConstants.CONFIG_UPDATE_RESULT_INVALID_VERSION);
+            }
+            return false;
+        }
+        Log.d(TAG, "domain_" + domain + " is upgradable: previous proto version is "
+                + previousVersion + " | updated proto version is " + updatedVersion);
+        return true;
+    }
+
+    /**
+     * Checks if the config parser for the given domain is valid. If the config parser is null, it
+     * is not valid. If the config parser is not null and the config is not valid for the given
+     * domain, it is not valid. Otherwise, it is valid.
+     *
+     * @param configParser the config parser that we want to check
+     * @return {@code true} if the config parser is valid, {@code false} otherwise.
+     */
+    private boolean isValidConfig(@Nullable ConfigParser configParser) {
+        // check if configParser is null
+        if (configParser == null) {
+            Log.e(TAG, "isValidConfig: ConfigParser is null");
+            return false;
+        }
+
+        // check if configParser is valid for given domain
+        String domain = configParser.getDomain();
+        switch (domain) {
+            case DOMAIN_SATELLITE:
+                if (!isValidSatelliteCarrierConfigData(configParser)) {
+                    Log.e(TAG, "received config data has invalid satellite carrier config data");
+                    return false;
+                }
+                if (!isValidMaxAllowedDataMode(configParser)) {
+                    Log.e(TAG, "received config data has invalid max allowed data mode");
+                    return false;
+                }
+                if (!isValidSatelliteProvider(configParser)) {
+                    Log.e(TAG, "received config data has invalid satellite plmn list");
+                    return false;
+                }
+                return true;
+            case DOMAIN_DATA:
+                if (!isValidDataConfig(configParser)) {
+                    Log.e(TAG, "received config data has invalid data config");
+                    return false;
+                }
+                return true;
+            default:
+                Log.e(TAG, "Invalid domain: " + domain);
+                return false;
         }
     }
 
@@ -278,15 +470,16 @@ public class TelephonyConfigUpdateInstallReceiver extends ConfigUpdateInstallRec
     @Override
     public ConfigParser getConfigParser(String domain) {
         Log.d(TAG, "getConfigParser");
-        synchronized (getInstance().mConfigParserLock) {
-            if (getInstance().mConfigParser == null) {
-                Log.d(TAG, "CreateNewConfigParser with domain " + domain);
-                getInstance().mConfigParser = getNewConfigParser(
-                        domain, getContentFromContentPath(new File(updateDir,
-                                VALID_CONFIG_CONTENT_PATH)));
+        return getInstance().mConfigParsers.computeIfAbsent(domain, k -> {
+            Log.d(TAG, "CreateNewConfigParser with domain " + domain);
+            ConfigParser parser = getNewConfigParser(
+                    domain, getContentFromContentPath(new File(updateDir,
+                            VALID_CONFIG_CONTENT_PATH)));
+            if (parser != null && parser.getConfig() != null) {
+                return parser;
             }
-            return getInstance().mConfigParser;
-        }
+            return null;
+        });
     }
 
     /**
@@ -294,11 +487,29 @@ public class TelephonyConfigUpdateInstallReceiver extends ConfigUpdateInstallRec
      *
      * @param configParser the config parser that we have to override
      */
+    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PRIVATE)
     public void overrideConfigParser(ConfigParser configParser) {
-        Log.d(TAG, "overrideConfigParser");
-        synchronized (getInstance().mConfigParserLock) {
-            getInstance().mConfigParser = configParser;
+        if (configParser == null) {
+            Log.e(TAG, "overrideConfigParser: ConfigParser is null");
+            return;
         }
+        Log.d(TAG, "overrideConfigParser");
+        getInstance().mConfigParsers.put(configParser.getDomain(), configParser);
+    }
+
+    /**
+     * Clears the config parser for the given domain. Should be used only in tests.
+     *
+     * @param domain the domain that we have to clear the config parser
+     */
+    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PRIVATE)
+    public void clearOverriddenConfigParser(String domain) {
+        if (domain == null) {
+            Log.e(TAG, "clearOverriddenConfigParser: domain is null");
+            return;
+        }
+        Log.d(TAG, "clearOverriddenConfigParser domain_" + domain);
+        getInstance().mConfigParsers.computeIfPresent(domain, (k, v) -> null);
     }
 
     @Override
@@ -352,6 +563,8 @@ public class TelephonyConfigUpdateInstallReceiver extends ConfigUpdateInstallRec
         switch (domain) {
             case DOMAIN_SATELLITE:
                 return new SatelliteConfigParser(data);
+            case DOMAIN_DATA:
+                return new DataConfigParser(data);
             default:
                 Log.e(TAG, "DOMAIN should be specified");
                 mConfigUpdaterMetricsStats.reportOemAndCarrierConfigError(
@@ -418,9 +631,7 @@ public class TelephonyConfigUpdateInstallReceiver extends ConfigUpdateInstallRec
         }
 
         Log.d(TAG, "cleanTelephonyConfigs: resetting the config parser");
-        synchronized (getInstance().mConfigParserLock) {
-            getInstance().mConfigParser = null;
-        }
+        getInstance().mConfigParsers.clear();
         return true;
     }
 
@@ -449,19 +660,17 @@ public class TelephonyConfigUpdateInstallReceiver extends ConfigUpdateInstallRec
     }
 
     private boolean overrideVersion(int version) {
-        synchronized (getInstance().mConfigParserLock) {
-            try {
-                writeUpdate(updateDir, updateVersion,
-                        new ByteArrayInputStream(Long.toString(version).getBytes()));
-                if (getInstance().mConfigParser != null) {
-                    getInstance().mConfigParser.overrideVersion(version);
-                }
-            } catch (IOException e) {
-                Log.e(TAG, "overrideVersion: e=" + e);
-                return false;
+        try {
+            writeUpdate(updateDir, updateVersion,
+                    new ByteArrayInputStream(Long.toString(version).getBytes()));
+            for (ConfigParser parser : getInstance().mConfigParsers.values()) {
+                parser.overrideVersion(version);
             }
-            return true;
+        } catch (IOException e) {
+            Log.e(TAG, "overrideVersion: e=" + e);
+            return false;
         }
+        return true;
     }
 
     private boolean isFileExists(@NonNull String fileName) {

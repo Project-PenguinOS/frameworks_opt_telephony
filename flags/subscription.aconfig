@@ -46,15 +46,6 @@ flag {
   bug: "325045841"
 }
 
-# OWNER=jmattis TARGET=25Q2
-flag {
-  name: "subscription_plan_allow_status_and_end_date"
-  namespace: "telephony"
-  description: "Provide APIs to retrieve the status and recurrence rule info on a subscription plan"
-  bug: "357272015"
-  is_exported: true
-}
-
 # OWNER=melhuishj TARGET=25Q3
 flag {
   name: "ons_thread_consolidation"
@@ -62,18 +53,6 @@ flag {
   description: "Consolidate ONS work to a single worker thread"
   bug: "240081918"
   is_exported: false
-}
-
-# OWNER=donaldahn TARGET=26Q2
-flag {
-    name: "last_known_phone_number"
-    namespace: "telephony"
-    description: "Enables the phone number API for satellite."
-    bug: "436628415"
-    is_exported: false
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
 }
 
 # OWNER=jackyu TARGET=26Q2
@@ -91,5 +70,38 @@ flag {
     namespace: "telephony"
     description: "Adds SubscriptionInfo#isPrivateNetwork and the corresponding carrier config."
     bug: "458746638"
+    is_exported: true
+}
+
+# OWNER=melhuishj TARGET=26Q2
+flag {
+  name: "ons_handler_thread"
+  namespace: "telephony"
+  description: "Switch to using HandlerThread"
+  bug: "240081918"
+  is_exported: false
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}
+
+# OWNER=kevinching TARGET=26Q2
+flag {
+  name: "remote_sim_sub_id_set"
+  namespace: "telephony"
+  description: "Put remote SIMs in their own set instead of the slot index mapping"
+  bug: "455587208"
+  is_exported: false
+  metadata {
+      purpose: PURPOSE_BUGFIX
+  }
+}
+
+# OWNER=gargakash TARGET=26Q2
+flag {
+    name: "enable_new_display_name_apis"
+    namespace: "telephony"
+    description: "Enables the new setDisplayName and clearDisplayName SystemAPIs in SubscriptionManager"
+    bug: "455463446"
     is_exported: true
 }

@@ -159,26 +159,18 @@ public class QosCallbackTracker extends Handler {
                                     public boolean matchesLocalAddress(
                                             @NonNull InetAddress address, int prefixLength,
                                             int startPort, int endPort) {
-                                        if (mFlags.qosFilterMatchAddressRange()) {
-                                            return filter.matchesLocalPrefix(
-                                                    new IpPrefix(address, prefixLength),
-                                                    startPort, endPort);
-                                        }
-                                        return filter.matchesLocalAddress(address, startPort,
-                                                endPort);
+                                        return filter.matchesLocalPrefix(
+                                                new IpPrefix(address, prefixLength),
+                                                startPort, endPort);
                                     }
 
                                     @Override
                                     public boolean matchesRemoteAddress(
                                             @NonNull InetAddress address, int prefixLength,
                                             int startPort, int endPort) {
-                                        if (mFlags.qosFilterMatchAddressRange()) {
-                                            return filter.matchesRemotePrefix(
-                                                    new IpPrefix(address, prefixLength),
-                                                    startPort, endPort);
-                                        }
-                                        return filter.matchesRemoteAddress(address, startPort,
-                                                endPort);
+                                        return filter.matchesRemotePrefix(
+                                                new IpPrefix(address, prefixLength),
+                                                startPort, endPort);
                                     }
 
                                     @Override

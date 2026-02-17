@@ -356,8 +356,6 @@ public class DefaultPhoneNotifier implements PhoneNotifier {
 
     @Override
     public void notifySecurityAlgorithmsChanged(Phone sender, SecurityAlgorithmUpdate update) {
-        if (!mFeatureFlags.securityAlgorithmsUpdateIndications()) return;
-
         mTelephonyRegistryMgr.notifySecurityAlgorithmsChanged(sender.getPhoneId(),
                 sender.getSubId(), update);
     }
@@ -365,8 +363,6 @@ public class DefaultPhoneNotifier implements PhoneNotifier {
     @Override
     public void notifyCellularIdentifierDisclosedChanged(Phone sender,
             CellularIdentifierDisclosure disclosure) {
-        if (!mFeatureFlags.cellularIdentifierDisclosureIndications()) return;
-
         mTelephonyRegistryMgr.notifyCellularIdentifierDisclosedChanged(sender.getPhoneId(),
                 sender.getSubId(), disclosure);
     }

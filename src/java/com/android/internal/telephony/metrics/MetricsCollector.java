@@ -1146,7 +1146,8 @@ public class MetricsCollector implements StatsManager.StatsPullAtomCallback {
                 state.isIwlanCrossSim,
                 state.isNtn,
                 state.isNbIotNtn,
-                state.isOpportunistic);
+                state.isOpportunistic,
+                state.plmn);
     }
 
     private static StatsEvent buildStatsEvent(VoiceCallRatUsage usage) {
@@ -1234,7 +1235,8 @@ public class MetricsCollector implements StatsManager.StatsPullAtomCallback {
                 sms.isNtn,
                 sms.isEmergency,
                 sms.isNbIotNtn,
-                sms.pduLength);
+                sms.pduLength,
+                sms.plmn);
     }
 
     private static StatsEvent buildStatsEvent(OutgoingSms sms) {
@@ -1264,7 +1266,8 @@ public class MetricsCollector implements StatsManager.StatsPullAtomCallback {
                 sms.isNbIotNtn,
                 sms.pduLength,
                 sms.callingPackageName,
-                sms.appUid);
+                sms.appUid,
+                sms.plmn);
     }
 
     private static StatsEvent buildStatsEvent(DataCallSession dataCallSession) {
@@ -1298,7 +1301,8 @@ public class MetricsCollector implements StatsManager.StatsPullAtomCallback {
                 dataCallSession.isSatelliteTransport,
                 dataCallSession.isProvisioningProfile,
                 dataCallSession.isNbIotNtn,
-                dataCallSession.sliceCapability);
+                dataCallSession.sliceCapability,
+                dataCallSession.plmn);
     }
 
     private static StatsEvent buildStatsEvent(ImsRegistrationStats stats) {
@@ -1655,7 +1659,10 @@ public class MetricsCollector implements StatsManager.StatsPullAtomCallback {
                 stats.isNtnOnlyCarrier,
                 stats.supportedConnectionMode,
                 stats.sessionConnectionMode,
-                stats.plmn);
+                stats.plmn,
+                stats.isInCarrierRoamingNtnMode,
+                stats.carrierRoamingSatelliteEmergencyMessagingProvider,
+                stats.emergencyNumberSourceUsedInHandoverIntent);
     }
 
     private static StatsEvent buildStatsEvent(DataNetworkValidation stats) {
@@ -1717,7 +1724,9 @@ public class MetricsCollector implements StatsManager.StatsPullAtomCallback {
                 stats.batteryLevelDropPercent,
                 stats.wasChargingDuringSession,
                 stats.batteryDesignCapacityMah,
-                stats.energyConsumedNwh);
+                stats.energyConsumedNwh,
+                stats.eligibilitySource,
+                stats.isWifiConnected);
     }
 
     private static StatsEvent buildStatsEvent(CarrierRoamingSatelliteControllerStats stats) {
@@ -1739,7 +1748,9 @@ public class MetricsCollector implements StatsManager.StatsPullAtomCallback {
                 stats.countOfSessionConnectionModeAutomatic,
                 stats.countOfSessionConnectionModeManual,
                 stats.serviceDataPolicy,
-                stats.totalSessionDurationSec);
+                stats.totalSessionDurationSec,
+                stats.satelliteAttachSupported,
+                stats.eligibilitySource);
     }
 
     private static StatsEvent buildStatsEvent(SatelliteEntitlement stats) {
@@ -1754,7 +1765,8 @@ public class MetricsCollector implements StatsManager.StatsPullAtomCallback {
                 stats.entitlementServiceType,
                 stats.entitlementDataPolicy,
                 stats.supportedConnectionMode,
-                stats.httpStatusCode);
+                stats.httpStatusCode,
+                stats.triggerEvent);
     }
 
     private static StatsEvent buildStatsEvent(SatelliteConfigUpdater stats) {

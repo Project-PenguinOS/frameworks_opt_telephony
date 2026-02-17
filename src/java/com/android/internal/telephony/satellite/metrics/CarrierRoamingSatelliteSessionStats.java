@@ -16,8 +16,8 @@
 
 package com.android.internal.telephony.satellite.metrics;
 
-import static android.telephony.ims.stub.ImsRegistrationImplBase.REGISTRATION_TECH_IWLAN;
 import static android.telephony.TelephonyManager.ACTION_DATA_STALL_DETECTED;
+import static android.telephony.ims.stub.ImsRegistrationImplBase.REGISTRATION_TECH_IWLAN;
 
 import android.annotation.NonNull;
 import android.app.usage.NetworkStats;
@@ -127,9 +127,12 @@ public class CarrierRoamingSatelliteSessionStats {
     private @SatelliteConstants.SatelliteGlobalConnectType int mSupportedConnectionMode;
     private @SatelliteConstants.SatelliteSessionConnectType int mSessionConnectionMode;
     private String mPlmn;
+    private boolean mIsWifiConnected;
     private boolean mIsWifiEnabled;
     private boolean mIsWfcEnabled;
     private boolean mIsWfcRegistered;
+    private int mAccumulatedScreenOnTimeSec;
+    private long mScreenOnStartTimeMillis;
 
     private final ConnectivityManager.NetworkCallback mNetworkCallback =
             new ConnectivityManager.NetworkCallback() {
@@ -313,7 +316,8 @@ public class CarrierRoamingSatelliteSessionStats {
     public void onSessionStart(
             int carrierId, Phone phone, int[] supportedServices, int serviceDataPolicy,
             List<String> satelliteApps, int supportedConnectionMode, int sessionConnectionMode,
-            String plmn, @NonNull FeatureFlags featureFlags) {
+            String plmn, @NonNull FeatureFlags featureFlags, boolean isScreenOn,
+            boolean isWifiConnected) {
         mPhone = phone;
         mContext = mPhone.getContext();
         mCarrierId = carrierId;
@@ -339,9 +343,16 @@ public class CarrierRoamingSatelliteSessionStats {
         logd("mIsWifiEnabled: " + mIsWifiEnabled + ", mIsWfcEnabled: " + mIsWfcEnabled
                 + ", mIsWfcRegistered: " + mIsWfcRegistered);
         registerForSatelliteDataNetworkCallback();
-        if (mFeatureFlags.satelliteDataMetrics()) {
-            mPerAppDataUsageOnSessionStartMap = getPerAppSatelliteDataUsage(satelliteApps);
+        mPerAppDataUsageOnSessionStartMap = getPerAppSatelliteDataUsage(satelliteApps);
+        mAccumulatedScreenOnTimeSec = 0;
+        if (mFeatureFlags.satelliteMetricsEnhancement()) {
+            if (isScreenOn) {
+                mScreenOnStartTimeMillis = getElapsedRealtime();
+            } else {
+                mScreenOnStartTimeMillis = 0;
+            }
         }
+        mIsWifiConnected = isWifiConnected;
     }
 
     /** Log carrier roaming satellite connection start */
@@ -361,10 +372,6 @@ public class CarrierRoamingSatelliteSessionStats {
     }
 
     private void registerForSatelliteDataNetworkCallback() {
-        if (!mFeatureFlags.satelliteDataMetrics()) {
-            return;
-        }
-
         NetworkRequest.Builder builder = new NetworkRequest.Builder();
         builder.addTransportType(NetworkCapabilities.TRANSPORT_SATELLITE);
         builder.removeCapability(NetworkCapabilities.NET_CAPABILITY_NOT_BANDWIDTH_CONSTRAINED);
@@ -402,7 +409,8 @@ public class CarrierRoamingSatelliteSessionStats {
     }
 
     /** calculate total satellite data consumed at the session */
-    private long getDataUsage() {
+    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PROTECTED)
+    protected long getDataUsage() {
         if (mContext == null) {
             return 0L;
         }
@@ -581,19 +589,17 @@ public class CarrierRoamingSatelliteSessionStats {
         }
         logd("satellite data consumed at session: " + mSatelliteDataConsumedBytes);
 
-        if (mFeatureFlags.satelliteDataMetrics()) {
-            Map<String, Long> perAppDataUsageOnSessionEndMap = getPerAppSatelliteDataUsage(
-                    satelliteApps);
-            if (!perAppDataUsageOnSessionEndMap.isEmpty()) {
-                Map<String, Long> currSatelliteSessionPerAppDataUsageMap =
-                        computePerAppSatelliteDataUsageWithSession(perAppDataUsageOnSessionEndMap);
-                Map<String, Long> top5PackagesWithMaxDataMap =
-                        findTopNPackagesWithMaxData(currSatelliteSessionPerAppDataUsageMap);
-                logd("top 5 satellite data usage apps:" + top5PackagesWithMaxDataMap);
-                updatePerAppDataConsumedMaptoArray(top5PackagesWithMaxDataMap);
-            } else {
-                loge("per app satellite consumed array is empty");
-            }
+        Map<String, Long> perAppDataUsageOnSessionEndMap = getPerAppSatelliteDataUsage(
+                satelliteApps);
+        if (!perAppDataUsageOnSessionEndMap.isEmpty()) {
+            Map<String, Long> currSatelliteSessionPerAppDataUsageMap =
+                    computePerAppSatelliteDataUsageWithSession(perAppDataUsageOnSessionEndMap);
+            Map<String, Long> top5PackagesWithMaxDataMap =
+                    findTopNPackagesWithMaxData(currSatelliteSessionPerAppDataUsageMap);
+            logd("top 5 satellite data usage apps:" + top5PackagesWithMaxDataMap);
+            updatePerAppDataConsumedMaptoArray(top5PackagesWithMaxDataMap);
+        } else {
+            loge("per app satellite consumed array is empty");
         }
 
         if (mSumOfDownlinkBandwidthKbps > 0 && mCountOfDataConnections > 0) {
@@ -729,9 +735,6 @@ public class CarrierRoamingSatelliteSessionStats {
     }
 
     private void resetSatelliteDataState() {
-        if (!mFeatureFlags.satelliteDataMetrics()) {
-            return;
-        }
         deregisterSatelliteDataNetworkCallback();
         Arrays.fill(mLastFailCauses, 0);
         mFailCauseIndex = 0;
@@ -830,6 +833,7 @@ public class CarrierRoamingSatelliteSessionStats {
             satelliteConnectionGapMaxSec = Collections.max(connectionGapList);
         }
         boolean isMultiSim = mSubscriptionManagerService.getActiveSubIdList(true).length > 1;
+        updateFinalScreenOnTime();
 
         SatelliteStats.CarrierRoamingSatelliteSessionParams params =
                 new SatelliteStats.CarrierRoamingSatelliteSessionParams.Builder()
@@ -872,8 +876,12 @@ public class CarrierRoamingSatelliteSessionStats {
                         .setSatelliteSupportedUids(mSatelliteAppsUidArray)
                         .setPerAppSatelliteDataConsumedBytes(mPerAppSatelliteDataConsumedBytesArray)
                         .setIsWifiEnabled(mIsWifiEnabled)
+                        .setIsWifiConnected(mIsWifiConnected)
                         .setIsWfcEnabled(mIsWfcEnabled)
                         .setIsWfcRegistered(mIsWfcRegistered)
+                        .setEligibilitySource(
+                                SatelliteServiceUtils.getSatelliteEligibilitySource(subId))
+                        .setScreenOnTimeSec(mAccumulatedScreenOnTimeSec)
                         .build();
         SatelliteStats.getInstance().onCarrierRoamingSatelliteSessionMetrics(params);
         // Add session duration time to session controller atom when session ends.
@@ -903,8 +911,10 @@ public class CarrierRoamingSatelliteSessionStats {
         mRsrpList = new ArrayList<>();
         mRssnrList = new ArrayList<>();
         mIsWifiEnabled = false;
+        mIsWifiConnected = false;
         mIsWfcEnabled = false;
         mIsWfcRegistered = false;
+        mAccumulatedScreenOnTimeSec = 0;
         logd("initializeParams");
     }
 
@@ -992,7 +1002,8 @@ public class CarrierRoamingSatelliteSessionStats {
         return (int) (getElapsedRealtime() / 1000);
     }
 
-    private long getElapsedRealtime() {
+    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PRIVATE)
+    protected long getElapsedRealtime() {
         return SystemClock.elapsedRealtime();
     }
 
@@ -1069,6 +1080,52 @@ public class CarrierRoamingSatelliteSessionStats {
 
         public boolean isValid() {
             return mEndTime > mStartTime && mStartTime > 0;
+        }
+    }
+
+    /**
+     * Updates the wifi-connected state. If Wi-Fi has been connected at least once
+     * since the current session start, the state remains true.
+     */
+    public void onWifiConnectivityStateChanged(boolean isWifiConnected) {
+        if (isWifiConnected) {
+            mIsWifiConnected = true;
+        }
+        logd("onWifiConnectivityStateChanged: isWifiConnected=" + isWifiConnected
+                + ", mIsWifiConnected=" + mIsWifiConnected);
+    }
+
+    /**
+     * Updates the screen-on time for this specific instance.
+     */
+    public void onScreenStateChanged(boolean isScreenOn) {
+        if (!mFeatureFlags.satelliteMetricsEnhancement()) {
+            logd("onScreenStateChanged: satelliteMetricsEnhancement is not enabled, ignore.");
+            return;
+        }
+
+        if (isScreenOn && mScreenOnStartTimeMillis == 0) {
+            mScreenOnStartTimeMillis = getElapsedRealtime();
+        } else if (!isScreenOn && mScreenOnStartTimeMillis > 0) {
+            long durationMillis = getElapsedRealtime() - mScreenOnStartTimeMillis;
+            mAccumulatedScreenOnTimeSec += (int) (durationMillis / 1000);
+            mScreenOnStartTimeMillis = 0;
+        }
+    }
+
+    /**
+     * Captures the final duration of screen-on time if the screen is still active
+     * when the session ends.
+     * <p>
+     * If {@link #mScreenOnStartTimeMillis} is greater than 0, it indicates the screen is currently
+     * ON. This method calculates the duration from the last screen-on event to the current time and
+     * adds it to the total accumulated time to ensure the reported metrics are complete.
+     */
+    private void updateFinalScreenOnTime() {
+        if (mScreenOnStartTimeMillis > 0) {
+            long durationMillis = getElapsedRealtime() - mScreenOnStartTimeMillis;
+            mAccumulatedScreenOnTimeSec += (int) (durationMillis / 1000);
+            mScreenOnStartTimeMillis = 0;
         }
     }
 
