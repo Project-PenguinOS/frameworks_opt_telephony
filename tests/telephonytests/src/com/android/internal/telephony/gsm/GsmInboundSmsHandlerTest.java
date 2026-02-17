@@ -183,7 +183,6 @@ public class GsmInboundSmsHandlerTest extends TelephonyTest {
         ContentResolver resolver = mContext.getContentResolver();
         mContentResolver = Mockito.spy(resolver);
 
-        when(mFeatureFlags.smsMmsDeliverBroadcastsRedirectToMainUser()).thenReturn(true);
         doReturn(true).when(mTelephonyManager).getSmsReceiveCapableForPhone(anyInt(), anyBoolean());
         doReturn(true).when(mSmsStorageMonitor).isStorageAvailable();
 
@@ -416,19 +415,11 @@ public class GsmInboundSmsHandlerTest extends TelephonyTest {
         // New message notification should be shown.
         NotificationManager notificationManager =
                 (NotificationManager) mContext.getSystemService(Context.NOTIFICATION_SERVICE);
-        if (mFeatureFlags.smsMmsDeliverBroadcastsRedirectToMainUser()) {
-            verify(notificationManager).notifyAsUser(
-                    eq(InboundSmsHandler.NOTIFICATION_TAG),
-                    eq(InboundSmsHandler.NOTIFICATION_ID_NEW_MESSAGE),
-                    any(Notification.class),
-                    eq(MOCKED_MAIN_USER));
-        } else {
-            verify(notificationManager).notify(
-                    eq(InboundSmsHandler.NOTIFICATION_TAG),
-                    eq(InboundSmsHandler.NOTIFICATION_ID_NEW_MESSAGE),
-                    any(Notification.class));
-
-        }
+        verify(notificationManager).notifyAsUser(
+                eq(InboundSmsHandler.NOTIFICATION_TAG),
+                eq(InboundSmsHandler.NOTIFICATION_ID_NEW_MESSAGE),
+                any(Notification.class),
+                eq(MOCKED_MAIN_USER));
     }
 
     @Test
@@ -455,19 +446,11 @@ public class GsmInboundSmsHandlerTest extends TelephonyTest {
         // No new message notification should be shown.
         NotificationManager notificationManager =
                 (NotificationManager) mContext.getSystemService(Context.NOTIFICATION_SERVICE);
-        if (mFeatureFlags.smsMmsDeliverBroadcastsRedirectToMainUser()) {
-            verify(notificationManager, never()).notifyAsUser(
-                    eq(InboundSmsHandler.NOTIFICATION_TAG),
-                    eq(InboundSmsHandler.NOTIFICATION_ID_NEW_MESSAGE),
-                    any(Notification.class),
-                    eq(MOCKED_MAIN_USER));
-        } else {
-            verify(notificationManager, never()).notify(
-                    eq(InboundSmsHandler.NOTIFICATION_TAG),
-                    eq(InboundSmsHandler.NOTIFICATION_ID_NEW_MESSAGE),
-                    any(Notification.class));
-
-        }
+        verify(notificationManager, never()).notifyAsUser(
+                eq(InboundSmsHandler.NOTIFICATION_TAG),
+                eq(InboundSmsHandler.NOTIFICATION_ID_NEW_MESSAGE),
+                any(Notification.class),
+                eq(MOCKED_MAIN_USER));
     }
 
     @Test
@@ -1118,16 +1101,8 @@ public class GsmInboundSmsHandlerTest extends TelephonyTest {
         SmsBroadcastUndelivered.initialize(
                 mContext, mGsmInboundSmsHandler, mCdmaInboundSmsHandler, mFeatureFlags);
 
-        if (mFeatureFlags.smsMmsDeliverBroadcastsRedirectToMainUser()) {
-            verify(mContext).registerReceiverAsUser(any(BroadcastReceiver.class),
-                    any(UserHandle.class), any(IntentFilter.class), any(), any());
-        } else {
-            // verify that a broadcast receiver is registered for current user (user == null) based
-            // on implementation in ContextFixture. registerReceiver may be called more than once
-            // (for example by GsmInboundSmsHandler if TEST_MODE is true)
-            verify(mContext, atLeastOnce()).registerReceiver(any(BroadcastReceiver.class),
-                    any(IntentFilter.class));
-        }
+        verify(mContext).registerReceiverAsUser(any(BroadcastReceiver.class),
+                any(UserHandle.class), any(IntentFilter.class), any(), any());
 
         // wait for ScanRawTableThread
         waitForMs(100);

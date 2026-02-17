@@ -3105,9 +3105,6 @@ public abstract class SMSDispatcher extends Handler {
             boolean persistMessage, int priority, int validityPeriod, boolean isForVvm,
             long messageId, int messageRef, boolean skipShortCodeCheck,
             long uniqueMessageId, int uid) {
-        if (!Flags.smsMmsDeliverBroadcastsRedirectToMainUser()) {
-            callingUser = UserHandle.getUserHandleForUid(Binder.getCallingUid()).getIdentifier();
-        }
 
         // Get package info via packagemanager
         PackageManager pm = mContext.createContextAsUser(UserHandle.of(callingUser), 0)
