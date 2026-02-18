@@ -139,3 +139,14 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+# OWNER=gargakash TARGET=26Q3
+flag {
+    name: "fix_pin_storage_deadlock"
+    namespace: "telephony"
+    description: "Fixes deadlock between PinStorage and UiccController by narrowing synchronization scope"
+    bug: "464075332"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
