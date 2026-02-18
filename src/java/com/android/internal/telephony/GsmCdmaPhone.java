@@ -409,7 +409,7 @@ public class GsmCdmaPhone extends Phone {
         if (hasCalling()) {
             loadTtyMode();
 
-            CallManager.getInstance().registerPhone(this);
+            CallManager.getInstance(context).registerPhone(this);
         }
 
         mSubscriptionsChangedListener =

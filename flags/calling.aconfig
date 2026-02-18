@@ -96,6 +96,17 @@ flag {
     }
 }
 
+# OWNER=pmadapurmath TARGET=26Q2
+flag {
+    name: "allow_multiple_incoming_for_dsda"
+    namespace: "telephony"
+    description: "Modify logic in CallManager to allow multiple ringing connections on different phones so that the call can be passed through to Telecom and be marked as a missed call."
+    bug:"484342500"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
 # OWNER=ysnam TARGET=26Q2
 flag {
   name: "skip_private_network_for_telecom_account"
