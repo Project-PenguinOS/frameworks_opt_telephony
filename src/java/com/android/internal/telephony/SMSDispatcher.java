@@ -96,12 +96,10 @@ import com.android.internal.telephony.analytics.TelephonyAnalytics;
 import com.android.internal.telephony.analytics.TelephonyAnalytics.SmsMmsAnalytics;
 import com.android.internal.telephony.cdma.sms.UserData;
 import com.android.internal.telephony.flags.FeatureFlags;
-import com.android.internal.telephony.flags.Flags;
 import com.android.internal.telephony.satellite.SatelliteController;
 import com.android.internal.telephony.subscription.SubscriptionInfoInternal;
 import com.android.internal.telephony.subscription.SubscriptionManagerService;
 import com.android.internal.telephony.uicc.IccRecords;
-import com.android.internal.telephony.uicc.IccUtils;
 import com.android.internal.telephony.util.ArrayUtils;
 import com.android.internal.telephony.util.TelephonyUtils;
 import com.android.telephony.Rlog;
@@ -110,6 +108,7 @@ import java.io.FileDescriptor;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Random;
@@ -1681,7 +1680,10 @@ public abstract class SMSDispatcher extends Handler {
                     if (tracker.mMessageUri != null) {
                         Rlog.d(TAG, "sendText: requesting message upgrade via DMA.");
                         MessageUpgradeController.upgradeMessage(
-                                mContext, callingUser, tracker.mMessageUri, Runnable::run,
+                                mContext, callingUser, tracker.mMessageUri,
+                                Collections.singletonList(tracker.mSentIntent),
+                                Collections.singletonList(tracker.mDeliveryIntent),
+                                Runnable::run,
                                 status -> {
                                 if (status != UPGRADE_STATUS_ACCEPTED) {
                                     Rlog.d(TAG, "sendText: message upgrade request failed.");
@@ -1974,7 +1976,10 @@ public abstract class SMSDispatcher extends Handler {
         if (upgradeMessage && trackers[msgCount - 1].mMessageUri != null) {
             Rlog.d(TAG, "sendMultipartText: requesting message upgrade via DMA.");
             MessageUpgradeController.upgradeMessage(
-                    mContext, callingUser, trackers[msgCount - 1].mMessageUri, Runnable::run,
+                    mContext, callingUser, trackers[msgCount - 1].mMessageUri,
+                    sentIntents,
+                    deliveryIntents,
+                    Runnable::run,
                     status -> {
                         if (status != UPGRADE_STATUS_ACCEPTED) {
                             Rlog.d(TAG, "sendText: message upgrade request failed.");
