@@ -524,6 +524,7 @@ public class RadioIndication extends IRadioIndication.Stub {
                 mRil.riljLog("newSecureSms: secure sms feature is disabled.");
             }
             newSms(indicationType, pdu);
+            return;
         }
         mRil.processIndication(HAL_SERVICE_RADIO, indicationType);
 
