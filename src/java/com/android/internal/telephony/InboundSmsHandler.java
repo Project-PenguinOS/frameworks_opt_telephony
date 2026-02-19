@@ -1277,8 +1277,7 @@ public abstract class InboundSmsHandler extends StateMachine {
     }
 
     private boolean isMainUserUnlocked() {
-        UserHandle mainUser = mFeatureFlags.smsMmsDeliverBroadcastsRedirectToMainUser() ?
-                mUserManager.getMainUser() : null;
+        UserHandle mainUser = mUserManager.getMainUser();
         if (mainUser != null) {
             return mUserManager.isUserUnlocked(mainUser);
         }
@@ -1308,8 +1307,7 @@ public abstract class InboundSmsHandler extends StateMachine {
                 .setChannelId(NotificationChannelController.CHANNEL_ID_SMS);
         NotificationManager mNotificationManager =
             (NotificationManager) mContext.getSystemService(Context.NOTIFICATION_SERVICE);
-        UserHandle mainUser = mFeatureFlags.smsMmsDeliverBroadcastsRedirectToMainUser() ?
-                mUserManager.getMainUser() : null;
+        UserHandle mainUser = mUserManager.getMainUser();
         if (mainUser != null) {
             mNotificationManager.notifyAsUser(
                     NOTIFICATION_TAG, NOTIFICATION_ID_NEW_MESSAGE, mBuilder.build(), mainUser);
@@ -1484,8 +1482,7 @@ public abstract class InboundSmsHandler extends StateMachine {
                 } else {
                     long messageId = resultReceiver != null
                             ? resultReceiver.mInboundSmsTracker.getMessageId() : -1;
-                    if (mFeatureFlags.smsMmsDeliverBroadcastsRedirectToMainUser()
-                            && handle.equals(mainUser)) {
+                    if (handle.equals(mainUser)) {
                         logeWithLocalLog("dispatchIntent: MAIN user is not running", messageId);
                     } else if (handle.equals(UserHandle.SYSTEM)) {
                         logeWithLocalLog("dispatchIntent: SYSTEM user is not running", messageId);
@@ -1788,11 +1785,7 @@ public abstract class InboundSmsHandler extends StateMachine {
 
     @SuppressLint("MissingPermission")
     private  boolean isMainUser(int userId) {
-        if (mFeatureFlags.smsMmsDeliverBroadcastsRedirectToMainUser()) {
-            return userId == mUserManager.getMainUser().getIdentifier();
-        } else {
-            return userId == UserHandle.SYSTEM.getIdentifier();
-        }
+        return userId == mUserManager.getMainUser().getIdentifier();
     }
 
     /**
@@ -2180,15 +2173,9 @@ public abstract class InboundSmsHandler extends StateMachine {
                 String mimeType = intent.getType();
 
                 setWaitingForIntent(intent);
-                if (mFeatureFlags.smsMmsDeliverBroadcastsRedirectToMainUser()) {
-                    dispatchIntent(intent, WapPushOverSms.getPermissionForType(mimeType),
-                            WapPushOverSms.getAppOpsStringPermissionForIntent(mimeType), options,
-                            this, mUserManager.getMainUser(), subId);
-                } else {
-                    dispatchIntent(intent, WapPushOverSms.getPermissionForType(mimeType),
-                            WapPushOverSms.getAppOpsStringPermissionForIntent(mimeType), options,
-                            this, UserHandle.SYSTEM, subId);
-                }
+                dispatchIntent(intent, WapPushOverSms.getPermissionForType(mimeType),
+                        WapPushOverSms.getAppOpsStringPermissionForIntent(mimeType), options,
+                        this, mUserManager.getMainUser(), subId);
             } else {
                 // Now that the intents have been deleted we can clean up the PDU data.
                 if (!Intents.DATA_SMS_RECEIVED_ACTION.equals(action)
