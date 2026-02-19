@@ -41,6 +41,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.nullable;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.never;
@@ -484,5 +485,37 @@ public final class ImsNrSaModeHandlerTest extends TelephonyTest {
 
         // NR SA mode should be re-enabled.
         assertTrue(mSimulatedCommands.isN1ModeEnabled());
+    }
+
+    @Test
+    public void testSetNrSaDisablePolicy_CleanupWhenNotSupportedOrUnavailable() {
+        // 1. Setup with valid config (NR SA supported, WFC available)
+        sendCarrierConfigChanged(NR_SA_DISABLE_POLICY_WFC_ESTABLISHED,
+                NR_SA_DISABLE_POLICY_NONE, true, true, true);
+
+        // Verify registration and capture the handler
+        verify(mImsPhone).registerForPreciseCallStateChanged(
+                mPreciseCallStateHandlerCaptor.capture(), anyInt(), any());
+        Handler handler = mPreciseCallStateHandlerCaptor.getValue();
+
+        // 2. Update config: NR SA NOT supported
+        // This triggers the code block: if (!isNrSaSupported || !isWfcAvailable) ...
+        sendCarrierConfigChanged(NR_SA_DISABLE_POLICY_WFC_ESTABLISHED,
+                NR_SA_DISABLE_POLICY_NONE, false, true, true);
+
+        // Verify unregistration
+        verify(mImsPhone).unregisterForPreciseCallStateChanged(eq(handler));
+
+        // 3. Reset to valid config
+        sendCarrierConfigChanged(NR_SA_DISABLE_POLICY_WFC_ESTABLISHED,
+                NR_SA_DISABLE_POLICY_NONE, true, true, true);
+
+        // 4. Update config: WFC NOT available
+        // This triggers the code block: if (!isNrSaSupported || !isWfcAvailable) ...
+        sendCarrierConfigChanged(NR_SA_DISABLE_POLICY_WFC_ESTABLISHED,
+                NR_SA_DISABLE_POLICY_NONE, true, false, true);
+
+        // Verify unregistration again (total 2 times)
+        verify(mImsPhone, times(2)).unregisterForPreciseCallStateChanged(eq(handler));
     }
 }

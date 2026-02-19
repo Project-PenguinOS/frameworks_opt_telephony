@@ -386,6 +386,7 @@ public class ImsNrSaModeHandler extends Handler {
             if (!isNrSaSupported || !isWfcAvailable) {
                 mNormalCriteria = null;
                 mEmergencyCriteria = null;
+                unregisterForPreciseCallStateChanges();
                 return;
             }
 
