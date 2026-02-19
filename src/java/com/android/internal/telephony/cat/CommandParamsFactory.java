@@ -877,7 +877,19 @@ public class CommandParamsFactory extends Handler {
             TextMessage destAddr = new TextMessage();
             // Obtains the destination Address.
             destAddr.text = smsMessage.getRecipientAddress();
-            mCmdParams = new SendSMSParams(cmdDet, smsText, destAddr, displayTextParams);
+
+            byte[] rawValue = ctlvTpdu.getRawValue();
+            int valueIndex = ctlvTpdu.getValueIndex();
+            int length = ctlvTpdu.getLength();
+            byte[] rawTpdu = new byte[length];
+            try {
+                System.arraycopy(rawValue, valueIndex, rawTpdu, 0, length);
+            } catch (IndexOutOfBoundsException e) {
+                CatLog.d(this, "processSMSEventNotify: Error copying rawTpdu: " + e);
+                rawTpdu = null;
+            }
+
+            mCmdParams = new SendSMSParams(cmdDet, smsText, destAddr, displayTextParams, rawTpdu);
             return false;
         }
         return true;

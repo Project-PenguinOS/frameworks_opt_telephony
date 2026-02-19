@@ -16,18 +16,27 @@
 
 package com.android.internal.telephony.cat;
 
-class SendSMSParams extends CommandParams {
+import android.annotation.Nullable;
+
+public class SendSMSParams extends CommandParams {
 
     TextMessage mTextSmsMsg;
     TextMessage mDestAddress;
     DisplayTextParams mDisplayText;
+    @Nullable byte[] mRawTpdu;
 
-    SendSMSParams(CommandDetails cmdDet, TextMessage textMsg, TextMessage destAddress,
-            DisplayTextParams displayText) {
+    public SendSMSParams(CommandDetails cmdDet, TextMessage textMsg, TextMessage destAddress,
+            DisplayTextParams displayText, @Nullable byte[] rawTpdu) {
         super(cmdDet);
         mTextSmsMsg = textMsg;
         mDestAddress = destAddress;
         mDisplayText = displayText;
+        mRawTpdu = rawTpdu;
+    }
+
+    public SendSMSParams(CommandDetails cmdDet, TextMessage textMsg, TextMessage destAddress,
+            DisplayTextParams displayText) {
+        this(cmdDet, textMsg, destAddress, displayText, null);
     }
 
 }

@@ -35,12 +35,15 @@ import static org.mockito.Mockito.when;
 
 import android.app.Activity;
 import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
 import android.os.AsyncResult;
 import android.os.Message;
 import android.os.UserHandle;
 import android.telephony.SmsManager;
 import android.telephony.SmsMessage;
+import android.telephony.SubscriptionInfo;
+import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyManager;
 import android.telephony.ims.feature.ImsFeature;
 import android.testing.AndroidTestingRunner;
@@ -219,13 +222,25 @@ public class CATServiceTest extends TelephonyTest {
     }
 
     @Test
-    public void testSendSTKSmsViaCatService() {
-        CommandParams cmdPrms = new CommandParams(mCommandDetails);
+    public void testSendSTKSmsViaCatService() throws Exception {
+        TextMessage textMsg = createTextMessage();
+        textMsg.text = "test";
+        TextMessage destAddr = createTextMessage();
+        destAddr.text = "12345";
+        SendSMSParams cmdPrms = new SendSMSParams(mCommandDetails, textMsg, destAddr, null,
+                mRawdata);
+
         when(mProxyController.getSmsController()).thenReturn(mSmsController);
-        mCatService.sendStkSms("test", "12345", 1, cmdPrms, mProxyController);
-        verify(mSmsController, Mockito.times(1)).sendTextForSubscriber(anyInt(),
-                anyString(), nullable(String.class), anyString(), nullable(String.class),
-                anyString(), Mockito.any(), any(), eq(false), anyLong(), eq(true), eq(true));
+        replaceInstance(ProxyController.class, "sProxyController", null, mProxyController);
+
+        SubscriptionManager sm = mContext.getSystemService(SubscriptionManager.class);
+        SubscriptionInfo subInfo = mock(SubscriptionInfo.class);
+        doReturn(1).when(subInfo).getSubscriptionId();
+        doReturn(subInfo).when(sm).getActiveSubscriptionInfoForSimSlotIndex(anyInt());
+
+        mCatService.sendStkSms(cmdPrms);
+        verify(mSmsController, Mockito.times(1)).sendRawPduForSubscriber(anyInt(),
+                anyString(), anyString(), any(byte[].class), any(), any());
     }
 
     @Test
@@ -236,10 +251,23 @@ public class CATServiceTest extends TelephonyTest {
     }
 
     @Test
-    public void testSkipFdnCheckforSTKSmsViaCatService() {
-        CommandParams cmdPrms = new CommandParams(mCommandDetails);
+    public void testSkipFdnCheckforSTKSmsViaCatService() throws Exception {
+        TextMessage textMsg = createTextMessage();
+        textMsg.text = "test";
+        TextMessage destAddr = createTextMessage();
+        destAddr.text = "12345";
+        SendSMSParams cmdPrms = new SendSMSParams(mCommandDetails, textMsg, destAddr, null,
+                mRawdata);
+
         when(mProxyController.getSmsController()).thenReturn(mSmsController);
-        mCatService.sendStkSms("test", "12345", 1, cmdPrms, mProxyController);
+        replaceInstance(ProxyController.class, "sProxyController", null, mProxyController);
+
+        SubscriptionManager sm = mContext.getSystemService(SubscriptionManager.class);
+        SubscriptionInfo subInfo = mock(SubscriptionInfo.class);
+        doReturn(1).when(subInfo).getSubscriptionId();
+        doReturn(subInfo).when(sm).getActiveSubscriptionInfoForSimSlotIndex(anyInt());
+
+        mCatService.sendStkSms(cmdPrms);
         verify(mSmsController, Mockito.times(0)).isNumberBlockedByFDN(1, "12345",
                 "com.android.internal.telephony");
     }
@@ -391,5 +419,16 @@ public class CATServiceTest extends TelephonyTest {
                 eq(UserHandle.ALL), eq(AppInterface.STK_PERMISSION));
         assertThat(captorIntent.getAllValues().stream().map(Intent::getAction).toList())
                 .doesNotContain(TelephonyManager.ACTION_STK_SETUP_EVENT_LIST);
+    }
+
+    private TextMessage createTextMessage() {
+        try {
+            java.lang.reflect.Constructor<TextMessage> ctor =
+                    TextMessage.class.getDeclaredConstructor();
+            ctor.setAccessible(true);
+            return ctor.newInstance();
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to instantiate TextMessage", e);
+        }
     }
 }
