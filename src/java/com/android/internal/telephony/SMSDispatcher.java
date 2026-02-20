@@ -1673,15 +1673,15 @@ public abstract class SMSDispatcher extends Handler {
                     skipShortCodeCheck, uniqueMessageId, uid);
 
             if (mFeatureFlags.messagePromotion() && persistMessage) {
-                MessageUpgradeController upgradeController = getMessageUpgradeControllerForUser(
-                        mContext, callingUser);
-                boolean upgradeMessage = upgradeController != null
-                        && upgradeController.isMessageUpgradeSupportedAndNotDma(callingPkg);
+                boolean upgradeMessage =
+                        MessageUpgradeController.isMessageUpgradeSupportedForPackage(
+                                mContext, callingUser, callingPkg);
                 if (upgradeMessage) {
                     tracker.persistPendingMessageIfRequired(mContext);
                     if (tracker.mMessageUri != null) {
                         Rlog.d(TAG, "sendText: requesting message upgrade via DMA.");
-                        upgradeController.upgradeMessage(tracker.mMessageUri, Runnable::run,
+                        MessageUpgradeController.upgradeMessage(
+                                mContext, callingUser, tracker.mMessageUri, Runnable::run,
                                 status -> {
                                 if (status != UPGRADE_STATUS_ACCEPTED) {
                                     Rlog.d(TAG, "sendText: message upgrade request failed.");
@@ -1707,19 +1707,6 @@ public abstract class SMSDispatcher extends Handler {
             Rlog.e(TAG, "SmsDispatcher.sendText(): getSubmitPdu() returned null "
                     + SmsController.formatCrossStackMessageId(messageId));
             triggerSentIntentForFailure(sentIntent);
-        }
-    }
-
-    private MessageUpgradeController getMessageUpgradeControllerForUser(
-            Context context, int callingUser) {
-        try {
-            // Create a context for the specific user.
-            Context userContext = context.createPackageContextAsUser(
-                    context.getPackageName(), 0, UserHandle.of(callingUser));
-            return new MessageUpgradeController(userContext);
-        } catch (PackageManager.NameNotFoundException e) {
-            Rlog.e(TAG, "Could not create MessageUpgradeController for user " + callingUser, e);
-            return null;
         }
     }
 
@@ -1928,11 +1915,9 @@ public abstract class SMSDispatcher extends Handler {
 
         // Check if the message should be upgraded and send by DMA.
         boolean upgradeMessage = false;
-        MessageUpgradeController upgradeController = null;
         if (mFeatureFlags.messagePromotion() && persistMessage) {
-            upgradeController = getMessageUpgradeControllerForUser(mContext, callingUser);
-            upgradeMessage = upgradeController != null
-                    && upgradeController.isMessageUpgradeSupportedAndNotDma(callingPkg);
+            upgradeMessage = MessageUpgradeController.isMessageUpgradeSupportedForPackage(
+                    mContext, callingUser, callingPkg);
         }
 
         for (int i = 0; i < msgCount; i++) {
@@ -1986,10 +1971,10 @@ public abstract class SMSDispatcher extends Handler {
             }
         }
 
-        if (upgradeMessage && trackers[msgCount - 1].mMessageUri != null
-                && upgradeController != null) {
+        if (upgradeMessage && trackers[msgCount - 1].mMessageUri != null) {
             Rlog.d(TAG, "sendMultipartText: requesting message upgrade via DMA.");
-            upgradeController.upgradeMessage(trackers[msgCount - 1].mMessageUri, Runnable::run,
+            MessageUpgradeController.upgradeMessage(
+                    mContext, callingUser, trackers[msgCount - 1].mMessageUri, Runnable::run,
                     status -> {
                         if (status != UPGRADE_STATUS_ACCEPTED) {
                             Rlog.d(TAG, "sendText: message upgrade request failed.");
