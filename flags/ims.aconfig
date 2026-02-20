@@ -130,3 +130,14 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+# OWNER=arunrajms TARGET=26Q3
+flag {
+    name: "enable_vonr_check"
+    namespace: "telephony"
+    description: "This flag enables checking KEY_VONR_ENABLED_BOOL before enabling VoNR capability in ImsManager."
+    bug: "476375119"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
