@@ -223,6 +223,49 @@ public class SmsController extends ISmsImplBase {
         }
     }
 
+    /**
+     * Send a raw SMS PDU. Intended for STK App use only.
+     *
+     * @param subId Subscription Id
+     * @param callingPackage the package name of the caller
+     * @param destAddr the address to send the message to
+     * @param pdu the raw SMS PDU to send
+     * @param sentIntent if not NULL this <code>PendingIntent</code> is
+     *  broadcast when the message is successfully sent, or failed.
+     *  The result code will be <code>Activity.RESULT_OK</code> for success, or relevant errors
+     *  the sentIntent may include the extra "errorCode" containing a radio technology specific
+     *  value, generally only useful for troubleshooting.
+     * @param deliveryIntent if not NULL this <code>PendingIntent</code> is
+     *  broadcast when the message is delivered to the recipient.  The
+     *  raw pdu of the status report is in the extended data ("pdu").
+     *
+     * @hide
+     */
+    @VisibleForTesting
+    public void sendRawPduForSubscriber(int subId, String callingPackage, String destAddr,
+            byte[] pdu, PendingIntent sentIntent, PendingIntent deliveryIntent) {
+        mContext.enforceCallingOrSelfPermission(android.Manifest.permission.SEND_SMS,
+                "Sending SMS message");
+        if (callingPackage == null) {
+            callingPackage = getCallingPackage();
+        }
+        if (pdu == null) {
+            Rlog.e(LOG_TAG, "sendRawPduForSubscriber: pdu is null");
+            sendErrorInPendingIntent(sentIntent, SmsManager.RESULT_ERROR_NULL_PDU);
+            return;
+        }
+
+        IccSmsInterfaceManager iccSmsIntMgr = getIccSmsInterfaceManager(subId);
+        if (iccSmsIntMgr != null) {
+            iccSmsIntMgr.sendRawPdu(callingPackage, Binder.getCallingUserHandle().getIdentifier(),
+                    destAddr, pdu, sentIntent, deliveryIntent, Binder.getCallingUid());
+        } else {
+            Rlog.e(LOG_TAG, "sendRawPduForSubscriber iccSmsIntMgr is null for Subscription: "
+                    + subId);
+            sendErrorInPendingIntent(sentIntent, SmsManager.RESULT_ERROR_GENERIC_FAILURE);
+        }
+    }
+
     private void sendDataForSubscriberWithSelfPermissionsInternal(int subId, String callingPackage,
             int callingUser, String callingAttributionTag, String destAddr, String scAddr,
             int destPort, byte[] data, PendingIntent sentIntent, PendingIntent deliveryIntent,

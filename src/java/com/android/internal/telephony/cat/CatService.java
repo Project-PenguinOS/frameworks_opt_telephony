@@ -533,6 +533,10 @@ public class CatService extends Handler implements AppInterface {
                  * config_stk_sms_send_support is true and the SMS should be sent by framework
                  */
                 if (cmdParams instanceof SendSMSParams) {
+                    if (Flags.supportStkSendRawPduSms()) {
+                        sendStkSms((SendSMSParams) cmdParams);
+                        return;
+                    }
                     String text = null, destAddr = null;
                     if (((SendSMSParams) cmdParams).mTextSmsMsg != null) {
                         text = ((SendSMSParams) cmdParams).mTextSmsMsg.text;
@@ -688,6 +692,55 @@ public class CatService extends Handler implements AppInterface {
         smsController.sendTextForSubscriber(subId, mContext.getOpPackageName(),
                 mContext.getAttributionTag(), destAddr, null, text, sentPendingIntent,
                 deliveryPendingIntent, false, 0L, true, true);
+    }
+
+    /**
+     * Used to send STK based sms via CATService
+     * @param cmdParams Send SMS Command Params
+     * @hide
+     */
+    @VisibleForTesting
+    public void sendStkSms(SendSMSParams cmdParams) {
+        String destAddr = null;
+        if (cmdParams.mDestAddress != null) {
+            destAddr = cmdParams.mDestAddress.text;
+        }
+
+        if (cmdParams.mRawTpdu == null || destAddr == null) {
+            sendTerminalResponse(cmdParams.mCmdDet, ResultCode.CMD_DATA_NOT_UNDERSTOOD,
+                    false, 0x00, null);
+            return;
+        }
+
+        SubscriptionManager subscriptionManager = (SubscriptionManager)
+                mContext.getSystemService(Context.TELEPHONY_SUBSCRIPTION_SERVICE);
+        SubscriptionInfo subInfo =
+                subscriptionManager.getActiveSubscriptionInfoForSimSlotIndex(mSlotId);
+
+        if (subInfo == null) {
+            sendTerminalResponse(cmdParams.mCmdDet, ResultCode.CMD_DATA_NOT_UNDERSTOOD,
+                    false, 0x00, null);
+            CatLog.d(this, "Subscription info is null");
+            return;
+        }
+
+        PendingIntent sentPendingIntent = PendingIntent.getBroadcast(mContext, 0,
+                new Intent(SMS_SENT_ACTION)
+                        .putExtra("cmdDetails", cmdParams.mCmdDet)
+                        .setPackage(mContext.getPackageName()),
+                PendingIntent.FLAG_MUTABLE);
+        PendingIntent deliveryPendingIntent = PendingIntent.getBroadcast(mContext, 0,
+                new Intent(SMS_DELIVERY_ACTION)
+                        .putExtra("cmdDetails", cmdParams.mCmdDet)
+                        .setPackage(mContext.getPackageName()),
+                PendingIntent.FLAG_MUTABLE);
+
+        ProxyController proxyController = ProxyController.getInstance(
+                mContext, mFeatureFlags);
+        SmsController smsController = proxyController.getSmsController();
+        smsController.sendRawPduForSubscriber(subInfo.getSubscriptionId(),
+                mContext.getOpPackageName(), destAddr, cmdParams.mRawTpdu,
+                sentPendingIntent, deliveryPendingIntent);
     }
 
     /**

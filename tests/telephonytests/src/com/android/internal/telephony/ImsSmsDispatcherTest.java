@@ -18,6 +18,7 @@ package com.android.internal.telephony;
 
 import static com.android.internal.telephony.TelephonyTestUtils.waitForMs;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
@@ -27,8 +28,10 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -38,6 +41,7 @@ import android.os.Binder;
 import android.os.PersistableBundle;
 import android.os.Process;
 import android.telephony.CarrierConfigManager;
+import android.telephony.PhoneNumberUtils;
 import android.telephony.SmsManager;
 import android.telephony.SmsMessage;
 import android.telephony.ims.stub.ImsSmsImplBase;
@@ -55,6 +59,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.Mockito;
 import org.mockito.stubbing.Answer;
 
 import java.util.HashMap;
@@ -323,6 +328,25 @@ public class ImsSmsDispatcherTest extends TelephonyTest {
         mImsSmsDispatcher.getSmsListener().onSendSmsResult(token, 0,
                 ImsSmsImplBase.SEND_STATUS_ERROR, 0, 41);
         verify(mSmsTracker).onFailed(any(Context.class), anyInt(), eq(41));
+    }
+
+    @Test
+    @SmallTest
+    public void testSendRawPdu() throws Exception {
+        String callingPackage = "com.example.test";
+        byte[] pdu = new byte[] {0x01, 0x02};
+        ImsSmsDispatcher imsSmsDispatcher = spy(mImsSmsDispatcher);
+        doNothing().when(imsSmsDispatcher).sendSms(any());
+        doReturn(mSmsUsageMonitor).when(mSmsDispatchersController).getUsageMonitor();
+
+        imsSmsDispatcher.sendRawPdu(callingPackage, mCallingUserId, "5551212", null, pdu, null,
+                null, 0);
+
+        ArgumentCaptor<SMSDispatcher.SmsTracker> captor =
+                ArgumentCaptor.forClass(SMSDispatcher.SmsTracker.class);
+        verify(imsSmsDispatcher).sendSms(captor.capture());
+        SMSDispatcher.SmsTracker smsTracker = captor.getValue();
+        assertEquals(pdu, smsTracker.getData().get("pdu"));
     }
 
     @Test
