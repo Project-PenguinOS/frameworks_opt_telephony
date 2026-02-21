@@ -24,7 +24,9 @@ import static android.telephony.CarrierConfigManager.Ims.NR_SA_DISABLE_POLICY_VO
 import static android.telephony.CarrierConfigManager.Ims.NR_SA_DISABLE_POLICY_WFC_ESTABLISHED;
 import static android.telephony.CarrierConfigManager.Ims.NR_SA_DISABLE_POLICY_WFC_ESTABLISHED_WHEN_VONR_DISABLED;
 import static android.telephony.CarrierConfigManager.Ims.NrSaDisablePolicy;
+import static android.telephony.CarrierConfigManager.ImsWfc.KEY_EMERGENCY_CALL_OVER_EMERGENCY_PDN_BOOL;
 import static android.telephony.CarrierConfigManager.KEY_CARRIER_NR_AVAILABILITIES_INT_ARRAY;
+import static android.telephony.CarrierConfigManager.KEY_CARRIER_WFC_IMS_AVAILABLE_BOOL;
 import static android.telephony.ims.stub.ImsRegistrationImplBase.ImsRegistrationTech;
 import static android.telephony.ims.stub.ImsRegistrationImplBase.REGISTRATION_TECH_IWLAN;
 
@@ -121,8 +123,8 @@ public class ImsNrSaModeHandler extends Handler {
 
     // TODO(b/479137418): Consider state machine because there are too many boolean variables.
     private boolean mIsNrSaDisabledForWfc;
-    private boolean mIsNrSaSupported;
     private boolean mIsVoiceCapable;
+    private boolean mIsWfcEmergencyOverEpdn;
 
     /** Flag indicating an asynchronous operation is in progress with the modem. */
     private boolean mIsWaitingResponseFromModem = false;
@@ -163,7 +165,7 @@ public class ImsNrSaModeHandler extends Handler {
      * @param imsRadioTech The current registered RAT.
      */
     public void onImsRegistered(@ImsRegistrationTech int imsRadioTech) {
-        if (!mIsNrSaSupported || mNormalCriteria == null) {
+        if (mNormalCriteria == null) {
             return;
         }
 
@@ -172,6 +174,11 @@ public class ImsNrSaModeHandler extends Handler {
         final boolean isNewWifiRegistered = imsRadioTech == REGISTRATION_TECH_IWLAN;
         if (mNormalCriteria.isWifiRegistered() != isNewWifiRegistered) {
             mNormalCriteria.setWifiRegistered(isNewWifiRegistered);
+
+            if (!mIsWfcEmergencyOverEpdn && mEmergencyCriteria != null) {
+                mEmergencyCriteria.setWifiRegistered(isNewWifiRegistered);
+            }
+
             calculateAndControlNrSa();
         }
     }
@@ -182,7 +189,7 @@ public class ImsNrSaModeHandler extends Handler {
      * @param imsRadioTech The current un-registered RAT.
      */
     public void onImsUnregistered(@ImsRegistrationTech int imsRadioTech) {
-        if (!mIsNrSaSupported || mNormalCriteria == null
+        if (mNormalCriteria == null
                 || imsRadioTech != REGISTRATION_TECH_IWLAN || !mNormalCriteria.isWifiRegistered()) {
             return;
         }
@@ -190,6 +197,11 @@ public class ImsNrSaModeHandler extends Handler {
         Log.d(TAG, "onImsUnregistered : ImsRegistrationTech = " + imsRadioTech);
 
         mNormalCriteria.setWifiRegistered(false);
+
+        if (!mIsWfcEmergencyOverEpdn && mEmergencyCriteria != null) {
+            mEmergencyCriteria.setWifiRegistered(false);
+        }
+
         calculateAndControlNrSa();
     }
 
@@ -200,7 +212,7 @@ public class ImsNrSaModeHandler extends Handler {
      * @param imsRadioTech The current registered RAT.
      */
     public void onImsEmergencyRegistered(@ImsRegistrationTech int imsRadioTech) {
-        if (!mIsNrSaSupported || mEmergencyCriteria == null) {
+        if (!mIsWfcEmergencyOverEpdn || mEmergencyCriteria == null) {
             return;
         }
 
@@ -219,7 +231,7 @@ public class ImsNrSaModeHandler extends Handler {
      * @param imsRadioTech The current un-registered RAT.
      */
     public void onImsEmergencyUnregistered(@ImsRegistrationTech int imsRadioTech) {
-        if (!mIsNrSaSupported || mEmergencyCriteria == null
+        if (!mIsWfcEmergencyOverEpdn || mEmergencyCriteria == null
                 || imsRadioTech != REGISTRATION_TECH_IWLAN
                 || !mEmergencyCriteria.isWifiRegistered()) {
             return;
@@ -258,7 +270,7 @@ public class ImsNrSaModeHandler extends Handler {
      * Updates Capability.
      */
     public void updateImsCapability(int capabilities) {
-        if (!mIsNrSaSupported || mNormalCriteria == null
+        if (mNormalCriteria == null
                 || mNormalCriteria.getPolicy() == NR_SA_DISABLE_POLICY_NONE) {
             return;
         }
@@ -362,15 +374,19 @@ public class ImsNrSaModeHandler extends Handler {
         if (mPhone.getSubId() == subId && mCarrierConfigManager != null) {
             PersistableBundle bundle = mCarrierConfigManager.getConfigForSubId(mPhone.getSubId(),
                     KEY_NR_SA_DISABLE_POLICY_INT, KEY_NR_SA_DISABLE_POLICY_FOR_EMERGENCY_INT,
-                    KEY_CARRIER_NR_AVAILABILITIES_INT_ARRAY);
+                    KEY_CARRIER_NR_AVAILABILITIES_INT_ARRAY,
+                    KEY_EMERGENCY_CALL_OVER_EMERGENCY_PDN_BOOL,
+                    KEY_CARRIER_WFC_IMS_AVAILABLE_BOOL);
             int[] nrAvailabilities = bundle.getIntArray(KEY_CARRIER_NR_AVAILABILITIES_INT_ARRAY);
-            mIsNrSaSupported = nrAvailabilities != null
+            boolean isNrSaSupported = nrAvailabilities != null
                     && Arrays.stream(nrAvailabilities).anyMatch(
                             value -> value == CARRIER_NR_AVAILABILITY_SA);
+            boolean isWfcAvailable = bundle.getBoolean(KEY_CARRIER_WFC_IMS_AVAILABLE_BOOL);
 
-            if (!mIsNrSaSupported) {
+            if (!isNrSaSupported || !isWfcAvailable) {
                 mNormalCriteria = null;
                 mEmergencyCriteria = null;
+                unregisterForPreciseCallStateChanges();
                 return;
             }
 
@@ -378,8 +394,11 @@ public class ImsNrSaModeHandler extends Handler {
                     NR_SA_DISABLE_POLICY_NONE);
             int emergencyPolicy = bundle.getInt(KEY_NR_SA_DISABLE_POLICY_FOR_EMERGENCY_INT,
                     NR_SA_DISABLE_POLICY_NONE);
+            mIsWfcEmergencyOverEpdn = bundle.getBoolean(KEY_EMERGENCY_CALL_OVER_EMERGENCY_PDN_BOOL);
+
             Log.d(TAG, "setNrSaDisablePolicy : normalPolicy = " + normalPolicy
-                    + ", emergencyPolicy = " + emergencyPolicy);
+                    + ", emergencyPolicy = " + emergencyPolicy
+                    + ", mIsWfcEmergencyOverEpdn = " + mIsWfcEmergencyOverEpdn);
 
             if (normalPolicy != NR_SA_DISABLE_POLICY_NONE) {
                 if (mNormalCriteria == null) {
@@ -396,6 +415,10 @@ public class ImsNrSaModeHandler extends Handler {
                     mEmergencyCriteria = new NrSaDisableCriteria(emergencyPolicy, true);
                 } else {
                     mEmergencyCriteria.setPolicy(emergencyPolicy);
+                }
+
+                if (!mIsWfcEmergencyOverEpdn && mNormalCriteria == null) {
+                    mNormalCriteria = new NrSaDisableCriteria(NR_SA_DISABLE_POLICY_NONE, false);
                 }
             } else {
                 mEmergencyCriteria = null;
