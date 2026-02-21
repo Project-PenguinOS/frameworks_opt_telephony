@@ -4331,8 +4331,10 @@ public class ServiceStateTracker extends Handler {
         // For some cases like roaming/non-roaming overriding, we need carrier config. So it's
         // important to poll state again when carrier config is ready.
         pollStateInternal(false);
+// QTI_BEGIN: 2024-06-05: Telephony: Fix updating spn delay issue.
         // Sometimes service state may not change after carrier config is ready. But spn may
         // be overrided by carrier config. So it's important to update spn display here.
+// QTI_END: 2024-06-05: Telephony: Fix updating spn delay issue.
         updateCarrierDisplayName();
     }
 
