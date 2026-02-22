@@ -269,3 +269,14 @@ flag {
   }
   is_exported: true
 }
+
+# OWNER=paulsoumyadeep TARGET=26Q4
+flag {
+  name: "satellite_upsell_26q4"
+  namespace: "telephony"
+  description: "Introduce Satellite Upsell capabilities for 26Q4"
+  bug: "484961757"
+  metadata {
+    purpose: PURPOSE_FEATURE
+  }
+}
