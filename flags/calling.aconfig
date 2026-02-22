@@ -95,3 +95,14 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+# OWNER=ysnam TARGET=26Q2
+flag {
+  name: "skip_private_network_for_telecom_account"
+  namespace: "telephony"
+  description: "Skip private network subscriptions in TelecomAccountRegistry"
+  bug: "479905672"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}

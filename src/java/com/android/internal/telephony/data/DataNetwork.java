@@ -1863,7 +1863,7 @@ public class DataNetwork extends StateMachine {
                 mDataNetworkCallback.invokeFromExecutor(
                         () -> mDataNetworkCallback.onConnected(DataNetwork.this));
 
-                mQosCallbackTracker = new QosCallbackTracker(mNetworkAgent, mPhone, mFlags);
+                mQosCallbackTracker = new QosCallbackTracker(mNetworkAgent, mPhone);
                 mQosCallbackTracker.updateSessions(mQosBearerSessions);
                 mKeepaliveTracker = new KeepaliveTracker(mPhone,
                         getHandler().getLooper(), DataNetwork.this, mNetworkAgent);
