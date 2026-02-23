@@ -1086,6 +1086,7 @@ public class EuiccController extends IEuiccController.Stub {
         boolean callerCanWriteEmbeddedSubscriptions = callerCanWriteEmbeddedSubscriptions();
         mAppOpsManager.checkPackage(Binder.getCallingUid(), callingPackage);
 
+        boolean callerIsAdmin = callerCanManageDevicePolicyManagedSubscriptions(callingPackage);
         long token = Binder.clearCallingIdentity();
         try {
             SubscriptionInfo sub = getSubscriptionForSubscriptionId(subscriptionId);
@@ -1095,7 +1096,7 @@ public class EuiccController extends IEuiccController.Stub {
                 return;
             }
             boolean managedByCallingAdminPackage =
-                    callerCanManageDevicePolicyManagedSubscriptions(callingPackage)
+                    callerIsAdmin
                             && isSubscriptionDevicePolicyManaged(
                             sub, callingPackage);
             // For both single active SIM device and multi-active SIM device, if the caller is
