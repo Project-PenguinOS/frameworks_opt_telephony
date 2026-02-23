@@ -3082,11 +3082,13 @@ public class ServiceStateTrackerTest extends TelephonyTest {
     }
 
     @Test
-    public void testShowOperatorName() throws Exception {
+    public void testShowOperatorName_configUpdateFalse() throws Exception {
         doReturn(mUiccCard).when(mUiccController).getUiccCard(anyInt());
         doReturn(IccCardStatus.CardState.CARDSTATE_PRESENT).when(mUiccCard).getCardState();
+        doReturn(true).when(mSimRecords).getRecordsLoaded();
+        doReturn(false).when(mFeatureFlags).updateCarrierNameAfterSimReady();
 
-        // Test case 1: config_update_operator_name_after_carrier_config_loaded is false.
+        // config_update_operator_name_after_carrier_config_loaded is false.
         // showOperatorName() should be true regardless of carrier config loaded state.
         mContextFixture.putBooleanResource(
                 com.android.internal.R.bool.config_update_operator_name_after_carrier_config_loaded,
@@ -3095,8 +3097,16 @@ public class ServiceStateTrackerTest extends TelephonyTest {
         sendCarrierConfigUpdate(PHONE_ID);
 
         assertTrue(sst.showOperatorName());
+    }
 
-        // Test case 2: config_update_operator_name_after_carrier_config_loaded is true, and
+    @Test
+    public void testShowOperatorName_configUpdateTrue_notApplied() throws Exception {
+        doReturn(mUiccCard).when(mUiccController).getUiccCard(anyInt());
+        doReturn(IccCardStatus.CardState.CARDSTATE_PRESENT).when(mUiccCard).getCardState();
+        doReturn(true).when(mSimRecords).getRecordsLoaded();
+        doReturn(false).when(mFeatureFlags).updateCarrierNameAfterSimReady();
+
+        // config_update_operator_name_after_carrier_config_loaded is true, and
         // carrier config is not applied. showOperatorName() should be false.
         mContextFixture.putBooleanResource(
                 com.android.internal.R.bool.config_update_operator_name_after_carrier_config_loaded,
@@ -3104,22 +3114,64 @@ public class ServiceStateTrackerTest extends TelephonyTest {
         mBundle.putBoolean(CarrierConfigManager.KEY_CARRIER_CONFIG_APPLIED_BOOL, false);
         sendCarrierConfigUpdate(PHONE_ID);
         assertFalse(sst.showOperatorName());
+    }
 
-        // Test case 3: config_update_operator_name_after_carrier_config_loaded is true, and carrier
-        // config is applied. showOperatorName() should be true.
+    @Test
+    public void testShowOperatorName_flagEnabled() throws Exception {
+        doReturn(mUiccCard).when(mUiccController).getUiccCard(anyInt());
+        doReturn(IccCardStatus.CardState.CARDSTATE_PRESENT).when(mUiccCard).getCardState();
+        doReturn(true).when(mSimRecords).getRecordsLoaded();
+        doReturn(true).when(mFeatureFlags).updateCarrierNameAfterSimReady();
         mContextFixture.putBooleanResource(
                 com.android.internal.R.bool.config_update_operator_name_after_carrier_config_loaded,
                 true);
         mBundle.putBoolean(CarrierConfigManager.KEY_CARRIER_CONFIG_APPLIED_BOOL, true);
         sendCarrierConfigUpdate(PHONE_ID);
+        // Poll the network state to update mIsSimReadyForDisplay.
+        mSimulatedCommands.notifyNetworkStateChanged();
+        processAllMessages();
         assertTrue(sst.showOperatorName());
+    }
 
-        // Test case 4: SIM is absent. showOperatorName() should be false.
+    @Test
+    public void testShowOperatorName_simAbsent() throws Exception {
+        doReturn(mUiccCard).when(mUiccController).getUiccCard(anyInt());
         doReturn(IccCardStatus.CardState.CARDSTATE_ABSENT).when(mUiccCard).getCardState();
+        doReturn(true).when(mSimRecords).getRecordsLoaded();
+        doReturn(true).when(mFeatureFlags).updateCarrierNameAfterSimReady();
+        mContextFixture.putBooleanResource(
+                com.android.internal.R.bool.config_update_operator_name_after_carrier_config_loaded,
+                true);
+        mBundle.putBoolean(CarrierConfigManager.KEY_CARRIER_CONFIG_APPLIED_BOOL, true);
+        sendCarrierConfigUpdate(PHONE_ID);
+
+        // Poll the network state to update mIsSimReadyForDisplay.
+        mSimulatedCommands.notifyNetworkStateChanged();
+        processAllMessages();
+        assertFalse(sst.showOperatorName());
+    }
+
+    @Test
+    public void testShowOperatorName_simPresentAfterAbsent() throws Exception {
+        doReturn(mUiccCard).when(mUiccController).getUiccCard(anyInt());
+        doReturn(true).when(mSimRecords).getRecordsLoaded();
+        doReturn(true).when(mFeatureFlags).updateCarrierNameAfterSimReady();
+        mContextFixture.putBooleanResource(
+                com.android.internal.R.bool.config_update_operator_name_after_carrier_config_loaded,
+                true);
+        mBundle.putBoolean(CarrierConfigManager.KEY_CARRIER_CONFIG_APPLIED_BOOL, true);
+        sendCarrierConfigUpdate(PHONE_ID);
+
+        // SIM is absent.
+        doReturn(IccCardStatus.CardState.CARDSTATE_ABSENT).when(mUiccCard).getCardState();
+        mSimulatedCommands.notifyNetworkStateChanged();
+        processAllMessages();
         assertFalse(sst.showOperatorName());
 
-        // Test case 5: SIM is present again.
+        // SIM is present again.
         doReturn(IccCardStatus.CardState.CARDSTATE_PRESENT).when(mUiccCard).getCardState();
+        mSimulatedCommands.notifyNetworkStateChanged();
+        processAllMessages();
         assertTrue(sst.showOperatorName());
     }
 
