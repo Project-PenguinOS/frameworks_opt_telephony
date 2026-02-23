@@ -6254,12 +6254,62 @@ public class SubscriptionManagerService extends ISub.Stub {
     }
 
     private boolean canManageSubscription(SubscriptionInfo subInfo, String packageName) {
-        if (UserManager.isHeadlessSystemUserMode()) {
-            return mSubscriptionManager.canManageSubscriptionAsUser(subInfo, packageName,
+        if (!mFeatureFlags.downloadableSubscriptionIncludeCarrierIdentifierInternal()) {
+            if (UserManager.isHeadlessSystemUserMode()) {
+                return mSubscriptionManager.canManageSubscriptionAsUser(subInfo, packageName,
                     UserHandle.of(ActivityManager.getCurrentUser()));
+            } else {
+                return mSubscriptionManager.canManageSubscription(subInfo, packageName);
+            }
         } else {
-            return mSubscriptionManager.canManageSubscription(subInfo, packageName);
+            UserHandle user = BINDER_WRAPPER.getCallingUserHandle();
+            // Callers really should already take care of this, but there are too many to
+            // make a change easily.
+            return Binder.withCleanCallingIdentity(() ->
+                    canManageSubscriptionAsUserInternal(subInfo, packageName, user));
         }
+    }
+
+    @Override
+    public boolean canManageSubscriptionAsUser(@NonNull SubscriptionInfo subInfo,
+            @NonNull String packageName, @NonNull UserHandle user) {
+        Objects.requireNonNull(subInfo);
+        Objects.requireNonNull(packageName);
+        Objects.requireNonNull(user);
+
+        // The caller either needs to be privileged in order to check for other packages, OR
+        // the packageName passed in must be "self".
+        if (mContext.checkCallingOrSelfPermission(Manifest.permission.READ_PRIVILEGED_PHONE_STATE)
+                        != PackageManager.PERMISSION_GRANTED) {
+            mAppOpsManager.checkPackage(Binder.getCallingUid(), packageName);
+        }
+        return Binder.withCleanCallingIdentity(() ->
+                canManageSubscriptionAsUserInternal(subInfo, packageName, user));
+    }
+
+    private boolean canManageSubscriptionAsUserInternal(@NonNull SubscriptionInfo subInfo,
+            @NonNull String packageName, @NonNull UserHandle user) {
+        // iterate through the active "visible" subs, looking for one that matches
+        for (int subId : getActiveSubIdListAsUser(false, user)) {
+            TelephonyManager tm = mTelephonyManager.createForSubscriptionId(subId);
+
+            final boolean hasCarrierPrivilegesOnSub =
+                    tm.checkCarrierPrivilegesForPackage(packageName)
+                            == TelephonyManager.CARRIER_PRIVILEGE_STATUS_HAS_ACCESS;
+
+            if (hasCarrierPrivilegesOnSub) {
+                // Package is already carrier privileged on the target subscription
+                if (subInfo.getSubscriptionId() == subId) return true;
+
+                // Package is currently carrier privileged on a different sub owned by the same
+                // Carrier as the target subscription
+                if (subInfo.getCarrierId() != TelephonyManager.UNKNOWN_CARRIER_ID
+                        && tm.getSimCarrierId() == subInfo.getCarrierId()) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     /**
