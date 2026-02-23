@@ -105,3 +105,14 @@ flag {
     bug: "455463446"
     is_exported: true
 }
+
+# OWNER=abhisultaniya TARGET=26Q2
+flag {
+  name: "enable_ons_cleanup"
+  namespace: "telephony"
+  description: "Enables the cleanup for redundant legacy ONS eSIM provisioning and downloader"
+  bug: "471393005"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}

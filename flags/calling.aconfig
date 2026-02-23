@@ -106,3 +106,14 @@ flag {
     purpose: PURPOSE_BUGFIX
   }
 }
+
+# OWNER=tgunn TARGET=26Q2
+flag {
+    name: "rebuild_telecom_accounts_async"
+    namespace: "telephony"
+    description: "Move rebuilding of telecom accounts to a background thread to prevent ANRs."
+    bug: "471115015"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
