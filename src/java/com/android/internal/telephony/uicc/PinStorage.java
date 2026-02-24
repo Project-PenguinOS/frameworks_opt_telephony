@@ -709,39 +709,49 @@ public class PinStorage extends Handler {
      * term key that requires user verification. The cached PIN temporarily stored in RAM are
      * merged with those on disk from the previous boot.
      */
-    private synchronized void onUserUnlocked() {
-        if (!mIsDeviceLocked) {
-            // This should never happen.
-            // Nothing to do because the device was already unlocked before
-            return;
+    private void onUserUnlocked() {
+        synchronized (this) {
+            if (!mIsDeviceLocked) {
+                // This should never happen.
+                // Nothing to do because the device was already unlocked before
+                return;
+            }
+
+            logd("onUserUnlocked - Device is unlocked");
+
+            // It's possible that SIM PIN was already verified and stored temporarily in RAM. Load
+            // the data and erase the memory.
+            SparseArray<StoredPin> storedPinInRam = loadPinInformation();
+            cleanRamStorage();
+
+            // Mark the device as unlocked
+            mIsDeviceLocked = false;
+
+            // Replace the temporary long-term key without user authentication with a new long-term
+            // key that requires user authentication to save all PINs previously in RAM (all in
+            // AVAILABLE state) to disk.
+            mLongTermSecretKey = initializeSecretKey(
+                    KEYSTORE_ALIAS_LONG_TERM_USER_AUTH, /*createIfAbsent=*/ true);
+
+            // Save the PINs previously in RAM to disk, overwriting any PIN that might already
+            // exists.
+            for (int i = 0; i < storedPinInRam.size(); i++) {
+                savePinInformation(storedPinInRam.keyAt(i), storedPinInRam.valueAt(i));
+            }
+
+            // At this point the module is fully initialized. Execute the start logic.
+            onDeviceReady();
+
+            // Verify any pending PIN for SIM cards that need it.
+            if (!mFeatureFlags.fixPinStorageDeadlock()) {
+                verifyPendingPins();
+            }
         }
-
-        logd("onUserUnlocked - Device is unlocked");
-
-        // It's possible that SIM PIN was already verified and stored temporarily in RAM. Load the
-        // data and erase the memory.
-        SparseArray<StoredPin> storedPinInRam = loadPinInformation();
-        cleanRamStorage();
-
-        // Mark the device as unlocked
-        mIsDeviceLocked = false;
-
-        // Replace the temporary long-term key without user authentication with a new long-term
-        // key that requires user authentication to save all PINs previously in RAM (all in
-        // AVAILABLE state) to disk.
-        mLongTermSecretKey =
-                initializeSecretKey(KEYSTORE_ALIAS_LONG_TERM_USER_AUTH, /*createIfAbsent=*/ true);
-
-        // Save the PINs previously in RAM to disk, overwriting any PIN that might already exists.
-        for (int i = 0; i < storedPinInRam.size(); i++) {
-            savePinInformation(storedPinInRam.keyAt(i), storedPinInRam.valueAt(i));
-        }
-
-        // At this point the module is fully initialized. Execute the start logic.
-        onDeviceReady();
 
         // Verify any pending PIN for SIM cards that need it.
-        verifyPendingPins();
+        if (mFeatureFlags.fixPinStorageDeadlock()) {
+            verifyPendingPins();
+        }
     }
 
     // Post first device unlock: Put platform-managed in an available state so they can
