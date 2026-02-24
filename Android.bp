@@ -75,6 +75,7 @@ java_library {
     jarjar_rules: ":jarjar-rules-shared",
 
     libs: [
+        "android.app.privatecompute.flags-aconfig-java-export",
         "android.hardware.radio-V1.0-java",
         "android.hardware.radio-V1.1-java",
         "android.hardware.radio-V1.2-java",
