@@ -396,11 +396,21 @@ public class DataConfigManager extends Handler {
                     public void onChanged(@Nullable ConfigParser config) {
                         if (config instanceof DataConfigParser
                                 && mFeatureFlags.enableTrafficDescriptorConnectionCapability()) {
-                            mDataConfig = (DataConfig) config.getConfig();
-                            log("DataConfig updated: version="
-                                    + (mDataConfig != null ? mDataConfig.getVersion() : "null"));
-                            mDataConfigManagerCallbacks.forEach(callback ->
-                                    callback.invokeFromExecutor(callback::onDynamicConfigChanged));
+                            DataConfig newDataConfig = (DataConfig) config.getConfig();
+                            // Only update and notify if the new data configuration is
+                            // functionally different
+                            if (!newDataConfig.equals(mDataConfig)) {
+                                mDataConfig = newDataConfig;
+                                log("DataConfig updated: version="
+                                        + (mDataConfig != null ? mDataConfig.getVersion()
+                                        : "null"));
+                                mDataConfigManagerCallbacks.forEach(callback ->
+                                        callback.invokeFromExecutor(
+                                                callback::onDynamicConfigChanged));
+                            } else {
+                                log("DataConfig update ignored: version=" + (mDataConfig != null
+                                        ? mDataConfig.getVersion() : "null"));
+                            }
                         }
                     }
                 }

@@ -396,4 +396,128 @@ public class DataConfigTest extends TelephonyTest {
         // Verify idempotency / consistency
         assertThat(dataConfig.getAllNetworkCapabilities()).isEqualTo(allCaps);
     }
+
+    @Test
+    public void testEqualsAndHashCode_IdenticalConfigs() {
+        // Even if the versions are different, if the functional data rules are the same,
+        // they should be considered equal to avoid unnecessary network teardowns.
+        TelephonyConfigData.DataConfigProto proto1 =
+                TelephonyConfigData.DataConfigProto.newBuilder()
+                        .setVersion(1)
+                        .setConnectionCapabilityConfigs(
+                                TelephonyConfigData.ConnectionCapabilityConfig.newBuilder()
+                                        .addCarrierConnectionCapabilityConfigs(
+                                                TelephonyConfigData.ConnectionCapabilityMap
+                                                        .newBuilder()
+                                                        .setCarrierId(CARRIER_ID_TMOBILE)
+                                                        .addRules("0:1:true")
+                                                        .build())
+                                        .build())
+                        .build();
+
+        TelephonyConfigData.DataConfigProto proto2 =
+                TelephonyConfigData.DataConfigProto.newBuilder()
+                        .setVersion(2) // Version bumped (e.g., due to a satellite config update)
+                        .setConnectionCapabilityConfigs(
+                                TelephonyConfigData.ConnectionCapabilityConfig.newBuilder()
+                                        .addCarrierConnectionCapabilityConfigs(
+                                                TelephonyConfigData.ConnectionCapabilityMap
+                                                        .newBuilder()
+                                                        .setCarrierId(CARRIER_ID_TMOBILE)
+                                                        .addRules(
+                                                                "0:1:true") // Rules remain
+                                                        // identical
+                                                        .build())
+                                        .build())
+                        .build();
+
+        DataConfig config1 = new DataConfig(proto1);
+        DataConfig config2 = new DataConfig(proto2);
+
+        assertThat(config1).isEqualTo(config2);
+        assertThat(config1.hashCode()).isEqualTo(config2.hashCode());
+    }
+
+    @Test
+    public void testEquals_DifferentConnectionCapabilities() {
+        TelephonyConfigData.DataConfigProto proto1 =
+                TelephonyConfigData.DataConfigProto.newBuilder()
+                        .setConnectionCapabilityConfigs(
+                                TelephonyConfigData.ConnectionCapabilityConfig.newBuilder()
+                                        .addCarrierConnectionCapabilityConfigs(
+                                                TelephonyConfigData.ConnectionCapabilityMap
+                                                        .newBuilder()
+                                                        .setCarrierId(CARRIER_ID_TMOBILE)
+                                                        .addRules("0:1:true")
+                                                        .build())
+                                        .build())
+                        .build();
+
+        // Mapped to a different connection capability (2 instead of 1)
+        TelephonyConfigData.DataConfigProto proto2 =
+                TelephonyConfigData.DataConfigProto.newBuilder()
+                        .setConnectionCapabilityConfigs(
+                                TelephonyConfigData.ConnectionCapabilityConfig.newBuilder()
+                                        .addCarrierConnectionCapabilityConfigs(
+                                                TelephonyConfigData.ConnectionCapabilityMap
+                                                        .newBuilder()
+                                                        .setCarrierId(CARRIER_ID_TMOBILE)
+                                                        .addRules("0:2:true")
+                                                        .build())
+                                        .build())
+                        .build();
+
+        DataConfig config1 = new DataConfig(proto1);
+        DataConfig config2 = new DataConfig(proto2);
+
+        assertThat(config1).isNotEqualTo(config2);
+    }
+
+    @Test
+    public void testEquals_DifferentMeteredCapabilities() {
+        TelephonyConfigData.DataConfigProto proto1 =
+                TelephonyConfigData.DataConfigProto.newBuilder()
+                        .setHomeMeteredCapabilityConfigs(
+                                TelephonyConfigData.MeteredCapabilityConfig.newBuilder()
+                                        .addCarrierMeteredCapabilityConfigs(
+                                                TelephonyConfigData.MeteredCapabilities
+                                                        .newBuilder()
+                                                        .setCarrierId(CARRIER_ID_TMOBILE)
+                                                        .addCapabilityIds(
+                                                                NetworkCapabilities
+                                                                        .NET_CAPABILITY_MMS)
+                                                        .build())
+                                        .build())
+                        .build();
+
+        TelephonyConfigData.DataConfigProto proto2 =
+                TelephonyConfigData.DataConfigProto.newBuilder()
+                        .setHomeMeteredCapabilityConfigs(
+                                TelephonyConfigData.MeteredCapabilityConfig.newBuilder()
+                                        .addCarrierMeteredCapabilityConfigs(
+                                                TelephonyConfigData.MeteredCapabilities.newBuilder()
+                                                        .setCarrierId(CARRIER_ID_TMOBILE)
+                                                        .addCapabilityIds(
+                                                                NetworkCapabilities
+                                                                        .NET_CAPABILITY_INTERNET)
+                                                        .build())
+                                        .build())
+                        .build();
+
+        DataConfig config1 = new DataConfig(proto1);
+        DataConfig config2 = new DataConfig(proto2);
+
+        assertThat(config1).isNotEqualTo(config2);
+    }
+
+    @Test
+    public void testEquals_NullAndDifferentClass() {
+        TelephonyConfigData.DataConfigProto proto =
+                TelephonyConfigData.DataConfigProto.newBuilder().build();
+        DataConfig config = new DataConfig(proto);
+
+        assertThat(config.equals(null)).isFalse();
+        assertThat(config.equals(new Object())).isFalse();
+    }
+
 }
