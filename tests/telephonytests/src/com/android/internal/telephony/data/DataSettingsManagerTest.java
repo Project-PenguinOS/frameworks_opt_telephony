@@ -406,4 +406,26 @@ public class DataSettingsManagerTest extends TelephonyTest {
 
         assertTrue(latch.await(1000, TimeUnit.MILLISECONDS));
     }
+
+    @Test
+    public void testNotifyDataServiceUserDataEnabledWhenProvisionedChanged() {
+        mMockDataServiceManagers.forEach(Mockito::clearInvocations);
+        mDataSettingsManagerUT.sendEmptyMessage(9 /* EVENT_PROVISIONED_CHANGED */);
+        processAllMessages();
+
+        mMockDataServiceManagers.forEach(mockDataServiceManager -> {
+            verify(mockDataServiceManager, times(1)).notifyUserDataEnabled(anyBoolean(), isNull());
+        });
+    }
+
+    @Test
+    public void testNotifyDataServiceUserDataEnabledWhenProvisioningDataEnabledChanged() {
+        mMockDataServiceManagers.forEach(Mockito::clearInvocations);
+        mDataSettingsManagerUT.sendEmptyMessage(10 /* EVENT_PROVISIONING_DATA_ENABLED_CHANGED */);
+        processAllMessages();
+
+        mMockDataServiceManagers.forEach(mockDataServiceManager -> {
+            verify(mockDataServiceManager, times(1)).notifyUserDataEnabled(anyBoolean(), isNull());
+        });
+    }
 }
