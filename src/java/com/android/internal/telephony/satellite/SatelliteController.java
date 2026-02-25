@@ -793,10 +793,10 @@ public class SatelliteController extends Handler {
             "satellite_system_notification_time";
     // The notification tag used when showing a notification. The combination of notification tag
     // and notification id should be unique within the phone app.
-    private static final String NOTIFICATION_TAG = "SatelliteController";
-    private static final int NOTIFICATION_ID = 1;
-    private static final String NOTIFICATION_CHANNEL = "satelliteChannel";
-    private static final String NOTIFICATION_CHANNEL_ID = "satellite";
+    static final String NOTIFICATION_TAG = "SatelliteController";
+    static final int NOTIFICATION_ID = 1;
+    static final String NOTIFICATION_CHANNEL = "satelliteChannel";
+    static final String NOTIFICATION_CHANNEL_ID = "satellite";
 
     private final RegistrantList mSatelliteConfigUpdateChangedRegistrants = new RegistrantList();
     private final RegistrantList mSatelliteSubIdChangedRegistrants = new RegistrantList();
@@ -1156,6 +1156,11 @@ public class SatelliteController extends Handler {
         mAlarmManager = mContext.getSystemService(AlarmManager.class);
         scheduleRegularMetricReportTimer();
         logd("Satellite Tracker is created");
+
+        if (mFeatureFlags.satelliteUpsell26q4()) {
+            UpsellNotificationController.make(mContext, featureFlags);
+            logd("UpsellNotificationController is created");
+        }
     }
 
     class SatelliteSubscriptionsChangedListener
