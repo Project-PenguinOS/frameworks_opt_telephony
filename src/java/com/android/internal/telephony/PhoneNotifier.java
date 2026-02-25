@@ -35,6 +35,7 @@ import android.telephony.PreciseDataConnectionState;
 import android.telephony.SecurityAlgorithmUpdate;
 import android.telephony.ServiceState;
 import android.telephony.TelephonyDisplayInfo;
+import android.telephony.TelephonyManager;
 import android.telephony.TelephonyManager.DataEnabledReason;
 import android.telephony.TelephonyManager.DomainSelectionEmergencyType;
 import android.telephony.TelephonyManager.EmergencyCallbackModeStopReason;
@@ -178,6 +179,10 @@ public interface PhoneNotifier {
     /** Notify carrier roaming non-terrestrial network signal strength changed. */
     void notifyCarrierRoamingNtnSignalStrengthChanged(Phone sender,
             @NonNull NtnSignalStrength ntnSignalStrength);
+
+    /** Notify satellite purchase mode changed. */
+    void notifySatellitePurchaseModeChanged(Phone sender, boolean inProgress,
+            @TelephonyManager.SatellitePurchaseModeState int purchaseModeState);
 
     /** Notify of a cellular identifier disclosure change. */
     void notifyCellularIdentifierDisclosedChanged(Phone sender,
