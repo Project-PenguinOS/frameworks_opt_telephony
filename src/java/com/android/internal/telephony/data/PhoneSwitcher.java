@@ -252,6 +252,12 @@ public class PhoneSwitcher extends Handler {
     // its value will be DEFAULT_SUBSCRIPTION_ID.
     private int mAutoSelectedDataSubId = SubscriptionManager.DEFAULT_SUBSCRIPTION_ID;
 
+    // The preferred data subId set by the carrier or system via
+    // TelephonyManager#setPreferredOpportunisticDataSubscription.
+    // This value is independent of temporary switches performed by ADSC.
+    // If no preference is set, its value will be INVALID_SUBSCRIPTION_ID.
+    private int mOpportunisticSetDataSubId = SubscriptionManager.INVALID_SUBSCRIPTION_ID;
+
     // The phone ID that has an active voice call. If set, and its mobile data setting is on,
     // it will become the mPreferredDataPhoneId.
     protected int mPhoneIdInVoiceCall = SubscriptionManager.INVALID_PHONE_INDEX;
@@ -1064,6 +1070,13 @@ public class PhoneSwitcher extends Handler {
                 if (mAutoSelectedDataSubId == mPhoneSubscriptions[i]) {
                     mAutoSelectedDataSubId = DEFAULT_SUBSCRIPTION_ID;
                 }
+                // If the sticky sub is no longer valid (e.g. profile deleted), reset it.
+                if (mOpportunisticSetDataSubId != DEFAULT_SUBSCRIPTION_ID
+                        && mSubscriptionManagerService.getSubscriptionInfoInternal(
+                                mOpportunisticSetDataSubId) == null) {
+                    sb.append(" Opportunistic set data sub is gone, reset to default");
+                    mOpportunisticSetDataSubId = DEFAULT_SUBSCRIPTION_ID;
+                }
                 mPhoneSubscriptions[i] = sub;
                 diffDetected = true;
                 mAutoDataSwitchController.notifySubscriptionsMappingChanged();
@@ -1517,6 +1530,13 @@ public class PhoneSwitcher extends Handler {
         registerDefaultNetworkChangeCallback(subIdToValidate,
                 switchReason);
 
+        if (mFlags.adsRespectOwnersPreference()
+                && switchReason == DataSwitch.Reason.DATA_SWITCH_REASON_CBRS) {
+            logl("mOpportunisticSetDataSubId updated to " + subId);
+            // When setOpportunisticDataSubscription is called, update the persistent preference.
+            mOpportunisticSetDataSubId = subId;
+        }
+
         // If validation feature is not supported, set it directly. Otherwise,
         // start validation on the subscription first.
         if (!mValidator.isValidationFeatureSupported()) {
@@ -1775,6 +1795,14 @@ public class PhoneSwitcher extends Handler {
         return mAutoSelectedDataSubId;
     }
 
+    /**
+     * @return The opportunistic data subscription id that carrier/system set preferred.
+     */
+    public int getOpportunisticSetDataSubId() {
+        return mFlags.adsRespectOwnersPreference() ? mOpportunisticSetDataSubId :
+                SubscriptionManager.DEFAULT_SUBSCRIPTION_ID;
+    }
+
     public void dump(FileDescriptor fd, PrintWriter writer, String[] args) {
         final IndentingPrintWriter pw = new IndentingPrintWriter(writer, "  ");
         pw.println("PhoneSwitcher:");
@@ -1795,6 +1823,7 @@ public class PhoneSwitcher extends Handler {
                 mSubscriptionManagerService.getDefaultDataSubId()));
         pw.println("mPrimaryDataSubId=" + mPrimaryDataSubId);
         pw.println("mAutoSelectedDataSubId=" + mAutoSelectedDataSubId);
+        pw.println("mOpportunisticSetDataSubId=" + mOpportunisticSetDataSubId);
         pw.println("mIsRegisteredForImsRadioTechChange=" + mIsRegisteredForImsRadioTechChange);
         pw.println("mPendingSwitchNeedValidation=" + mPendingSwitchNeedValidation);
         pw.println("mMaxDataAttachModemCount=" + mMaxDataAttachModemCount);

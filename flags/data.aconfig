@@ -139,6 +139,17 @@ flag {
     }
 }
 
+# OWNER=rambowang TARGET=26Q2
+flag {
+  name: "ads_respect_owners_preference"
+  namespace: "telephony"
+  description: "Controls if ADSC respects owner's preferred data network instead of default one"
+  bug:"481016179"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}
+
 # OWNER=sangyun TARGET=26Q2
 flag {
   name: "fix_data_setup_retry_race_condition"
