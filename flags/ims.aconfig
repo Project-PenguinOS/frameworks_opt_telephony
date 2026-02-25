@@ -120,6 +120,17 @@ flag {
     }
 }
 
+# OWNER=breadley TARGET=26Q3
+flag {
+  name: "init_rcs_provisioning_monitor_async"
+  namespace: "telephony"
+  description: "Init RcsProvisioningMonitor in a background thread to prevent ANR"
+  bug: "469248684"
+  metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
 # OWNER=shashannk TARGET=26Q2
 flag {
     name: "support_stk_send_raw_pdu_sms"
