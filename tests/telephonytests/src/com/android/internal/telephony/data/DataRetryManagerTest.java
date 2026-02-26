@@ -1107,6 +1107,100 @@ public class DataRetryManagerTest extends TelephonyTest {
     }
 
     @Test
+    public void testSimilarEnterpriseNetworkRequestRetryWithInternetCapability() {
+        DataSetupRetryRule retryRule = new DataSetupRetryRule(
+                "capabilities=enterprise|internet, retry_interval=2000, maximum_retries=2");
+        doReturn(Collections.singletonList(retryRule)).when(mDataConfigManager)
+                .getDataSetupRetryRules();
+        mDataConfigManagerCallback.onCarrierConfigChanged();
+        processAllMessages();
+
+        // Case 1: ENTERPRISE priority > INTERNET priority
+        doReturn(20).when(mDataConfigManager).getNetworkCapabilityPriority(
+                NetworkCapabilities.NET_CAPABILITY_ENTERPRISE);
+        doReturn(10).when(mDataConfigManager).getNetworkCapabilityPriority(
+                NetworkCapabilities.NET_CAPABILITY_INTERNET);
+
+        TelephonyNetworkRequest tnr1 = new TelephonyNetworkRequest(new NetworkRequest(
+                new NetworkCapabilities()
+                        .addCapability(NetworkCapabilities.NET_CAPABILITY_ENTERPRISE)
+                        .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                        .addEnterpriseId(1), ConnectivityManager.TYPE_NONE,
+                0, NetworkRequest.Type.REQUEST), mPhone, mFeatureFlags);
+        DataNetworkController.NetworkRequestList
+                networkRequestList = new DataNetworkController.NetworkRequestList(tnr1);
+
+        // failed and retry.
+        mDataRetryManagerUT.evaluateDataSetupRetry(mDataProfile1,
+                AccessNetworkConstants.TRANSPORT_TYPE_WWAN, networkRequestList, 123,
+                DataCallResponse.RETRY_DURATION_UNDEFINED);
+        processAllFutureMessages();
+
+        TelephonyNetworkRequest tnr2 = new TelephonyNetworkRequest(new NetworkRequest(
+                new NetworkCapabilities()
+                        .addCapability(NetworkCapabilities.NET_CAPABILITY_ENTERPRISE)
+                        .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                        .addEnterpriseId(2), ConnectivityManager.TYPE_NONE,
+                0, NetworkRequest.Type.REQUEST), mPhone, mFeatureFlags);
+
+        assertThat(mDataRetryManagerUT.isSimilarNetworkRequestRetryScheduled(tnr2,
+                AccessNetworkConstants.TRANSPORT_TYPE_WWAN)).isFalse();
+
+        TelephonyNetworkRequest tnr3 = new TelephonyNetworkRequest(new NetworkRequest(
+                new NetworkCapabilities()
+                        .addCapability(NetworkCapabilities.NET_CAPABILITY_ENTERPRISE)
+                        .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                        .addEnterpriseId(1), ConnectivityManager.TYPE_NONE,
+                0, NetworkRequest.Type.REQUEST), mPhone, mFeatureFlags);
+
+        assertThat(mDataRetryManagerUT.isSimilarNetworkRequestRetryScheduled(tnr3,
+                AccessNetworkConstants.TRANSPORT_TYPE_WWAN)).isTrue();
+
+        // Clear entries for next part
+        mDataRetryManagerUT.getDataRetryEntries().clear();
+
+        // Case 2: INTERNET priority > ENTERPRISE priority
+        doReturn(10).when(mDataConfigManager).getNetworkCapabilityPriority(
+                NetworkCapabilities.NET_CAPABILITY_ENTERPRISE);
+        doReturn(20).when(mDataConfigManager).getNetworkCapabilityPriority(
+                NetworkCapabilities.NET_CAPABILITY_INTERNET);
+
+        // Re-create TNRs to pick up new priorities
+        tnr1 = new TelephonyNetworkRequest(new NetworkRequest(
+                new NetworkCapabilities()
+                        .addCapability(NetworkCapabilities.NET_CAPABILITY_ENTERPRISE)
+                        .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                        .addEnterpriseId(1), ConnectivityManager.TYPE_NONE,
+                0, NetworkRequest.Type.REQUEST), mPhone, mFeatureFlags);
+        networkRequestList = new DataNetworkController.NetworkRequestList(tnr1);
+
+        mDataRetryManagerUT.evaluateDataSetupRetry(mDataProfile1,
+                AccessNetworkConstants.TRANSPORT_TYPE_WWAN, networkRequestList, 123,
+                DataCallResponse.RETRY_DURATION_UNDEFINED);
+        processAllFutureMessages();
+
+        tnr2 = new TelephonyNetworkRequest(new NetworkRequest(
+                new NetworkCapabilities()
+                        .addCapability(NetworkCapabilities.NET_CAPABILITY_ENTERPRISE)
+                        .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                        .addEnterpriseId(2), ConnectivityManager.TYPE_NONE,
+                0, NetworkRequest.Type.REQUEST), mPhone, mFeatureFlags);
+
+        assertThat(mDataRetryManagerUT.isSimilarNetworkRequestRetryScheduled(tnr2,
+                AccessNetworkConstants.TRANSPORT_TYPE_WWAN)).isFalse();
+
+        tnr3 = new TelephonyNetworkRequest(new NetworkRequest(
+                new NetworkCapabilities()
+                        .addCapability(NetworkCapabilities.NET_CAPABILITY_ENTERPRISE)
+                        .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                        .addEnterpriseId(1), ConnectivityManager.TYPE_NONE,
+                0, NetworkRequest.Type.REQUEST), mPhone, mFeatureFlags);
+
+        assertThat(mDataRetryManagerUT.isSimilarNetworkRequestRetryScheduled(tnr3,
+                AccessNetworkConstants.TRANSPORT_TYPE_WWAN)).isTrue();
+    }
+
+    @Test
     public void testTrafficDescriptorRequestRetry() {
         DataSetupRetryRule retryRule = new DataSetupRetryRule(
                 "capabilities=PRIORITIZE_BANDWIDTH, retry_interval=200, maximum_retries=2");

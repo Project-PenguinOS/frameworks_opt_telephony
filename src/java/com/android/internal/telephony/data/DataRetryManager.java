@@ -1821,9 +1821,14 @@ public class DataRetryManager extends Handler {
                     if (retryCapability == networkRequest
                             .getHighestPrioritySupportedNetworkCapability()
                             && entry.transport == transport) {
-                        // For enterprise retry, only same enterprise ids would be treated as same
-                        // retry.
-                        if (retryCapability == NetworkCapabilities.NET_CAPABILITY_ENTERPRISE) {
+                        // For enterprise retry (or internet retry with enterprise capability),
+                        // only same enterprise ids would be treated as same retry.
+                        if (retryCapability == NetworkCapabilities.NET_CAPABILITY_ENTERPRISE
+                                || (retryCapability == NetworkCapabilities.NET_CAPABILITY_INTERNET
+                                && retryRequest.hasCapability(
+                                    NetworkCapabilities.NET_CAPABILITY_ENTERPRISE)
+                                && networkRequest.hasCapability(
+                                    NetworkCapabilities.NET_CAPABILITY_ENTERPRISE))) {
                             // getEnterpriseIds() is guaranteed to be in the same order. Just
                             // directly comparing the array is fine.
                             if (!Arrays.equals(
