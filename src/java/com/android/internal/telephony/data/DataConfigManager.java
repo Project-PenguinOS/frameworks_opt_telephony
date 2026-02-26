@@ -45,7 +45,6 @@ import android.util.ArraySet;
 import android.util.IndentingPrintWriter;
 
 import com.android.internal.annotations.VisibleForTesting;
-import com.android.internal.hidden_from_bootclasspath.com.android.internal.telephony.flags.Flags;
 import com.android.internal.telephony.Phone;
 import com.android.internal.telephony.configupdate.ConfigParser;
 import com.android.internal.telephony.configupdate.ConfigProviderAdaptor;
@@ -396,10 +395,22 @@ public class DataConfigManager extends Handler {
                     @Override
                     public void onChanged(@Nullable ConfigParser config) {
                         if (config instanceof DataConfigParser
-                                && Flags.enableTrafficDescriptorConnectionCapability()) {
-                            mDataConfig = (DataConfig) config.getConfig();
-                            log("DataConfig updated: version=" + (mDataConfig != null
-                                    ? mDataConfig.getVersion() : "null"));
+                                && mFeatureFlags.enableTrafficDescriptorConnectionCapability()) {
+                            DataConfig newDataConfig = (DataConfig) config.getConfig();
+                            // Only update and notify if the new data configuration is
+                            // functionally different
+                            if (!newDataConfig.equals(mDataConfig)) {
+                                mDataConfig = newDataConfig;
+                                log("DataConfig updated: version="
+                                        + (mDataConfig != null ? mDataConfig.getVersion()
+                                        : "null"));
+                                mDataConfigManagerCallbacks.forEach(callback ->
+                                        callback.invokeFromExecutor(
+                                                callback::onDynamicConfigChanged));
+                            } else {
+                                log("DataConfig update ignored: version=" + (mDataConfig != null
+                                        ? mDataConfig.getVersion() : "null"));
+                            }
                         }
                     }
                 }
@@ -408,7 +419,7 @@ public class DataConfigManager extends Handler {
         // Initial load of the config
         ConfigParser parser = TelephonyConfigUpdateInstallReceiver.getInstance()
                 .getConfigParser(ConfigProviderAdaptor.DOMAIN_DATA);
-        if (parser != null && Flags.enableTrafficDescriptorConnectionCapability()) {
+        if (parser != null && mFeatureFlags.enableTrafficDescriptorConnectionCapability()) {
             mDataConfig = (DataConfig) parser.getConfig();
         }
     }
@@ -431,6 +442,11 @@ public class DataConfigManager extends Handler {
 
         /** Callback on device config update.*/
         public void onDeviceConfigChanged() {}
+
+        /**
+         * Called when dynamic data config changed.
+         */
+        public void onDynamicConfigChanged() {}
     }
 
     /**
