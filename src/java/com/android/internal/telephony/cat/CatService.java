@@ -577,6 +577,12 @@ public class CatService extends Handler implements AppInterface {
                 break;
             case SEND_DTMF:
             case SEND_SS:
+                if ((((DisplayTextParams) cmdParams).mTextMsg.text != null)
+                        && (((DisplayTextParams) cmdParams).mTextMsg.text.equals(STK_DEFAULT))) {
+                    message = mContext.getText(com.android.internal.R.string.sending);
+                    ((DisplayTextParams) cmdParams).mTextMsg.text = message.toString();
+                }
+                break;
             case SEND_USSD:
                 if (Flags.supportStkCommandUssdAndCall()) {
                     sendUssd(cmdParams.mCmdDet,
