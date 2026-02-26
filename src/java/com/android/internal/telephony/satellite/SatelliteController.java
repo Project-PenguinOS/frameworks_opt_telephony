@@ -11331,12 +11331,7 @@ public class SatelliteController extends Handler {
     }
 
     /**
-     * Request to evaluate and potentially enable satellite for a specific carrier based on
-     * resolving a communication restriction.
-     * <p>
-     * This method is typically invoked when the connection mode is set to
-     * {@link CarrierConfigManager#CARRIER_ROAMING_NTN_CONNECT_AUTOMATIC} and a user or
-     * system event suggests that restrictions should be re-evaluated.
+     * Request to enable or disable satellite for a specific subscription.
      *
      * @param subId The subscription ID to evaluate enablement for.
      * @param reason The restriction reason to evaluate (e.g.,
@@ -11344,10 +11339,19 @@ public class SatelliteController extends Handler {
      * @param callback The callback used to return the result of the evaluation.
      */
     // TODO(b/323046234): Migrate to use Auto Satellite Enablement.
-    public void requestEnableSatelliteForCarrier(int subId,
+    public void requestEnableSatelliteForCarrier(int subId, boolean enable,
             @SatelliteManager.SatelliteCommunicationRestrictionReason int reason,
             @NonNull IIntegerConsumer callback) {
-        Consumer<Integer> result = FunctionalUtils.ignoreRemoteException(callback::accept);
-        evaluateEnablingSatelliteForCarrier(subId, reason, result);
+        plogd("requestEnableSatelliteForCarrier: subId=" + subId + ", enable=" + enable
+                + ", reason=" + reason);
+        if (enable) {
+            plogd("requestEnableSatelliteForCarrier: enabling satellite for carrier, removing "
+                    + "restriction: " + reason + " for subId=" + subId);
+            removeAttachRestrictionForCarrier(subId, reason, callback);
+        } else {
+            plogd("requestEnableSatelliteForCarrier: disabling satellite for carrier, adding "
+                    + "restriction: " + reason + " for subId=" + subId);
+            addAttachRestrictionForCarrier(subId, reason, callback);
+        }
     }
 }
