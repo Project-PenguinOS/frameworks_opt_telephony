@@ -1635,13 +1635,22 @@ public class SatelliteControllerTest extends TelephonyTest {
         processAllMessages();
         clearInvocations(mPhone);
 
-        // Call requestEnableSatelliteForCarrier
-        mSatelliteControllerUT.requestEnableSatelliteForCarrier(SUB_ID,
+        // Disable satellite
+        mSatelliteControllerUT.requestEnableSatelliteForCarrier(SUB_ID, false,
+                SATELLITE_COMMUNICATION_RESTRICTION_REASON_USER, mIIntegerConsumer);
+
+        processAllMessages();
+
+        // Verify phone.setSatelliteEnabledForCarrier is called
+        verify(mPhone).setSatelliteEnabledForCarrier(anyInt(), eq(false), any());
+
+        // Enable satellite
+        mSatelliteControllerUT.requestEnableSatelliteForCarrier(SUB_ID, true,
                 SATELLITE_COMMUNICATION_RESTRICTION_REASON_USER, mIIntegerConsumer);
         processAllMessages();
 
         // Verify phone.setSatelliteEnabledForCarrier is called
-        verify(mPhone).setSatelliteEnabledForCarrier(anyInt(), anyBoolean(), any());
+        verify(mPhone).setSatelliteEnabledForCarrier(anyInt(), eq(true), any());
     }
 
     @Test
