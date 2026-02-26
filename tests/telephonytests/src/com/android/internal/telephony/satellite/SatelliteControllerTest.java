@@ -870,6 +870,44 @@ public class SatelliteControllerTest extends TelephonyTest {
                 mSatelliteControllerUT.getAllPlmnSet());
     }
 
+    @Test
+    public void testGetCarrierRoamingNtnSignalStrength_DataOnlyNetwork() throws Exception {
+        logd("testGetCarrierRoamingNtnSignalStrength_DataOnlyNetwork");
+        setUpResponseForRequestIsSatelliteSupported(true, SATELLITE_RESULT_SUCCESS);
+        setUpResponseForRequestIsSatelliteProvisioned(true, SATELLITE_RESULT_SUCCESS);
+        mSatelliteControllerUT.setSatelliteSessionController(mMockSatelliteSessionController);
+
+        logd("Setup Carrier Roaming Mode where Voice is OOS, but Data is In Service");
+        when(mFeatureFlags.carrierRoamingNbIotNtn()).thenReturn(true);
+        when(mServiceState.isUsingNonTerrestrialNetwork()).thenReturn(true);
+        when(mServiceState.getState()).thenReturn(ServiceState.STATE_OUT_OF_SERVICE);
+        when(mServiceState.getDataRegState()).thenReturn(ServiceState.STATE_IN_SERVICE);
+        when(mServiceState.isUsingNonTerrestrialNetwork()).thenReturn(true);
+        when(mPhone.getServiceState()).thenReturn(mServiceState);
+
+        logd("Mock a valid satellite signal strength from the modem");
+        SignalStrength mockSignalStrength = mock(SignalStrength.class);
+        when(mockSignalStrength.getLevel()).thenReturn(NTN_SIGNAL_STRENGTH_GOOD);
+        when(mPhone.getSignalStrength()).thenReturn(mockSignalStrength);
+
+        logd("Set NTN connect type to automatic");
+        mCarrierConfigBundle.putBoolean(KEY_SATELLITE_ATTACH_SUPPORTED_BOOL, true);
+        mCarrierConfigBundle.putInt(
+                CarrierConfigManager.KEY_CARRIER_ROAMING_NTN_CONNECT_TYPE_INT,
+                CarrierConfigManager.CARRIER_ROAMING_NTN_CONNECT_AUTOMATIC);
+        invokeCarrierConfigChanged();
+
+        logd("Trigger the signal strength update check");
+        Method method = SatelliteController.class.getDeclaredMethod(
+                "updateLastNotifiedCarrierRoamingNtnSignalStrengthAndNotify", Phone.class);
+        method.setAccessible(true);
+        method.invoke(mSatelliteControllerUT, mPhone);
+
+        logd("Verify that the framework notified the valid signal strength");
+        ArgumentCaptor<NtnSignalStrength> captor = ArgumentCaptor.forClass(NtnSignalStrength.class);
+        verify(mPhone).notifyCarrierRoamingNtnSignalStrengthChanged(captor.capture());
+        assertEquals(NTN_SIGNAL_STRENGTH_GOOD, captor.getValue().getLevel());
+    }
 
     @Test
     public void testShouldTurnOffCarrierSatelliteForEmergencyCall() throws Exception {
