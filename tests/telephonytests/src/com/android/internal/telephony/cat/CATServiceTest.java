@@ -403,6 +403,25 @@ public class CATServiceTest extends TelephonyTest {
     }
 
     @Test
+    public void testBroadcastSetupEventListEvenThoughIncludeUnsupportedEvent() {
+        doReturn("receiver1").when(mImsResolver)
+                .getConfiguredImsServicePackageName(anyInt(), eq(ImsFeature.FEATURE_MMTEL));
+        // event list is 02 (Call disconnected), 03 (Location status), 17 (IMS Registration)
+        String data = "D00E8103010500820281829903020317";
+        Message msg = mCatService.obtainMessage(CatService.MSG_ID_PROACTIVE_COMMAND,
+                new AsyncResult(null, data, null));
+        mCatService.handleMessage(msg);
+        processAllMessages();
+        waitForLastHandlerAction(mCatService);
+
+        ArgumentCaptor<Intent> captorIntent = ArgumentCaptor.forClass(Intent.class);
+        verify(mContext, atLeastOnce()).sendBroadcastAsUser(captorIntent.capture(),
+                eq(UserHandle.ALL), eq(AppInterface.STK_PERMISSION));
+        assertThat(captorIntent.getAllValues().stream().map(Intent::getAction).toList())
+                .contains(TelephonyManager.ACTION_STK_SETUP_EVENT_LIST);
+    }
+
+    @Test
     public void testSkipBroadcastSetupEventListIfReceiverIsNotExist() {
         doReturn(null).when(mImsResolver)
                 .getConfiguredImsServicePackageName(anyInt(), eq(ImsFeature.FEATURE_MMTEL));
