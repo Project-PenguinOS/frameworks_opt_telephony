@@ -232,6 +232,8 @@ public class CommandParamsFactory extends Handler {
                 case REFRESH:
                 case RUN_AT:
                 case SEND_SS:
+                    cmdPending = processEventNotify(cmdDet, ctlvs);
+                    break;
                 case SEND_USSD:
                     cmdPending = Flags.supportStkCommandUssdAndCall()
                             ? processSendUssd(cmdDet, ctlvs)
