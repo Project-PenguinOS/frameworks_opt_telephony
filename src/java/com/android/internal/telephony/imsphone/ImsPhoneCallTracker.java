@@ -2615,6 +2615,15 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
      */
     public void unholdHeldCall() throws CallStateException {
         ImsCall imsCall = mBackgroundCall.getImsCall();
+        ImsCall fgImsCall = mForegroundCall.getImsCall();
+        // Check for a potentially bad state where a call is held due to a new call but the latter
+        // is disconnected immediately by the remote party, potentially leaving the fg call with a
+        // held state. In this case, we will need to unhold this fg call accordingly to recover.
+        if (mFeatureFlags.fixUnholdFgCall() && imsCall == null
+                && mForegroundCall.getState() == ImsPhoneCall.State.HOLDING) {
+            logi("Held call is in foreground. Unholding to recover from bad state.");
+            imsCall = fgImsCall;
+        }
         if (mHoldSwitchingState == HoldSwapState.PENDING_SINGLE_CALL_UNHOLD
 // QTI_BEGIN: 2025-01-27: Telephony: Revert "DSDA Telephony Framework Changes"
                 || mHoldSwitchingState == HoldSwapState.SWAPPING_ACTIVE_AND_HELD) {
@@ -2626,7 +2635,10 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
             mCallExpectedToResume = imsCall;
             HoldSwapState oldHoldState = mHoldSwitchingState;
             mHoldSwitchingState = HoldSwapState.PENDING_SINGLE_CALL_UNHOLD;
-            mForegroundCall.switchWith(mBackgroundCall);
+            // Normal case where bg call is being unheld so it needs to swap with the fg.
+            if (!imsCall.equalsTo(fgImsCall)) {
+                mForegroundCall.switchWith(mBackgroundCall);
+            }
             logHoldSwapState("unholdCurrentCall");
             try {
                 imsCall.resume();

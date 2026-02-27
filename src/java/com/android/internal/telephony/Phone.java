@@ -734,7 +734,7 @@ public abstract class Phone extends Handler implements PhoneInternalInterface {
         synchronized(Phone.lockForRadioTechnologyChange) {
             if (mImsPhone == null) {
                 mImsPhone = PhoneFactory.makeImsPhone(mNotifier, this);
-                CallManager.getInstance().registerPhone(mImsPhone);
+                CallManager.getInstance(mContext).registerPhone(mImsPhone);
                 mImsPhone.registerForSilentRedial(
                         this, EVENT_INITIATE_SILENT_REDIAL, null);
             }
@@ -1217,7 +1217,7 @@ public abstract class Phone extends Handler implements PhoneInternalInterface {
             // only those registrants to the registrant list which are not
             // coming from the CallManager.
             if (msg != null) {
-                if (msg.obj == CallManager.getInstance().getRegistrantIdentifier()) {
+                if (msg.obj == CallManager.getInstance(mContext).getRegistrantIdentifier()) {
                     continue;
                 } else {
                     to.add((Registrant) from.get(i));

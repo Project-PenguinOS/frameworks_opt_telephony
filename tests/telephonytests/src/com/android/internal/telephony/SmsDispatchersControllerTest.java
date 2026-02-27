@@ -77,6 +77,7 @@ import com.android.internal.telephony.flags.FeatureFlags;
 import com.android.internal.telephony.satellite.DatagramDispatcher;
 import com.android.internal.telephony.uicc.IccUtils;
 
+import java.util.Arrays;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -1242,6 +1243,195 @@ public class SmsDispatchersControllerTest extends TelephonyTest {
                 anyInt(), anyInt(), any(Message.class));
     }
 
+    @Test
+    public void testSendRawPdu() throws Exception {
+        setUpSmsDispatchers();
+        switchImsSmsFormat(PhoneConstants.PHONE_TYPE_GSM);
+        byte[] pdu = new byte[] {0x01, 0x02};
+
+        // Case 1: IMS available
+        when(mImsSmsDispatcher.isAvailable()).thenReturn(true);
+        mSmsDispatchersController.sendRawPdu("callingPackage", mCallingUserId, "1234", pdu,
+                null, null, 0);
+        verify(mImsSmsDispatcher).sendRawPdu(eq("callingPackage"), eq(mCallingUserId), eq("1234"),
+                isNull(), eq(pdu), isNull(), isNull(), eq(0));
+
+        // Case 2: IMS not available, GSM
+        when(mImsSmsDispatcher.isAvailable()).thenReturn(false);
+        when(mPhone.getPhoneType()).thenReturn(PhoneConstants.PHONE_TYPE_GSM);
+        mSmsDispatchersController.sendRawPdu("callingPackage", mCallingUserId, "1234", pdu,
+                null, null, 0);
+        verify(mGsmSmsDispatcher).sendRawPdu(eq("callingPackage"), eq(mCallingUserId), eq("1234"),
+                isNull(), eq(pdu), isNull(), isNull(), eq(0));
+    }
+
+    @Test
+    public void testSendRawPduWhenDomainSelectionEnabled() throws Exception {
+        setUpDomainSelectionConnection();
+        setUpSmsDispatchers();
+        byte[] pdu = new byte[] {0x01, 0x02};
+
+        mSmsDispatchersController.sendRawPdu("callingPackage", mCallingUserId, "1234", pdu,
+                null, null, 0);
+        processAllMessages();
+
+        SmsDispatchersController.DomainSelectionConnectionHolder holder =
+                mSmsDispatchersController.testGetDomainSelectionConnectionHolder(false);
+        verify(mSmsDsc).requestDomainSelection(any(), any());
+        assertNotNull(holder);
+        assertNotNull(holder.getConnection());
+        assertTrue(holder.isDomainSelectionRequested());
+        assertEquals(1, holder.getPendingRequests().size());
+
+        mDscFuture.complete(NetworkRegistrationInfo.DOMAIN_PS);
+        processAllMessages();
+
+        verify(mSmsDsc).finishSelection();
+        verify(mImsSmsDispatcher).sendRawPdu(eq("callingPackage"), eq(mCallingUserId), eq("1234"),
+                isNull(), eq(pdu), isNull(), isNull(), eq(0));
+        assertNull(holder.getConnection());
+        assertFalse(holder.isDomainSelectionRequested());
+        assertEquals(0, holder.getPendingRequests().size());
+    }
+
+    @Test
+    public void testSendRawPduWhenDomainSelectionEnabledAndDomainCsGsm() throws Exception {
+        setUpDomainSelectionConnection();
+        setUpSmsDispatchers();
+        when(mPhone.getPhoneType()).thenReturn(PhoneConstants.PHONE_TYPE_GSM);
+        byte[] pdu = new byte[] {0x01, 0x02};
+
+        mSmsDispatchersController.sendRawPdu("callingPackage", mCallingUserId, "1234", pdu,
+                null, null, 0);
+        processAllMessages();
+
+        SmsDispatchersController.DomainSelectionConnectionHolder holder =
+                mSmsDispatchersController.testGetDomainSelectionConnectionHolder(false);
+        verify(mSmsDsc).requestDomainSelection(any(), any());
+        assertNotNull(holder);
+        assertNotNull(holder.getConnection());
+        assertTrue(holder.isDomainSelectionRequested());
+        assertEquals(1, holder.getPendingRequests().size());
+
+        mDscFuture.complete(NetworkRegistrationInfo.DOMAIN_CS);
+        processAllMessages();
+
+        verify(mSmsDsc).finishSelection();
+        verify(mGsmSmsDispatcher).sendRawPdu(eq("callingPackage"), eq(mCallingUserId), eq("1234"),
+                isNull(), eq(pdu), isNull(), isNull(), eq(0));
+        assertNull(holder.getConnection());
+        assertFalse(holder.isDomainSelectionRequested());
+        assertEquals(0, holder.getPendingRequests().size());
+    }
+
+    @Test
+    public void testSendRawPduWhenDomainSelectionEnabledAndDomainCsCdma() throws Exception {
+        setUpDomainSelectionConnection();
+        setUpSmsDispatchers();
+        when(mPhone.getPhoneType()).thenReturn(PhoneConstants.PHONE_TYPE_CDMA);
+        byte[] pdu = new byte[] {0x01, 0x02};
+
+        mSmsDispatchersController.sendRawPdu("callingPackage", mCallingUserId, "1234", pdu,
+                null, null, 0);
+        processAllMessages();
+
+        SmsDispatchersController.DomainSelectionConnectionHolder holder =
+                mSmsDispatchersController.testGetDomainSelectionConnectionHolder(false);
+        verify(mSmsDsc).requestDomainSelection(any(), any());
+        assertNotNull(holder);
+        assertNotNull(holder.getConnection());
+        assertTrue(holder.isDomainSelectionRequested());
+        assertEquals(1, holder.getPendingRequests().size());
+
+        mDscFuture.complete(NetworkRegistrationInfo.DOMAIN_CS);
+        processAllMessages();
+
+        verify(mSmsDsc).finishSelection();
+        verify(mCdmaSmsDispatcher).sendRawPdu(eq("callingPackage"), eq(mCallingUserId), eq("1234"),
+                isNull(), eq(pdu), isNull(), isNull(), eq(0));
+        assertNull(holder.getConnection());
+        assertFalse(holder.isDomainSelectionRequested());
+        assertEquals(0, holder.getPendingRequests().size());
+    }
+
+    @Test
+    public void testSendRawPduWhenCdmaMo() throws Exception {
+        setUpSmsDispatchers();
+        switchImsSmsFormat(PhoneConstants.PHONE_TYPE_CDMA);
+        byte[] pdu = new byte[] {0x01, 0x02};
+
+        // IMS not available, CDMA
+        when(mImsSmsDispatcher.isAvailable()).thenReturn(false);
+        when(mPhone.getPhoneType()).thenReturn(PhoneConstants.PHONE_TYPE_CDMA);
+        mSmsDispatchersController.sendRawPdu("callingPackage", mCallingUserId, "1234", pdu,
+                null, null, 0);
+        verify(mCdmaSmsDispatcher).sendRawPdu(eq("callingPackage"), eq(mCallingUserId), eq("1234"),
+                isNull(), eq(pdu), isNull(), isNull(), eq(0));
+    }
+
+    @Test
+    public void testSMSDispatcherSendRawPdu() throws Exception {
+        setUpSpySmsDispatchers();
+        IccSmsInterfaceManager iccSmsIntMgr = Mockito.mock(IccSmsInterfaceManager.class);
+        doReturn(iccSmsIntMgr).when(mPhone).getIccSmsInterfaceManager();
+        when(iccSmsIntMgr.getSmscAddressFromIccEf(anyString())).thenReturn("123456");
+
+        byte[] pdu = IccUtils.hexStringToBytes("010203");
+        mGsmSmsDispatcher.sendRawPdu("com.example.app", mCallingUserId, "5551234", "123456", pdu,
+                mSentIntent, null, Process.INVALID_UID);
+
+        ArgumentCaptor<SMSDispatcher.SmsTracker> captor = ArgumentCaptor.forClass(
+                SMSDispatcher.SmsTracker.class);
+        verify(mGsmSmsDispatcher).sendSms(captor.capture());
+        SMSDispatcher.SmsTracker tracker = captor.getValue();
+
+        assertNotNull(tracker);
+        HashMap<String, Object> data = tracker.getData();
+        assertNotNull(data);
+        assertEquals("123456", data.get(SMSDispatcher.MAP_KEY_SC_ADDR));
+        byte[] smsc = (byte[]) data.get(SMSDispatcher.MAP_KEY_SMSC);
+        byte[] storedPdu = (byte[]) data.get(SMSDispatcher.MAP_KEY_PDU);
+
+        assertTrue(Arrays.equals(pdu, storedPdu));
+        byte[] expectedSmsc = PhoneNumberUtils.networkPortionToCalledPartyBCDWithLength("123456");
+        assertTrue(Arrays.equals(expectedSmsc, smsc));
+    }
+
+    @Test
+    public void testSMSDispatcherSendRawPduWithNullSmsc() throws Exception {
+        setUpSpySmsDispatchers();
+        IccSmsInterfaceManager iccSmsIntMgr = Mockito.mock(IccSmsInterfaceManager.class);
+        doReturn(iccSmsIntMgr).when(mPhone).getIccSmsInterfaceManager();
+        when(iccSmsIntMgr.getSmscAddressFromIccEf(anyString())).thenReturn(null);
+
+        byte[] pdu = IccUtils.hexStringToBytes("010203");
+        mGsmSmsDispatcher.sendRawPdu("com.example.app", mCallingUserId, "5551234", null, pdu,
+                mSentIntent, null, Process.INVALID_UID);
+
+        ArgumentCaptor<SMSDispatcher.SmsTracker> captor = ArgumentCaptor.forClass(
+                SMSDispatcher.SmsTracker.class);
+        verify(mGsmSmsDispatcher).sendSms(captor.capture());
+        SMSDispatcher.SmsTracker tracker = captor.getValue();
+
+        assertNotNull(tracker);
+        HashMap<String, Object> data = tracker.getData();
+        assertNull(data.get(SMSDispatcher.MAP_KEY_SC_ADDR));
+        assertNull(data.get(SMSDispatcher.MAP_KEY_SMSC));
+    }
+
+    @Test
+    public void testSMSDispatcherSendRawPduWithNullPdu() throws Exception {
+        setUpSpySmsDispatchers();
+        IccSmsInterfaceManager iccSmsIntMgr = Mockito.mock(IccSmsInterfaceManager.class);
+        doReturn(iccSmsIntMgr).when(mPhone).getIccSmsInterfaceManager();
+        when(iccSmsIntMgr.getSmscAddressFromIccEf(anyString())).thenReturn("123456");
+
+        mGsmSmsDispatcher.sendRawPdu("com.example.app", mCallingUserId, "5551234", null, null,
+                mSentIntent, null, Process.INVALID_UID);
+
+        verify(mGsmSmsDispatcher, never()).sendSms(any());
+    }
+
     private void setUpDomainSelectionEnabled(boolean enabled) {
         mSmsDispatchersController.setDomainSelectionResolverProxy(
                 new SmsDispatchersController.DomainSelectionResolverProxy() {
@@ -1294,6 +1484,7 @@ public class SmsDispatchersControllerTest extends TelephonyTest {
         mImsSmsDispatcher = Mockito.mock(TestImsSmsDispatcher.class);
         mGsmSmsDispatcher = Mockito.mock(TestSmsDispatcher.class);
         mCdmaSmsDispatcher = Mockito.mock(TestSmsDispatcher.class);
+        when(mCdmaSmsDispatcher.getFormat()).thenReturn(SmsConstants.FORMAT_3GPP2);
 
         replaceInstance(SmsDispatchersController.class, "mImsSmsDispatcher",
                 mSmsDispatchersController, mImsSmsDispatcher);

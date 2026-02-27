@@ -3040,4 +3040,28 @@ public class ImsPhoneCallTrackerTest extends TelephonyTest {
         mCTUT.getCarrierRoamingNtnListener().onCarrierRoamingNtnModeChanged(true);
         verify(mImsManager, times(1)).setWfcModeInternal(anyInt());
     }
+
+    @Test
+    public void testUnholdForeground_HeldCall() throws Exception {
+        when(mFeatureFlags.fixUnholdFgCall()).thenReturn(true);
+
+        // Mock the fg and bg calls
+        ImsPhoneCall mockForegroundCall = mock(ImsPhoneCall.class);
+        ImsPhoneCall mockBackgroundCall = mock(ImsPhoneCall.class);
+        ImsCall mockImsCall = mock(ImsCall.class);
+        mCTUT.mForegroundCall = mockForegroundCall;
+        mCTUT.mBackgroundCall = mockBackgroundCall;
+
+        when(mockBackgroundCall.getImsCall()).thenReturn(null);
+        when(mCTUT.mForegroundCall.getImsCall()).thenReturn(mockImsCall);
+        // Mock equalsTo to ensure that mockImsCall is same as mForegroundCall.getImsCall()
+        when(mockImsCall.equalsTo(any(ImsCall.class))).thenReturn(true);
+        when(mCTUT.mForegroundCall.getState()).thenReturn(ImsPhoneCall.State.HOLDING);
+
+        // Unhold call and verify that we resume on the fg call and never try switching the fg with
+        // the bg ImsCall.
+        mCTUT.unholdHeldCall();
+        verify(mockImsCall).resume();
+        verify(mCTUT.mForegroundCall, never()).switchWith(any());
+    }
 }

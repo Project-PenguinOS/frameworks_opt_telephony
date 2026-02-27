@@ -259,6 +259,13 @@ public class UiccProfile extends IccCard {
                         if (eventCode == SIMRecords.EVENT_SPN) {
                             mTelephonyManager.setSimOperatorNameForPhone(
                                     mPhoneId, mIccRecords.getServiceProviderName());
+                            if (mFlags.updateSpnDisplayName()) {
+                                int subId = SubscriptionManager.getSubscriptionId(mPhoneId);
+                                if (subId != SubscriptionManager.INVALID_SUBSCRIPTION_ID){
+                                    updateCarrierNameForSubscription(subId,
+                                        SubscriptionManager.NAME_SOURCE_SIM_SPN);
+                                }
+                            }
                         }
                     }
                     break;

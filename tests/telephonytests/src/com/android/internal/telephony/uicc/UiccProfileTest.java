@@ -24,6 +24,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.anyInt;
 import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.atLeast;
@@ -34,11 +35,13 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import android.os.AsyncResult;
 import android.os.Handler;
 import android.os.Message;
 import android.os.PersistableBundle;
 import android.telephony.CarrierConfigManager;
 import android.telephony.SubscriptionInfo;
+import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyManager;
 import android.testing.AndroidTestingRunner;
 import android.testing.TestableLooper;
@@ -72,6 +75,7 @@ public class UiccProfileTest extends TelephonyTest {
     private CarrierConfigManager.CarrierConfigChangeListener mCarrierConfigChangeListener;
 
     private static final int UICCPROFILE_CARRIER_PRIVILEGE_LOADED_EVENT = 3;
+    private static final int EVENT_ICC_RECORD_EVENTS = 7;
 
     // Mocked classes
     private CatService mCAT;
@@ -555,5 +559,70 @@ public class UiccProfileTest extends TelephonyTest {
         // If we update there's no application, then we are on empty profile.
         testUpdateUiccProfileApplicationNoApplication();
         assertTrue(mUiccProfile.isEmptyProfile());
+    }
+
+    @Test
+    public void testSpnUpdateForSubscriptionInfo() throws Exception {
+        testUpdateUiccProfileApplication();
+        // Enable the flag
+        when(mFeatureFlags.updateSpnDisplayName()).thenReturn(true);
+
+        String fakeSpn = "Fake SPN";
+        IccRecords mockedIccRecords = mock(IccRecords.class);
+        when(mockedIccRecords.getServiceProviderName()).thenReturn(fakeSpn);
+        replaceInstance(UiccProfile.class, "mIccRecords", mUiccProfile, mockedIccRecords);
+
+        // Simulate EVENT_ICC_RECORD_EVENTS with EVENT_SPN
+        AsyncResult ar = new AsyncResult(null, SIMRecords.EVENT_SPN, null);
+        Message msg = mUiccProfile.mHandler.obtainMessage(EVENT_ICC_RECORD_EVENTS, ar);
+        mUiccProfile.mHandler.sendMessage(msg);
+        processAllMessages();
+
+        // Verify TelephonyManager is updated
+        verify(mTelephonyManager).setSimOperatorNameForPhone(anyInt(), eq(fakeSpn));
+
+        // Verify SubscriptionManagerService is updated
+        // We need to ensure updateCarrierNameForSubscription logic passes.
+        // It checks if new name != old name.
+        when(mTelephonyManager.getSimOperatorName(anyInt())).thenReturn(fakeSpn);
+
+        // Also mock getActiveSubscriptionInfo to return a sub info with different name
+        SubscriptionInfo subInfo = mock(SubscriptionInfo.class);
+        when(subInfo.getDisplayName()).thenReturn("Old Name");
+        when(mSubscriptionManagerService.getActiveSubscriptionInfo(anyInt(), any(), any()))
+                .thenReturn(subInfo);
+
+        // Retrigger the event
+        mUiccProfile.mHandler.sendMessage(
+                mUiccProfile.mHandler.obtainMessage(EVENT_ICC_RECORD_EVENTS, ar));
+        processAllMessages();
+
+        verify(mSubscriptionManagerService).setDisplayNameUsingSrc(eq(fakeSpn), anyInt(),
+                eq(SubscriptionManager.NAME_SOURCE_SIM_SPN));
+    }
+
+    @Test
+    public void testSpnUpdateDoesNotUpdateSubscriptionInfoWhenFlagDisabled() throws Exception {
+        testUpdateUiccProfileApplication();
+        // Disable the flag
+        when(mFeatureFlags.updateSpnDisplayName()).thenReturn(false);
+
+        String fakeSpn = "Fake SPN";
+        IccRecords mockedIccRecords = mock(IccRecords.class);
+        when(mockedIccRecords.getServiceProviderName()).thenReturn(fakeSpn);
+        replaceInstance(UiccProfile.class, "mIccRecords", mUiccProfile, mockedIccRecords);
+
+        // Simulate EVENT_ICC_RECORD_EVENTS with EVENT_SPN
+        AsyncResult ar = new AsyncResult(null, SIMRecords.EVENT_SPN, null);
+        Message msg = mUiccProfile.mHandler.obtainMessage(EVENT_ICC_RECORD_EVENTS, ar);
+        mUiccProfile.mHandler.sendMessage(msg);
+        processAllMessages();
+
+        // Verify TelephonyManager is updated
+        verify(mTelephonyManager).setSimOperatorNameForPhone(anyInt(), eq(fakeSpn));
+
+        // Verify SubscriptionManagerService is NOT updated
+        verify(mSubscriptionManagerService, times(0)).setDisplayNameUsingSrc(anyString(), anyInt(),
+                anyInt());
     }
 }
