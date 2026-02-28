@@ -559,4 +559,56 @@ public class DataConfigManagerTest extends TelephonyTest {
                 TrafficDescriptor.CONNECTION_CAPABILITY_UNKNOWN))
                 .isEqualTo(-1);
     }
+
+    @Test
+    public void testIsApnMatchedRequired_Fallback() {
+        // 1. Setup Dynamic Config with a rule for MMS, but NOT for INTERNET
+        // This allows us to verify that MMS uses the dynamic config, while INTERNET falls back.
+        String rule = NetworkCapabilities.NET_CAPABILITY_MMS + ":"
+                + TrafficDescriptor.CONNECTION_CAPABILITY_MMS + ":false";
+
+        TelephonyConfigData.DataConfigProto proto = TelephonyConfigData.DataConfigProto.newBuilder()
+                .setVersion(1)
+                .setConnectionCapabilityConfigs(
+                        TelephonyConfigData.ConnectionCapabilityConfig.newBuilder()
+                                .addCarrierConnectionCapabilityConfigs(
+                                        TelephonyConfigData.ConnectionCapabilityMap.newBuilder()
+                                                .setCarrierId(mPhone.getCarrierId())
+                                                .addRules(rule)
+                                                .build())
+                                .build())
+                .build();
+
+        // Update the original object first so it has the config
+        sendConfigUpdate(proto);
+
+        // 2. Set CarrierConfig to TRUE
+        mBundle.putBoolean(CarrierConfigManager.KEY_APN_MATCHED_REQUIRED, true);
+        mDataConfigManagerUT.sendEmptyMessage(1/*EVENT_CARRIER_CONFIG_CHANGED*/);
+        processAllMessages();
+
+        // Verify INTERNET (not in dynamic config) falls back to CarrierConfig (TRUE)
+        assertThat(mDataConfigManagerUT.isApnMatchedRequired(
+                NetworkCapabilities.NET_CAPABILITY_INTERNET))
+                .isTrue();
+
+        // 3. Set CarrierConfig to FALSE
+        mBundle.putBoolean(CarrierConfigManager.KEY_APN_MATCHED_REQUIRED, false);
+        mDataConfigManagerUT.sendEmptyMessage(1/*EVENT_CARRIER_CONFIG_CHANGED*/);
+        processAllMessages();
+
+        // Verify INTERNET (not in dynamic config) falls back to CarrierConfig (FALSE)
+        assertThat(mDataConfigManagerUT.isApnMatchedRequired(
+                NetworkCapabilities.NET_CAPABILITY_INTERNET))
+                .isFalse();
+
+        // 4. Verify MMS (present in dynamic config as 'false') respects the config
+        mBundle.putBoolean(CarrierConfigManager.KEY_APN_MATCHED_REQUIRED, true);
+        mDataConfigManagerUT.sendEmptyMessage(1/*EVENT_CARRIER_CONFIG_CHANGED*/);
+        processAllMessages();
+
+        assertThat(mDataConfigManagerUT.isApnMatchedRequired(
+                NetworkCapabilities.NET_CAPABILITY_MMS))
+                .isFalse();
+    }
 }

@@ -6400,7 +6400,7 @@ public class DataNetworkControllerTest extends TelephonyTest {
         // Verify IMS PDN remains intact on Wi-Fi after camping to NTN
         // because it's on WLAN transport and QNS hasn't reported a handover yet.
         verifyConnectedNetworkHasCapabilitiesOnTransport(
-            AccessNetworkConstants.TRANSPORT_TYPE_WLAN, NetworkCapabilities.NET_CAPABILITY_IMS);
+                AccessNetworkConstants.TRANSPORT_TYPE_WLAN, NetworkCapabilities.NET_CAPABILITY_IMS);
 
         updateTransport(NetworkCapabilities.NET_CAPABILITY_IMS,
                 AccessNetworkConstants.TRANSPORT_TYPE_WWAN);
@@ -6660,5 +6660,158 @@ public class DataNetworkControllerTest extends TelephonyTest {
         verifyConnectedNetworkHasCapabilities(
                 NetworkCapabilities.NET_CAPABILITY_PRIORITIZE_BANDWIDTH,
                 NetworkCapabilities.NET_CAPABILITY_PRIORITIZE_LATENCY);
+    }
+
+    @Test
+    public void testDynamicConfigUpdate_Mismatch_TearsDownNetwork() throws Exception {
+        // 1. Setup a real network (Uses real DataConfigManager -> falls back to DataUtils)
+        // This establishes a connection with CONNECTION_CAPABILITY_UNKNOWN (Default)
+        TelephonyNetworkRequest request = createNetworkRequest(
+                NetworkCapabilities.NET_CAPABILITY_PRIORITIZE_LATENCY);
+        mDataNetworkControllerUT.addNetworkRequest(request);
+        processAllMessages();
+
+        // Verify it connected successfully
+        verifyConnectedNetworkHasCapabilities(
+                NetworkCapabilities.NET_CAPABILITY_PRIORITIZE_LATENCY);
+        DataNetwork network = getDataNetworks().get(0);
+
+        // 2. Inject Mock DataConfigManager for this test ONLY
+        DataConfigManager mockConfigManager = Mockito.mock(DataConfigManager.class);
+        replaceInstance(DataNetworkController.class, "mDataConfigManager",
+                mDataNetworkControllerUT, mockConfigManager);
+
+        // 3. Simulate Dynamic Config Update
+        // Define the behavior: Now LATENCY requires Slice ID 100
+        doReturn(100).when(mockConfigManager)
+                .networkCapabilityToConnectionCapability(
+                        NetworkCapabilities.NET_CAPABILITY_PRIORITIZE_LATENCY);
+
+        // 4. Trigger the update event manually
+        mDataNetworkControllerUT.obtainMessage(16,
+                DataEvaluationReason.DATA_DYNAMIC_CONFIG_CHANGED).sendToTarget();
+        processAllMessages();
+
+        // 5. Verify Teardown
+        assertThat(network.isConnected()).isFalse();
+    }
+
+    @Test
+    public void testDynamicConfigUpdate_Match_KeepsNetwork() throws Exception {
+        // 1. Setup a network
+        TelephonyNetworkRequest request = createNetworkRequest(
+                NetworkCapabilities.NET_CAPABILITY_INTERNET);
+        mDataNetworkControllerUT.addNetworkRequest(request);
+        processAllMessages();
+        DataNetwork network = getDataNetworks().get(0);
+
+        // 2. Inject Mock
+        DataConfigManager mockConfigManager = Mockito.mock(DataConfigManager.class);
+        replaceInstance(DataNetworkController.class, "mDataConfigManager",
+                mDataNetworkControllerUT, mockConfigManager);
+
+        // 3. Simulate Dynamic Config Update where mapping does NOT change
+        doReturn(TrafficDescriptor.CONNECTION_CAPABILITY_UNKNOWN).when(mockConfigManager)
+                .networkCapabilityToConnectionCapability(
+                        NetworkCapabilities.NET_CAPABILITY_INTERNET);
+
+        // 4. Trigger update
+        mDataNetworkControllerUT.obtainMessage(16,
+                DataEvaluationReason.DATA_DYNAMIC_CONFIG_CHANGED).sendToTarget();
+        processAllMessages();
+
+        // 5. Verify Network is STILL Connected
+        assertThat(network.isConnected()).isTrue();
+    }
+
+    @Test
+    public void testDynamicConfigUpdate_Mismatch_ReestablishesNetwork() throws Exception {
+        // 1. Setup initial network
+        TelephonyNetworkRequest request = createNetworkRequest(
+                NetworkCapabilities.NET_CAPABILITY_PRIORITIZE_LATENCY);
+        mDataNetworkControllerUT.addNetworkRequest(request);
+        processAllMessages();
+
+        // Verify initially connected
+        verifyConnectedNetworkHasCapabilities(
+                NetworkCapabilities.NET_CAPABILITY_PRIORITIZE_LATENCY);
+        DataNetwork initialNetwork = getDataNetworks().get(0);
+
+        // Assertion: Ensure the current slice is NOT the new one
+        int newSliceId = 100;
+        assertThat(initialNetwork.getDataProfile().getTrafficDescriptor().getConnectionCapability())
+                .isNotEqualTo(newSliceId);
+
+        // Clear previous interactions
+        Mockito.clearInvocations(mMockedWwanDataServiceManager);
+
+        // 2. Inject Mock DataConfigManager for the update
+        DataConfigManager mockConfigManager = Mockito.mock(DataConfigManager.class);
+        replaceInstance(DataNetworkController.class, "mDataConfigManager",
+                mDataNetworkControllerUT, mockConfigManager);
+
+        doReturn(true).when(mockConfigManager).isConfigCarrierSpecific();
+
+        doReturn(60000).when(mockConfigManager).getAnomalyNetworkConnectingTimeoutMs();
+        doReturn(60000).when(mockConfigManager).getAnomalyNetworkDisconnectingTimeoutMs();
+
+        // 3. Define New Mapping: LATENCY now requires Slice ID 100
+        doReturn(newSliceId).when(mockConfigManager).networkCapabilityToConnectionCapability(
+                NetworkCapabilities.NET_CAPABILITY_PRIORITIZE_LATENCY);
+
+        // 4. Update DataProfileManager Mock
+        doAnswer(invocation -> {
+            // [FIX] Construct the OsAppId expected by the NetworkRequest
+            TrafficDescriptor.OsAppId osAppId = new TrafficDescriptor.OsAppId(
+                    TrafficDescriptor.OsAppId.ANDROID_OS_ID,
+                    "PRIORITIZE_LATENCY");
+
+            TrafficDescriptor td = new TrafficDescriptor.Builder()
+                    .setConnectionCapability(newSliceId)
+                    .setOsAppId(osAppId.getBytes()) // <--- ADD THIS
+                    .build();
+
+            return new DataProfile.Builder()
+                    .setApnSetting(new ApnSetting.Builder()
+                            .setEntryName("dynamic_slice_apn")
+                            .setApnName("slice_apn")
+                            .setApnTypeBitmask(ApnSetting.TYPE_ALL)
+                            .build())
+                    .setTrafficDescriptor(td)
+                    .build();
+        }).when(mDataProfileManager).getDataProfileForNetworkRequest(
+                any(TelephonyNetworkRequest.class), anyInt(),
+                anyBoolean(), anyBoolean(), anyBoolean());
+
+
+        // 5. Trigger the Dynamic Update Event
+        mDataNetworkControllerUT.obtainMessage(16 /* EVENT_REEVALUATE_EXISTING_DATA_NETWORKS */,
+                DataEvaluationReason.DATA_DYNAMIC_CONFIG_CHANGED).sendToTarget();
+        processAllMessages();
+
+        // 6. Verify Teardown of Old Network
+        assertThat(initialNetwork.isConnected()).isFalse();
+
+        // 7. Advance time to allow the "RETRY_AFTER_DISCONNECTED" event to fire
+        // DataNetworkController schedules this with a delay (getRetrySetupAfterDisconnectMillis)
+        // Since mockConfigManager returns 0 for that getter (default), it's just a message delay.
+        moveTimeForward(2000);
+        processAllMessages();
+
+        // 8. Verify New Network Establishment with Slice 100
+        ArgumentCaptor<DataProfile> profileCaptor = ArgumentCaptor.forClass(DataProfile.class);
+        verify(mMockedWwanDataServiceManager).setupDataCall(anyInt(),
+                profileCaptor.capture(), anyBoolean(), anyBoolean(), anyInt(), any(),
+                anyInt(), any(), any(), anyBoolean(), any(Message.class));
+
+        DataProfile requestedProfile = profileCaptor.getValue();
+        assertThat(requestedProfile.getTrafficDescriptor().getConnectionCapability())
+                .isEqualTo(newSliceId);
+
+        // 9. Verify DNC has a connected network
+        List<DataNetwork> currentNetworks = getDataNetworks();
+        assertThat(currentNetworks).hasSize(1);
+        assertThat(currentNetworks.get(0).isConnected()).isTrue();
+        assertThat(currentNetworks.get(0)).isNotEqualTo(initialNetwork);
     }
 }

@@ -488,11 +488,11 @@ public class CatService extends Handler implements AppInterface {
             case SET_UP_EVENT_LIST:
                 if (isSupportedSetupEventCommand(cmdMsg)) {
                     sendTerminalResponse(cmdParams.mCmdDet, ResultCode.OK, false, 0, null);
-                    broadcastSetupEventList(cmdMsg);
                 } else {
                     sendTerminalResponse(cmdParams.mCmdDet, ResultCode.BEYOND_TERMINAL_CAPABILITY,
                             false, 0, null);
                 }
+                broadcastSetupEventList(cmdMsg);
                 break;
             case PROVIDE_LOCAL_INFORMATION:
                 ResponseData resp;

@@ -277,7 +277,12 @@ public class DataEvaluation {
         /** Unsatisfied network request detached. */
         UNSATISFIED_REQUEST_DETACHED(true),
         /** track bootstrap sim data usage */
-        CHECK_DATA_USAGE(false);
+        CHECK_DATA_USAGE(false),
+        /**
+         * Data dynamic config changed.
+         * Used when the dynamic mapping rules (DataConfig) are updated via ConfigUpdater.
+         */
+        DATA_DYNAMIC_CONFIG_CHANGED(true);
 
         /**
          * {@code true} if the evaluation is due to environmental changes (i.e. SIM removal,
