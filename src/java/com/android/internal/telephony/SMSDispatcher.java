@@ -104,6 +104,7 @@ import com.android.internal.telephony.satellite.SatelliteController;
 import com.android.internal.telephony.subscription.SubscriptionInfoInternal;
 import com.android.internal.telephony.subscription.SubscriptionManagerService;
 import com.android.internal.telephony.uicc.IccRecords;
+import com.android.internal.telephony.uicc.IccUtils;
 import com.android.internal.telephony.util.ArrayUtils;
 import com.android.internal.telephony.util.TelephonyUtils;
 import com.android.telephony.Rlog;
@@ -2081,6 +2082,44 @@ public abstract class SMSDispatcher extends Handler {
                 return null;
             }
         }
+    }
+
+    /**
+     * Send a raw SMS PDU. Intended for STK App use only.
+     * @param callingPackage the package name of the caller
+     * @param callingUser the user of the caller
+     * @param destAddr the address to send the message to
+     * @param pdu the raw SMS PDU to send
+     * @param sentIntent if not NULL this <code>PendingIntent</code> is
+     *  broadcast when the message is successfully sent, or failed.
+     *  The result code will be <code>Activity.RESULT_OK</code> for success, or relevant errors
+     *  the sentIntent may include the extra "errorCode" containing a radio technology specific
+     *  value, generally only useful for troubleshooting.
+     * @param deliveryIntent if not NULL this <code>PendingIntent</code> is
+     *  broadcast when the message is delivered to the recipient.  The
+     *  raw pdu of the status report is in the extended data ("pdu").
+     * @param uid the android uid of the caller
+     */
+    public void sendRawPdu(String callingPackage, int callingUser, String destAddr, String scAddr,
+            byte[] pdu, PendingIntent sentIntent, PendingIntent deliveryIntent, int uid) {
+        SmsMessageBase.SubmitPduBase submitPdu = new SmsMessageBase.SubmitPduBase() {};
+        if (scAddr == null || TextUtils.isEmpty(scAddr)) {
+            submitPdu.encodedScAddress = null;
+        } else {
+            submitPdu.encodedScAddress = PhoneNumberUtils
+                    .networkPortionToCalledPartyBCDWithLength(scAddr);
+        }
+        submitPdu.encodedMessage = pdu;
+
+        HashMap<String, Object> map = getSmsTrackerMap(destAddr, scAddr, -1, null, submitPdu);
+        String format = getFormat();
+        SmsTracker tracker = getSmsTracker(callingPackage, callingUser, map, sentIntent,
+                deliveryIntent, format, null /*messageUri*/, false /*expectMore*/,
+                null /*fullMessageText*/, false /*isText*/,
+                true /*persistMessage*/, false /*isForVvm*/, 0L /* messageId */, 0 /* messageRef */,
+                PendingRequest.getNextUniqueMessageId(), uid);
+
+        sendSubmitPdu(tracker);
     }
 
     /**
