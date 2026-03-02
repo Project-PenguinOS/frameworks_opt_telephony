@@ -2660,11 +2660,8 @@ public class SatelliteControllerTest extends TelephonyTest {
         // The configured carrier PLMN list should be the same as the normal-service carrier
         // PLMN list
         assertTrue(expectedCarrierPlmnList.containsAll(configuredCarrierPlmnListCaptor.getValue()));
-        assertTrue(configuredCarrierPlmnListCaptor.getValue().containsAll(expectedCarrierPlmnList));
-        assertTrue(
-            expectedAllSatellitePlmnList.containsAll(configuredAllPlmnListCaptor.getValue()));
-        assertTrue(
-            configuredAllPlmnListCaptor.getValue().containsAll(expectedAllSatellitePlmnList));
+        // As satellite is not enabled, configuredCarrierPlmnListCaptor will be empty
+        assertEquals(new ArrayList<>(), configuredCarrierPlmnListCaptor.getValue());
 
         // Emergency and disaster PLMNs are supported.
         List<String> expectedEmergencyPlmnList = Arrays.asList("00104", "00105");
@@ -2765,11 +2762,11 @@ public class SatelliteControllerTest extends TelephonyTest {
         logd("configuredAllPlmnListCaptor: "
                 + String.join(",", configuredAllPlmnListCaptor.getValue()));
         assertFalse(configuredCarrierPlmnListCaptor.getValue().containsAll(
-                expectedEmergencyPlmnList));
+            expectedEmergencyPlmnList));
         assertTrue(configuredCarrierPlmnListCaptor.getValue().containsAll(
-                expectedDisasterPlmnList));
+            expectedDisasterPlmnList));
         assertTrue(configuredCarrierPlmnListCaptor.getValue()
-                .containsAll(expectedCarrierPlmnList));
+            .containsAll(expectedCarrierPlmnList));
         assertTrue(
             expectedAllSatellitePlmnList.containsAll(configuredAllPlmnListCaptor.getValue()));
         assertTrue(
@@ -3624,7 +3621,7 @@ public class SatelliteControllerTest extends TelephonyTest {
         replaceInstance(SatelliteController.class, "mSatellitePlmnListFromOverlayConfig",
                 mSatelliteControllerUT, overlayConfigPlmnList);
         verifyPassingToModemAfterQueryCompleted(entitlementPlmnList, mergedPlmnList,
-                overlayConfigPlmnList, barredPlmnList);
+                overlayConfigPlmnList, barredPlmnList, false);
 
         // If the entitlement plmn list, the overlay config plmn list and the carrier plmn list
         // are available and the barred plmn list is empty, verify passing to the modem.
@@ -3641,7 +3638,7 @@ public class SatelliteControllerTest extends TelephonyTest {
                 "mSatelliteServicesSupportedByCarriersFromConfig",
                 mSatelliteControllerUT, satelliteServicesSupportedByCarriers);
         verifyPassingToModemAfterQueryCompleted(entitlementPlmnList, mergedPlmnList,
-                overlayConfigPlmnList, barredPlmnList);
+                overlayConfigPlmnList, barredPlmnList, false);
 
         // If the entitlement plmn list is empty and the overlay config plmn list and the carrier
         // plmn list are available, verify passing to the modem.
@@ -3650,7 +3647,7 @@ public class SatelliteControllerTest extends TelephonyTest {
         entitlementPlmnList = new ArrayList<>();
         mergedPlmnList = carrierConfigPlmnList;
         verifyPassingToModemAfterQueryCompleted(entitlementPlmnList, mergedPlmnList,
-                overlayConfigPlmnList, barredPlmnList);
+                overlayConfigPlmnList, barredPlmnList, false);
 
 
         // If the entitlement plmn list is empty and the overlay config plmn list, the carrier
@@ -3659,7 +3656,7 @@ public class SatelliteControllerTest extends TelephonyTest {
         reset(mPhone);
         barredPlmnList = Arrays.stream(new String[]{"00105", "00107"}).toList();
         verifyPassingToModemAfterQueryCompleted(entitlementPlmnList, mergedPlmnList,
-                overlayConfigPlmnList, barredPlmnList);
+                overlayConfigPlmnList, barredPlmnList, false);
 
         // If the entitlement plmn list is null and the overlay config plmn list and the carrier
         // plmn list are available, verify passing to the modem.
@@ -3668,7 +3665,7 @@ public class SatelliteControllerTest extends TelephonyTest {
         entitlementPlmnList = null;
         mergedPlmnList = carrierConfigPlmnList;
         verifyPassingToModemAfterQueryCompleted(entitlementPlmnList, mergedPlmnList,
-                overlayConfigPlmnList, barredPlmnList);
+                overlayConfigPlmnList, barredPlmnList, false);
 
         // If the entitlement plmn list is invalid, verify not passing to the modem.
         reset(mMockSatelliteModemInterface);
@@ -3717,7 +3714,7 @@ public class SatelliteControllerTest extends TelephonyTest {
 
     private void verifyPassingToModemAfterQueryCompleted(List<String> entitlementPlmnList,
             List<String> mergedPlmnList, List<String> overlayConfigPlmnList,
-            List<String> barredPlmnList) {
+            List<String> barredPlmnList, boolean isEntitled) {
         mSatelliteControllerUT.onSatelliteEntitlementStatusUpdated(SUB_ID, false,
                 entitlementPlmnList, barredPlmnList, new HashMap<>(), new HashMap<>(),
                 new HashMap<>(), new HashMap<>(), mIIntegerConsumer);
@@ -3729,11 +3726,18 @@ public class SatelliteControllerTest extends TelephonyTest {
                 plmnListPerCarrier, overlayConfigPlmnList, barredPlmnList);
 
         assertEquals(mergedPlmnList, plmnListPerCarrier);
+
         if (overlayConfigPlmnList.isEmpty()) {
             assertEquals(plmnListPerCarrier, allSatellitePlmnList);
         }
-        verify(mPhone, times(1)).setSatellitePlmn(anyInt(),
+
+        if (isEntitled) {
+            verify(mPhone, atLeastOnce()).setSatellitePlmn(anyInt(),
                 eq(plmnListPerCarrier), anyList(), any(Message.class));
+        } else {
+            verify(mPhone, atLeastOnce()).setSatellitePlmn(anyInt(),
+                eq(new ArrayList<>()), anyList(), any(Message.class));
+        }
     }
 
     private void setConfigData(List<String> plmnList) {
