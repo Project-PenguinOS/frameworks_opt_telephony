@@ -40,6 +40,7 @@ import android.app.ActivityManager;
 import android.app.AppOpsManager;
 import android.app.PendingIntent;
 import android.app.compat.CompatChanges;
+import android.app.privatecompute.flags.Flags;
 import android.compat.annotation.ChangeId;
 import android.compat.annotation.EnabledSince;
 import android.content.BroadcastReceiver;
@@ -5358,7 +5359,7 @@ public class SubscriptionManagerService extends ISub.Stub {
         try {
             int packageUid = mPackageManager.getPackageUid(callingPackage, 0);
             // Use isSameApp to handle multi-user scenarios (ignores user ID, checks app ID)
-            if (!UserHandle.isSameApp(packageUid, callingUid)) {
+            if (!isSameAppIncludingPccUid(packageUid, callingUid)) {
                 throw new SecurityException("Package " + callingPackage + " does not belong to uid "
                         + callingUid);
             }
@@ -5431,6 +5432,23 @@ public class SubscriptionManagerService extends ISub.Stub {
         throw new SecurityException(message + ": Caller " + callingPackage
                 + " does not meet required permissions (Carrier Privilege, Plan Owner, or "
                 + "MANAGE_SUBSCRIPTION_PLANS)");
+    }
+
+    /**
+     * helper method that compares the uid1 to uid2.
+     * <p>
+     * returns true if the uid1 matches the uid2 including pcc uids.
+     */
+    private boolean isSameAppIncludingPccUid(int uid1, int uid2) {
+        int appUid1 = uid1;
+        if (Flags.enablePccFrameworkSupport() && Process.isPrivateComputeCoreUid(uid1)) {
+            appUid1 = mPackageManager.getAppUidForPrivateComputeCoreUid(uid1);
+        }
+        int appUid2 = uid2;
+        if (Flags.enablePccFrameworkSupport() && Process.isPrivateComputeCoreUid(uid2)) {
+            appUid2 = mPackageManager.getAppUidForPrivateComputeCoreUid(uid2);
+        }
+        return UserHandle.isSameApp(appUid1, appUid2);
     }
 
     /**
