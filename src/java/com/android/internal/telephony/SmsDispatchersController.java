@@ -2333,7 +2333,7 @@ public class SmsDispatchersController extends Handler {
 
         SubscriptionManager subscriptionManager = (SubscriptionManager) mContext
                 .getSystemService(Context.TELEPHONY_SUBSCRIPTION_SERVICE);
-        String destAddr = subscriptionManager.getPhoneNumber(mPhone.getSubId());
+        String destAddr = subscriptionManager.getLastKnownPhoneNumber(mPhone.getSubId());
         if (TextUtils.isEmpty(destAddr)) {
             logd("sendMtSmsPollingMessage: destAddr is null or empty.");
             return;

@@ -1723,6 +1723,29 @@ public class SmsDispatchersControllerTest extends TelephonyTest {
         }
     }
 
+    @Test
+    public void testSendMtSmsPollingMessage() throws Exception {
+        when(mSatelliteController.shouldSendSmsToDatagramDispatcher(any(Phone.class)))
+                .thenReturn(true);
+        when(mPhone.getSubId()).thenReturn(1);
+
+        // Mock getPhoneNumber to return null/empty
+        when(mSubscriptionManager.getPhoneNumber(eq(1))).thenReturn("");
+        // Mock getLastKnownPhoneNumber to return a valid number
+        when(mSubscriptionManager.getLastKnownPhoneNumber(eq(1))).thenReturn("1234567890");
+
+        // Mock config_mt_sms_polling_text
+        mContextFixture.putResource(com.android.internal.R.string.config_mt_sms_polling_text,
+                "polling text");
+
+        // Execute
+        mSmsDispatchersController.sendMtSmsPollingMessage();
+        processAllMessages();
+
+        // Verify polling SMS is sent to DatagramDispatcher
+        verify(mMockDatagramDispatcher).sendSms(any());
+    }
+
     private static <T> ArrayList<T> asArrayList(T object) {
         ArrayList<T> list = new ArrayList<>();
         list.add(object);
