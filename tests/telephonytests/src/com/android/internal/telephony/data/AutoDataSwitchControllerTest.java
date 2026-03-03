@@ -165,13 +165,14 @@ public class AutoDataSwitchControllerTest extends TelephonyTest {
                 eq(DataEvaluation.DataEvaluationReason.EXTERNAL_QUERY));
         doReturn(new int[]{SUB_1, SUB_2}).when(mSubscriptionManagerService)
                 .getActiveSubIdList(true);
+        doReturn(PHONE_1).when(mSubscriptionManagerService).getPhoneId(eq(SUB_1));
+        doReturn(PHONE_2).when(mSubscriptionManagerService).getPhoneId(eq(SUB_2));
+        doReturn(SubscriptionManager.INVALID_PHONE_INDEX).when(mSubscriptionManagerService)
+                .getPhoneId(eq(SubscriptionManager.DEFAULT_SUBSCRIPTION_ID));
+        doReturn(SubscriptionManager.INVALID_PHONE_INDEX).when(mSubscriptionManagerService)
+                .getPhoneId(eq(SubscriptionManager.INVALID_SUBSCRIPTION_ID));
         doAnswer(invocation -> {
             int subId = (int) invocation.getArguments()[0];
-            return subId == SUB_1 ? PHONE_1 : PHONE_2;
-        }).when(mSubscriptionManagerService).getPhoneId(anyInt());
-        doAnswer(invocation -> {
-            int subId = (int) invocation.getArguments()[0];
-
             if (!SubscriptionManager.isUsableSubIdValue(subId)) return null;
 
             int slotIndex = subId == SUB_1 ? PHONE_1 : PHONE_2;
@@ -229,7 +230,8 @@ public class AutoDataSwitchControllerTest extends TelephonyTest {
         mPersistableBundle = new PersistableBundle();
         mPersistableBundle.putInt(CarrierConfigManager.KEY_OPP_AUTO_DATA_SWITCH_POLICY_INT,
                 CarrierConfigManager.OPP_AUTO_DATA_SWITCH_POLICY_DISABLED);
-        doReturn(mPersistableBundle).when(mCarrierConfigManager).getConfig(any());
+        doReturn(mPersistableBundle).when(mCarrierConfigManager).getConfigForSubId(anyInt(),
+                any());
     }
 
     @After
@@ -1745,5 +1747,164 @@ public class AutoDataSwitchControllerTest extends TelephonyTest {
 
         verify(mMockedPhoneSwitcherCallback, times(maxRetryFromCarrierConfig))
                 .onRequireValidation(PHONE_2, /* needValidation= */ true);
+    }
+
+    @Test
+    public void testStickyTarget_legacyBehavior_noStickyPreference() {
+        // Feature flag enabled, but no preference set.
+        doReturn(SubscriptionManager.DEFAULT_SUBSCRIPTION_ID)
+                .when(mPhoneSwitcher).getOpportunisticSetDataSubId();
+
+        // 1. Initial State: Primary (DDS) is OOS.
+        setupOpportunisticSwitchMode(
+                CarrierConfigManager.OPP_AUTO_DATA_SWITCH_POLICY_FOR_AVAILABILITY);
+        setupStatePrimaryIsOos();
+
+        mAutoDataSwitchControllerUT.evaluateAutoDataSwitch(
+                EVALUATION_REASON_REGISTRATION_STATE_CHANGED);
+        processAllFutureMessages();
+
+        // Expect switch to opportunistic (PHONE_2) because Primary is OOS.
+        verify(mMockedPhoneSwitcherCallback).onRequireValidation(PHONE_2, true);
+
+        // 2. Switch back: Opportunistic (PHONE_2) becomes OOS.
+        clearInvocations(mMockedPhoneSwitcherCallback);
+        // Assume currently on opportunistic (PHONE_2)
+        doReturn(PHONE_2).when(mPhoneSwitcher).getPreferredDataPhoneId();
+
+        serviceStateChanged(PHONE_2,
+                NetworkRegistrationInfo.REGISTRATION_STATE_NOT_REGISTERED_OR_SEARCHING);
+        processAllFutureMessages();
+
+        // Expect switch back to Default (Primary/PHONE_1) because it's the default target.
+        verify(mMockedPhoneSwitcherCallback).onRequireValidation(DEFAULT_PHONE_INDEX, false);
+    }
+
+    @Test
+    public void testStickyTarget_setOpportunisticAsSticky() {
+        // Feature flag enabled, preference set to Opportunistic Sub (SUB_2).
+        doReturn(SUB_2).when(mPhoneSwitcher).getOpportunisticSetDataSubId();
+
+        // 1. Initial State: On Primary (DDS/PHONE_1). Both services good.
+        setupOpportunisticSwitchMode(
+                CarrierConfigManager.OPP_AUTO_DATA_SWITCH_POLICY_FOR_AVAILABILITY);
+        setDefaultDataSubId(SUB_1);
+        doReturn(PHONE_1).when(mPhoneSwitcher).getPreferredDataPhoneId();
+
+        // Both are HOME and Good.
+        serviceStateChanged(PHONE_1, NetworkRegistrationInfo.REGISTRATION_STATE_HOME);
+        displayInfoChanged(PHONE_1, mGoodTelephonyDisplayInfo);
+        signalStrengthChanged(PHONE_1, SignalStrength.SIGNAL_STRENGTH_GREAT);
+
+        serviceStateChanged(PHONE_2, NetworkRegistrationInfo.REGISTRATION_STATE_HOME);
+        displayInfoChanged(PHONE_2, mGoodTelephonyDisplayInfo);
+        signalStrengthChanged(PHONE_2, SignalStrength.SIGNAL_STRENGTH_GREAT);
+
+        doReturn(true).when(mPhone).isUserDataEnabled();
+        DataSettingsManager dsmPhone2 = mPhone2.getDataSettingsManager();
+        doReturn(true).when(dsmPhone2).isDataEnabled();
+        mDataEvaluation = new DataEvaluation(DataEvaluation.DataEvaluationReason.EXTERNAL_QUERY);
+
+        // Evaluate. Since Sticky Target is PHONE_2 and we are on PHONE_1, it should check
+        // if we should switch back to PHONE_2. Since PHONE_1 is not strictly better (they are
+        // equal), it should prefer the sticky target.
+        mAutoDataSwitchControllerUT.evaluateAutoDataSwitch(
+                EVALUATION_REASON_REGISTRATION_STATE_CHANGED);
+        processAllFutureMessages();
+
+        // Expect switch to Sticky Target (PHONE_2).
+        verify(mMockedPhoneSwitcherCallback).onRequireValidation(PHONE_2, true);
+    }
+
+    @Test
+    public void testStickyTarget_switchOutOfSticky() {
+        // Feature flag enabled, preference set to Opportunistic Sub (SUB_2).
+        doReturn(SUB_2).when(mPhoneSwitcher).getOpportunisticSetDataSubId();
+
+        // 1. Initial State: On Sticky Target (PHONE_2).
+        setupOpportunisticSwitchMode(
+                CarrierConfigManager.OPP_AUTO_DATA_SWITCH_POLICY_FOR_AVAILABILITY);
+        setDefaultDataSubId(SUB_1);
+        doReturn(PHONE_2).when(mPhoneSwitcher).getPreferredDataPhoneId();
+
+        // Sticky Target (PHONE_2) becomes OOS.
+        serviceStateChanged(PHONE_2,
+                NetworkRegistrationInfo.REGISTRATION_STATE_NOT_REGISTERED_OR_SEARCHING);
+        displayInfoChanged(PHONE_2, mBadTelephonyDisplayInfo);
+        signalStrengthChanged(PHONE_2, SignalStrength.SIGNAL_STRENGTH_POOR);
+
+        // Primary (PHONE_1) is HOME and Good.
+        serviceStateChanged(PHONE_1, NetworkRegistrationInfo.REGISTRATION_STATE_HOME);
+        displayInfoChanged(PHONE_1, mGoodTelephonyDisplayInfo);
+        signalStrengthChanged(PHONE_1, SignalStrength.SIGNAL_STRENGTH_GREAT);
+
+        doReturn(true).when(mPhone).isUserDataEnabled();
+        doReturn(true).when(mPhone2).isUserDataEnabled();
+        mDataEvaluation = new DataEvaluation(DataEvaluation.DataEvaluationReason.EXTERNAL_QUERY);
+
+        // Evaluate. We are on Sticky Target, but it's bad. Primary is better.
+        mAutoDataSwitchControllerUT.evaluateAutoDataSwitch(
+                EVALUATION_REASON_REGISTRATION_STATE_CHANGED);
+        processAllFutureMessages();
+
+        // Expect switch out of Sticky Target to Primary (PHONE_1).
+        verify(mMockedPhoneSwitcherCallback).onRequireValidation(DEFAULT_PHONE_INDEX, true);
+    }
+
+    @Test
+    public void testStickyTarget_switchBackToSticky() {
+        // Feature flag enabled, preference set to Opportunistic Sub (SUB_2).
+        doReturn(SUB_2).when(mPhoneSwitcher).getOpportunisticSetDataSubId();
+
+        // 1. Initial State: On Temporary Primary (PHONE_1).
+        setupOpportunisticSwitchMode(
+                CarrierConfigManager.OPP_AUTO_DATA_SWITCH_POLICY_FOR_AVAILABILITY);
+        setDefaultDataSubId(SUB_1);
+        doReturn(PHONE_1).when(mPhoneSwitcher).getPreferredDataPhoneId();
+
+        // Sticky Target (PHONE_2) recovers and becomes HOME/Good.
+        serviceStateChanged(PHONE_2, NetworkRegistrationInfo.REGISTRATION_STATE_HOME);
+        displayInfoChanged(PHONE_2, mGoodTelephonyDisplayInfo);
+        signalStrengthChanged(PHONE_2, SignalStrength.SIGNAL_STRENGTH_GREAT);
+
+        // Primary (PHONE_1) is also HOME/Good.
+        serviceStateChanged(PHONE_1, NetworkRegistrationInfo.REGISTRATION_STATE_HOME);
+        displayInfoChanged(PHONE_1, mGoodTelephonyDisplayInfo);
+        signalStrengthChanged(PHONE_1, SignalStrength.SIGNAL_STRENGTH_GREAT);
+
+        doReturn(true).when(mPhone).isUserDataEnabled();
+        DataSettingsManager dsmPhone2 = mPhone2.getDataSettingsManager();
+        doReturn(true).when(dsmPhone2).isDataEnabled();
+        mDataEvaluation = new DataEvaluation(DataEvaluation.DataEvaluationReason.EXTERNAL_QUERY);
+
+        // Evaluate. We are on Temporary (PHONE_1), Sticky is PHONE_2.
+        // PHONE_1 is not better than PHONE_2. Should switch back to sticky.
+        mAutoDataSwitchControllerUT.evaluateAutoDataSwitch(
+                EVALUATION_REASON_REGISTRATION_STATE_CHANGED);
+        processAllFutureMessages();
+
+        // Expect switch back to Sticky Target (PHONE_2).
+        verify(mMockedPhoneSwitcherCallback).onRequireValidation(PHONE_2, true);
+    }
+
+    @Test
+    public void testStickyTarget_defaultDataDisabled_immediateSwitchBack() {
+        // Feature flag enabled, preference set to Opportunistic Sub (SUB_2).
+        doReturn(SUB_2).when(mPhoneSwitcher).getOpportunisticSetDataSubId();
+
+        setupOpportunisticSwitchMode(
+                CarrierConfigManager.OPP_AUTO_DATA_SWITCH_POLICY_FOR_AVAILABILITY);
+        setDefaultDataSubId(SUB_1);
+        doReturn(PHONE_1).when(mPhoneSwitcher).getPreferredDataPhoneId(); // On Temporary Primary
+
+        // User disables data on default sub.
+        doReturn(false).when(mPhone).isUserDataEnabled();
+
+        mAutoDataSwitchControllerUT.evaluateAutoDataSwitch(EVALUATION_REASON_DATA_SETTINGS_CHANGED);
+        processAllFutureMessages();
+
+        // Expect immediate switch back to default
+        verify(mMockedPhoneSwitcherCallback).onRequireImmediatelySwitchToPhone(
+                DEFAULT_PHONE_INDEX, EVALUATION_REASON_DATA_SETTINGS_CHANGED);
     }
 }

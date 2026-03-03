@@ -36,6 +36,7 @@ import android.telephony.PreciseDataConnectionState;
 import android.telephony.SecurityAlgorithmUpdate;
 import android.telephony.ServiceState;
 import android.telephony.TelephonyDisplayInfo;
+import android.telephony.TelephonyManager;
 import android.telephony.TelephonyManager.DataEnabledReason;
 import android.telephony.TelephonyManager.DomainSelectionEmergencyType;
 import android.telephony.TelephonyManager.EmergencyCallbackModeStopReason;
@@ -352,6 +353,13 @@ public class DefaultPhoneNotifier implements PhoneNotifier {
             @NonNull NtnSignalStrength ntnSignalStrength) {
         mTelephonyRegistryMgr.notifyCarrierRoamingNtnSignalStrengthChanged(
                 sender.getSubId(), ntnSignalStrength);
+    }
+
+    @Override
+    public void notifySatellitePurchaseModeChanged(Phone sender, boolean isEnabled,
+            @TelephonyManager.SatellitePurchaseModeState int purchaseModeState) {
+        mTelephonyRegistryMgr.notifySatellitePurchaseModeChanged(
+                sender.getSubId(), isEnabled, purchaseModeState);
     }
 
     @Override

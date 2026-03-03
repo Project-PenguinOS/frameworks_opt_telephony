@@ -24,6 +24,7 @@ import static android.telephony.NetworkSecurityEvent.ALERT_CATEGORY_DOWNGRADE;
 import static android.telephony.NetworkSecurityEvent.ALERT_STATUS_DETECTED;
 import static android.telephony.NetworkSecurityEvent.REASON_CODE_DOWNGRADE_FORCED_HANDOVER;
 import static android.telephony.ServiceState.RIL_RADIO_TECHNOLOGY_LTE;
+import static android.telephony.TelephonyManager.SATELLITE_PURCHASE_MODE_STATE_ACTIVE;
 
 import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
@@ -42,7 +43,6 @@ import android.telephony.NetworkSecurityEvent;
 import android.telephony.PreciseCallState;
 import android.telephony.PreciseDisconnectCause;
 import android.telephony.SecurityAlgorithmUpdate;
-import android.telephony.ServiceState;
 import android.telephony.SignalStrength;
 import android.telephony.TelephonyManager;
 import android.telephony.ims.ImsCallProfile;
@@ -441,6 +441,16 @@ public class DefaultPhoneNotifierTest extends TelephonyTest {
         mDefaultPhoneNotifierUT.notifyCarrierRoamingNtnModeChanged(mPhone, true);
         verify(mTelephonyRegistryManager).notifyCarrierRoamingNtnModeChanged(
                 eq(subId), eq(true));
+    }
+
+    @Test
+    @SmallTest
+    public void testNotifySatellitePurchaseModeChanged() {
+        int subId = mPhone.getSubId();
+        mDefaultPhoneNotifierUT.notifySatellitePurchaseModeChanged(mPhone, true,
+                SATELLITE_PURCHASE_MODE_STATE_ACTIVE);
+        verify(mTelephonyRegistryManager).notifySatellitePurchaseModeChanged(
+                eq(subId), eq(true), eq(SATELLITE_PURCHASE_MODE_STATE_ACTIVE));
     }
 
     @Test

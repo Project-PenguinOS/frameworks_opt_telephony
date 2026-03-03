@@ -5316,6 +5316,21 @@ public abstract class Phone extends Handler implements PhoneInternalInterface {
     }
 
     /**
+     * Notify external listeners that satellite purchase mode changed.
+     *
+     * @param isEnabled {@code true} If satellite purchase mode is in progress,
+     *                         {@code false} otherwise.
+     * @param purchaseModeState State of the purchase mode. Network setup, teardown and Purchase
+     *                          Mode active or inactive. Inactive by default.
+     */
+    public void notifySatellitePurchaseModeChanged(boolean isEnabled,
+            @TelephonyManager.SatellitePurchaseModeState int purchaseModeState) {
+        logd("notifySatellitePurchaseModeChanged inEnabled:" + isEnabled
+                + " purchaseModeState:" + purchaseModeState);
+        mNotifier.notifySatellitePurchaseModeChanged(this, isEnabled, purchaseModeState);
+    }
+
+    /**
      * Set the non-terrestrial PLMN with lower priority than terrestrial networks.
      *
      * @param simSlot Indicates the SIM slot to which this API will be applied. The modem will use

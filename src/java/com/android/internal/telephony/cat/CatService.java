@@ -488,11 +488,11 @@ public class CatService extends Handler implements AppInterface {
             case SET_UP_EVENT_LIST:
                 if (isSupportedSetupEventCommand(cmdMsg)) {
                     sendTerminalResponse(cmdParams.mCmdDet, ResultCode.OK, false, 0, null);
-                    broadcastSetupEventList(cmdMsg);
                 } else {
                     sendTerminalResponse(cmdParams.mCmdDet, ResultCode.BEYOND_TERMINAL_CAPABILITY,
                             false, 0, null);
                 }
+                broadcastSetupEventList(cmdMsg);
                 break;
             case PROVIDE_LOCAL_INFORMATION:
                 ResponseData resp;
@@ -577,6 +577,12 @@ public class CatService extends Handler implements AppInterface {
                 break;
             case SEND_DTMF:
             case SEND_SS:
+                if ((((DisplayTextParams) cmdParams).mTextMsg.text != null)
+                        && (((DisplayTextParams) cmdParams).mTextMsg.text.equals(STK_DEFAULT))) {
+                    message = mContext.getText(com.android.internal.R.string.sending);
+                    ((DisplayTextParams) cmdParams).mTextMsg.text = message.toString();
+                }
+                break;
             case SEND_USSD:
                 if (Flags.supportStkCommandUssdAndCall()) {
                     sendUssd(cmdParams.mCmdDet,

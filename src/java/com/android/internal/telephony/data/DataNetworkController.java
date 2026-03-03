@@ -81,6 +81,7 @@ import android.telephony.data.DataCallResponse.LinkStatus;
 import android.telephony.data.DataProfile;
 import android.telephony.data.DataServiceCallback;
 import android.telephony.data.QosBearerSession;
+import android.telephony.data.TrafficDescriptor;
 import android.telephony.ims.ImsException;
 import android.telephony.ims.ImsManager;
 import android.telephony.ims.ImsReasonInfo;
@@ -1179,6 +1180,10 @@ public class DataNetworkController extends Handler {
             @Override
             public void onDeviceConfigChanged() {
                 DataNetworkController.this.onDeviceConfigUpdated();
+            }
+            @Override
+            public void onDynamicConfigChanged() {
+                DataNetworkController.this.onDynamicConfigChanged();
             }
         });
         mPhone.getServiceStateTracker().registerForPsRestrictedEnabled(this,
@@ -2402,6 +2407,43 @@ public class DataNetworkController extends Handler {
             }
         }
 
+        // Re-evaluate Connection Capability Mappings when Dynamic Config changes
+        if (reason == DataEvaluationReason.DATA_DYNAMIC_CONFIG_CHANGED) {
+            // Get the Connection Capability (Slice) currently used by this network
+            int currentConnectionCapability = TrafficDescriptor.CONNECTION_CAPABILITY_UNKNOWN;
+            if (dataNetwork.getDataProfile().getTrafficDescriptor() != null) {
+                currentConnectionCapability = dataNetwork.getDataProfile()
+                        .getTrafficDescriptor().getConnectionCapability();
+            }
+
+            // Check every attached request to see if it now requires a DIFFERENT capability
+            boolean mappingMismatch = false;
+            for (TelephonyNetworkRequest request : dataNetwork.getAttachedNetworkRequestList()) {
+                int highestPriorityCap = request.getHighestPrioritySupportedNetworkCapability();
+
+                // Get the NEW expected capability from the updated config
+                int expectedConnectionCapability = mDataConfigManager
+                        .networkCapabilityToConnectionCapability(highestPriorityCap);
+
+                // Compare: If the request maps to a specific slice
+                // and that slice is different from what we have, it's a mismatch.
+                if (currentConnectionCapability != expectedConnectionCapability) {
+                    log("evaluateDataNetwork: Mismatch for " + dataNetwork
+                            + ". Request " + request + " and highestPriorityCap "
+                            + highestPriorityCap + " expects ConnCap "
+                            + expectedConnectionCapability + " but has "
+                            + currentConnectionCapability);
+                    mappingMismatch = true;
+                    break;
+                }
+            }
+
+            // If mismatch found, mark profile as invalid to trigger teardown and re-establishment
+            if (mappingMismatch) {
+                evaluation.addDataDisallowedReason(DataDisallowedReason.DATA_PROFILE_INVALID);
+            }
+        }
+
         if (dataDisabled) {
             evaluation.addDataDisallowedReason(DataDisallowedReason.DATA_DISABLED);
         }
@@ -3134,6 +3176,19 @@ public class DataNetworkController extends Handler {
         log("onDeviceConfigUpdated: DeviceConfig updated.");
         updateAnomalySlidingWindowCounters();
     }
+
+    /**
+     * Called when DataConfig is updated dynamically.
+     */
+    private void onDynamicConfigChanged() {
+        log("onDataConfigUpdated: Config changed. Re-evaluating all data networks.");
+
+        sendMessage(obtainMessage(EVENT_REEVALUATE_EXISTING_DATA_NETWORKS,
+                DataEvaluationReason.DATA_DYNAMIC_CONFIG_CHANGED));
+        sendMessage(obtainMessage(EVENT_REEVALUATE_UNSATISFIED_NETWORK_REQUESTS,
+                DataEvaluationReason.DATA_DYNAMIC_CONFIG_CHANGED));
+    }
+
 
     /**
      * Update each network request's priority.
