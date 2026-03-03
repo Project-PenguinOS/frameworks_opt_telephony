@@ -287,8 +287,7 @@ public class CarrierRoamingSatelliteControllerStatsTest extends TelephonyTest {
         expected.setIsMultiSim(false);
 
         clearInvocations(mMockSatelliteStats);
-        mTestCarrierRoamingSatelliteControllerStats.reportCarrierId(TEST_SUB_ID_0,
-                TEST_CARRIER_ID_0);
+        mTestCarrierRoamingSatelliteControllerStats.reportCarrierId(TEST_SUB_ID_0);
         verify(mMockSatelliteStats, times(1)).onCarrierRoamingSatelliteControllerStatsMetrics(
                 ArgumentMatchers.argThat(argument -> verifyAssets(expected, argument)));
 
@@ -304,8 +303,7 @@ public class CarrierRoamingSatelliteControllerStatsTest extends TelephonyTest {
         expected.setIsMultiSim(true);
 
         clearInvocations(mMockSatelliteStats);
-        mTestCarrierRoamingSatelliteControllerStats.reportCarrierId(TEST_SUB_ID_1,
-                TEST_CARRIER_ID_1);
+        mTestCarrierRoamingSatelliteControllerStats.reportCarrierId(TEST_SUB_ID_1);
         verify(mMockSatelliteStats, times(1)).onCarrierRoamingSatelliteControllerStatsMetrics(
                 ArgumentMatchers.argThat(argument -> verifyAssets(expected, argument)));
     }
