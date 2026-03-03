@@ -10418,7 +10418,8 @@ public class SatelliteController extends Handler {
             }
         } else if (isInSatelliteModeForCarrierRoaming(phone)) {
             ServiceState serviceState = phone.getServiceState();
-            if (serviceState.getState() != ServiceState.STATE_OUT_OF_SERVICE) {
+            if (serviceState.getState() != ServiceState.STATE_OUT_OF_SERVICE
+                    || serviceState.getDataRegState() != ServiceState.STATE_OUT_OF_SERVICE) {
                 carrierRoamingNtnSignalStrength = new NtnSignalStrength(
                         phone.getSignalStrength().getLevel());
                 plogd("getCarrierRoamingNtnSignalStrength[phoneId=" + phone.getPhoneId()
