@@ -66,6 +66,7 @@ import android.util.Pair;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.telephony.CarrierPrivilegesTracker;
+import com.android.internal.telephony.CarrierResolver;
 import com.android.internal.telephony.Phone;
 import com.android.internal.telephony.PhoneFactory;
 import com.android.internal.telephony.euicc.EuiccConnector.OtaStatusChangedCallback;
@@ -2019,9 +2020,18 @@ public class EuiccController extends IEuiccController.Stub {
         return resultRef.get();
     }
 
-    // Returns whether the caller has carrier privilege on the given subscription.
-    private boolean checkCarrierPrivilegeInMetadata(DownloadableSubscription subscription,
-            String callingPackage) {
+    /** Returns whether the caller has carrier privilege on the given subscription. */
+    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PRIVATE)
+    public boolean checkCarrierPrivilegeInMetadata(
+            DownloadableSubscription subscription, String callingPackage) {
+        if (isPrivilegedFromUiccAccessRules(subscription, callingPackage)) return true;
+        return mFeatureFlags.downloadableSubscriptionIncludeCarrierIdentifierInternal()
+                && isPrivilegedFromCarrierIdentifier(subscription, callingPackage);
+    }
+
+    // Check for privileges from BF76 metadata
+    private boolean isPrivilegedFromUiccAccessRules(
+            DownloadableSubscription subscription, String callingPackage) {
         UiccAccessRule[] rules = null;
         List<UiccAccessRule> rulesList = subscription.getAccessRules();
         if (rulesList != null) {
@@ -2034,8 +2044,9 @@ public class EuiccController extends IEuiccController.Stub {
 
         final PackageInfo info;
         try {
-            info = mPackageManager.getPackageInfo(callingPackage,
-                PackageManager.GET_SIGNING_CERTIFICATES);
+            info =
+                    mPackageManager.getPackageInfo(
+                            callingPackage, PackageManager.GET_SIGNING_CERTIFICATES);
         } catch (PackageManager.NameNotFoundException e) {
             Log.e(TAG, "Calling package valid but gone");
             return false;
@@ -2049,6 +2060,37 @@ public class EuiccController extends IEuiccController.Stub {
             }
         }
         Log.e(TAG, "Calling package doesn't have carrier privilege to this profile");
+        return false;
+    }
+
+    /**
+     * Use the CarrierIdentifier information from the subscription metadata to check whether the
+     * calling package shares has the same CarrierId on a SIM/subscription that also grants the
+     * package CarrierPrivileges.
+     */
+    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PRIVATE)
+    public boolean isPrivilegedFromCarrierIdentifier(
+            DownloadableSubscription subscription, String callingPackage) {
+        if (subscription.getCarrierIdentifier() == null) return false;
+
+        // TODO: add code to ensure that the match is high confidence, which can be enforced
+        // at least on user builds. Perhaps allow test builds to use low confidence matches,
+        // such as matches of the SPN, but this can't be allowed in production.
+        final int parentCarrierId =
+                CarrierResolver.getCarrierIdFromIdentifier(
+                        mContext, subscription.getCarrierIdentifier(), true /* return parent */);
+
+        for (Phone phone : PhoneFactory.getPhones()) {
+            if (phone.getCarrierId() == parentCarrierId) {
+                CarrierPrivilegesTracker cpt = phone.getCarrierPrivilegesTracker();
+                if (cpt != null
+                        && TelephonyManager.CARRIER_PRIVILEGE_STATUS_HAS_ACCESS
+                                == cpt.getCarrierPrivilegeStatusForPackage(callingPackage)) {
+                    return true;
+                }
+            }
+        }
+
         return false;
     }
 
