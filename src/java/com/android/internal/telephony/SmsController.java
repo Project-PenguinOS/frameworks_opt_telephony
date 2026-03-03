@@ -1006,6 +1006,12 @@ public class SmsController extends ISmsImplBase {
         filtered.putBoolean(
                 SmsManager.MMS_CONFIG_SUPPORT_HTTP_CHARSET_HEADER,
                 config.getBoolean(SmsManager.MMS_CONFIG_SUPPORT_HTTP_CHARSET_HEADER));
+        filtered.putInt(
+                CarrierConfigManager.KEY_MMS_MAX_NTN_PAYLOAD_SIZE_BYTES_INT,
+                config.getInt(CarrierConfigManager.KEY_MMS_MAX_NTN_PAYLOAD_SIZE_BYTES_INT));
+        filtered.putInt(
+                CarrierConfigManager.KEY_MMS_NETWORK_RELEASE_TIMEOUT_MILLIS_INT,
+                config.getInt(CarrierConfigManager.KEY_MMS_NETWORK_RELEASE_TIMEOUT_MILLIS_INT));
         return filtered;
     }
 
