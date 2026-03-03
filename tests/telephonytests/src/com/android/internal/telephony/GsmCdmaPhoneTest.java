@@ -70,6 +70,7 @@ import android.os.UserManager;
 import android.os.WorkSource;
 import android.preference.PreferenceManager;
 import android.provider.DeviceConfig;
+import android.telecom.TelecomManager;
 import android.telecom.VideoProfile;
 import android.telephony.AccessNetworkConstants;
 import android.telephony.CarrierConfigManager;
@@ -3231,5 +3232,29 @@ public class GsmCdmaPhoneTest extends TelephonyTest {
                 mTelephonyComponentFactory,
                 (c, p) -> mImsManager,
                 mFeatureFlags);
+    }
+
+    @Test
+    @SmallTest
+    public void testTtyModeBroadcast() throws Exception {
+        mPhoneUT.mCi = mMockCi;
+        replaceInstance(Phone.class, "mImsPhone", mPhoneUT, mImsPhone);
+
+        // Test ACTION_CURRENT_TTY_MODE_CHANGED
+        Intent intent = new Intent(TelecomManager.ACTION_CURRENT_TTY_MODE_CHANGED);
+        intent.putExtra(TelecomManager.EXTRA_CURRENT_TTY_MODE, TelephonyManager.TTY_MODE_FULL);
+        mContext.sendBroadcast(intent);
+        processAllMessages();
+
+        verify(mMockCi).setTTYMode(eq(Phone.TTY_MODE_FULL), nullable(Message.class));
+        verify(mImsPhone).setTTYMode(eq(Phone.TTY_MODE_FULL), nullable(Message.class));
+
+        // Test ACTION_TTY_PREFERRED_MODE_CHANGED
+        intent = new Intent(TelecomManager.ACTION_TTY_PREFERRED_MODE_CHANGED);
+        intent.putExtra(TelecomManager.EXTRA_TTY_PREFERRED_MODE, TelephonyManager.TTY_MODE_HCO);
+        mContext.sendBroadcast(intent);
+        processAllMessages();
+
+        verify(mImsPhone).setUiTTYMode(eq(Phone.TTY_MODE_FULL), nullable(Message.class));
     }
 }

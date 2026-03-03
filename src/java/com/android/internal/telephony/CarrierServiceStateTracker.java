@@ -730,7 +730,7 @@ public class CarrierServiceStateTracker extends Handler {
                     broadcastIntent,
                     PendingIntent.FLAG_IMMUTABLE);
             CharSequence text = "Do Not Ask Again";
-            if (c != null && mFeatureFlags.dynamicDoNotAskAgainText()) {
+            if (c != null) {
                 text = c.getText(com.android.internal.R.string.emergency_calling_do_not_show_again);
             }
             return new Notification.Action.Builder(null, text, pendingIntent).build();

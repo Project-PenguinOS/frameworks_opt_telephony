@@ -273,6 +273,7 @@ public class DataSettingsManager extends Handler {
             case EVENT_PROVISIONED_CHANGED:
             case EVENT_PROVISIONING_DATA_ENABLED_CHANGED: {
                 updateDataEnabledAndNotify(TelephonyManager.DATA_ENABLED_REASON_UNKNOWN);
+                notifyDataServiceUserDataEnabled(isUserDataEnabled());
                 break;
             }
             case EVENT_INITIALIZE: {

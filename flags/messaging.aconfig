@@ -94,3 +94,11 @@ flag {
   bug: "469744736"
 }
 
+# OWNER=arunvoddu TARGET=26Q3
+flag {
+  name: "write_sim_async"
+  namespace: "telephony"
+  description: "Moving the file I/O operations to background thread to avoid ANR"
+  bug: "469506704"
+}
+
