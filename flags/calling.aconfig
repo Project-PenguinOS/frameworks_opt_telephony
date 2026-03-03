@@ -131,6 +131,17 @@ flag {
 
 # OWNER=breadley TARGET=26Q3
 flag {
+    name: "hide_default_outgoing_account_if_not_multiple"
+    namespace: "telephony"
+    description: "Hide the 'Make calls with' setting if there is only one or zero enabled phone accounts."
+    bug: "488181004"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+# OWNER=breadley TARGET=26Q3
+flag {
     name: "support_same_uri_conference_srvcc"
     namespace: "telephony"
     description: "Support SRVCC of an IMS conference with the participants having the same URI."
