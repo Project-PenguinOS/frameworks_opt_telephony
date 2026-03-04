@@ -504,7 +504,11 @@ public abstract class TelephonyTest {
         mIsimUiccRecords = Mockito.mock(IsimUiccRecords.class);
         mProxyController = Mockito.mock(ProxyController.class);
         mPhoneSwitcher = Mockito.mock(PhoneSwitcher.class);
-        mIActivityManagerSingleton = Mockito.mock(Singleton.class);
+        Field activityManagerSingletionField =
+                ActivityManager.class.getDeclaredField("IActivityManagerSingleton");
+        activityManagerSingletionField.setAccessible(true);
+        mIActivityManagerSingleton =
+                (Singleton<IActivityManager>) activityManagerSingletionField.get(null);
         mIActivityManager = Mockito.mock(IActivityManager.class);
         mIIntentSender = Mockito.mock(IIntentSender.class);
         mIBinder = Mockito.mock(IBinder.class);
@@ -949,8 +953,6 @@ public abstract class TelephonyTest {
                 mSubscriptionManagerService);
         replaceInstance(ProxyController.class, "sProxyController", null, mProxyController);
         replaceInstance(PhoneSwitcher.class, "sPhoneSwitcher", null, mPhoneSwitcher);
-        replaceInstance(ActivityManager.class, "IActivityManagerSingleton", null,
-                mIActivityManagerSingleton);
         replaceInstance(SimulatedCommandsVerifier.class, "sInstance", null,
                 mSimulatedCommandsVerifier);
         replaceInstance(Singleton.class, "mInstance", mIActivityManagerSingleton,
@@ -1050,7 +1052,6 @@ public abstract class TelephonyTest {
         // Normally, these two should suffice. But we're having some flakiness due to restored
         // instances being mocks...
         restoreInstance(Singleton.class, "mInstance", mIActivityManagerSingleton);
-        restoreInstance(ActivityManager.class, "IActivityManagerSingleton", null);
 
         // Copy-paste from android.app.ActivityManager.IActivityManagerSingleton
         Singleton<IActivityManager> amSingleton = new Singleton<IActivityManager>() {
@@ -1065,7 +1066,6 @@ public abstract class TelephonyTest {
         // ...so we're setting correct values explicitly, to be sure and not let the flake propagate
         // to other tests.
         replaceInstance(Singleton.class, "mInstance", mIActivityManagerSingleton, null);
-        replaceInstance(ActivityManager.class, "IActivityManagerSingleton", null, amSingleton);
     }
 
     public static class FakeBlockedNumberContentProvider extends MockContentProvider {
