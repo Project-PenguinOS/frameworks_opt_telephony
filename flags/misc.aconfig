@@ -46,17 +46,6 @@ flag {
     }
 }
 
-# OWNER=tjstuart TARGET=25Q2
-flag {
-    name: "dynamic_do_not_ask_again_text"
-    namespace: "telephony"
-    description: "Make No Emergency Wifi Calling Do Not Ask Again text translatable"
-    bug:"382006472"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
 # OWNER=hyeinyu TARGET=25Q4
 flag {
     name: "enable_phone_number_parsing_api"

@@ -790,8 +790,10 @@ public class DataProfileManager extends Handler {
             return null;
         }
 
-        if (!mFeatureFlags.enableTrafficDescriptorConnectionCapability() || mDataConfigManager
-                .isApnMatchedRequired()) {
+        int targetCapability = networkRequest.getHighestPrioritySupportedNetworkCapability();
+        boolean isApnRequired = mDataConfigManager.isApnMatchedRequired(targetCapability);
+
+        if (!mFeatureFlags.enableTrafficDescriptorConnectionCapability() || isApnRequired) {
             if (trafficDescriptor.getDataNetworkName() == null
                     && trafficDescriptor.getOsAppId() == null
                     && trafficDescriptor.getConnectionCapability()

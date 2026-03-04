@@ -91,6 +91,18 @@ flag {
     is_exported: true
 }
 
+# OWNER=pmadapurmath TARGET=26Q4
+flag {
+    name: "enable_vt_call_low_battery_config"
+    namespace: "telephony"
+    description: "This flag controls the availability and functionality of the KEY_ALLOW_VIDEO_CALL_IN_LOW_BATTERY_BOOL carrier config."
+    bug: "416476913"
+    metadata {
+        purpose: PURPOSE_FEATURE
+    }
+    is_exported: true
+}
+
 # OWNER=shashannk TARGET=26Q2
 flag {
     name: "support_ims_sms_smma"
@@ -116,6 +128,17 @@ flag {
     description: "Ensures that ImsService feature creation and modification are executed sequentially to prevent race conditions."
     bug:"403628336"
     metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+# OWNER=breadley TARGET=26Q3
+flag {
+  name: "init_rcs_provisioning_monitor_async"
+  namespace: "telephony"
+  description: "Init RcsProvisioningMonitor in a background thread to prevent ANR"
+  bug: "469248684"
+  metadata {
         purpose: PURPOSE_BUGFIX
     }
 }

@@ -348,6 +348,15 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
                     }
                 }
 
+                boolean isLowBattery = (c != null) && (c.getCallProfile() != null) &&
+                        c.getCallProfile().getCallExtraBoolean(
+                        ImsCallProfile.EXTRA_LOW_BATTERY, false);
+                if (imsCall.isVideoCall() && isLowBattery
+                        && !mShouldAllowVtCallsInLowBattery) {
+                    imsCall.reject(ImsReasonInfo.CODE_USER_DECLINE);
+                    conn.setDisconnectCause(DisconnectCause.INCOMING_AUTO_REJECTED);
+                }
+
                 mOperationLocalLog.log("onIncomingCall: isUnknown=" + isUnknown + ", connId="
                         + System.identityHashCode(conn));
 
@@ -1161,6 +1170,14 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
       * See {@link CarrierConfigManager#KEY_CARRIER_USSD_METHOD_INT} for more information.
       */
     private int mUssdMethod = USSD_OVER_CS_PREFERRED;
+
+    /**
+      * Carrier configuration option which specifies whether the carrier should allow incoming
+      * video call when the battery status in low.
+      * See {@link CarrierConfigManager#KEY_ALLOW_VIDEO_CALL_IN_LOW_BATTERY_BOOL}
+      * for more information.
+      */
+    private boolean mShouldAllowVtCallsInLowBattery = true;
 
     /**
      * TODO: Remove this code; it is a workaround.
@@ -2129,6 +2146,8 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
                         .KEY_VOICE_RTP_INACTIVITY_TIME_THRESHOLD_MILLIS_LONG);
         mThresholdRtpJitter = carrierConfig.getInt(
                 CarrierConfigManager.ImsVoice.KEY_VOICE_RTP_JITTER_THRESHOLD_MILLIS_INT);
+        mShouldAllowVtCallsInLowBattery = carrierConfig.getBoolean(
+                CarrierConfigManager.KEY_ALLOW_VIDEO_CALL_IN_LOW_BATTERY_BOOL);
 // QTI_BEGIN: 2019-10-03: Telephony: IMS: Fix call cannot be resumed for few operators
         mAllowHoldingCall = carrierConfig.getBoolean(
                 CarrierConfigManager.KEY_ALLOW_HOLD_IN_IMS_CALL_BOOL);

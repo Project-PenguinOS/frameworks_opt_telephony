@@ -27,6 +27,8 @@ import android.telephony.CarrierConfigManager;
 import android.telephony.satellite.EnableRequestAttributes;
 import android.telephony.satellite.SatelliteManager;
 
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
 import java.util.function.Consumer;
 
@@ -37,6 +39,22 @@ import java.util.function.Consumer;
  */
 @FlaggedApi(Flags.FLAG_SATELLITE_UPSELL_26Q4)
 public class SatelliteEnablementController {
+    private static final int SATELLITE_ENABLED_FOR_UNKNOWN =
+            1 << SatelliteManager.SATELLITE_ENABLEMENT_REQUEST_REASON_UNKNOWN;
+    private static final int SATELLITE_ENABLED_FOR_PURCHASE =
+            1 << SatelliteManager.SATELLITE_ENABLEMENT_REQUEST_REASON_PURCHASE;
+    private static final int SATELLITE_ENABLED_FOR_USER =
+            1 << SatelliteManager.SATELLITE_ENABLEMENT_REQUEST_REASON_USER;
+    private static final int SATELLITE_ENABLED_FOR_POWER =
+            1 << SatelliteManager.SATELLITE_ENABLEMENT_REQUEST_REASON_POWER;
+    private static final int SATELLITE_ENABLED_FOR_CARRIER_CONFIG_UPDATE =
+            1 << SatelliteManager.SATELLITE_ENABLEMENT_REQUEST_REASON_CARRIER_CONFIG_UPDATE;
+    private static final int SATELLITE_ENABLED_FOR_ENTITLEMENT =
+            1 << SatelliteManager.SATELLITE_ENABLEMENT_REQUEST_REASON_ENTITLEMENT;
+
+    // Map<SubId, Map<ConnectType, DisabledMask>>
+    private final Map<Integer, Map<Integer, Integer>> mSatelliteDisabledMaskMap =
+            new ConcurrentHashMap<>();
     private final ManualEnablementController mManualSatelliteController;
     private final AutoEnablementController mAutoSatelliteController;
 
@@ -61,14 +79,15 @@ public class SatelliteEnablementController {
      * @param executor The executor on which the callback will be called.
      * @param resultListener Listener for the result of the operation.
      */
-    public void requestSatelliteEnabled(@NonNull EnableRequestAttributes attributes,
+    public void requestSatelliteEnabled(int subId, @NonNull EnableRequestAttributes attributes,
             @NonNull Executor executor, @NonNull Consumer<Integer> resultListener) {
-        // TODO: Implement bitmask-based arbitration logic here.
+        setSatelliteEnabledForReason(subId, attributes.getConnectType(),
+                attributes.getSatelliteEnablementRequestReason(), attributes.isEnabled());
 
         SatelliteEnablementStrategy enablementController =
                 getEnablementController(attributes.getConnectType());
         if (enablementController != null) {
-            if (attributes.isEnabled()) {
+            if (isSatelliteEnabled(subId, attributes.getConnectType())) {
                 enablementController.enableSatellite(attributes, executor, resultListener);
             } else {
                 enablementController.disableSatellite(attributes, executor, resultListener);
@@ -77,6 +96,39 @@ public class SatelliteEnablementController {
             // Handle unsupported connect type
             resultListener.accept(SatelliteManager.SATELLITE_RESULT_INVALID_ARGUMENTS);
         }
+    }
+
+    /**
+     * @return {@code true} if satellite is enabled for the given subId and connectType,
+     * {@code false} otherwise.
+     */
+    public boolean isSatelliteEnabled(int subId, int connectType) {
+        Map<Integer, Integer> subMap = mSatelliteDisabledMaskMap.get(subId);
+        if (subMap == null) {
+            return true; // No masks set, so enabled by default
+        }
+        return subMap.getOrDefault(connectType, 0) == 0;
+    }
+
+    /**
+     * Updates the satellite enablement state for a specific subId, connectType, and reason.
+     */
+    private void setSatelliteEnabledForReason(int subId, int connectType, int reason,
+            boolean enabled) {
+        int flag = 1 << reason;
+
+        // Ensure subId map exists, then update the mask for the specific connectType
+        mSatelliteDisabledMaskMap.computeIfAbsent(subId, k -> new ConcurrentHashMap<>())
+                .compute(connectType, (k, currentMask) -> {
+                    int mask = (currentMask == null) ? 0 : currentMask;
+                    if (enabled) {
+                        return mask & ~flag; // Remove the disablement reason
+                    } else {
+                        return mask | flag;  // Add the disablement reason
+                    }
+                });
+        // TODO: persist satellite enablement state on SubscriptionManager DB
+        // persistSatelliteDisabledFlags(subId);
     }
 
     private SatelliteEnablementStrategy getEnablementController(

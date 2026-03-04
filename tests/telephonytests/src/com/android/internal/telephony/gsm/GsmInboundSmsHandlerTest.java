@@ -63,6 +63,7 @@ import android.test.mock.MockContentResolver;
 import android.testing.AndroidTestingRunner;
 import android.testing.TestableLooper;
 import android.view.textclassifier.TextClassifier;
+import android.view.textclassifier.TextLinks;
 
 import androidx.test.filters.MediumTest;
 
@@ -1346,6 +1347,37 @@ public class GsmInboundSmsHandlerTest extends TelephonyTest {
         assertThat(InboundSmsHandler.getIncludedTextClassifierTypes())
             .containsExactly(TextClassifier.TYPE_SMS_RETRIEVER_OTP,
                              TextClassifier.TYPE_SMS_WEB_OTP);
+    }
+
+    @Test
+    @EnableFlags({
+        android.view.flags.Flags.FLAG_REDACT_WEB_OTP_SMS_API,
+        android.view.flags.Flags.FLAG_REDACT_OTP_APP_COMPAT_API})
+    public void testGetAdditionalOtpTrustedPackages() {
+        transitionFromStartupToIdle();
+
+        Bundle smsRetrieverOtpExtras = new Bundle();
+        smsRetrieverOtpExtras.putString(
+            TextClassifier.EXTRA_SMS_RETRIEVER_HASH_MATCHED_PACKAGE,
+            "sms_retriever_package");
+
+        ArrayList<String> webOtpTrustedPackages = new ArrayList<>();
+        webOtpTrustedPackages.add("web_otp_package");
+        Bundle webOtpExtras = new Bundle();
+        webOtpExtras.putStringArrayList(
+            TextClassifier.EXTRA_OTP_TRUSTED_PACKAGES,
+            webOtpTrustedPackages);
+
+        assertThat(InboundSmsHandler.getOtpTrustedPackagesFromTextLinks(
+            new TextLinks.Builder("")
+                .addLink(0, 0,
+                    Collections.singletonMap(TextClassifier.TYPE_SMS_RETRIEVER_OTP, 1.0f),
+                    smsRetrieverOtpExtras)
+                .addLink(0, 0,
+                    Collections.singletonMap(TextClassifier.TYPE_SMS_WEB_OTP, 1.0f),
+                    webOtpExtras)
+                .build().getLinks()))
+            .containsExactly("sms_retriever_package", "web_otp_package");
     }
 }
 

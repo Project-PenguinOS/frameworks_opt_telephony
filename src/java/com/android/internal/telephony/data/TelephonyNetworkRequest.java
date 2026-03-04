@@ -39,7 +39,6 @@ import com.android.internal.telephony.Phone;
 import com.android.internal.telephony.PhoneFactory;
 import com.android.internal.telephony.RIL;
 import com.android.internal.telephony.flags.FeatureFlags;
-import com.android.internal.telephony.flags.Flags;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -48,7 +47,6 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -187,7 +185,7 @@ public class TelephonyNetworkRequest {
      * special actions in telephony.
      */
     @NetCapabilityAttribute
-    private final int mCapabilitiesAttributes;
+    private int mCapabilitiesAttributes;
 
     /**
      * Priority of the network request. The network request has higher priority will be satisfied
@@ -241,6 +239,7 @@ public class TelephonyNetworkRequest {
                                    @NonNull FeatureFlags featureFlags) {
         this(request, featureFlags);
         mDataConfigManager = phone.getDataNetworkController().getDataConfigManager();
+        updateCapabilitiesAttributes();
         updatePriority();
     }
 
@@ -255,21 +254,7 @@ public class TelephonyNetworkRequest {
         mNativeNetworkRequest = request;
         mFeatureFlags = featureFlags;
 
-        int capabilitiesAttributes = CAPABILITY_ATTRIBUTE_NONE;
-        if (mFeatureFlags.enableTrafficDescriptorConnectionCapability()) {
-            for (int networkCapability : mNativeNetworkRequest.getCapabilities()) {
-                capabilitiesAttributes |= CAPABILITY_ATTRIBUTE_MAP.getOrDefault(
-                        networkCapability, CAPABILITY_ATTRIBUTE_NONE);
-            }
-        } else {
-            // Previous logic without CAPABILITY_ATTRIBUTE_TRAFFIC_DESCRIPTOR_CONNECTION_CAPABILITY
-            for (int networkCapability : mNativeNetworkRequest.getCapabilities()) {
-                capabilitiesAttributes |= (CAPABILITY_ATTRIBUTE_MAP.getOrDefault(
-                        networkCapability, CAPABILITY_ATTRIBUTE_NONE)
-                        & ~CAPABILITY_ATTRIBUTE_TRAFFIC_DESCRIPTOR_CONNECTION_CAPABILITY);
-            }
-        }
-        mCapabilitiesAttributes = capabilitiesAttributes;
+        updateCapabilitiesAttributes();
 
         mPriority = 0;
         mAttachedDataNetwork = null;
@@ -286,7 +271,34 @@ public class TelephonyNetworkRequest {
      */
     public void updateDataConfig(@NonNull DataConfigManager dataConfigManager) {
         mDataConfigManager = dataConfigManager;
+        updateCapabilitiesAttributes();
         updatePriority();
+    }
+
+    private void updateCapabilitiesAttributes() {
+        int capabilitiesAttributes = CAPABILITY_ATTRIBUTE_NONE;
+        if (mFeatureFlags.enableTrafficDescriptorConnectionCapability()) {
+            for (int networkCapability : mNativeNetworkRequest.getCapabilities()) {
+                capabilitiesAttributes |= CAPABILITY_ATTRIBUTE_MAP.getOrDefault(
+                        networkCapability, CAPABILITY_ATTRIBUTE_NONE);
+                if (mDataConfigManager != null) {
+                    int connectionCapability = mDataConfigManager
+                            .networkCapabilityToConnectionCapability(networkCapability);
+                    if (connectionCapability != TrafficDescriptor.CONNECTION_CAPABILITY_UNKNOWN) {
+                        capabilitiesAttributes |=
+                                CAPABILITY_ATTRIBUTE_TRAFFIC_DESCRIPTOR_CONNECTION_CAPABILITY;
+                    }
+                }
+            }
+        } else {
+            // Previous logic without CAPABILITY_ATTRIBUTE_TRAFFIC_DESCRIPTOR_CONNECTION_CAPABILITY
+            for (int networkCapability : mNativeNetworkRequest.getCapabilities()) {
+                capabilitiesAttributes |= (CAPABILITY_ATTRIBUTE_MAP.getOrDefault(
+                        networkCapability, CAPABILITY_ATTRIBUTE_NONE)
+                        & ~CAPABILITY_ATTRIBUTE_TRAFFIC_DESCRIPTOR_CONNECTION_CAPABILITY);
+            }
+        }
+        mCapabilitiesAttributes = capabilitiesAttributes;
     }
 
     /**
@@ -366,6 +378,24 @@ public class TelephonyNetworkRequest {
             if (dataProfile.getTrafficDescriptor() != null && Arrays.equals(getOsAppId().getBytes(),
                     dataProfile.getTrafficDescriptor().getOsAppId())) {
                 return true;
+            }
+        }
+
+        // If the network request can be translated to Connection Capability, check if the data
+        // profile's traffic descriptor can satisfy it.
+        if (hasAttribute(CAPABILITY_ATTRIBUTE_TRAFFIC_DESCRIPTOR_CONNECTION_CAPABILITY)
+                && dataProfile.getTrafficDescriptor() != null) {
+            int highestPriorityCapability = getHighestPrioritySupportedNetworkCapability();
+            int targetConnectionCapability = TrafficDescriptor.CONNECTION_CAPABILITY_UNKNOWN;
+            if (mDataConfigManager != null) {
+                targetConnectionCapability = mDataConfigManager
+                        .networkCapabilityToConnectionCapability(highestPriorityCapability);
+            }
+            if (targetConnectionCapability != TrafficDescriptor.CONNECTION_CAPABILITY_UNKNOWN) {
+                if (dataProfile.getTrafficDescriptor().getConnectionCapability()
+                        == targetConnectionCapability) {
+                    return true;
+                }
             }
         }
 
@@ -486,7 +516,10 @@ public class TelephonyNetworkRequest {
     public int getHighestPrioritySupportedNetworkCapability() {
         if (mDataConfigManager == null) return -1;
         return Arrays.stream(getCapabilities()).boxed()
-                .filter(CAPABILITY_ATTRIBUTE_MAP::containsKey)
+                .filter(cap -> CAPABILITY_ATTRIBUTE_MAP.containsKey(cap)
+                        || (mFeatureFlags.enableTrafficDescriptorConnectionCapability()
+                        && mDataConfigManager.networkCapabilityToConnectionCapability(cap)
+                        != TrafficDescriptor.CONNECTION_CAPABILITY_UNKNOWN))
                 .max(Comparator.comparingInt(mDataConfigManager::getNetworkCapabilityPriority))
                 .orElse(-1);
     }

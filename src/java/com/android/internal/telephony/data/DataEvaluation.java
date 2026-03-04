@@ -278,6 +278,11 @@ public class DataEvaluation {
         UNSATISFIED_REQUEST_DETACHED(true),
         /** track bootstrap sim data usage */
         CHECK_DATA_USAGE(false),
+        /**
+         * Data dynamic config changed.
+         * Used when the dynamic mapping rules (DataConfig) are updated via ConfigUpdater.
+         */
+        DATA_DYNAMIC_CONFIG_CHANGED(true),
 // QTI_BEGIN: 2022-09-09: Telephony: Add Secure Mode specific data evaluation reason
         /** Secure Mode state changed. */
 // QTI_END: 2022-09-09: Telephony: Add Secure Mode specific data evaluation reason
