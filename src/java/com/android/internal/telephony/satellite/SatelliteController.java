@@ -8365,7 +8365,7 @@ public class SatelliteController extends Handler {
 
         mIsNotificationShowing.set(true);
         mCarrierRoamingSatelliteControllerStats.reportCountOfSatelliteNotificationDisplayed(subId);
-        mCarrierRoamingSatelliteControllerStats.reportCarrierId(subId, getSatelliteCarrierId());
+        mCarrierRoamingSatelliteControllerStats.reportCarrierId(subId);
         mSessionMetricsStats.addCountOfSatelliteNotificationDisplayed();
     }
 
