@@ -2409,6 +2409,7 @@ public class SatelliteController extends Handler {
                     if (error == SATELLITE_RESULT_SUCCESS) {
                         mIsSatelliteAttachEnabledForCarrierArrayPerSub.put(
                                 subId, satelliteEnabled);
+                        configureSatellitePlmnForCarrier(subId);
                         evaluateEnablingSatelliteForCarrier(subId,
                                 SATELLITE_COMMUNICATION_RESTRICTION_REASON_USER, null);
                     }
@@ -5559,6 +5560,7 @@ public class SatelliteController extends Handler {
             }
         }
 
+        configureSatellitePlmnForCarrier(argument.subId);
         evaluateEnablingSatelliteForCarrier(argument.subId, argument.reason, argument.callback);
     }
 
@@ -6818,9 +6820,9 @@ public class SatelliteController extends Handler {
                     + " is manual, returning false");
             return false;
         }
-        if (isSatelliteEntitlementEnabled(subId)) {
-            plogd("isEmergencyServiceSupported: entitlement enabled for subId: " + subId
-                    + ", returning false");
+        if (!isSatelliteRestrictedForCarrier(subId)) {
+            plogd("isEmergencyServiceSupported: satellite is not restricted for carrier for subId: "
+                    + subId + ", returning false");
             return false;
         }
 
@@ -6869,15 +6871,13 @@ public class SatelliteController extends Handler {
      */
     private List<String> getAllowedCarrierPlmnListForModem(int subId) {
         List<String> plmnList = new ArrayList<>();
-        boolean entitlementSupported = getConfigForSubId(subId).getBoolean(
-                        KEY_SATELLITE_ENTITLEMENT_SUPPORTED_BOOL);
-        boolean isEntitled = mSatelliteEntitlementStatusPerCarrier.getOrDefault(subId, false);
-        plogd("getAllowedCarrierPlmnListForModem: entitlementSupported=" + entitlementSupported
-                + ", isEntitled=" + isEntitled + ", subId=" + subId);
+        boolean isSatelliteRestrictedForCarrier = isSatelliteRestrictedForCarrier(subId);
+        plogd("getAllowedCarrierPlmnListForModem: subId=" + subId
+                + ", isSatelliteRestrictedForCarrier=" + isSatelliteRestrictedForCarrier);
         if (isOnlyEmergencyServiceSupported(subId)) {
             plmnList.addAll(getEmergencyPlmnList(subId));
             plmnList.addAll(getDisasterPlmnList(subId));
-        } else if (!entitlementSupported || isEntitled) {
+        } else if (!isSatelliteRestrictedForCarrier) {
             plmnList.addAll(getCarrierPlmnList(subId));
             plmnList.removeAll(getEmergencyPlmnList(subId));
         }
@@ -7163,7 +7163,8 @@ public class SatelliteController extends Handler {
      * @param subId Subscription Id to evaluate for.
      * @return {@code true} satellite attach is restricted, {@code false} otherwise.
      */
-    private boolean isSatelliteRestrictedForCarrier(int subId) {
+    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PRIVATE)
+    protected boolean isSatelliteRestrictedForCarrier(int subId) {
         return !isSatelliteAttachEnabledForCarrierByUser(subId)
                 || hasReasonToRestrictSatelliteCommunicationForCarrier(subId);
     }
