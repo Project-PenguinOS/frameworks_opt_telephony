@@ -792,14 +792,19 @@ public class CatService extends Handler implements AppInterface {
                             true, additionalInfo, null);
                 } else {
                     CatLog.d(this, " STK SMS sent successfully ");
+                    if (mFeatureFlags.stkSendSmsTerminalResponseOnSendSuccess()) {
+                        sendTerminalResponse(commandDetails, ResultCode.OK, false, 0, null);
+                    }
                 }
             }
             if (intent.getAction().equals(SMS_DELIVERY_ACTION)) {
                 int resultCode = getResultCode();
                 switch (resultCode) {
                     case Activity.RESULT_OK:
-                        sendTerminalResponse(commandDetails, ResultCode.OK, false, 0, null);
                         CatLog.d(this, " STK SMS delivered successfully ");
+                        if (!mFeatureFlags.stkSendSmsTerminalResponseOnSendSuccess()) {
+                            sendTerminalResponse(commandDetails, ResultCode.OK, false, 0, null);
+                        }
                         break;
                     default:
                         CatLog.d(this, "Error delivering STK SMS : " + resultCode);

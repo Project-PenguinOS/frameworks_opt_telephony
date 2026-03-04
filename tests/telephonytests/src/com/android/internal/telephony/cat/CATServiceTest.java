@@ -289,9 +289,18 @@ public class CATServiceTest extends TelephonyTest {
 
     @Test
     public void testSendTerminalResponseForSendSuccess() {
+        doReturn(true).when(mFeatureFlags).stkSendSmsTerminalResponseOnSendSuccess();
         setBroadcastReceiverPendingResult(mCatService.mSmsBroadcastReceiver, Activity.RESULT_OK);
         Intent intent = new Intent(SMS_SENT_ACTION).putExtra("cmdDetails", mCommandDetails);
         intent.putExtra("ims", true);
+        mContext.sendOrderedBroadcast(intent, null, mCatService.mSmsBroadcastReceiver, null,
+                Activity.RESULT_OK, null, null);
+        processAllMessages();
+        verify(mSimulatedCommands, atLeastOnce()).sendTerminalResponse(
+                any(), any());
+
+        doReturn(false).when(mFeatureFlags).stkSendSmsTerminalResponseOnSendSuccess();
+        Mockito.clearInvocations(mSimulatedCommands);
         mContext.sendOrderedBroadcast(intent, null, mCatService.mSmsBroadcastReceiver, null,
                 Activity.RESULT_OK, null, null);
         processAllMessages();
@@ -344,6 +353,7 @@ public class CATServiceTest extends TelephonyTest {
 
     @Test
     public void testSendTerminalResponseForDeliverySuccess() {
+        doReturn(false).when(mFeatureFlags).stkSendSmsTerminalResponseOnSendSuccess();
         setBroadcastReceiverPendingResult(mCatService.mSmsBroadcastReceiver,
                 Activity.RESULT_OK);
         Intent intent = new Intent(SMS_DELIVERY_ACTION).putExtra("cmdDetails", mCommandDetails);
@@ -353,6 +363,14 @@ public class CATServiceTest extends TelephonyTest {
         //Verify if the command is encoded with correct Result byte as per TS 101.267
         verify(mSimulatedCommands, atLeastOnce()).sendTerminalResponse(
                 eq(mTerminalResponseForDeliverySuccess), any());
+
+        doReturn(true).when(mFeatureFlags).stkSendSmsTerminalResponseOnSendSuccess();
+        Mockito.clearInvocations(mSimulatedCommands);
+        mContext.sendOrderedBroadcast(intent, null, mCatService.mSmsBroadcastReceiver, null,
+                Activity.RESULT_OK, null, null);
+        processAllMessages();
+        verify(mSimulatedCommands, never()).sendTerminalResponse(
+                any(), any());
     }
 
     @Test
