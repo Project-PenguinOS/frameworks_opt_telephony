@@ -40,6 +40,8 @@ import java.util.Map;
 public class CarrierRoamingSatelliteControllerStats {
     private static final String TAG = CarrierRoamingSatelliteControllerStats.class.getSimpleName();
     private static CarrierRoamingSatelliteControllerStats sInstance = null;
+    @NonNull
+    private final SubscriptionManagerService mSubscriptionManagerService;
     private static final int ADD_COUNT = 1;
     private final SatelliteStats mSatelliteStats;
     @NonNull
@@ -51,6 +53,7 @@ public class CarrierRoamingSatelliteControllerStats {
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PRIVATE)
     public CarrierRoamingSatelliteControllerStats() {
         mSatelliteStats = SatelliteStats.getInstance();
+        mSubscriptionManagerService = SubscriptionManagerService.getInstance();
         resetSessionGapLists();
     }
 
@@ -98,13 +101,38 @@ public class CarrierRoamingSatelliteControllerStats {
                         .build());
     }
 
-    /** Report count of satellite config update request */
+    /** Report count of satellite config update request for all active subscriptions. */
     public void reportCountOfSatelliteConfigUpdateRequest() {
-        mSatelliteStats.onCarrierRoamingSatelliteControllerStatsMetrics(
+        int[] activeSubIds = mSubscriptionManagerService.getActiveSubIdList(true);
+        if (activeSubIds == null || activeSubIds.length == 0) {
+            logd("reportCountOfSatelliteConfigUpdateRequest: No active subIds to report for.");
+            return;
+        }
+
+        logd("reportCountOfSatelliteConfigUpdateRequest: Processing " + activeSubIds.length
+                + " active subIds.");
+        SatelliteStats.CarrierRoamingSatelliteControllerStatsParams.Builder builder =
                 new SatelliteStats.CarrierRoamingSatelliteControllerStatsParams.Builder()
-                        .setCountOfSatelliteConfigUpdateRequest(ADD_COUNT)
-                        .setIsMultiSim(isMultiSim())
-                        .build());
+                        .setCountOfSatelliteConfigUpdateRequest(ADD_COUNT);
+
+        for (int subId : activeSubIds) {
+            int carrierId = getCarrierIdFromSubscription(subId);
+            if (carrierId != TelephonyManager.UNKNOWN_CARRIER_ID) {
+                logd("reportCountOfSatelliteConfigUpdateRequest: Reporting for subId=" + subId
+                        + ", carrierId=" + carrierId);
+                boolean isDeviceEntitled = isDeviceEntitled(subId);
+                mSatelliteStats.onCarrierRoamingSatelliteControllerStatsMetrics(
+                        builder.setCarrierId(carrierId)
+                                .setIsDeviceEntitled(isDeviceEntitled)
+                                .setIsMultiSim(isMultiSim())
+                                .setIsNbIotNtn(isNbIotNtn(subId))
+                                .setSupportedConnectionMode(getSupportedConnectType(subId))
+                                .build());
+            } else {
+                logd("reportCountOfSatelliteConfigUpdateRequest: Skipping subId=" + subId
+                        + " due to UNKNOWN_CARRIER_ID");
+            }
+        }
     }
 
     /** Report count of satellite notification displayed */
