@@ -800,10 +800,12 @@ public class SmsController extends ISmsImplBase {
         IccSmsInterfaceManager iccSmsIntMgr = getIccSmsInterfaceManager(subId);
         UserHandle callingUser = Binder.getCallingUserHandle();
         final int uid = Binder.getCallingUid();
-        if (!getCallingPackage().equals(callingPkg)) {
-            throw new SecurityException("sendStoredText: Package " + callingPkg
-                    + "does not belong to " + uid);
-        }
+//        TODO(b/489085982): Fix check for package name.
+//        if (!getCallingPackage().equals(callingPkg)) {
+//            throw new SecurityException("sendStoredText: Package " + callingPkg
+//                    + "does not belong to " + uid);
+//        }
+        callingPkg = getCallingPackage();
         Rlog.d(LOG_TAG, "sendStoredText caller=" + callingPkg);
 
         String destAddr = getDestAddress(iccSmsIntMgr, messageUri);
@@ -834,11 +836,12 @@ public class SmsController extends ISmsImplBase {
         IccSmsInterfaceManager iccSmsIntMgr = getIccSmsInterfaceManager(subId);
         UserHandle callingUser = Binder.getCallingUserHandle();
         final int uid = Binder.getCallingUid();
-
-        if (!getCallingPackage().equals(callingPkg)) {
-            throw new SecurityException("sendStoredMultipartText: Package " + callingPkg
-                    + " does not belong to " + uid);
-        }
+//        TODO(b/489085982): Fix check for package name.
+//        if (!getCallingPackage().equals(callingPkg)) {
+//            throw new SecurityException("sendStoredText: Package " + callingPkg
+//                    + "does not belong to " + uid);
+//        }
+        callingPkg = getCallingPackage();
         Rlog.d(LOG_TAG, "sendStoredMultipartText caller=" + callingPkg);
 
         String destAddr = getDestAddress(iccSmsIntMgr, messageUri);

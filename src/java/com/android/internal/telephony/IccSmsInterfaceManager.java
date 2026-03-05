@@ -1338,8 +1338,8 @@ public class IccSmsInterfaceManager {
                     + " sentIntent=" + sentIntent + " deliveryIntent=" + deliveryIntent);
         }
         final ContentResolver resolver = mContext.getContentResolver();
-        if (!isFailedOrDraft(resolver, messageUri)) {
-            loge("sendStoredText: not FAILED or DRAFT message");
+        if (!isSendableStoredMessage(resolver, messageUri)) {
+            loge("sendStoredText: message not sendable");
             returnUnspecifiedFailure(sentIntent);
             return;
         }
@@ -1381,8 +1381,8 @@ public class IccSmsInterfaceManager {
             return;
         }
         final ContentResolver resolver = mContext.getContentResolver();
-        if (!isFailedOrDraft(resolver, messageUri)) {
-            loge("sendStoredMultipartText: not FAILED or DRAFT message");
+        if (!isSendableStoredMessage(resolver, messageUri)) {
+            loge("sendStoredMultipartText: message not sendable");
             returnUnspecifiedFailure(sentIntents);
             return;
         }
@@ -1473,7 +1473,7 @@ public class IccSmsInterfaceManager {
         return numberOnIcc;
     }
 
-    private boolean isFailedOrDraft(ContentResolver resolver, Uri messageUri) {
+    private boolean isSendableStoredMessage(ContentResolver resolver, Uri messageUri) {
         // Clear the calling identity and query the database using the phone user id
         // Otherwise the AppOps check in TelephonyProvider would complain about mismatch
         // between the calling uid and the package uid
@@ -1489,10 +1489,11 @@ public class IccSmsInterfaceManager {
             if (cursor != null && cursor.moveToFirst()) {
                 final int type = cursor.getInt(0);
                 return type == Telephony.Sms.MESSAGE_TYPE_DRAFT
-                        || type == Telephony.Sms.MESSAGE_TYPE_FAILED;
+                        || type == Telephony.Sms.MESSAGE_TYPE_FAILED
+                        || (Flags.messagePromotion() && type == Telephony.Sms.MESSAGE_TYPE_OUTBOX);
             }
         } catch (SQLiteException e) {
-            loge("isFailedOrDraft: query message type failed", e);
+            loge("isSendableStoredMessage: query message type failed", e);
         } finally {
             if (cursor != null) {
                 cursor.close();

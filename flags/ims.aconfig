@@ -164,3 +164,14 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+# OWNER=shashannk TARGET=26Q2
+flag {
+    name: "stk_send_sms_terminal_response_on_send_success"
+    namespace: "telephony"
+    description: "This flag controls whether the terminal response for STK SMS is sent on send success or delivery success."
+    bug:"480768765"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
