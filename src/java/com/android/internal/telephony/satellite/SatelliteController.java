@@ -6186,11 +6186,11 @@ public class SatelliteController extends Handler {
         }
 
         List<String> allPlmnList = new ArrayList<>(getAllPlmnSet());
-        phone.setSatellitePlmn(phone.getPhoneId(), getCarrierPlmnListForModem(subId),
+         List<String> allowedPlmns = getAllowedCarrierPlmnListForModem(subId);
+        phone.setSatellitePlmn(phone.getPhoneId(), allowedPlmns,
                 allPlmnList, obtainMessage(EVENT_SET_SATELLITE_PLMN_INFO_DONE));
 
         if (mFeatureFlags.nrNtn()) {
-            List<String> allowedPlmns = getCarrierPlmnListForModem(subId);
             Set<String> allowedPlmnsSet = new HashSet<>(allowedPlmns);
             List<String> disallowedPlmns = allPlmnList.stream()
                     .filter(plmn -> !allowedPlmnsSet.contains(plmn))
@@ -6867,17 +6867,22 @@ public class SatelliteController extends Handler {
      *
      * @param subId Associated subscription ID
      */
-    private List<String> getCarrierPlmnListForModem(int subId) {
+    private List<String> getAllowedCarrierPlmnListForModem(int subId) {
         List<String> plmnList = new ArrayList<>();
+        boolean entitlementSupported = getConfigForSubId(subId).getBoolean(
+                        KEY_SATELLITE_ENTITLEMENT_SUPPORTED_BOOL);
+        boolean isEntitled = mSatelliteEntitlementStatusPerCarrier.getOrDefault(subId, false);
+        plogd("getAllowedCarrierPlmnListForModem: entitlementSupported=" + entitlementSupported
+                + ", isEntitled=" + isEntitled + ", subId=" + subId);
         if (isOnlyEmergencyServiceSupported(subId)) {
             plmnList.addAll(getEmergencyPlmnList(subId));
             plmnList.addAll(getDisasterPlmnList(subId));
-        } else {
+        } else if (!entitlementSupported || isEntitled) {
             plmnList.addAll(getCarrierPlmnList(subId));
             plmnList.removeAll(getEmergencyPlmnList(subId));
         }
 
-        plogd("getCarrierPlmnListForModem: plmnList=" + String.join(",", plmnList));
+        plogd("getAllowedCarrierPlmnListForModem: plmnList=" + String.join(",", plmnList));
         return plmnList;
     }
 
@@ -8360,7 +8365,7 @@ public class SatelliteController extends Handler {
 
         mIsNotificationShowing.set(true);
         mCarrierRoamingSatelliteControllerStats.reportCountOfSatelliteNotificationDisplayed(subId);
-        mCarrierRoamingSatelliteControllerStats.reportCarrierId(subId, getSatelliteCarrierId());
+        mCarrierRoamingSatelliteControllerStats.reportCarrierId(subId);
         mSessionMetricsStats.addCountOfSatelliteNotificationDisplayed();
     }
 
