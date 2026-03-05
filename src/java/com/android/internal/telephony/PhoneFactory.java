@@ -101,7 +101,7 @@ public class PhoneFactory {
     static private NotificationChannelController sNotificationChannelController;
     static private CellularNetworkValidator sCellularNetworkValidator;
 
-    static private final HashMap<String, LocalLog>sLocalLogs = new HashMap<String, LocalLog>();
+    static private HashMap<String, LocalLog>sLocalLogs = new HashMap<String, LocalLog>();
     private static MetricsCollector sMetricsCollector;
     private static RadioInterfaceCapabilityController sRadioHalCapabilities;
     private static @NonNull FeatureFlags sFeatureFlags = new FeatureFlagsImpl();
