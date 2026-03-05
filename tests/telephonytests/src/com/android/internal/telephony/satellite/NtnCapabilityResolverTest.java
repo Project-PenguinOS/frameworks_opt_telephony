@@ -24,8 +24,11 @@ import static android.telephony.NetworkRegistrationInfo.SERVICE_TYPE_DATA;
 import static android.telephony.NetworkRegistrationInfo.SERVICE_TYPE_EMERGENCY;
 import static android.telephony.NetworkRegistrationInfo.SERVICE_TYPE_MMS;
 import static android.telephony.NetworkRegistrationInfo.SERVICE_TYPE_SMS;
+import static android.telephony.TelephonyManager.NETWORK_TYPE_LTE;
 import static android.telephony.TelephonyManager.NETWORK_TYPE_NR;
 import static android.telephony.TelephonyManager.NETWORK_TYPE_UNKNOWN;
+import static android.telephony.satellite.SatelliteManager.NT_RADIO_TECHNOLOGY_LTE_DTC;
+import static android.telephony.satellite.SatelliteManager.NT_RADIO_TECHNOLOGY_NB_IOT_NTN;
 import static android.telephony.satellite.SatelliteManager.NT_RADIO_TECHNOLOGY_NR_DTC;
 import static android.telephony.satellite.SatelliteManager.NT_RADIO_TECHNOLOGY_NR_NTN;
 import static android.telephony.satellite.SatelliteManager.NT_RADIO_TECHNOLOGY_UNKNOWN;
@@ -268,6 +271,83 @@ public class NtnCapabilityResolverTest extends TelephonyTest {
     }
 
     @Test
+    public void testResolveSatelliteTechnology() {
+        logd("testResolveSatelliteTechnology");
+        doCallRealMethod().when(mMockSatelliteController)
+                .isDtcSatelliteTechnologySupported(anyInt(), anyString());
+
+        logd("case 1. plmn=unmatched, isNtn=true, satTech=unknown, connectType=manual, rat=lte");
+        NetworkRegistrationInfo unmatchedPlmnNri =
+                createNetworkRegistrationInfo(
+                        VISITING_PLMN, true, NT_RADIO_TECHNOLOGY_UNKNOWN, NETWORK_TYPE_LTE);
+        NetworkRegistrationInfo originalNri = new NetworkRegistrationInfo(unmatchedPlmnNri);
+        assertEquals(unmatchedPlmnNri, originalNri);
+        assertTrue(unmatchedPlmnNri.isNonTerrestrialNetwork());
+        assertEquals(NT_RADIO_TECHNOLOGY_UNKNOWN, unmatchedPlmnNri.getSatelliteTechnology());
+
+        doReturn(List.of(NT_RADIO_TECHNOLOGY_NR_NTN, NT_RADIO_TECHNOLOGY_LTE_DTC))
+                .when(mMockSatelliteController)
+                .getSupportedSatelliteTechnologies(anyInt(), anyString());
+        doReturn(true).when(mMockSatelliteController).isSatelliteEnabledOrBeingEnabled();
+
+        NtnCapabilityResolver.resolveNtnCapability(unmatchedPlmnNri, SUB_ID);
+        assertTrue(unmatchedPlmnNri.isNonTerrestrialNetwork());
+        assertNotEquals("unmatchedPlmnNri should not be the same with originalNri",
+                unmatchedPlmnNri, originalNri);
+        assertEquals(NT_RADIO_TECHNOLOGY_NB_IOT_NTN, unmatchedPlmnNri.getSatelliteTechnology());
+
+        logd("case 2. plmn=unmatched, isNtn=true, satTech=unknown, connectType=auto, rat=lte");
+        unmatchedPlmnNri = createNetworkRegistrationInfo(
+                        VISITING_PLMN, true, NT_RADIO_TECHNOLOGY_UNKNOWN, NETWORK_TYPE_LTE);
+        originalNri = new NetworkRegistrationInfo(unmatchedPlmnNri);
+        assertEquals(unmatchedPlmnNri, originalNri);
+        assertTrue(unmatchedPlmnNri.isNonTerrestrialNetwork());
+        assertEquals(NT_RADIO_TECHNOLOGY_UNKNOWN, unmatchedPlmnNri.getSatelliteTechnology());
+        doReturn(List.of(NT_RADIO_TECHNOLOGY_NR_NTN, NT_RADIO_TECHNOLOGY_LTE_DTC))
+                .when(mMockSatelliteController)
+                .getSupportedSatelliteTechnologies(anyInt(), anyString());
+        doReturn(false).when(mMockSatelliteController).isSatelliteEnabledOrBeingEnabled();
+        NtnCapabilityResolver.resolveNtnCapability(unmatchedPlmnNri, SUB_ID);
+        assertTrue(unmatchedPlmnNri.isNonTerrestrialNetwork());
+        assertNotEquals("unmatchedPlmnNri should not be the same with originalNri",
+                unmatchedPlmnNri, originalNri);
+        assertEquals(NT_RADIO_TECHNOLOGY_LTE_DTC, unmatchedPlmnNri.getSatelliteTechnology());
+
+        logd("case 3. plmn=unmatched, isNtn=true, satTech=unknown, connectType=auto, rat=nr");
+        unmatchedPlmnNri = createNetworkRegistrationInfo(
+                VISITING_PLMN, true, NT_RADIO_TECHNOLOGY_UNKNOWN, NETWORK_TYPE_NR);
+        originalNri = new NetworkRegistrationInfo(unmatchedPlmnNri);
+        assertEquals(unmatchedPlmnNri, originalNri);
+        assertTrue(unmatchedPlmnNri.isNonTerrestrialNetwork());
+        assertEquals(NT_RADIO_TECHNOLOGY_UNKNOWN, unmatchedPlmnNri.getSatelliteTechnology());
+        doReturn(List.of(NT_RADIO_TECHNOLOGY_NR_NTN, NT_RADIO_TECHNOLOGY_LTE_DTC))
+                .when(mMockSatelliteController)
+                .getSupportedSatelliteTechnologies(anyInt(), anyString());
+        doReturn(false).when(mMockSatelliteController).isSatelliteEnabledOrBeingEnabled();
+        NtnCapabilityResolver.resolveNtnCapability(unmatchedPlmnNri, SUB_ID);
+        assertTrue(unmatchedPlmnNri.isNonTerrestrialNetwork());
+        assertNotEquals("unmatchedPlmnNri should not be the same with originalNri",
+                unmatchedPlmnNri, originalNri);
+        assertEquals(NT_RADIO_TECHNOLOGY_NR_DTC, unmatchedPlmnNri.getSatelliteTechnology());
+
+        logd("case 4. plmn=unmatched, isNtn=true, satTech=unknown, connectType=auto, rat=nr");
+        unmatchedPlmnNri = createNetworkRegistrationInfo(
+                VISITING_PLMN, true, NT_RADIO_TECHNOLOGY_UNKNOWN, NETWORK_TYPE_NR);
+        originalNri = new NetworkRegistrationInfo(unmatchedPlmnNri);
+        assertEquals(unmatchedPlmnNri, originalNri);
+        assertTrue(unmatchedPlmnNri.isNonTerrestrialNetwork());
+        assertEquals(NT_RADIO_TECHNOLOGY_UNKNOWN, unmatchedPlmnNri.getSatelliteTechnology());
+        doReturn(List.of(NT_RADIO_TECHNOLOGY_LTE_DTC)).when(mMockSatelliteController)
+                .getSupportedSatelliteTechnologies(anyInt(), anyString());
+        doReturn(false).when(mMockSatelliteController).isSatelliteEnabledOrBeingEnabled();
+        NtnCapabilityResolver.resolveNtnCapability(unmatchedPlmnNri, SUB_ID);
+        assertTrue(unmatchedPlmnNri.isNonTerrestrialNetwork());
+        assertNotEquals("unmatchedPlmnNri should not be the same with originalNri",
+                unmatchedPlmnNri, originalNri);
+        assertEquals(NT_RADIO_TECHNOLOGY_NR_DTC, unmatchedPlmnNri.getSatelliteTechnology());
+    }
+
+    @Test
     public void testResolveNtnCapability_whenIsNtnDisabled() {
         logd("testResolveNtnCapability_whenIsNtnDisabled");
         doCallRealMethod().when(mMockSatelliteController)
@@ -372,6 +452,27 @@ public class NtnCapabilityResolverTest extends TelephonyTest {
                 .setAccessNetworkTechnology(isNtn ? NETWORK_TYPE_NR : NETWORK_TYPE_UNKNOWN)
                 .setSatelliteTechnology(
                         isNtn ? NT_RADIO_TECHNOLOGY_NR_NTN : NT_RADIO_TECHNOLOGY_UNKNOWN)
+                .setRejectCause(0)
+                .setEmergencyOnly(false)
+                .setAvailableServices(availableServices)
+                .setCellIdentity(cellIdentity)
+                .setRegisteredPlmn(registeredPlmn)
+                .setIsNonTerrestrialNetwork(isNtn)
+                .build();
+    }
+
+    private NetworkRegistrationInfo createNetworkRegistrationInfo(
+            @NonNull String registeredPlmn, boolean isNtn, int satTech, int rat) {
+        List<Integer> availableServices = new ArrayList<>();
+        availableServices.add(SERVICE_TYPE_DATA);
+        CellIdentity cellIdentity = new CellIdentityGsm(
+                0, 0, 0, 0, "mcc", "mnc", "", "", new ArraySet<>());
+        return new NetworkRegistrationInfo.Builder()
+                .setDomain(DOMAIN_PS)
+                .setTransportType(TRANSPORT_TYPE_WWAN)
+                .setRegistrationState(REGISTRATION_STATE_ROAMING)
+                .setAccessNetworkTechnology(rat)
+                .setSatelliteTechnology(satTech)
                 .setRejectCause(0)
                 .setEmergencyOnly(false)
                 .setAvailableServices(availableServices)

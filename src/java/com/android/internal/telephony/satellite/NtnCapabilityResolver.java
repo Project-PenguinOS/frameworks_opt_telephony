@@ -16,6 +16,13 @@
 
 package com.android.internal.telephony.satellite;
 
+import static android.telephony.TelephonyManager.NETWORK_TYPE_LTE;
+import static android.telephony.TelephonyManager.NETWORK_TYPE_NR;
+import static android.telephony.satellite.SatelliteManager.NT_RADIO_TECHNOLOGY_LTE_DTC;
+import static android.telephony.satellite.SatelliteManager.NT_RADIO_TECHNOLOGY_NB_IOT_NTN;
+import static android.telephony.satellite.SatelliteManager.NT_RADIO_TECHNOLOGY_NR_DTC;
+import static android.telephony.satellite.SatelliteManager.NT_RADIO_TECHNOLOGY_UNKNOWN;
+
 import android.annotation.NonNull;
 import android.telephony.NetworkRegistrationInfo;
 import android.text.TextUtils;
@@ -63,9 +70,41 @@ public class NtnCapabilityResolver {
                 networkRegistrationInfo.setAvailableServices(supportedServices);
                 logd("Registered to satellite PLMN " + registeredPlmn
                         + ", supportedServices = " + supportedServices);
+                if (networkRegistrationInfo.getSatelliteTechnology()
+                        == NT_RADIO_TECHNOLOGY_UNKNOWN) {
+                    networkRegistrationInfo.setSatelliteTechnology(
+                            resolveSatelliteTechnology(
+                                    networkRegistrationInfo, subId, registeredPlmn));
+                }
                 return;
             }
         }
+    }
+
+    private static int resolveSatelliteTechnology(
+            @NonNull NetworkRegistrationInfo nri, int subId, @NonNull String plmn) {
+        logd("resolveSatelliteTechnology");
+        SatelliteController satelliteController = SatelliteController.getInstance();
+
+        if (satelliteController.isSatelliteEnabledOrBeingEnabled()) {
+            logd("resolveSatelliteTechnology: return NT_RADIO_TECHNOLOGY_NB_IOT_NTN");
+            return NT_RADIO_TECHNOLOGY_NB_IOT_NTN;
+        } else {
+            int rat = nri.getAccessNetworkTechnology();
+            List<Integer> supportedSatelliteTechList =
+                    satelliteController.getSupportedSatelliteTechnologies(subId, plmn);
+            logd("resolveSatelliteTechnology: supportedSatelliteTechList="
+                    + supportedSatelliteTechList);
+            if (rat == NETWORK_TYPE_LTE) {
+                logd("resolveSatelliteTechnology: return NT_RADIO_TECHNOLOGY_LTE_DTC");
+                return NT_RADIO_TECHNOLOGY_LTE_DTC;
+            } else if (rat == NETWORK_TYPE_NR) {
+                logd("resolveSatelliteTechnology: return NT_RADIO_TECHNOLOGY_NR_DTC");
+                return NT_RADIO_TECHNOLOGY_NR_DTC;
+            }
+        }
+        logd("resolveSatelliteTechnology: return NT_RADIO_TECHNOLOGY_UNKNOWN");
+        return NT_RADIO_TECHNOLOGY_UNKNOWN;
     }
 
     private static void logd(@NonNull String log) {

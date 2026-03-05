@@ -2187,6 +2187,22 @@ public class DataNetworkController extends Handler {
 
 // QTI_END: 2022-10-06: Telephony: Fix PDP reject retry interruption
     /**
+     * Check if the APN supports the current infrastructure (terrestrial vs. satellite).
+     *
+     * Note: This check is intended for cellular (WWAN) transport. Wi-Fi (WLAN) transport
+     * should remain intact even when the device camps on a non-terrestrial network.
+     *
+     * @param apnSetting The APN setting associated with the network.
+     * @return {@code true} if the infrastructure is supported.
+     */
+    private boolean isInfrastructureSupported(@NonNull ApnSetting apnSetting) {
+        boolean isUsingNtn = mServiceState.isUsingNonTerrestrialNetwork();
+        return isUsingNtn
+                ? apnSetting.isForInfrastructure(ApnSetting.INFRASTRUCTURE_SATELLITE)
+                : apnSetting.isForInfrastructure(ApnSetting.INFRASTRUCTURE_CELLULAR);
+    }
+
+    /**
      * Evaluate an existing data network to see if it is still allowed to exist. For example, if
      * RAT changes from LTE to UMTS, an IMS data network is not allowed anymore. Or when SIM is
      * removal, all data networks (except emergency) should be torn down.
@@ -2376,14 +2392,13 @@ public class DataNetworkController extends Handler {
                         DataDisallowedReason.DATA_NETWORK_TYPE_NOT_ALLOWED);
             }
 
-            // Check if the APN can only be used on cellular, or only on satellite.
-            if (((apnSetting.getInfrastructureBitmask() & ApnSetting.INFRASTRUCTURE_CELLULAR) == 0
-                    && !mServiceState.isUsingNonTerrestrialNetwork())
-                    || ((apnSetting.getInfrastructureBitmask()
-                            & ApnSetting.INFRASTRUCTURE_SATELLITE) == 0
-                            && mServiceState.isUsingNonTerrestrialNetwork())) {
+            // Check if the APN supports the current infrastructure (terrestrial vs. satellite).
+            // This check should only be applied to WWAN transport. If the network is on Wi-Fi,
+            // it should remain active regardless of the terrestrial/satellite camping state.
+            if (dataNetwork.getTransport() == AccessNetworkConstants.TRANSPORT_TYPE_WWAN
+                    && !isInfrastructureSupported(apnSetting)) {
                 evaluation.addDataDisallowedReason(
-                        DataDisallowedReason.DATA_NETWORK_TRANSPORT_NOT_ALLOWED);
+                    DataDisallowedReason.DATA_NETWORK_TRANSPORT_NOT_ALLOWED);
             }
         }
 

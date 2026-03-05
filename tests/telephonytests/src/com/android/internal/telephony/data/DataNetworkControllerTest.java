@@ -6397,9 +6397,16 @@ public class DataNetworkControllerTest extends TelephonyTest {
         verifyConnectedNetworkHasCapabilitiesOnTransport(
                 AccessNetworkConstants.TRANSPORT_TYPE_WLAN, NetworkCapabilities.NET_CAPABILITY_IMS);
 
-        // Now switch to satellite
+        // Now switch to satellite (Non-Terrestrial Network)
         serviceStateChanged(TelephonyManager.NETWORK_TYPE_LTE,
                 NetworkRegistrationInfo.REGISTRATION_STATE_HOME, true);
+        processAllMessages();
+
+        // Verify IMS PDN remains intact on Wi-Fi after camping to NTN
+        // because it's on WLAN transport and QNS hasn't reported a handover yet.
+        verifyConnectedNetworkHasCapabilitiesOnTransport(
+            AccessNetworkConstants.TRANSPORT_TYPE_WLAN, NetworkCapabilities.NET_CAPABILITY_IMS);
+
         updateTransport(NetworkCapabilities.NET_CAPABILITY_IMS,
                 AccessNetworkConstants.TRANSPORT_TYPE_WWAN);
         processAllMessages();
@@ -6410,7 +6417,7 @@ public class DataNetworkControllerTest extends TelephonyTest {
         verifyConnectedNetworkHasCapabilitiesOnTransport(
                 AccessNetworkConstants.TRANSPORT_TYPE_WWAN, NetworkCapabilities.NET_CAPABILITY_IMS);
 
-        // Now switch back to IWLAN
+        // Now switch IMS back to IWLAN and terrestrial (Home)
         serviceStateChanged(TelephonyManager.NETWORK_TYPE_LTE,
                 NetworkRegistrationInfo.REGISTRATION_STATE_HOME, false);
         updateTransport(NetworkCapabilities.NET_CAPABILITY_IMS,

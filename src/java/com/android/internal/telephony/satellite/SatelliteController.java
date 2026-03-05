@@ -4667,6 +4667,60 @@ public class SatelliteController extends Handler {
         return getCarrierPlmnList(subId);
     }
 
+    private int getCarrierRoamingNtnConnectTypeForPlmn(int subId, String plmn) {
+        plogd("getCarrierRoamingNtnConnectTypeForPlmn: subId=" + subId + ", plmn=" + plmn);
+        PersistableBundle perPlmnConfigs = getPersistableBundle(subId).getPersistableBundle(
+            CarrierConfigManager.KEY_SATELLITE_CONFIGS_PER_PLMN_BUNDLE);
+        if (perPlmnConfigs == null) {
+            plogd("getCarrierRoamingNtnConnectTypeForPlmn: perPlmnConfigs is null");
+            return CarrierConfigManager.CARRIER_ROAMING_NTN_CONNECT_UNKNOWN;
+        }
+        PersistableBundle plmnSpecificConfig = perPlmnConfigs.getPersistableBundle(plmn);
+        if (plmnSpecificConfig == null) {
+            plogd("getCarrierRoamingNtnConnectTypeForPlmn: plmnSpecificConfig is null");
+            return CarrierConfigManager.CARRIER_ROAMING_NTN_CONNECT_UNKNOWN;
+        }
+        return plmnSpecificConfig.getInt(
+                        CarrierConfigManager.KEY_CARRIER_ROAMING_NTN_CONNECT_TYPE_INT,
+                        CarrierConfigManager.CARRIER_ROAMING_NTN_CONNECT_UNKNOWN);
+    }
+
+    /**
+     * @param subId Subscription ID.
+     * @return The list of satellite PLMNs used for connecting to satellite networks.
+     * <p>
+     * <li>If the carrier roaming NTN connect type is
+     * {@link CarrierConfigManager#CARRIER_ROAMING_NTN_CONNECT_MANUAL}, returns all carrier
+     * satellite PLMNs.
+     * <li>If the connect type is {@link CarrierConfigManager#CARRIER_ROAMING_NTN_CONNECT_HYBRID},
+     * returns PLMNs that are configured as manual connect or support
+     * {@link SatelliteManager#NT_RADIO_TECHNOLOGY_NB_IOT_NTN}.
+     */
+    @NonNull
+    public List<String> getManualConnectSatellitePlmnsForCarrier(int subId) {
+        List<String> result = new ArrayList<>();
+        if (!mFeatureFlags.systemSelectionSpecifierEnhancement()) {
+            logd("getManualConnectSatellitePlmnsForCarrier: system selection specifier enhancement"
+                    + " is not enabled");
+            return result;
+        }
+        List<String> allCarrierPlmns = getSatellitePlmnsForCarrier(subId);
+        int carrierRoamingNtnConnectType = getCarrierRoamingNtnConnectType(subId);
+        if (carrierRoamingNtnConnectType == CARRIER_ROAMING_NTN_CONNECT_MANUAL) {
+            return allCarrierPlmns;
+        } else if (carrierRoamingNtnConnectType == CARRIER_ROAMING_NTN_CONNECT_HYBRID) {
+            for (String plmn : allCarrierPlmns) {
+                if ((getCarrierRoamingNtnConnectTypeForPlmn(subId, plmn)
+                        == CARRIER_ROAMING_NTN_CONNECT_MANUAL)
+                        || getSupportedSatelliteTechnologies(subId, plmn).contains(
+                        SatelliteManager.NT_RADIO_TECHNOLOGY_NB_IOT_NTN)) {
+                    result.add(plmn);
+                }
+            }
+        }
+        return result;
+    }
+
     /**
      *  checks if data service is allowed, to add part of list of services supported by satellite
      *  plmn, when data supported mode
@@ -11283,5 +11337,26 @@ public class SatelliteController extends Handler {
             + ", provider=" + provider);
 
         return provider;
+    }
+
+    /**
+     * Request to evaluate and potentially enable satellite for a specific carrier based on
+     * resolving a communication restriction.
+     * <p>
+     * This method is typically invoked when the connection mode is set to
+     * {@link CarrierConfigManager#CARRIER_ROAMING_NTN_CONNECT_AUTOMATIC} and a user or
+     * system event suggests that restrictions should be re-evaluated.
+     *
+     * @param subId The subscription ID to evaluate enablement for.
+     * @param reason The restriction reason to evaluate (e.g.,
+     *               {@link SatelliteManager#SATELLITE_COMMUNICATION_RESTRICTION_REASON_USER}).
+     * @param callback The callback used to return the result of the evaluation.
+     */
+    // TODO(b/323046234): Migrate to use Auto Satellite Enablement.
+    public void requestEnableSatelliteForCarrier(int subId,
+            @SatelliteManager.SatelliteCommunicationRestrictionReason int reason,
+            @NonNull IIntegerConsumer callback) {
+        Consumer<Integer> result = FunctionalUtils.ignoreRemoteException(callback::accept);
+        evaluateEnablingSatelliteForCarrier(subId, reason, result);
     }
 }
