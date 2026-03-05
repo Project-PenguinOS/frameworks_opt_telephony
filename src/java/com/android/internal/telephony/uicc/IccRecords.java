@@ -40,7 +40,6 @@ import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.telephony.CommandException;
 import com.android.internal.telephony.CommandsInterface;
 import com.android.internal.telephony.MccTable;
-import com.android.internal.telephony.flags.Flags;
 import com.android.internal.telephony.gsm.SimTlv;
 import com.android.internal.telephony.util.ArrayUtils;
 import com.android.telephony.Rlog;
@@ -685,9 +684,8 @@ public abstract class IccRecords extends Handler implements IccConstants {
                 // can parse the imsi properly
                 int subId = getSubscriptionId(mParentApp.getPhoneId());
                 int defaultSubId = getDefaultSubscriptionId();
-                if (!Flags.updateMccMncConfigurationFix()
-                        || (SubscriptionManager.isValidSubscriptionId(subId)
-                                && subId == defaultSubId)) {
+                if (SubscriptionManager.isValidSubscriptionId(subId)
+                        && subId == defaultSubId) {
                     log("update mccmnc=" + imsi.substring(0, 3 + mMncLength));
                     updateMccMncConfiguration(mContext, imsi.substring(0, 3 + mMncLength));
                 } else {
