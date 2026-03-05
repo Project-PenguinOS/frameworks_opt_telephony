@@ -94,6 +94,14 @@ flag {
   bug: "469744736"
 }
 
+# OWNER=gargakash TARGET=26Q3
+flag {
+  name: "fix_sql_injection_hbpcd"
+  namespace: "telephony"
+  description: "Fix SQL injection in HbpcdLookupProvider"
+  bug: "458580054"
+}
+
 # OWNER=arunvoddu TARGET=26Q3
 flag {
   name: "write_sim_async"
@@ -101,4 +109,3 @@ flag {
   description: "Moving the file I/O operations to background thread to avoid ANR"
   bug: "469506704"
 }
-
