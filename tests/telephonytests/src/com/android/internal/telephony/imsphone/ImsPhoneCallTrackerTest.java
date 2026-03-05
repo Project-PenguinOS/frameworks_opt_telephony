@@ -537,7 +537,7 @@ public class ImsPhoneCallTrackerTest extends TelephonyTest {
     @Test
     @SmallTest
     public void testImsMTCall() {
-        ImsPhoneConnection connection = setupRingingConnection();
+        ImsPhoneConnection connection = setupRingingConnection(null /* imsCallSession */);
         assertEquals(android.telecom.Connection.VERIFICATION_STATUS_PASSED,
                 connection.getNumberVerificationStatus());
     }
@@ -545,7 +545,7 @@ public class ImsPhoneCallTrackerTest extends TelephonyTest {
     @Test
     @SmallTest
     public void testImsMTCallMissed() {
-        ImsPhoneConnection connection = setupRingingConnection();
+        ImsPhoneConnection connection = setupRingingConnection(null /* imsCallSession */);
         mImsCallListener.onCallTerminated(connection.getImsCall(),
                 new ImsReasonInfo(ImsReasonInfo.CODE_USER_TERMINATED_BY_REMOTE, 0));
         assertEquals(DisconnectCause.INCOMING_MISSED, connection.getDisconnectCause());
@@ -554,7 +554,7 @@ public class ImsPhoneCallTrackerTest extends TelephonyTest {
     @Test
     @SmallTest
     public void testImsMTCallRejected() {
-        ImsPhoneConnection connection = setupRingingConnection();
+        ImsPhoneConnection connection = setupRingingConnection(null /* imsCallSession */);
         connection.onHangupLocal();
         mImsCallListener.onCallTerminated(connection.getImsCall(),
                 new ImsReasonInfo(ImsReasonInfo.CODE_SIP_REQUEST_TIMEOUT, 0));
@@ -564,7 +564,7 @@ public class ImsPhoneCallTrackerTest extends TelephonyTest {
     @Test
     @SmallTest
     public void testRejectedElsewhereIsRejected() {
-        ImsPhoneConnection connection = setupRingingConnection();
+        ImsPhoneConnection connection = setupRingingConnection(null /* imsCallSession */);
         mImsCallListener.onCallTerminated(connection.getImsCall(),
                 new ImsReasonInfo(ImsReasonInfo.CODE_REJECTED_ELSEWHERE, 0));
         assertEquals(DisconnectCause.INCOMING_REJECTED, connection.getDisconnectCause());
@@ -573,20 +573,41 @@ public class ImsPhoneCallTrackerTest extends TelephonyTest {
     @Test
     @SmallTest
     public void testRemoteCallDeclineIsRejected() {
-        ImsPhoneConnection connection = setupRingingConnection();
+        ImsPhoneConnection connection = setupRingingConnection(null /* imsCallSession */);
         mImsCallListener.onCallTerminated(connection.getImsCall(),
                 new ImsReasonInfo(ImsReasonInfo.CODE_REMOTE_CALL_DECLINE, 0));
         assertEquals(DisconnectCause.INCOMING_REJECTED, connection.getDisconnectCause());
     }
 
-    private ImsPhoneConnection setupRingingConnection() {
+    @Test
+    @SmallTest
+    public void testVtLowCallBatteryCallDisconnect() throws Exception {
+        // Set up mocks for testing low battery video call decline
+        doReturn(true).when(mImsCall).isVideoCall();
+        IImsCallSession imsCallSession = mock(IImsCallSession.class);
+        mImsCallProfile.setCallExtraBoolean(ImsCallProfile.EXTRA_LOW_BATTERY, true);
+        when(imsCallSession.getCallProfile()).thenReturn(mImsCallProfile);
+        mCTUT.setShouldAllowVtCallsInLowBatteryForTesting(false);
+
+        ImsPhoneConnection connection = setupRingingConnection(imsCallSession);
+
+        // Verify that the call was rejected and the disconnect cause is INCOMING_AUTO_REJECTED,
+        verify(mImsCall).reject(ImsReasonInfo.CODE_USER_DECLINE);
+        assertEquals(DisconnectCause.INCOMING_AUTO_REJECTED, connection.getDisconnectCause());
+    }
+
+    private ImsPhoneConnection setupRingingConnection(IImsCallSession imsCallSession) {
+        if (imsCallSession == null) {
+            imsCallSession = mock(IImsCallSession.class);
+        }
         mImsCallProfile.setCallerNumberVerificationStatus(
                 ImsCallProfile.VERIFICATION_STATUS_PASSED);
         assertEquals(PhoneConstants.State.IDLE, mCTUT.getState());
         assertFalse(mCTUT.mRingingCall.isRinging());
         // mock a MT call
-        mMmTelListener.onIncomingCall(mock(IImsCallSession.class), null, Bundle.EMPTY);
-        verify(mImsPhone, times(1)).notifyNewRingingConnection((Connection) any());
+        mMmTelListener.onIncomingCall(imsCallSession, null, Bundle.EMPTY);
+        verify(mImsPhone, times(1))
+                .notifyNewRingingConnection((Connection) any());
         verify(mImsPhone, times(1)).notifyIncomingRing();
         assertEquals(PhoneConstants.State.RINGING, mCTUT.getState());
         assertTrue(mCTUT.mRingingCall.isRinging());
@@ -2560,7 +2581,7 @@ public class ImsPhoneCallTrackerTest extends TelephonyTest {
     @Test
     public void testUpdateImsCallStatusIncoming() throws Exception {
         // Incoming call
-        ImsPhoneConnection connection = setupRingingConnection();
+        ImsPhoneConnection connection = setupRingingConnection(null /* imsCallSession */);
 
         verify(mImsPhone, times(1)).updateImsCallStatus(any(), any());
 
@@ -2642,7 +2663,7 @@ public class ImsPhoneCallTrackerTest extends TelephonyTest {
     @Test
     public void testUpdateImsCallStatusSrvccCompleted() throws Exception {
         // Incoming call
-        setupRingingConnection();
+        setupRingingConnection(null /* imsCallSession */);
 
         verify(mImsPhone, times(1)).updateImsCallStatus(any(), any());
 
