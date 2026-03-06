@@ -800,10 +800,12 @@ public class SmsController extends ISmsImplBase {
         IccSmsInterfaceManager iccSmsIntMgr = getIccSmsInterfaceManager(subId);
         UserHandle callingUser = Binder.getCallingUserHandle();
         final int uid = Binder.getCallingUid();
-        if (!getCallingPackage().equals(callingPkg)) {
-            throw new SecurityException("sendStoredText: Package " + callingPkg
-                    + "does not belong to " + uid);
-        }
+//        TODO(b/489085982): Fix check for package name.
+//        if (!getCallingPackage().equals(callingPkg)) {
+//            throw new SecurityException("sendStoredText: Package " + callingPkg
+//                    + "does not belong to " + uid);
+//        }
+        callingPkg = getCallingPackage();
         Rlog.d(LOG_TAG, "sendStoredText caller=" + callingPkg);
 
         String destAddr = getDestAddress(iccSmsIntMgr, messageUri);
@@ -834,11 +836,12 @@ public class SmsController extends ISmsImplBase {
         IccSmsInterfaceManager iccSmsIntMgr = getIccSmsInterfaceManager(subId);
         UserHandle callingUser = Binder.getCallingUserHandle();
         final int uid = Binder.getCallingUid();
-
-        if (!getCallingPackage().equals(callingPkg)) {
-            throw new SecurityException("sendStoredMultipartText: Package " + callingPkg
-                    + " does not belong to " + uid);
-        }
+//        TODO(b/489085982): Fix check for package name.
+//        if (!getCallingPackage().equals(callingPkg)) {
+//            throw new SecurityException("sendStoredText: Package " + callingPkg
+//                    + "does not belong to " + uid);
+//        }
+        callingPkg = getCallingPackage();
         Rlog.d(LOG_TAG, "sendStoredMultipartText caller=" + callingPkg);
 
         String destAddr = getDestAddress(iccSmsIntMgr, messageUri);
@@ -1006,6 +1009,12 @@ public class SmsController extends ISmsImplBase {
         filtered.putBoolean(
                 SmsManager.MMS_CONFIG_SUPPORT_HTTP_CHARSET_HEADER,
                 config.getBoolean(SmsManager.MMS_CONFIG_SUPPORT_HTTP_CHARSET_HEADER));
+        filtered.putInt(
+                CarrierConfigManager.KEY_MMS_MAX_NTN_PAYLOAD_SIZE_BYTES_INT,
+                config.getInt(CarrierConfigManager.KEY_MMS_MAX_NTN_PAYLOAD_SIZE_BYTES_INT));
+        filtered.putInt(
+                CarrierConfigManager.KEY_MMS_NETWORK_RELEASE_TIMEOUT_MILLIS_INT,
+                config.getInt(CarrierConfigManager.KEY_MMS_NETWORK_RELEASE_TIMEOUT_MILLIS_INT));
         return filtered;
     }
 

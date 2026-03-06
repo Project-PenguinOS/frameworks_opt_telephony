@@ -123,10 +123,10 @@ public class CarrierRoamingSatelliteControllerStats {
     }
 
     /** Capture the NB-IoT NTN carrier ID */
-    public void reportCarrierId(int subId, int carrierId) {
+    public void reportCarrierId(int subId) {
         mSatelliteStats.onCarrierRoamingSatelliteControllerStatsMetrics(
                 new SatelliteStats.CarrierRoamingSatelliteControllerStatsParams.Builder()
-                        .setCarrierId(carrierId)
+                        .setCarrierId(getCarrierIdFromSubscription(subId))
                         .setIsDeviceEntitled(isDeviceEntitled(subId))
                         .setIsMultiSim(isMultiSim())
                         .setIsNbIotNtn(isNbIotNtn(subId))
