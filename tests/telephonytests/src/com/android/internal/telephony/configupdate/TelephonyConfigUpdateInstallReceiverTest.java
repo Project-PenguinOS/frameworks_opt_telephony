@@ -225,8 +225,10 @@ public class TelephonyConfigUpdateInstallReceiverTest extends TelephonyTest {
 
     @Test
     public void testGetConfig() throws Exception {
+        TelephonyConfigUpdateInstallReceiver.getInstance().cleanUpTelephonyConfigs();
         TelephonyConfigUpdateInstallReceiver spyTelephonyConfigUpdateInstallReceiver =
                 spy(new TelephonyConfigUpdateInstallReceiver());
+        spyTelephonyConfigUpdateInstallReceiver.cleanUpTelephonyConfigs();
 
         replaceInstance(TelephonyConfigUpdateInstallReceiver.class, "sReceiverAdaptorInstance",
                 null, spyTelephonyConfigUpdateInstallReceiver);
@@ -239,6 +241,10 @@ public class TelephonyConfigUpdateInstallReceiverTest extends TelephonyTest {
                 DOMAIN_SATELLITE));
         assertNull(TelephonyConfigUpdateInstallReceiver.getInstance().getConfigParser(
                 DOMAIN_DATA));
+
+        // Clear cached EMPTY_PARSER before testing success case
+        spyTelephonyConfigUpdateInstallReceiver.clearOverriddenConfigParser(DOMAIN_SATELLITE);
+        spyTelephonyConfigUpdateInstallReceiver.clearOverriddenConfigParser(DOMAIN_DATA);
 
         // 2. Test success case
         SatelliteConfigParser mockSatParser = mock(SatelliteConfigParser.class);
