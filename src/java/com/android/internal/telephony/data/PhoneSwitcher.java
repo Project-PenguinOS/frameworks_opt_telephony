@@ -77,6 +77,8 @@ import com.android.internal.telephony.PhoneFactory;
 import com.android.internal.telephony.RadioConfig;
 import com.android.internal.telephony.data.DataNetworkController.NetworkRequestList;
 import com.android.internal.telephony.data.DataSettingsManager.DataSettingsManagerCallback;
+import com.android.internal.telephony.domainselection.DomainSelectionResolver;
+import com.android.internal.telephony.emergency.EmergencyStateTracker;
 import com.android.internal.telephony.flags.FeatureFlags;
 import com.android.internal.telephony.imsphone.ImsPhone;
 import com.android.internal.telephony.nano.TelephonyProto.TelephonyEvent;
@@ -982,6 +984,14 @@ public class PhoneSwitcher extends Handler {
         return false;
     }
 
+    private boolean isInEmergencyMode() {
+        if (isInEmergencyCallbackMode()) return true;
+        if (DomainSelectionResolver.getInstance().isDomainSelectionSupported()) {
+            return EmergencyStateTracker.getInstance().isInEmergencyMode();
+        }
+        return false;
+    }
+
     /**
      * Called when receiving a network request.
      *
@@ -1328,8 +1338,8 @@ public class PhoneSwitcher extends Handler {
             mPreferredDataPhoneId = mEmergencyOverride.mPhoneId;
             mLastSwitchPreferredDataReason = DataSwitch.Reason.DATA_SWITCH_REASON_UNKNOWN;
         } else {
-             if (isInEmergencyCallbackMode()) {
-                logl("updatePreferredDataPhoneId: in emergency callback, skip switching data");
+             if (isInEmergencyMode()) {
+                logl("updatePreferredDataPhoneId: in emergency mode, skip switching data");
                 return;
             }
             if (isAnyVoiceCallActiveOnDevice()) {

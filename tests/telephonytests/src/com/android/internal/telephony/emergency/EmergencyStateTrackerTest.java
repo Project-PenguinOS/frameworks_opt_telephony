@@ -134,6 +134,10 @@ public class EmergencyStateTrackerTest extends TelephonyTest {
         super.setUp(getClass().getSimpleName());
         MockitoAnnotations.initMocks(this);
 
+        // TelephonyTest.setUp() mocks EmergencyStateTracker and sets the static INSTANCE.
+        // Reset the instance to null so we can test the initialization logic.
+        replaceInstance(EmergencyStateTracker.class, "INSTANCE", null, null);
+
         doReturn(TelephonyManager.SIM_STATE_READY)
                 .when(mTelephonyManagerProxy).getSimState(anyInt());
     }
