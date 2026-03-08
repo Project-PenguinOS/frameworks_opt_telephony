@@ -63,8 +63,41 @@ public class TelephonyConfigUpdateInstallReceiver extends ConfigUpdateInstallRec
     public static final String BACKUP_VERSION = "backup_version";
 
     private ConcurrentHashMap<Executor, Callback> mCallbackHashMap = new ConcurrentHashMap<>();
+
+    /**
+     * Map of domain to ConfigParser.
+     *
+     * Note: Missing configs are cached using the {@link #EMPTY_PARSER} sentinel value.
+     * Callers accessing this map directly must check for this sentinel.
+     */
     @VisibleForTesting
     protected final Map<String, ConfigParser> mConfigParsers = new ConcurrentHashMap<>();
+
+    /**
+     * A sentinel ConfigParser used to represent a missing or invalid configuration for a specific
+     * domain.
+     *
+     * Concept:
+     * ConcurrentHashMap does not support null values. To cache the "missing config" state (which
+     * would normally be represented by null) and avoid repeated expensive disk I/O and main-thread
+     * starvation, we use this singleton EMPTY_PARSER object as a sentinel.
+     *
+     * Logic:
+     * 1. When getConfigParser(domain) is called, it uses computeIfAbsent.
+     * 2. If the file is missing, it caches EMPTY_PARSER.
+     * 3. getConfigParser then checks if the result is EMPTY_PARSER and returns null to the caller.
+     * 4. This ensures the disk is only checked once, even if the file never exists.
+     */
+    private static final ConfigParser EMPTY_PARSER = new ConfigParser((byte[]) null) {
+        @Override
+        protected void parseData(@Nullable byte[] data) {}
+
+        @Override
+        public String getDomain() {
+            return "";
+        }
+    };
+
     @NonNull
     private final ConfigUpdaterMetricsStats mConfigUpdaterMetricsStats;
 
@@ -400,7 +433,7 @@ public class TelephonyConfigUpdateInstallReceiver extends ConfigUpdateInstallRec
     private boolean isUpgradableVersion(@Nullable ConfigParser oldConfigParser,
             @NonNull ConfigParser newConfigParser) {
         String domain = newConfigParser.getDomain();
-        if (oldConfigParser == null) {
+        if (oldConfigParser == null || oldConfigParser == EMPTY_PARSER) {
             Log.d(TAG, "domain_" + domain + " is upgradable: never been installed previously.");
             return true;
         }
@@ -469,17 +502,19 @@ public class TelephonyConfigUpdateInstallReceiver extends ConfigUpdateInstallRec
     @Nullable
     @Override
     public ConfigParser getConfigParser(String domain) {
-        Log.d(TAG, "getConfigParser");
-        return getInstance().mConfigParsers.computeIfAbsent(domain, k -> {
-            Log.d(TAG, "CreateNewConfigParser with domain " + domain);
-            ConfigParser parser = getNewConfigParser(
-                    domain, getContentFromContentPath(new File(updateDir,
+        Log.d(TAG, "getConfigParser: domain=" + domain);
+        ConfigParser parser = getInstance().mConfigParsers.computeIfAbsent(domain, d -> {
+            Log.d(TAG, "CreateNewConfigParser with domain " + d);
+            ConfigParser newParser = getNewConfigParser(
+                    d, getContentFromContentPath(new File(updateDir,
                             VALID_CONFIG_CONTENT_PATH)));
-            if (parser != null && parser.getConfig() != null) {
-                return parser;
+
+            if (newParser == null || newParser.getConfig() == null) {
+                return EMPTY_PARSER;
             }
-            return null;
+            return newParser;
         });
+        return (parser == EMPTY_PARSER) ? null : parser;
     }
 
     /**
@@ -635,7 +670,6 @@ public class TelephonyConfigUpdateInstallReceiver extends ConfigUpdateInstallRec
         return true;
     }
 
-
     /**
      * This API is used by CTS to override the version of the config data
      *
@@ -663,9 +697,11 @@ public class TelephonyConfigUpdateInstallReceiver extends ConfigUpdateInstallRec
         try {
             writeUpdate(updateDir, updateVersion,
                     new ByteArrayInputStream(Long.toString(version).getBytes()));
-            for (ConfigParser parser : getInstance().mConfigParsers.values()) {
-                parser.overrideVersion(version);
-            }
+            getInstance().mConfigParsers.forEach((domain, parser) -> {
+                if (parser != EMPTY_PARSER) {
+                    parser.overrideVersion(version);
+                }
+            });
         } catch (IOException e) {
             Log.e(TAG, "overrideVersion: e=" + e);
             return false;
@@ -694,7 +730,7 @@ public class TelephonyConfigUpdateInstallReceiver extends ConfigUpdateInstallRec
         }
         if (!copySourceFileToTargetFile(UPDATE_METADATA_PATH + VERSION,
                 UPDATE_METADATA_PATH + BACKUP_VERSION)) {
-            Log.e(TAG, "bakpuackupContentData: fail to backup the version");
+            Log.e(TAG, "backupContentData: fail to backup the version");
             return false;
         }
         Log.d(TAG, "backupContentData: backup success");
