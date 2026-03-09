@@ -44,7 +44,6 @@ import static org.mockito.Mockito.when;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
-import android.app.ActivityManager;
 import android.app.PendingIntent;
 import android.content.Intent;
 import android.net.Uri;
@@ -511,7 +510,6 @@ public class SmsDispatchersControllerTest extends TelephonyTest {
         // unmock ActivityManager to be able to register receiver, create real PendingIntent and
         // receive TEST_INTENT
         restoreInstance(Singleton.class, "mInstance", mIActivityManagerSingleton);
-        restoreInstance(ActivityManager.class, "IActivityManagerSingleton", null);
 
         // inject null sms pdu. This should cause intent to be received since pdu is null.
         mSmsDispatchersController.injectSmsPdu(null, SmsConstants.FORMAT_3GPP, true,

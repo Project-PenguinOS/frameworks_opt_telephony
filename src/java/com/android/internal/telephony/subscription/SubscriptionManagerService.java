@@ -269,7 +269,8 @@ public class SubscriptionManagerService extends ISub.Stub {
 
     /** Wrap Binder methods for testing. */
     @NonNull
-    private static final BinderWrapper BINDER_WRAPPER = new BinderWrapper();
+    // Non-final: overwritten in SubscriptionManagerServiceTest.
+    private static BinderWrapper BINDER_WRAPPER = new BinderWrapper();
 
     /** Regular expression to determine if a string is in MAC address format. */
     private static final Pattern MAC_ADDRESS_PATTERN = Pattern.compile(

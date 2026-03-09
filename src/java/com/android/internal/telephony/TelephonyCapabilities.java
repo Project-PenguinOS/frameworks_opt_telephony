@@ -31,9 +31,10 @@ import com.android.telephony.Rlog;
  */
 public class TelephonyCapabilities {
     private static final String LOG_TAG = "TelephonyCapabilities";
-    private static final int VENDOR_API_LEVEL = SystemProperties.getInt(
+    // Non-final: overwritten in TelephonyCapabilitiesTest.
+    private static int VENDOR_API_LEVEL = SystemProperties.getInt(
             "ro.vendor.api_level", Build.VERSION.DEVICE_INITIAL_SDK_INT);
-    private static final int BOARD_API_LEVEL = SystemProperties.getInt(
+    private static int BOARD_API_LEVEL = SystemProperties.getInt(
             "ro.board.api_level", VENDOR_API_LEVEL);
 
     /** This class is never instantiated. */
