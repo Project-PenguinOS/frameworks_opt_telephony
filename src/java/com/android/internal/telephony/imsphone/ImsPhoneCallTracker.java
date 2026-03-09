@@ -4564,6 +4564,12 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
                 loge("onCallMerged: exception " + e);
             }
 
+            // Re-initialize RTT text handler for the new conference IMS session
+            if (conn != null && conn.isRttEnabledForCall()) {
+                log("onCallMerged: resetting RTT text handler for conference");
+                conn.resetRttTextHandler();
+            }
+
             // After merge complete, update foreground as Active
             // and background call as Held, if background call exists
             processCallStateChange(mForegroundCall.getImsCall(), ImsPhoneCall.State.ACTIVE,
