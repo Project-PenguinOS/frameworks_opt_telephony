@@ -71,11 +71,14 @@ public class PhoneConfigurationManagerTest extends TelephonyTest {
     Handler mHandler;
     CommandsInterface mMockCi0;
     CommandsInterface mMockCi1;
-    private Phone mPhone1; // mPhone as phone 0 is already defined in TelephonyTest.
+    CommandsInterface mMockCi2;
+    private Phone mPhone1;
+    private Phone mPhone3;
     PhoneConfigurationManager.MockableInterface mMi;
 
     private static final int EVENT_MULTI_SIM_CONFIG_CHANGED = 1;
     private static final PhoneCapability STATIC_DSDA_CAPABILITY;
+    private static final PhoneCapability STATIC_TSTS_CAPABILITY;
     PhoneConfigurationManager mPcm;
     private FeatureFlags mFeatureFlags;
     private TelephonyRegistryManager mMockRegistryManager;
@@ -83,6 +86,7 @@ public class PhoneConfigurationManagerTest extends TelephonyTest {
     static {
         ModemInfo modemInfo1 = new ModemInfo(0, 0, true, true);
         ModemInfo modemInfo2 = new ModemInfo(1, 0, true, true);
+        ModemInfo modemInfo3 = new ModemInfo(2, 0, true, true);
 
         List<ModemInfo> logicalModemList = new ArrayList<>();
         logicalModemList.add(modemInfo1);
@@ -90,6 +94,13 @@ public class PhoneConfigurationManagerTest extends TelephonyTest {
         int[] deviceNrCapabilities = new int[0];
 
         STATIC_DSDA_CAPABILITY = new PhoneCapability(2, 1, logicalModemList, false,
+                deviceNrCapabilities);
+
+        logicalModemList = new ArrayList<>();
+        logicalModemList.add(modemInfo1);
+        logicalModemList.add(modemInfo2);
+        logicalModemList.add(modemInfo3);
+        STATIC_TSTS_CAPABILITY = new PhoneCapability(3, 1, logicalModemList, false,
                 deviceNrCapabilities);
     }
 
@@ -99,12 +110,15 @@ public class PhoneConfigurationManagerTest extends TelephonyTest {
         mHandler = mock(Handler.class);
         mMockCi0 = mock(CommandsInterface.class);
         mMockCi1 = mock(CommandsInterface.class);
+        mMockCi2 = mock(CommandsInterface.class);
         mFeatureFlags = Mockito.mock(FeatureFlags.class);
         mPhone1 = mock(Phone.class);
+        mPhone3 = mock(Phone.class);
         mMi = mock(PhoneConfigurationManager.MockableInterface.class);
         mPhone.mCi = mMockCi0;
         mCT.mCi = mMockCi0;
         mPhone1.mCi = mMockCi1;
+        mPhone3.mCi = mMockCi2;
         doReturn(RIL.RADIO_HAL_VERSION_2_2).when(mMockRadioConfigProxy).getVersion();
         mMockRegistryManager = mContext.getSystemService(TelephonyRegistryManager.class);
     }
@@ -417,9 +431,9 @@ public class PhoneConfigurationManagerTest extends TelephonyTest {
 
     @Test
     @SmallTest
-    public void testNoCallPreferenceIsSetAfterSwitchToDsdsMode() throws Exception {
+    public void testNoPreferenceIsSetAfterSwitchToDsdsMode() throws Exception {
         final int startingDefaultSubscriptionId = 2; // arbitrary value (can't be -1 which
-        // represents the "No Call Preference" value)
+        // represents the "No Preference" value)
 
         /*
             TL;DR:  the following mockito code block dynamically changes the last call to the getter
@@ -443,21 +457,95 @@ public class PhoneConfigurationManagerTest extends TelephonyTest {
             return null;
         }).when(mSubscriptionManagerService).setDefaultVoiceSubId(anyInt());
 
+        // setup mocks for  SMS mSubscriptionManagerService. getter/setter
+        doAnswer(invocation -> {
+            Integer value = (Integer) invocation.getArguments()[0];
+            Mockito.when(mSubscriptionManagerService.getDefaultSmsSubId()).thenReturn(value);
+            return null;
+        }).when(mSubscriptionManagerService).setDefaultSmsSubId(anyInt());
+
 
         // start off the phone stat with 1 active sim. reset values for new test.
         init(1);
 
         mSubscriptionManagerService.setDefaultVoiceSubId(startingDefaultSubscriptionId);
+        mSubscriptionManagerService.setDefaultSmsSubId(startingDefaultSubscriptionId);
         assertEquals(startingDefaultSubscriptionId,
                 mSubscriptionManagerService.getDefaultVoiceSubId());
+        assertEquals(startingDefaultSubscriptionId,
+                mSubscriptionManagerService.getDefaultSmsSubId());
 
         // Perform the switch to DSDS mode and ensure all existing checks are not altered
         testSwitchFromSingleToDualSimModeNoReboot();
 
         // VOICE check
-        assertEquals(SubscriptionManager.INVALID_SUBSCRIPTION_ID /* No CALL Preference value */,
+        assertEquals(SubscriptionManager.INVALID_SUBSCRIPTION_ID /* No Preference value */,
                 mSubscriptionManagerService.getDefaultVoiceSubId());
-        // Now, when the user goes to place a CALL, they will be prompted on which sim to use.
+        // SMS check
+        assertEquals(SubscriptionManager.INVALID_SUBSCRIPTION_ID /* No Preference value */,
+                mSubscriptionManagerService.getDefaultSmsSubId());
+        // Now, when the user goes to place a CALL or SMS, they will be prompted on which sim to use
+    }
+
+    @Test
+    @SmallTest
+    public void testNoPreferenceIsSetAfterSwitchToTstsMode() throws Exception {
+        final int startingDefaultSubscriptionId = 2; // arbitrary value (can't be -1 which
+        // represents the "No Preference" value)
+
+        // setup mocks for  VOICE mSubscriptionManagerService. getter/setter
+        doAnswer(invocation -> {
+            Integer value = (Integer) invocation.getArguments()[0];
+            Mockito.when(mSubscriptionManagerService.getDefaultVoiceSubId()).thenReturn(value);
+            return null;
+        }).when(mSubscriptionManagerService).setDefaultVoiceSubId(anyInt());
+
+        // setup mocks for  SMS mSubscriptionManagerService. getter/setter
+        doAnswer(invocation -> {
+            Integer value = (Integer) invocation.getArguments()[0];
+            Mockito.when(mSubscriptionManagerService.getDefaultSmsSubId()).thenReturn(value);
+            return null;
+        }).when(mSubscriptionManagerService).setDefaultSmsSubId(anyInt());
+
+
+        // start off with 2 active SIMs. reset values for new test.
+        mPhones = new Phone[]{mPhone, mPhone1};
+        replaceInstance(PhoneFactory.class, "sPhones", null, mPhones);
+        init(2);
+
+        mSubscriptionManagerService.setDefaultVoiceSubId(startingDefaultSubscriptionId);
+        mSubscriptionManagerService.setDefaultSmsSubId(startingDefaultSubscriptionId);
+        assertEquals(startingDefaultSubscriptionId,
+                mSubscriptionManagerService.getDefaultVoiceSubId());
+        assertEquals(startingDefaultSubscriptionId,
+                mSubscriptionManagerService.getDefaultSmsSubId());
+
+        // Perform the switch to TSTS mode
+        mPhones = new Phone[]{mPhone, mPhone1, mPhone3};
+        replaceInstance(PhoneFactory.class, "sPhones", null, mPhones);
+
+        // Tell PCM that TSTS is supported.
+        mPcm.updateRadioCapability();
+        setAndVerifyStaticCapability(STATIC_TSTS_CAPABILITY);
+
+        // Switch to TSTS (3)
+        setRebootRequiredForConfigSwitch(false);
+        mPcm.switchMultiSimConfig(3);
+        ArgumentCaptor<Message> captor = ArgumentCaptor.forClass(Message.class);
+        verify(mMockRadioConfig).setNumOfLiveModems(eq(3), captor.capture());
+
+        // Send message back to indicate switch success.
+        Message message = captor.getValue();
+        AsyncResult.forMessage(message, null, null);
+        message.sendToTarget();
+        processAllMessages();
+
+        // VOICE check
+        assertEquals(SubscriptionManager.INVALID_SUBSCRIPTION_ID /* No Preference value */,
+                mSubscriptionManagerService.getDefaultVoiceSubId());
+        // SMS check
+        assertEquals(SubscriptionManager.INVALID_SUBSCRIPTION_ID /* No Preference value */,
+                mSubscriptionManagerService.getDefaultSmsSubId());
     }
 
     /**
