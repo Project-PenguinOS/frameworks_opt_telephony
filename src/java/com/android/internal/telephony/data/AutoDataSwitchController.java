@@ -968,7 +968,6 @@ public class AutoDataSwitchController extends Handler {
             logl(debugMessage.append(
                     ", immediately back to default as user turns off default data").toString());
             return;
-// QTI_BEGIN: 2025-10-14: Telephony: Google Auto DDS FR changes
         } else if (autoDdsValueAddedEvaluationforDdsRevert()) {
             mSelectedTargetPhoneId = INVALID_PHONE_INDEX;
             mPhoneSwitcherCallback.onRequireImmediatelySwitchToPhone(
@@ -977,7 +976,6 @@ public class AutoDataSwitchController extends Handler {
             log(debugMessage.append(
                     ", immediately back to default as additional value added evaluation")
                     .toString());
-// QTI_END: 2025-10-14: Telephony: Google Auto DDS FR changes
         } else if (!(internetEvaluation = getInternetEvaluation(backupDataPhone))
                 .isSubsetOf(DataEvaluation.DataDisallowedReason.NOT_IN_SERVICE)) {
             mSelectedTargetPhoneId = INVALID_PHONE_INDEX;
