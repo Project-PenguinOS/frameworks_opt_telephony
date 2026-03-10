@@ -1781,6 +1781,30 @@ public class AutoDataSwitchControllerTest extends TelephonyTest {
     }
 
     @Test
+    public void testStickyTarget_noOpportunisticPreference_stickToDefaultDataPhone() {
+        doReturn(SubscriptionManager.DEFAULT_SUBSCRIPTION_ID)
+                .when(mPhoneSwitcher).getOpportunisticSetDataSubId();
+        // Simulate PHONE_1 is the global default phone.
+        doReturn(PHONE_1).when(mSubscriptionManagerService)
+                .getPhoneId(eq(SubscriptionManager.DEFAULT_SUBSCRIPTION_ID));
+        // Default Data Sub is SUB_2 (PHONE_2) which is different from the global default phone.
+        setDefaultDataSubId(SUB_2);
+        // We are currently on PHONE_2.
+        doReturn(PHONE_2).when(mPhoneSwitcher).getPreferredDataPhoneId();
+
+        setupOpportunisticSwitchMode(
+                CarrierConfigManager.OPP_AUTO_DATA_SWITCH_POLICY_FOR_AVAILABILITY);
+
+        mAutoDataSwitchControllerUT.evaluateAutoDataSwitch(
+                EVALUATION_REASON_REGISTRATION_STATE_CHANGED);
+        processAllFutureMessages();
+
+        // It should NOT switch to PHONE_1.
+        verify(mMockedPhoneSwitcherCallback, never()).onRequireValidation(eq(PHONE_1),
+                anyBoolean());
+    }
+
+    @Test
     public void testStickyTarget_setOpportunisticAsSticky() {
         // Feature flag enabled, preference set to Opportunistic Sub (SUB_2).
         doReturn(SUB_2).when(mPhoneSwitcher).getOpportunisticSetDataSubId();
