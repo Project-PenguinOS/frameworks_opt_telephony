@@ -37,6 +37,7 @@ import static android.telephony.CarrierConfigManager.OPP_AUTO_DATA_SWITCH_POLICY
 import static android.telephony.CarrierConfigManager.OPP_AUTO_DATA_SWITCH_POLICY_FOLLOW_SYSTEM;
 import static android.telephony.CarrierConfigManager.OpportunisticNetworkSwitchPolicy;
 import static android.telephony.SubscriptionManager.DEFAULT_PHONE_INDEX;
+import static android.telephony.SubscriptionManager.DEFAULT_SUBSCRIPTION_ID;
 import static android.telephony.SubscriptionManager.INVALID_PHONE_INDEX;
 
 import android.annotation.IntDef;
@@ -912,8 +913,10 @@ public class AutoDataSwitchController extends Handler {
         }
 
         int currentPreferredPhoneId = mPhoneSwitcher.getPreferredDataPhoneId();
-        int opportunisticSetDataPhoneId = mSubscriptionManagerService.getPhoneId(
-                mPhoneSwitcher.getOpportunisticSetDataSubId());
+        int opportunisticSetDataSubId = mPhoneSwitcher.getOpportunisticSetDataSubId();
+        int opportunisticSetDataPhoneId = opportunisticSetDataSubId == DEFAULT_SUBSCRIPTION_ID
+                ? INVALID_PHONE_INDEX
+                : mSubscriptionManagerService.getPhoneId(opportunisticSetDataSubId);
         int stickyTargetPhoneId = isActiveModemPhone(opportunisticSetDataPhoneId)
                 ? opportunisticSetDataPhoneId : defaultDataPhoneId;
 
