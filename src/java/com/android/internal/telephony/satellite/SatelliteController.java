@@ -10463,22 +10463,25 @@ public class SatelliteController extends Handler {
         int subId = phone.getSubId();
         NtnSignalStrength lastNotifiedSignalStrength =
                 mLastNotifiedCarrierRoamingNtnSignalStrength.get(subId);
-        plogd("updateLastNotifiedCarrierRoamingNtnSignalStrengthAndNotify(" + subId + ")");
-        if (lastNotifiedSignalStrength != null) {
-            plogd(
-                    "updateLastNotifiedCarrierRoamingNtnSignalStrengthAndNotify("
-                            + subId
-                            + ")"
-                            + " lastNotifiedSignalStrength level: "
-                            + lastNotifiedSignalStrength.getLevel());
-        }
-        if (currSignalStrength != null) {
-            plogd(
-                    "updateLastNotifiedCarrierRoamingNtnSignalStrengthAndNotify("
-                            + subId
-                            + ")"
-                            + " currSignalStrength level: "
-                            + currSignalStrength.getLevel());
+
+        if (isInSatelliteModeForCarrierRoaming(phone)) {
+            plogd("updateLastNotifiedCarrierRoamingNtnSignalStrengthAndNotify(" + subId + ")");
+            if (lastNotifiedSignalStrength != null) {
+                plogd(
+                        "updateLastNotifiedCarrierRoamingNtnSignalStrengthAndNotify("
+                                + subId
+                                + ")"
+                                + " lastNotifiedSignalStrength level: "
+                                + lastNotifiedSignalStrength.getLevel());
+            }
+            if (currSignalStrength != null) {
+                plogd(
+                        "updateLastNotifiedCarrierRoamingNtnSignalStrengthAndNotify("
+                                + subId
+                                + ")"
+                                + " currSignalStrength level: "
+                                + currSignalStrength.getLevel());
+            }
         }
         if (lastNotifiedSignalStrength == null
                 || lastNotifiedSignalStrength.getLevel() != currSignalStrength.getLevel()) {
