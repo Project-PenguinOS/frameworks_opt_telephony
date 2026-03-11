@@ -133,6 +133,7 @@ import com.android.internal.telephony.uicc.UiccPort;
 import com.android.internal.telephony.uicc.UiccProfile;
 import com.android.internal.telephony.uicc.UiccSlot;
 import com.android.internal.telephony.util.ArrayUtils;
+import com.android.internal.telephony.util.WorkerThread;
 import com.android.telephony.Rlog;
 
 import java.io.FileDescriptor;
@@ -535,7 +536,7 @@ public class GsmCdmaPhone extends Phone {
         mContext.registerReceiver(mBroadcastReceiver, filter,
                 android.Manifest.permission.MODIFY_PHONE_STATE, null, Context.RECEIVER_EXPORTED);
 
-        mCDM = new CarrierKeyDownloadManager(this);
+        mCDM = new CarrierKeyDownloadManager(this, WorkerThread.get().getLooper());
 
         mCIM = new CarrierInfoManager();
 
