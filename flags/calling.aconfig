@@ -128,3 +128,14 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+# OWNER=breadley TARGET=26Q3
+flag {
+    name: "support_same_uri_conference_srvcc"
+    namespace: "telephony"
+    description: "Support SRVCC of an IMS conference with the participants having the same URI."
+    bug: "485088331"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}

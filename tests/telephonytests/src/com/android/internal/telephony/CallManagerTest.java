@@ -105,9 +105,7 @@ public class CallManagerTest extends TelephonyTest {
         doReturn(Call.State.IDLE).when(mForegroundCall).getState();
         doReturn(Call.State.IDLE).when(mImsForegroundCall).getState();
 
-        // Use reflection to set the INSTANCE to null so we can create a new one with our mocked
-        // context
-        replaceInstance(CallManager.class, "INSTANCE", null, null);
+        CallManager.setInstanceForTesting(mContext);
         mCallManagerUT = CallManager.getInstance(mContext);
         mCallManagerUT.registerPhone(mPhone);
         mCallManagerUT.registerPhone(mMockImsPhone);

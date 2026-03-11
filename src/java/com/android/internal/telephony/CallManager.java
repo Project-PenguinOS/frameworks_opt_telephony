@@ -201,6 +201,11 @@ public class CallManager {
         return INSTANCE;
     }
 
+    @VisibleForTesting
+    public static synchronized void setInstanceForTesting(Context context) {
+        INSTANCE = new CallManager(context);
+    }
+
     /**
      * get Phone object corresponds to subId
      * @return Phone
