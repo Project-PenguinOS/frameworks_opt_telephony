@@ -1220,7 +1220,7 @@ public class SatelliteController extends Handler {
     public SatelliteConfig getSatelliteConfig() {
         SatelliteConfigParser satelliteConfigParser = getSatelliteConfigParser();
         if (satelliteConfigParser == null) {
-            Log.d(TAG, "satelliteConfigParser is not ready");
+            Log.v(TAG, "satelliteConfigParser is not ready");
             return null;
         }
         SatelliteConfig satelliteConfig = satelliteConfigParser.getConfig();
