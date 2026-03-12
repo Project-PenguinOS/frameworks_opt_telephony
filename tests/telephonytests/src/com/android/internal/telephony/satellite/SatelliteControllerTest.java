@@ -5353,7 +5353,7 @@ public class SatelliteControllerTest extends TelephonyTest {
         inputList.add(list.get(0));
         verifyProvisionSatellite(inputList);
 
-        verify(mMockSatelliteModemInterface, times(2)).updateSatelliteSubscription(anyString(),
+        verify(mMockSatelliteModemInterface, times(1)).updateSatelliteSubscription(anyString(),
                 any());
         assertTrue(waitForForEvents(
                 semaphore, 1, "testRegisterForSatelliteSubscriptionProvisionStateChanged"));
@@ -5717,7 +5717,7 @@ public class SatelliteControllerTest extends TelephonyTest {
 
         List<SatelliteSubscriberInfo> inputList = getExpectedSatelliteSubscriberInfoList();
         verifyProvisionSatellite(inputList);
-        verify(mMockSubscriptionManagerService, times(2))
+        verify(mMockSubscriptionManagerService, times(1))
                 .setIsSatelliteProvisionedForNonIpDatagram(eq(SUB_ID), eq(true));
     }
 
