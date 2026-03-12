@@ -1551,9 +1551,15 @@ public class IccSmsInterfaceManager {
     }
 
     private EmergencyNumber getEmergencyNumber(Phone phone, String number) {
-        if (!phone.hasCalling()) return null;
+        if (!phone.hasCalling() && !phone.hasMessaging()) {
+            log("getEmergencyNumber: no calling or messaging capability");
+            return null;
+        }
         EmergencyNumberTracker tracker = phone.getEmergencyNumberTracker();
-        if (tracker == null) return null;
+        if (tracker == null) {
+            log("getEmergencyNumber: emergency number tracker is null");
+            return null;
+        }
         return tracker.getEmergencyNumber(number);
     }
 

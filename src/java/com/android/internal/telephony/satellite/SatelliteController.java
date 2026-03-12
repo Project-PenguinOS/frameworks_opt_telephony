@@ -9022,6 +9022,7 @@ public class SatelliteController extends Handler {
             SomeArgs args = SomeArgs.obtain();
             args.arg1 = result;
             sendMessage(obtainMessage(REQUEST_SATELLITE_SUBSCRIBER_PROVISION_STATUS, args));
+            return;
         }
 
         handleRequestSatelliteSubscriberProvisionStatus(result);
@@ -9326,6 +9327,7 @@ public class SatelliteController extends Handler {
             args.arg1 = list;
             args.arg2 = result;
             sendMessage(obtainMessage(REQUEST_PROVISION_SATELLITE, args));
+            return;
         }
 
         handleRequestProvisionSatellite(list, result);
@@ -9396,6 +9398,7 @@ public class SatelliteController extends Handler {
             args.arg1 = list;
             args.arg2 = result;
             sendMessage(obtainMessage(REQUEST_DEPROVISION_SATELLITE, args));
+            return;
         }
 
         handleRequestDeprovisionSatellite(list, result);

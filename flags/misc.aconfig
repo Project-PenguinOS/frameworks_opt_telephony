@@ -75,3 +75,11 @@ flag {
     bug:"435429723"
     is_exported: true
 }
+
+# OWNER=arunrajms TARGET=26Q3
+flag {
+    name: "mcc_mnc_locale_resolution"
+    namespace: "telephony"
+    description: "Enable locale resolution based on both MCC and MNC."
+    bug: "395813374"
+}
