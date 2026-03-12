@@ -1951,4 +1951,48 @@ public class AutoDataSwitchControllerTest extends TelephonyTest {
         verify(mMockedPhoneSwitcherCallback).onRequireImmediatelySwitchToPhone(
                 DEFAULT_PHONE_INDEX, EVALUATION_REASON_DATA_SETTINGS_CHANGED);
     }
+
+    @Test
+    public void testNoSwitchOutOfPreferredStandaloneOpportunistic() {
+        // 1. Enable RAT/Signal Strength based switching
+        setupOpportunisticSwitchMode(CarrierConfigManager
+                .OPP_AUTO_DATA_SWITCH_POLICY_FOR_PERFORMANCE);
+
+        // 2. Setup standalone opportunistic sub (SUB_2, PHONE_2)
+        SubscriptionInfo subInfo2 = mock(SubscriptionInfo.class);
+        doReturn(SUB_2).when(subInfo2).getSubscriptionId();
+        doReturn(true).when(subInfo2).isOpportunistic();
+        doReturn(null).when(subInfo2).getGroupUuid();
+        doReturn(subInfo2).when(mSubscriptionManagerService).getSubscriptionInfo(SUB_2);
+
+        // 3. Set this as the preferred opportunistic sub in PhoneSwitcher
+        doReturn(SUB_2).when(mPhoneSwitcher).getOpportunisticSetDataSubId();
+        doReturn(PHONE_2).when(mPhoneSwitcher).getPreferredDataPhoneId();
+
+        // 4. Set both phones to HOME service
+        serviceStateChanged(PHONE_1, NetworkRegistrationInfo.REGISTRATION_STATE_HOME);
+        serviceStateChanged(PHONE_2, NetworkRegistrationInfo.REGISTRATION_STATE_HOME);
+
+        // 5. PHONE_1 (default) has a MUCH better score than PHONE_2
+        displayInfoChanged(PHONE_1, mGoodTelephonyDisplayInfo);
+        signalStrengthChanged(PHONE_1, SignalStrength.SIGNAL_STRENGTH_GREAT);
+
+        displayInfoChanged(PHONE_2, mBadTelephonyDisplayInfo);
+        signalStrengthChanged(PHONE_2, SignalStrength.SIGNAL_STRENGTH_POOR);
+
+        // Ensure data settings are enabled
+        doReturn(true).when(mPhone).isUserDataEnabled();
+        doReturn(true).when(mPhone2).isUserDataEnabled();
+        doReturn(true).when(mDataSettingsManager).isDataEnabled();
+        doReturn(true).when(mDataSettingsManager).isDataEnabled(anyInt());
+        mDataEvaluation = new DataEvaluation(DataEvaluation.DataEvaluationReason.EXTERNAL_QUERY);
+
+        // 6. Evaluate.
+        mAutoDataSwitchControllerUT.evaluateAutoDataSwitch(
+                EVALUATION_REASON_SIGNAL_STRENGTH_CHANGED);
+        processAllFutureMessages();
+
+        // 7. Verify NO switch is attempted (because it's a preferred standalone opportunistic)
+        verify(mMockedPhoneSwitcherCallback, never()).onRequireValidation(anyInt(), anyBoolean());
+    }
 }
