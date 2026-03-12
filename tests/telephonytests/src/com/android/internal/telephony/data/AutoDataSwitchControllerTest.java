@@ -904,6 +904,64 @@ public class AutoDataSwitchControllerTest extends TelephonyTest {
     }
 
     @Test
+    public void testStandaloneOpportunistic_respectsAutoDataSwitchPolicy() {
+        setDefaultDataSubId(SUB_1);
+        int modemCount = mPhones.length;
+
+        // Setup standalone opportunistic subscription for Phone 2
+        SubscriptionInfo subInfo = mock(SubscriptionInfo.class);
+        doReturn(true).when(subInfo).isOpportunistic();
+        doReturn(null).when(subInfo).getGroupUuid();
+        doReturn(subInfo).when(mSubscriptionManagerService).getSubscriptionInfo(SUB_2);
+
+        // Assume Phone 1 is registered and Phone 2 is not.
+        serviceStateChanged(PHONE_1, NetworkRegistrationInfo.REGISTRATION_STATE_HOME);
+        serviceStateChanged(PHONE_2,
+                NetworkRegistrationInfo.REGISTRATION_STATE_NOT_REGISTERED_SEARCHING);
+        processAllMessages();
+        clearInvocations(mDisplayInfoController, mSignalStrengthController, mSST);
+
+        // Setup preferred data phone is Phone 2 and both phones are enabled.
+        doReturn(true).when(mPhone).isUserDataEnabled();
+        doReturn(true).when(mPhone2).isUserDataEnabled();
+        doReturn(true).when(mDataSettingsManager).isDataEnabled();
+        doReturn(PHONE_2).when(mPhoneSwitcher).getPreferredDataPhoneId();
+        doReturn(PHONE_2).when(mSubscriptionManagerService).getPhoneId(SUB_2);
+        doReturn(SUB_2).when(mPhoneSwitcher).getOpportunisticSetDataSubId();
+
+        // Scenario 1: MOBILE_DATA_POLICY_AUTO_DATA_SWITCH is disabled
+        doReturn(false).when(mDataSettingsManager).isMobileDataPolicyEnabled(
+                TelephonyManager.MOBILE_DATA_POLICY_AUTO_DATA_SWITCH);
+
+        mAutoDataSwitchControllerUT.evaluateAutoDataSwitch(EVALUATION_REASON_DATA_SETTINGS_CHANGED);
+        processAllFutureMessages();
+
+        // Verify never register calls and switch since opportunistic is disabled by policy
+        verify(mDisplayInfoController, never()).registerForTelephonyDisplayInfoChanged(
+                any(), anyInt(), any());
+        verify(mSignalStrengthController, never()).registerForSignalStrengthChanged(
+                any(), anyInt(), any());
+        verify(mSST, never()).registerForServiceStateChanged(any(), anyInt(), any());
+        verify(mMockedPhoneSwitcherCallback, never()).onRequireValidation(anyInt(), anyBoolean());
+
+        // Scenario 2: MOBILE_DATA_POLICY_AUTO_DATA_SWITCH is enabled
+        doReturn(true).when(mDataSettingsManager).isMobileDataPolicyEnabled(
+                TelephonyManager.MOBILE_DATA_POLICY_AUTO_DATA_SWITCH);
+
+        mAutoDataSwitchControllerUT.evaluateAutoDataSwitch(EVALUATION_REASON_DATA_SETTINGS_CHANGED);
+        processAllFutureMessages();
+
+        // Verify register calls and switch since opportunistic is now enabled by policy
+        verify(mDisplayInfoController, times(modemCount)).registerForTelephonyDisplayInfoChanged(
+                any(), eq(EVENT_DISPLAY_INFO_CHANGED), any());
+        verify(mSignalStrengthController, times(modemCount)).registerForSignalStrengthChanged(
+                any(), eq(EVENT_SIGNAL_STRENGTH_CHANGED), any());
+        verify(mSST, times(modemCount)).registerForServiceStateChanged(
+                any(), eq(EVENT_SERVICE_STATE_CHANGED), any());
+        verify(mMockedPhoneSwitcherCallback).onRequireValidation(DEFAULT_PHONE_INDEX, true);
+    }
+
+    @Test
     public void testDefaultNetworkChangedUpdateListener() {
         setDefaultDataSubId(SUB_1); // Phone 1 is default
         int modemCount = mPhones.length; // Should be 2

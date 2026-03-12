@@ -931,6 +931,32 @@ public class PhoneSwitcherTest extends TelephonyTest {
     }
 
     @Test
+    public void testAutoDataSwitchPolicyChanged() throws Exception {
+        initialize();
+        setSlotIndexToSubId(0, 1);
+
+        mDataSettingsManagerCallbacks.get(0).onDataEnabledOverrideChanged(true,
+                TelephonyManager.MOBILE_DATA_POLICY_AUTO_DATA_SWITCH);
+        processAllMessages();
+
+        verify(mAutoDataSwitchController).evaluateAutoDataSwitch(AutoDataSwitchController
+                .EVALUATION_REASON_DATA_SETTINGS_CHANGED);
+    }
+
+    @Test
+    public void testDataEnabledOverrideChanged_otherPolicy() throws Exception {
+        initialize();
+        setSlotIndexToSubId(0, 1);
+        clearInvocations(mAutoDataSwitchController);
+
+        mDataSettingsManagerCallbacks.get(0).onDataEnabledOverrideChanged(true,
+                TelephonyManager.MOBILE_DATA_POLICY_MMS_ALWAYS_ALLOWED);
+        processAllMessages();
+
+        verify(mAutoDataSwitchController, never()).evaluateAutoDataSwitch(anyInt());
+    }
+
+    @Test
     public void testRoamingToggle() throws Exception {
         initialize();
         setSlotIndexToSubId(0, 1);
