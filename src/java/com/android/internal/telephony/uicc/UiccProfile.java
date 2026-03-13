@@ -198,8 +198,9 @@ public class UiccProfile extends IccCard {
                 @Override
                 public void onCarrierConfigChanged(int logicalSlotIndex, int subscriptionId,
                         int carrierId, int specificCarrierId) {
-                    if (logicalSlotIndex == mPhoneId && SubscriptionManager.isValidSubscriptionId(
-                            subscriptionId) && carrierId > -1) {
+                    if (logicalSlotIndex == mPhoneId
+                            && SubscriptionManager.isValidSubscriptionId(subscriptionId)
+                            && subscriptionId == SubscriptionManager.getSubscriptionId(mPhoneId)) {
                         log("onCarrierConfigChanged: slotIndex = " + logicalSlotIndex
                                 + ", subId=" + subscriptionId + ", carrierId = " + carrierId);
                         handleCarrierNameOverride();
