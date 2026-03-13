@@ -582,7 +582,7 @@ public abstract class TelephonyTest {
                 .removeTetheringConditionWhenEnablingIndications();
         lenient().doReturn(true).when(mFeatureFlags).enableDataStallRecoveryRandomization();
         lenient().doReturn(true).when(mFeatureFlags).adsRespectOwnersPreference();
-
+        lenient().doReturn(true).when(mFeatureFlags).allowNonStandaloneOpportunisticAdsPolicy();
 
         WorkerThread.reset();
         TelephonyManager.disableServiceHandleCaching();
