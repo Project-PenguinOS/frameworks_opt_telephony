@@ -59,6 +59,7 @@ import android.telephony.NetworkRegistrationInfo.RegistrationState;
 import android.telephony.ServiceState;
 import android.telephony.SignalStrength;
 import android.telephony.SubscriptionInfo;
+import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyDisplayInfo;
 import android.telephony.TelephonyManager;
 import android.util.ArrayMap;
@@ -1100,8 +1101,12 @@ public class AutoDataSwitchController extends Handler {
             return invalidResult;
         }
 
-        // Check whether primary and secondary signal status are worth switching
-        if (!isRatSignalStrengthBasedSwitchEnabled()
+        // Check whether primary and secondary signal status are worth switching.
+        // Standalone opportunistic phone is more sticky, i.e. excluding from signal based switch.
+        // Because as long as it is set as preferred data by the system, we should keep using it
+        // even though the signal is significantly worse.
+        if ((!isRatSignalStrengthBasedSwitchEnabled()
+                || isPreferredStandaloneOpportunistic(stickyTargetPhoneId))
                 && isHomeService(mPhonesSignalStatus[stickyTargetPhoneId].mDataRegState)) {
             debugMessage.append(", no candidate as target phone is in HOME service");
             return invalidResult;
@@ -1147,6 +1152,21 @@ public class AutoDataSwitchController extends Handler {
         }
         debugMessage.append(", found no qualified candidate.");
         return invalidResult;
+    }
+
+    private boolean isPreferredStandaloneOpportunistic(int phoneId) {
+        if (!isStandaloneOpportunistic(phoneId)) {
+            return false;
+        }
+
+        int opportunisticSetDataSubId = mPhoneSwitcher.getOpportunisticSetDataSubId();
+        if (opportunisticSetDataSubId == SubscriptionManager.DEFAULT_SUBSCRIPTION_ID) {
+            return false;
+        }
+
+        int opportunisticSetDataPhoneId = mSubscriptionManagerService
+                .getPhoneId(opportunisticSetDataSubId);
+        return phoneId == opportunisticSetDataPhoneId;
     }
 
     /**
