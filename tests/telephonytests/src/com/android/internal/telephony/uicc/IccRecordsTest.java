@@ -52,7 +52,6 @@ import android.util.Log;
 import android.util.Pair;
 
 import com.android.internal.telephony.TelephonyTest;
-import com.android.internal.telephony.flags.Flags;
 import com.android.internal.telephony.uicc.IccRecords.OperatorPlmnInfo;
 import com.android.internal.telephony.uicc.IccRecords.PlmnNetworkName;
 
@@ -395,10 +394,9 @@ public class IccRecordsTest extends TelephonyTest {
         spyRecords.setImsi(imsi);
         waitForLastHandlerAction(mIccRecords);
 
-        int expected = Flags.updateMccMncConfigurationFix() ? 1 : 2;
         // Verify: Check that updateMccMncConfiguration was NOT called again
         // (Total invocations should still be 1 from the previous case)
-        verify(spyRecords, times(expected))
+        verify(spyRecords, times(1))
                 .updateMccMncConfiguration(eq(mContext), anyString());
     }
 }

@@ -463,7 +463,7 @@ public class RIL extends BaseCommands implements CommandsInterface {
             mLinkedFlags = 0;
         }
 
-        public void linkToDeath(IBinder service) throws RemoteException {
+        public synchronized void linkToDeath(IBinder service) throws RemoteException {
             if (service != null) {
                 riljLog("Linked to death for service " + serviceToString(mService));
                 mBinder = service;
