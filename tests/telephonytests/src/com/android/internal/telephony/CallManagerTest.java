@@ -19,6 +19,7 @@ package com.android.internal.telephony;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -186,6 +187,68 @@ public class CallManagerTest extends TelephonyTest {
 
         triggerNewRingingConnection(mConnection);
 
+        verify(mRingingCall, times(1)).hangup();
+    }
+
+    @Test
+    @SmallTest
+    @EnableFlags(Flags.FLAG_ALLOW_MULTIPLE_INCOMING_FOR_DSDA)
+    public void testNewIncomingCall_DsdaEnabled_MaxActiveVoiceSubscriptions_DoesNotHangup()
+            throws Exception {
+        // Set max simultaneous active SIMs to 1, but max active voice subscriptions to 2
+        doReturn(1).when(mTelephonyManager).getMaxNumberOfSimultaneouslyActiveSims();
+        PhoneCapability capability = new PhoneCapability(2, 1,
+                new ArrayList<>(), false, new int[0]);
+        doReturn(capability).when(mTelephonyManager).getPhoneCapability();
+
+        // Setup more than one ringing call
+        doReturn(Call.State.WAITING).when(mRingingCall).getState();
+        doReturn(Call.State.INCOMING).when(mImsRingingCall).getState();
+        doReturn(mRingingCall).when(mConnection).getCall();
+
+        triggerNewRingingConnection(mConnection);
+
+        // Should not hangup because max active voice subscriptions > 1
+        verify(mRingingCall, never()).hangup();
+    }
+
+    @Test
+    @SmallTest
+    @EnableFlags(Flags.FLAG_ALLOW_MULTIPLE_INCOMING_FOR_DSDA)
+    public void testNewIncomingCall_DsdaEnabled_UnsupportedOperationException_Hangups()
+            throws Exception {
+        // Simulate TelephonyManager throwing UnsupportedOperationException
+        doThrow(new UnsupportedOperationException()).when(mTelephonyManager)
+                .getMaxNumberOfSimultaneouslyActiveSims();
+
+        // Setup more than one ringing call
+        doReturn(Call.State.WAITING).when(mRingingCall).getState();
+        doReturn(Call.State.INCOMING).when(mImsRingingCall).getState();
+        doReturn(mRingingCall).when(mConnection).getCall();
+
+        triggerNewRingingConnection(mConnection);
+
+        // Should hangup because exception is caught and simultaneous calling is considered disabled
+        verify(mRingingCall, times(1)).hangup();
+    }
+
+    @Test
+    @SmallTest
+    @EnableFlags(Flags.FLAG_ALLOW_MULTIPLE_INCOMING_FOR_DSDA)
+    public void testNewIncomingCall_DsdaEnabled_Exception_Hangups()
+            throws Exception {
+        // Simulate TelephonyManager throwing a generic Exception
+        doThrow(new RuntimeException("Test Exception")).when(mTelephonyManager)
+                .getMaxNumberOfSimultaneouslyActiveSims();
+
+        // Setup more than one ringing call
+        doReturn(Call.State.WAITING).when(mRingingCall).getState();
+        doReturn(Call.State.INCOMING).when(mImsRingingCall).getState();
+        doReturn(mRingingCall).when(mConnection).getCall();
+
+        triggerNewRingingConnection(mConnection);
+
+        // Should hangup because exception is caught and simultaneous calling is considered disabled
         verify(mRingingCall, times(1)).hangup();
     }
 }
