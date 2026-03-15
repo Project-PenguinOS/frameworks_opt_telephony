@@ -3257,4 +3257,58 @@ public class GsmCdmaPhoneTest extends TelephonyTest {
 
         verify(mImsPhone).setUiTTYMode(eq(Phone.TTY_MODE_FULL), nullable(Message.class));
     }
+
+    private boolean getIsVoiceCapable(Phone phone) throws Exception {
+        java.lang.reflect.Field field = Phone.class.getDeclaredField("mIsVoiceCapable");
+        field.setAccessible(true);
+        return (boolean) field.get(phone);
+    }
+
+    @Test
+    public void testConstructor_offloadStartupBinderCalls_resourceTrue() throws Exception {
+        mContextFixture.putBooleanResource(com.android.internal.R.bool.config_voice_capable, true);
+        doReturn(true).when(mFeatureFlags).offloadStartupBinderCalls();
+        org.mockito.Mockito.clearInvocations(mTelephonyManager);
+
+        GsmCdmaPhone phone = new GsmCdmaPhone(mContext, mSimulatedCommands, mNotifier, true, 0,
+                PhoneConstants.PHONE_TYPE_GSM, mTelephonyComponentFactory, (c, p) -> mImsManager,
+                mFeatureFlags);
+
+        boolean isVoiceCapable = getIsVoiceCapable(phone);
+        assertTrue(isVoiceCapable);
+        // verify that TelephonyManager.isVoiceCapable() was NOT called
+        verify(mTelephonyManager, times(0)).isVoiceCapable();
+    }
+
+    @Test
+    public void testConstructor_offloadStartupBinderCalls_resourceFalse() throws Exception {
+        mContextFixture.putBooleanResource(com.android.internal.R.bool.config_voice_capable, false);
+        doReturn(true).when(mFeatureFlags).offloadStartupBinderCalls();
+        org.mockito.Mockito.clearInvocations(mTelephonyManager);
+
+        GsmCdmaPhone phone = new GsmCdmaPhone(mContext, mSimulatedCommands, mNotifier, true, 0,
+                PhoneConstants.PHONE_TYPE_GSM, mTelephonyComponentFactory, (c, p) -> mImsManager,
+                mFeatureFlags);
+
+        boolean isVoiceCapable = getIsVoiceCapable(phone);
+        assertFalse(isVoiceCapable);
+        // verify that TelephonyManager.isVoiceCapable() was NOT called
+        verify(mTelephonyManager, times(0)).isVoiceCapable();
+    }
+
+    @Test
+    public void testConstructor_noOffloadStartupBinderCalls() throws Exception {
+        doReturn(false).when(mFeatureFlags).offloadStartupBinderCalls();
+        doReturn(true).when(mTelephonyManager).isVoiceCapable();
+        org.mockito.Mockito.clearInvocations(mTelephonyManager);
+
+        GsmCdmaPhone phone = new GsmCdmaPhone(mContext, mSimulatedCommands, mNotifier, true, 0,
+                PhoneConstants.PHONE_TYPE_GSM, mTelephonyComponentFactory, (c, p) -> mImsManager,
+                mFeatureFlags);
+
+        boolean isVoiceCapable = getIsVoiceCapable(phone);
+        assertTrue(isVoiceCapable);
+        // verify that TelephonyManager.isVoiceCapable() WAS called
+        verify(mTelephonyManager, times(1)).isVoiceCapable();
+    }
 }
