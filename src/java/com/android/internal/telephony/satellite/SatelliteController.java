@@ -62,6 +62,7 @@ import static android.telephony.satellite.SatelliteManager.EMERGENCY_CALL_TO_SAT
 import static android.telephony.satellite.SatelliteManager.KEY_NTN_SIGNAL_STRENGTH;
 import static android.telephony.satellite.SatelliteManager.SATELLITE_COMMUNICATION_RESTRICTION_REASON_ENTITLEMENT;
 import static android.telephony.satellite.SatelliteManager.SATELLITE_COMMUNICATION_RESTRICTION_REASON_USER;
+import static android.telephony.satellite.SatelliteManager.SATELLITE_ENABLEMENT_REQUEST_REASON_USER;
 import static android.telephony.satellite.SatelliteManager.SATELLITE_RESULT_INVALID_ARGUMENTS;
 import static android.telephony.satellite.SatelliteManager.SATELLITE_RESULT_INVALID_TELEPHONY_STATE;
 import static android.telephony.satellite.SatelliteManager.SATELLITE_RESULT_MODEM_ERROR;
@@ -7186,6 +7187,34 @@ public class SatelliteController extends Handler {
     }
 
     /**
+     * Check the default satellite enablement status by reason.
+     *
+     * @param reason The satellite communication restriction reason.
+     * @return {@code true} if satellite is enabled by default for the given reason,
+     * {@code false} otherwise.
+     */
+    public boolean isSatelliteEnabledByDefaultForReason(
+            @SatelliteManager.SatelliteEnablementRequestReason int reason
+    ) {
+        int resId;
+        switch (reason) {
+            case SATELLITE_ENABLEMENT_REQUEST_REASON_USER:
+                resId = R.bool.config_satellite_enabled_reason_user_default;
+                break;
+            default:
+                ploge("Unknown satellite enabled reason: " + reason);
+                return true;
+        }
+
+        try {
+            return mContext.getResources().getBoolean(resId);
+        } catch (Resources.NotFoundException e) {
+            ploge("Resource not found for reason: " + reason);
+            return true; // Default to true if not found
+        }
+    }
+
+    /**
      * Evaluate whether satellite modem for carrier should be enabled or not.
      * <p>
      * Satellite will be enabled only when the following conditions are met:
@@ -11353,6 +11382,7 @@ public class SatelliteController extends Handler {
      * Request to enable or disable satellite for a specific subscription.
      *
      * @param subId The subscription ID to evaluate enablement for.
+     * @param enable {@code true} to enable satellite, {@code false} to disable satellite.
      * @param reason The restriction reason to evaluate (e.g.,
      *               {@link SatelliteManager#SATELLITE_COMMUNICATION_RESTRICTION_REASON_USER}).
      * @param callback The callback used to return the result of the evaluation.

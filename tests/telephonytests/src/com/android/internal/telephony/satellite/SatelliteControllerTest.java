@@ -815,6 +815,7 @@ public class SatelliteControllerTest extends TelephonyTest {
         doReturn(true).when(mFeatureFlags).supportCarrierIdsInGeofence();
         doReturn(true).when(mFeatureFlags).fixSatelliteProvisionStateOutOfSync();
         doReturn(true).when(mFeatureFlags).updateDeviceSatellitePlmnByConfigupdater();
+        doReturn(true).when(mFeatureFlags).satellite26q2Apis();
 
         doReturn(TEST_ALL_SATELLITE_PLMN_SET).when(mMockSatelliteController).getAllPlmnSet();
         mSatelliteControllerUT.setAlarmManager(mMockAlarmManager);
@@ -9460,6 +9461,24 @@ public class SatelliteControllerTest extends TelephonyTest {
         mSatelliteControllerUT.requestPointingUiAppLaunchIntent(attributes, resultReceiver);
         processAllMessages();
         verify(resultReceiver).send(SatelliteManager.SATELLITE_RESULT_REQUEST_FAILED, null);
+    }
+
+    @Test
+    public void testIsSatelliteEnabledByDefaultForReason() {
+        // Test when user default is true
+        mContextFixture.putBooleanResource(
+                R.bool.config_satellite_enabled_reason_user_default, true);
+        assertTrue(mSatelliteControllerUT.isSatelliteEnabledByDefaultForReason(
+                SatelliteManager.SATELLITE_ENABLEMENT_REQUEST_REASON_USER));
+
+        // Test when user default is false
+        mContextFixture.putBooleanResource(
+                R.bool.config_satellite_enabled_reason_user_default, false);
+        assertFalse(mSatelliteControllerUT.isSatelliteEnabledByDefaultForReason(
+                SatelliteManager.SATELLITE_ENABLEMENT_REQUEST_REASON_USER));
+
+        // Test unknown reason (should return true by default)
+        assertTrue(mSatelliteControllerUT.isSatelliteEnabledByDefaultForReason(9999));
     }
 
     @Test
