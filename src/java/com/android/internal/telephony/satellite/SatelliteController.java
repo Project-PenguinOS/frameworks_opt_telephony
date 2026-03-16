@@ -4914,14 +4914,29 @@ public class SatelliteController extends Handler {
      */
     public Pair<Boolean, Integer> isUsingNonTerrestrialNetworkViaCarrier() {
         for (Phone phone : PhoneFactory.getPhones()) {
-            ServiceState serviceState = phone.getServiceState();
-            if (serviceState != null && serviceState.isUsingNonTerrestrialNetwork()) {
-                logd("isUsingNonTerrestrialNetworkViaCarrier: " + phone.getSubId() + " using ntn "
-                        + "via carrier");
+            if (isUsingNonTerrestrialNetworkViaCarrier(phone.getSubId())) {
                 return new Pair<>(true, phone.getSubId());
             }
         }
         return new Pair<>(false, null);
+    }
+
+    /**
+     * @param subId The subId of the subscription to check.
+     * @return {@code true} if the subscription is connected to satellite, {@code false} otherwise.
+     */
+    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PRIVATE)
+    public boolean isUsingNonTerrestrialNetworkViaCarrier(int subId) {
+        Phone phone = PhoneFactory.getPhone(SubscriptionManager.getPhoneId(subId));
+        if (phone == null) {
+            logd("isUsingNonTerrestrialNetworkViaCarrier: phone is null for subId=" + subId);
+            return false;
+        }
+        ServiceState serviceState = phone.getServiceState();
+        boolean isUsingNtn = serviceState != null && serviceState.isUsingNonTerrestrialNetwork();
+        logd("isUsingNonTerrestrialNetworkViaCarrier: subId=" + subId
+                + " isUsingNtn=" + isUsingNtn);
+        return isUsingNtn;
     }
 
     /**
