@@ -5098,9 +5098,12 @@ public class SatelliteController extends Handler {
     public List<Integer> getCapabilitiesForCarrierRoamingSatelliteMode(Phone phone) {
         int subId = phone.getSubId();
         if (mSatModeCapabilitiesForCarrierRoaming.containsKey(subId)) {
+            plogd("getCapabilitiesForCarrierRoamingSatelliteMode: subId=" + subId + " capabilities="
+                + mSatModeCapabilitiesForCarrierRoaming.get(subId));
             return mSatModeCapabilitiesForCarrierRoaming.get(subId);
         }
 
+        plogd("getCapabilitiesForCarrierRoamingSatelliteMode: subId=" + subId + " returning empty");
         return new ArrayList<>();
     }
 
@@ -7367,6 +7370,11 @@ public class SatelliteController extends Handler {
                 for (NetworkRegistrationInfo nri
                         : serviceState.getNetworkRegistrationInfoList()) {
                     if (nri.isNonTerrestrialNetwork()) {
+                        if (DEBUG) {
+                            plogd("handleServiceStateForSatelliteConnectionViaCarrier: "
+                                + "nri.getAvailableServices() = " + nri.getAvailableServices());
+                        }
+
                         mSatModeCapabilitiesForCarrierRoaming.put(subId,
                                 nri.getAvailableServices());
                     }
