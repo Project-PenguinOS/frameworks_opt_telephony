@@ -62,6 +62,7 @@ import static android.telephony.satellite.SatelliteManager.EMERGENCY_CALL_TO_SAT
 import static android.telephony.satellite.SatelliteManager.KEY_NTN_SIGNAL_STRENGTH;
 import static android.telephony.satellite.SatelliteManager.SATELLITE_COMMUNICATION_RESTRICTION_REASON_ENTITLEMENT;
 import static android.telephony.satellite.SatelliteManager.SATELLITE_COMMUNICATION_RESTRICTION_REASON_USER;
+import static android.telephony.satellite.SatelliteManager.SATELLITE_ENABLEMENT_REQUEST_REASON_USER;
 import static android.telephony.satellite.SatelliteManager.SATELLITE_RESULT_INVALID_ARGUMENTS;
 import static android.telephony.satellite.SatelliteManager.SATELLITE_RESULT_INVALID_TELEPHONY_STATE;
 import static android.telephony.satellite.SatelliteManager.SATELLITE_RESULT_MODEM_ERROR;
@@ -480,6 +481,8 @@ public class SatelliteController extends Handler {
     protected AtomicInteger mSelectedSatelliteSubId = new AtomicInteger(
             SubscriptionManager.INVALID_SUBSCRIPTION_ID);
     protected AtomicInteger mResultReceiverTotalCount = new AtomicInteger(0);
+    private final ConcurrentHashMap<Integer, Boolean> mSatelliteEnabledByDefaultForReasonCache =
+            new ConcurrentHashMap<>();
 
     /** All the variables that require lock are declared here. */
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PRIVATE)
@@ -4913,14 +4916,29 @@ public class SatelliteController extends Handler {
      */
     public Pair<Boolean, Integer> isUsingNonTerrestrialNetworkViaCarrier() {
         for (Phone phone : PhoneFactory.getPhones()) {
-            ServiceState serviceState = phone.getServiceState();
-            if (serviceState != null && serviceState.isUsingNonTerrestrialNetwork()) {
-                logd("isUsingNonTerrestrialNetworkViaCarrier: " + phone.getSubId() + " using ntn "
-                        + "via carrier");
+            if (isUsingNonTerrestrialNetworkViaCarrier(phone.getSubId())) {
                 return new Pair<>(true, phone.getSubId());
             }
         }
         return new Pair<>(false, null);
+    }
+
+    /**
+     * @param subId The subId of the subscription to check.
+     * @return {@code true} if the subscription is connected to satellite, {@code false} otherwise.
+     */
+    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PRIVATE)
+    public boolean isUsingNonTerrestrialNetworkViaCarrier(int subId) {
+        Phone phone = PhoneFactory.getPhone(SubscriptionManager.getPhoneId(subId));
+        if (phone == null) {
+            logd("isUsingNonTerrestrialNetworkViaCarrier: phone is null for subId=" + subId);
+            return false;
+        }
+        ServiceState serviceState = phone.getServiceState();
+        boolean isUsingNtn = serviceState != null && serviceState.isUsingNonTerrestrialNetwork();
+        logd("isUsingNonTerrestrialNetworkViaCarrier: subId=" + subId
+                + " isUsingNtn=" + isUsingNtn);
+        return isUsingNtn;
     }
 
     /**
@@ -7051,13 +7069,15 @@ public class SatelliteController extends Handler {
                 if (enabled == null) {
                     ploge("isSatelliteAttachEnabledForCarrierByUser: invalid subId, subId="
                             + subId);
-                    return false;
+                    return isSatelliteEnabledByDefaultForReason(
+                            SATELLITE_ENABLEMENT_REQUEST_REASON_USER);
                 }
 
                 if (enabled.isEmpty()) {
                     ploge("isSatelliteAttachEnabledForCarrierByUser: no data for subId(" + subId
                             + ")");
-                    return false;
+                    return isSatelliteEnabledByDefaultForReason(
+                            SATELLITE_ENABLEMENT_REQUEST_REASON_USER);
                 }
 
                 boolean result = enabled.equals("1");
@@ -7183,6 +7203,41 @@ public class SatelliteController extends Handler {
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PRIVATE)
     public boolean isSatelliteEnabledForCarrierAtModem(int subId) {
         return mIsSatelliteAttachEnabledForCarrierArrayPerSub.getOrDefault(subId, false);
+    }
+
+    /**
+     * Check the default satellite enablement status by reason.
+     *
+     * @param reason The satellite communication restriction reason.
+     * @return {@code true} if satellite is enabled by default for the given reason,
+     * {@code false} otherwise.
+     */
+    public boolean isSatelliteEnabledByDefaultForReason(
+            @SatelliteManager.SatelliteEnablementRequestReason int reason
+    ) {
+        Boolean cachedValue = mSatelliteEnabledByDefaultForReasonCache.get(reason);
+        if (cachedValue != null) {
+            return cachedValue;
+        }
+
+        int resId;
+        switch (reason) {
+            case SATELLITE_ENABLEMENT_REQUEST_REASON_USER:
+                resId = R.bool.config_satellite_enabled_reason_user_default;
+                break;
+            default:
+                ploge("Unknown satellite enabled reason: " + reason);
+                return true;
+        }
+
+        try {
+            boolean isSatelliteEnabledByDefault = mContext.getResources().getBoolean(resId);
+            mSatelliteEnabledByDefaultForReasonCache.put(reason, isSatelliteEnabledByDefault);
+            return isSatelliteEnabledByDefault;
+        } catch (Resources.NotFoundException e) {
+            ploge("Resource not found for reason: " + reason);
+            return true; // Default to true if not found
+        }
     }
 
     /**
@@ -11353,6 +11408,7 @@ public class SatelliteController extends Handler {
      * Request to enable or disable satellite for a specific subscription.
      *
      * @param subId The subscription ID to evaluate enablement for.
+     * @param enable {@code true} to enable satellite, {@code false} to disable satellite.
      * @param reason The restriction reason to evaluate (e.g.,
      *               {@link SatelliteManager#SATELLITE_COMMUNICATION_RESTRICTION_REASON_USER}).
      * @param callback The callback used to return the result of the evaluation.

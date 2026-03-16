@@ -83,3 +83,14 @@ flag {
     description: "Enable locale resolution based on both MCC and MNC."
     bug: "395813374"
 }
+
+# OWNER=arunvoddu TARGET=26Q3
+flag {
+    name: "offload_startup_binder_calls"
+    namespace: "telephony"
+    description: "Offload synchronous binder calls during startup to background threads to avoid ANR."
+    bug: "434431577"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
