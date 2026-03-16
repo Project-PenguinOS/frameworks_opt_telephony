@@ -7052,13 +7052,15 @@ public class SatelliteController extends Handler {
                 if (enabled == null) {
                     ploge("isSatelliteAttachEnabledForCarrierByUser: invalid subId, subId="
                             + subId);
-                    return false;
+                    return isSatelliteEnabledByDefaultForReason(
+                            SATELLITE_ENABLEMENT_REQUEST_REASON_USER);
                 }
 
                 if (enabled.isEmpty()) {
                     ploge("isSatelliteAttachEnabledForCarrierByUser: no data for subId(" + subId
                             + ")");
-                    return false;
+                    return isSatelliteEnabledByDefaultForReason(
+                            SATELLITE_ENABLEMENT_REQUEST_REASON_USER);
                 }
 
                 boolean result = enabled.equals("1");
