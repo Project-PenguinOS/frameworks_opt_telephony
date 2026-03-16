@@ -1179,6 +1179,43 @@ public class SatelliteControllerTest extends TelephonyTest {
     }
 
     @Test
+    public void testHandleServiceStateSatelliteTechnologies() {
+        when(mFeatureFlags.vzwAstSkyloFallback()).thenReturn(true);
+        String plmn = "00101";
+        when(mServiceState.getOperatorNumeric()).thenReturn(plmn);
+
+        PersistableBundle satelliteConfigsPerPlmnBundle = new PersistableBundle();
+        PersistableBundle plmnConfigBundle = new PersistableBundle();
+        plmnConfigBundle.putInt(
+                CarrierConfigManager.KEY_CARRIER_ROAMING_NTN_CONNECT_TYPE_INT,
+                CarrierConfigManager.CARRIER_ROAMING_NTN_CONNECT_AUTOMATIC);
+        plmnConfigBundle.putIntArray(CarrierConfigManager.KEY_SATELLITE_TECHNOLOGY_INT_ARRAY,
+                new int[] {SatelliteManager.NT_RADIO_TECHNOLOGY_LTE_DTC});
+        satelliteConfigsPerPlmnBundle.putPersistableBundle(plmn, plmnConfigBundle);
+        mCarrierConfigBundle.putPersistableBundle(
+                CarrierConfigManager.KEY_SATELLITE_CONFIGS_PER_PLMN_BUNDLE,
+                satelliteConfigsPerPlmnBundle);
+
+        NetworkRegistrationInfo satelliteNri = new NetworkRegistrationInfo.Builder()
+                .setIsNonTerrestrialNetwork(true)
+                .setAvailableServices(List.of(NetworkRegistrationInfo.SERVICE_TYPE_DATA))
+                .setSatelliteTechnology(SatelliteManager.NT_RADIO_TECHNOLOGY_LTE_DTC)
+                .build();
+        mCarrierConfigBundle.putInt(KEY_SATELLITE_CONNECTION_HYSTERESIS_SEC_INT, 1 * 60);
+        mCarrierConfigBundle.putBoolean(KEY_SATELLITE_ATTACH_SUPPORTED_BOOL, true);
+        invokeCarrierConfigChanged();
+        when(mServiceState.getNetworkRegistrationInfoList()).thenReturn(List.of(satelliteNri));
+        when(mServiceState.isUsingNonTerrestrialNetwork()).thenReturn(true);
+        sendServiceStateChangedEvent();
+        processAllMessages();
+        assertTrue(mSatelliteControllerUT.isInSatelliteModeForCarrierRoaming(mPhone));
+        assertEquals(List.of(SERVICE_TYPE_DATA),
+                mSatelliteControllerUT.getCapabilitiesForCarrierRoamingSatelliteMode(mPhone));
+        assertEquals(SatelliteManager.NT_RADIO_TECHNOLOGY_LTE_DTC,
+                mSatelliteControllerUT.getSatelliteTechnologyForCarrierRoaming(mPhone));
+    }
+
+    @Test
     public void testRequestSatelliteEnabled() {
         mIsSatelliteEnabledSemaphore.drainPermits();
         mSatelliteControllerUT.handleSatelliteAccessAllowedStateChanged(true);
