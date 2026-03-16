@@ -9464,19 +9464,40 @@ public class SatelliteControllerTest extends TelephonyTest {
     }
 
     @Test
-    public void testIsSatelliteEnabledByDefaultForReason() {
+    public void testIsSatelliteEnabledByDefaultForReasonCaching() {
         // Test when user default is true
         mContextFixture.putBooleanResource(
                 R.bool.config_satellite_enabled_reason_user_default, true);
         assertTrue(mSatelliteControllerUT.isSatelliteEnabledByDefaultForReason(
                 SatelliteManager.SATELLITE_ENABLEMENT_REQUEST_REASON_USER));
 
+        // Change the resource value - the method should still return true because it's cached
+        mContextFixture.putBooleanResource(
+                R.bool.config_satellite_enabled_reason_user_default, false);
+        assertTrue(mSatelliteControllerUT.isSatelliteEnabledByDefaultForReason(
+                SatelliteManager.SATELLITE_ENABLEMENT_REQUEST_REASON_USER));
+    }
+
+    @Test
+    public void testIsSatelliteEnabledByDefaultForUserReason_Enabled() {
+        // Test when user default is true
+        mContextFixture.putBooleanResource(
+                R.bool.config_satellite_enabled_reason_user_default, true);
+        assertTrue(mSatelliteControllerUT.isSatelliteEnabledByDefaultForReason(
+                SatelliteManager.SATELLITE_ENABLEMENT_REQUEST_REASON_USER));
+    }
+
+    @Test
+    public void testIsSatelliteEnabledByDefaultForUserReason_Disabled() {
         // Test when user default is false
         mContextFixture.putBooleanResource(
                 R.bool.config_satellite_enabled_reason_user_default, false);
         assertFalse(mSatelliteControllerUT.isSatelliteEnabledByDefaultForReason(
                 SatelliteManager.SATELLITE_ENABLEMENT_REQUEST_REASON_USER));
+    }
 
+    @Test
+    public void testIsSatelliteEnabledByDefaultForUnknownReason() {
         // Test unknown reason (should return true by default)
         assertTrue(mSatelliteControllerUT.isSatelliteEnabledByDefaultForReason(9999));
     }

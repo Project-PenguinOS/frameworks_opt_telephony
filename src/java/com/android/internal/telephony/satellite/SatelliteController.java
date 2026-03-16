@@ -481,6 +481,8 @@ public class SatelliteController extends Handler {
     protected AtomicInteger mSelectedSatelliteSubId = new AtomicInteger(
             SubscriptionManager.INVALID_SUBSCRIPTION_ID);
     protected AtomicInteger mResultReceiverTotalCount = new AtomicInteger(0);
+    private final ConcurrentHashMap<Integer, Boolean> mSatelliteEnabledByDefaultForReasonCache =
+            new ConcurrentHashMap<>();
 
     /** All the variables that require lock are declared here. */
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PRIVATE)
@@ -7198,6 +7200,11 @@ public class SatelliteController extends Handler {
     public boolean isSatelliteEnabledByDefaultForReason(
             @SatelliteManager.SatelliteEnablementRequestReason int reason
     ) {
+        Boolean cachedValue = mSatelliteEnabledByDefaultForReasonCache.get(reason);
+        if (cachedValue != null) {
+            return cachedValue;
+        }
+
         int resId;
         switch (reason) {
             case SATELLITE_ENABLEMENT_REQUEST_REASON_USER:
@@ -7209,7 +7216,9 @@ public class SatelliteController extends Handler {
         }
 
         try {
-            return mContext.getResources().getBoolean(resId);
+            boolean isSatelliteEnabledByDefault = mContext.getResources().getBoolean(resId);
+            mSatelliteEnabledByDefaultForReasonCache.put(reason, isSatelliteEnabledByDefault);
+            return isSatelliteEnabledByDefault;
         } catch (Resources.NotFoundException e) {
             ploge("Resource not found for reason: " + reason);
             return true; // Default to true if not found
