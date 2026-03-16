@@ -353,10 +353,6 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
                         ImsCallProfile.EXTRA_LOW_BATTERY, false);
                 if (imsCall.isVideoCall() && isLowBattery
                         && !mShouldAllowVtCallsInLowBattery) {
-                    if (DBG) {
-                        log("onIncomingCall : incoming video call auto rejected "
-                                + "due to low battery");
-                    }
                     imsCall.reject(ImsReasonInfo.CODE_USER_DECLINE);
                     conn.setDisconnectCause(DisconnectCause.INCOMING_AUTO_REJECTED);
                 }
@@ -6876,8 +6872,5 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
         }
     }
 
-    @VisibleForTesting
-    public void setShouldAllowVtCallsInLowBatteryForTesting(boolean result) {
-        mShouldAllowVtCallsInLowBattery = result;
-    }
+
 }

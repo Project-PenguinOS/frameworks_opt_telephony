@@ -552,6 +552,8 @@ public class PointingAppController extends Handler {
                     SatelliteTransmissionUpdateHandler.EVENT_RECEIVE_DATAGRAM_STATE_CHANGED,
                     request);
             msg.sendToTarget();
+        } else {
+            ploge(" SatelliteTransmissionUpdateHandler not found for subId: " + subId);
         }
     }
 

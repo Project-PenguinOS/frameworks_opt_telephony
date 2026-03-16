@@ -2959,24 +2959,18 @@ public abstract class SMSDispatcher extends Handler {
          * @return The telephony provider URI if stored
          */
         private Uri persistSentMessageIfRequired(Context context, int messageType, int errorCode) {
-            return persistMessageIfRequired(context, messageType, Telephony.Sms.Sent.CONTENT_URI,
-                    errorCode, 1 /*seenFlag*/, 1 /*readFlag*/);
+            return persistMessageIfRequired(context, messageType, errorCode, 1 /*seenFlag*/,
+                    1 /*readFlag*/);
         }
 
         private Uri persistMessageIfRequired(
-                Context context, int messageType, Uri insertUri, int errorCode, int seenFlag,
-                int readFlag) {
+                Context context, int messageType, int errorCode, int seenFlag, int readFlag) {
             if (!mIsText || !mPersistMessage || isFromDefaultSmsApplication(context)) {
                 return null;
             }
 
-            String messageTypeStr = switch (messageType) {
-                case Sms.MESSAGE_TYPE_OUTBOX -> "OUTBOX";
-                case Sms.MESSAGE_TYPE_FAILED -> "FAILED";
-                case Sms.MESSAGE_TYPE_SENT -> "SENT";
-                default -> "UNKNOWN";
-            };
-
+            String messageTypeStr = messageType == Sms.MESSAGE_TYPE_DRAFT ? "DRAFT"
+                    : messageType == Sms.MESSAGE_TYPE_FAILED ? "FAILED" : "SENT";
             Rlog.d(TAG, "Persist SMS into " + messageTypeStr);
             final ContentValues values = new ContentValues();
             values.put(Sms.SUBSCRIPTION_ID, mSubId);
@@ -2998,7 +2992,8 @@ public abstract class SMSDispatcher extends Handler {
             final long identity = Binder.clearCallingIdentity();
             final ContentResolver resolver = context.getContentResolver();
             try {
-                final Uri uri =  resolver.insert(insertUri, values);
+                final Uri uri =  resolver.insert(messageType == Sms.MESSAGE_TYPE_DRAFT
+                        ? Telephony.Sms.Draft.CONTENT_URI : Telephony.Sms.Sent.CONTENT_URI, values);
                 if (uri != null && messageType == Sms.MESSAGE_TYPE_FAILED) {
                     // Since we can't persist a message directly into FAILED box,
                     // we have to update the column after we persist it into SENT box.
@@ -3011,7 +3006,10 @@ public abstract class SMSDispatcher extends Handler {
                 }
                 return uri;
             } catch (Exception e) {
-                Rlog.e(TAG, "writeOutboxMessage: Failed to persist outbox message", e);
+                String errorMessage = messageType == Sms.MESSAGE_TYPE_DRAFT
+                        ? "Failed to persist message in DRAFT"
+                        : "writeOutboxMessage: Failed to persist outbox message";
+                Rlog.e(TAG, errorMessage, e);
                 return null;
             } finally {
                 Binder.restoreCallingIdentity(identity);
@@ -3026,8 +3024,8 @@ public abstract class SMSDispatcher extends Handler {
                 return;
             }
 
-            mMessageUri = persistMessageIfRequired(context, Sms.MESSAGE_TYPE_OUTBOX,
-                    Sms.Outbox.CONTENT_URI, NO_ERROR_CODE, 0 /*seenFlag*/, 0 /*readFlag*/);
+            mMessageUri = persistMessageIfRequired(context, Sms.MESSAGE_TYPE_DRAFT, NO_ERROR_CODE,
+                    0 /*seenFlag*/, 0 /*readFlag*/);
         }
 
         /**
