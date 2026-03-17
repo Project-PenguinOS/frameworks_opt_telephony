@@ -1684,9 +1684,12 @@ public class SmsDispatchersController extends Handler {
      *  raw pdu of the status report is in the extended data ("pdu").
      * @param uid the android uid of the caller
      */
-    public void sendRawPdu(String callingPackage, int callingUser, String destAddr, byte[] pdu,
-            PendingIntent sentIntent, PendingIntent deliveryIntent, int uid) {
-        String scAddr = getSmscAddressFromUSIMWithPhoneIdentity(callingPackage);
+    public void sendRawPdu(String callingPackage, int callingUser, String destAddr, String scAddr,
+            byte[] pdu, PendingIntent sentIntent, PendingIntent deliveryIntent, int uid) {
+        if (scAddr == null || TextUtils.isEmpty(scAddr)) {
+            Rlog.d(TAG, "sendRawPdu: scAddr is null or empty");
+            scAddr = getSmscAddressFromUSIMWithPhoneIdentity(callingPackage);
+        }
         if (isSmsDomainSelectionEnabled()) {
             sendSmsUsingDomainSelection(getDomainSelectionConnectionHolder(false),
                     new PendingRequest(PendingRequest.TYPE_RAW_SMS, null, callingPackage,

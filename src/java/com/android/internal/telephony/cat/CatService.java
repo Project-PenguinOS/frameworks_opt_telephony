@@ -745,7 +745,7 @@ public class CatService extends Handler implements AppInterface {
                 mContext, mFeatureFlags);
         SmsController smsController = proxyController.getSmsController();
         smsController.sendRawPduForSubscriber(subInfo.getSubscriptionId(),
-                mContext.getOpPackageName(), destAddr, cmdParams.mRawTpdu,
+                mContext.getOpPackageName(), destAddr, cmdParams.mSmscAddress, cmdParams.mRawTpdu,
                 sentPendingIntent, deliveryPendingIntent);
     }
 
