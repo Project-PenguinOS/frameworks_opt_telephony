@@ -186,3 +186,14 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+# OWNER=shashannk TARGET=26Q2
+flag {
+    name: "skip_stk_short_code_check"
+    namespace: "telephony"
+    description: "Skip premium short code checks for STK SMS"
+    bug: "491386743"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
