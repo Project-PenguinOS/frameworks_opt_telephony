@@ -446,4 +446,23 @@ public class SmsControllerTest extends TelephonyTest {
                 mSmsControllerUT.sendRawPduForSubscriber(1, mCallingPackage, "1234", "5678", pdu,
                         null, null));
     }
+
+    @Test
+    public void sendRawPduForSubscriberTest_enforceModifyPhoneStatePermission() {
+        int subId = 1;
+        doReturn(true).when(mSubscriptionManager)
+                .isSubscriptionAssociatedWithUser(eq(subId), any());
+        doReturn(true).when(mFeatureFlags).skipStkShortCodeCheck();
+
+        byte[] pdu = new byte[] {0x01, 0x02};
+
+        mSmsControllerUT.sendRawPduForSubscriber(subId, mCallingPackage, "1234", "5678", pdu,
+                null, null);
+
+        verify(mContext).enforceCallingOrSelfPermission(
+                eq(android.Manifest.permission.MODIFY_PHONE_STATE), anyString());
+        verify(mIccSmsInterfaceManager, Mockito.times(1))
+                .sendRawPdu(eq(mCallingPackage), eq(mCallingUserId),
+                        eq("1234"), eq("5678"), eq(pdu), isNull(), isNull(), anyInt());
+    }
 }

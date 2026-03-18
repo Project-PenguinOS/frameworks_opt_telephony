@@ -248,6 +248,11 @@ public class SmsController extends ISmsImplBase {
             String scAddr, byte[] pdu, PendingIntent sentIntent, PendingIntent deliveryIntent) {
         mContext.enforceCallingOrSelfPermission(android.Manifest.permission.SEND_SMS,
                 "Sending SMS message");
+        if (mFlags.skipStkShortCodeCheck()) {
+            mContext.enforceCallingOrSelfPermission(
+                    android.Manifest.permission.MODIFY_PHONE_STATE,
+                    "Sending SMS message");
+        }
         if (callingPackage == null) {
             callingPackage = getCallingPackage();
         }
