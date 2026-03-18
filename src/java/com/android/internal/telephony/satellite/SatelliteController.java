@@ -702,6 +702,10 @@ public class SatelliteController extends Handler {
         // The supported satellite technology list for this PLMN
         public List<Integer> supportedSatelliteTechs = new ArrayList<>();
 
+        // The current satellite technology of the PLMN.
+        @SatelliteManager.NTRadioTechnology
+        public int currentSatelliteTechnology = SatelliteManager.NT_RADIO_TECHNOLOGY_UNKNOWN;
+
         @Override
         public boolean equals(Object o) {
             if (o == this) {
@@ -713,12 +717,14 @@ public class SatelliteController extends Handler {
             return plmn.equals(other.plmn)
                     && handoverType == other.handoverType
                     && connectType == other.connectType
-                    && supportedSatelliteTechs.equals(other.supportedSatelliteTechs);
+                    && supportedSatelliteTechs.equals(other.supportedSatelliteTechs)
+                    && currentSatelliteTechnology == other.currentSatelliteTechnology;
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(plmn, handoverType, connectType, supportedSatelliteTechs);
+            return Objects.hash(plmn, handoverType, connectType, supportedSatelliteTechs,
+                    currentSatelliteTechnology);
         }
 
         @Override
@@ -735,6 +741,9 @@ public class SatelliteController extends Handler {
                     + '\''
                     + ", supportedSatelliteTechs='"
                     + supportedSatelliteTechs
+                    + '\''
+                    + ", currentSatelliteTechnology='"
+                    + currentSatelliteTechnology
                     + '\''
                     + '}';
         }
@@ -5116,10 +5125,28 @@ public class SatelliteController extends Handler {
     public List<Integer> getCapabilitiesForCarrierRoamingSatelliteMode(Phone phone) {
         int subId = phone.getSubId();
         if (mSatModeCapabilitiesForCarrierRoaming.containsKey(subId)) {
+            plogd("getCapabilitiesForCarrierRoamingSatelliteMode: subId=" + subId + " capabilities="
+                + mSatModeCapabilitiesForCarrierRoaming.get(subId));
             return mSatModeCapabilitiesForCarrierRoaming.get(subId);
         }
 
+        plogd("getCapabilitiesForCarrierRoamingSatelliteMode: subId=" + subId + " returning empty");
         return new ArrayList<>();
+    }
+
+    /**
+     * Return satellite technology of carrier roaming satellite network.
+     *
+     * @param phone phone object
+     * @return The satellite technology supported by the carrier associated with the {@code subId}
+     */
+    @SatelliteManager.NTRadioTechnology
+    public int getSatelliteTechnologyForCarrierRoaming(Phone phone) {
+        int subId = phone.getSubId();
+        if (mCurrentSatellitePerPlmnConfigurations.containsKey(subId)) {
+            return mCurrentSatellitePerPlmnConfigurations.get(subId).currentSatelliteTechnology;
+        }
+        return SatelliteManager.NT_RADIO_TECHNOLOGY_UNKNOWN;
     }
 
     /**
@@ -7419,15 +7446,22 @@ public class SatelliteController extends Handler {
                 resetCarrierRoamingSatelliteModeParams(subId);
                 mWasSatelliteConnectedViaCarrier.put(subId, true);
 
+                int satelliteTechnology = SatelliteManager.NT_RADIO_TECHNOLOGY_UNKNOWN;
                 for (NetworkRegistrationInfo nri
                         : serviceState.getNetworkRegistrationInfoList()) {
                     if (nri.isNonTerrestrialNetwork()) {
+                        if (DEBUG) {
+                            plogd("handleServiceStateForSatelliteConnectionViaCarrier: "
+                                + "nri.getAvailableServices() = " + nri.getAvailableServices());
+                        }
+
                         mSatModeCapabilitiesForCarrierRoaming.put(subId,
                                 nri.getAvailableServices());
+                        satelliteTechnology = nri.getSatelliteTechnology();
                     }
                 }
                 updateCurrentSatellitePerPlmnConfiguration(
-                    subId, serviceState.getOperatorNumeric());
+                        subId, serviceState.getOperatorNumeric(), satelliteTechnology);
 
             } else {
                 Boolean wasSatelliteConnectedViaCarrier = mWasSatelliteConnectedViaCarrier
@@ -7612,7 +7646,8 @@ public class SatelliteController extends Handler {
      * @param subId The subscription ID.
      * @param plmn The PLMN string.
      */
-    private void updateCurrentSatellitePerPlmnConfiguration(int subId, String plmn) {
+    private void updateCurrentSatellitePerPlmnConfiguration(int subId, String plmn,
+            @SatelliteManager.NTRadioTechnology int currentSatelliteTechnology) {
         if (!mFeatureFlags.vzwAstSkyloFallback()) {
             plogd(
                     "updateCurrentSatellitePerPlmnConfiguration: vzwAstSkyloFallback isn't enabled."
@@ -7626,6 +7661,7 @@ public class SatelliteController extends Handler {
 
         SatellitePerPlmnConfiguration config = new SatellitePerPlmnConfiguration();
         config.plmn = plmn;
+        config.currentSatelliteTechnology = currentSatelliteTechnology;
 
         PersistableBundle perPlmnConfigs = getPersistableBundle(subId).getPersistableBundle(
             CarrierConfigManager.KEY_SATELLITE_CONFIGS_PER_PLMN_BUNDLE);

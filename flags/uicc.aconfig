@@ -117,17 +117,6 @@ flag {
     bug:"477378293"
 }
 
-# OWNER=stevestatia TARGET=26Q2
-flag {
-    name: "update_spn_display_name"
-    namespace: "telephony"
-    description: "This flag controls updating subscription display name when SPN is updated."
-    bug:"476250026"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
 # OWNER=gargakash TARGET=26Q3
 flag {
     name: "fix_pin_storage_deadlock"
