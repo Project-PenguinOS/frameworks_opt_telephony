@@ -177,6 +177,7 @@ public class MessagingIndication extends IRadioMessagingIndication.Stub {
                 mRil.riljLog("newSecureSms: secure sms feature is disabled.");
             }
             newSms(indicationType, pdu);
+            return;
         }
 
         mRil.processIndication(HAL_SERVICE_MESSAGING, indicationType);
