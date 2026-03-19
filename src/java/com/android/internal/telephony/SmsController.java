@@ -230,6 +230,7 @@ public class SmsController extends ISmsImplBase {
      * @param subId Subscription Id
      * @param callingPackage the package name of the caller
      * @param destAddr the address to send the message to
+     * @param scAddr the service center address or null to use the current default SMSC
      * @param pdu the raw SMS PDU to send
      * @param sentIntent if not NULL this <code>PendingIntent</code> is
      *  broadcast when the message is successfully sent, or failed.
@@ -244,7 +245,7 @@ public class SmsController extends ISmsImplBase {
      */
     @VisibleForTesting
     public void sendRawPduForSubscriber(int subId, String callingPackage, String destAddr,
-            byte[] pdu, PendingIntent sentIntent, PendingIntent deliveryIntent) {
+            String scAddr, byte[] pdu, PendingIntent sentIntent, PendingIntent deliveryIntent) {
         mContext.enforceCallingOrSelfPermission(android.Manifest.permission.SEND_SMS,
                 "Sending SMS message");
         if (callingPackage == null) {
@@ -259,7 +260,7 @@ public class SmsController extends ISmsImplBase {
         IccSmsInterfaceManager iccSmsIntMgr = getIccSmsInterfaceManager(subId);
         if (iccSmsIntMgr != null) {
             iccSmsIntMgr.sendRawPdu(callingPackage, Binder.getCallingUserHandle().getIdentifier(),
-                    destAddr, pdu, sentIntent, deliveryIntent, Binder.getCallingUid());
+                    destAddr, scAddr, pdu, sentIntent, deliveryIntent, Binder.getCallingUid());
         } else {
             Rlog.e(LOG_TAG, "sendRawPduForSubscriber iccSmsIntMgr is null for Subscription: "
                     + subId);
