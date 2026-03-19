@@ -2108,12 +2108,23 @@ public abstract class SMSDispatcher extends Handler {
 
         HashMap<String, Object> map = getSmsTrackerMap(destAddr, scAddr, -1, null, submitPdu);
         String format = getFormat();
-        SmsTracker tracker = getSmsTracker(callingPackage, callingUser, map, sentIntent,
-                deliveryIntent, format, null /*messageUri*/, false /*expectMore*/,
-                null /*fullMessageText*/, false /*isText*/,
-                true /*persistMessage*/, false /*isForVvm*/, 0L /* messageId */, 0 /* messageRef */,
-                PendingRequest.getNextUniqueMessageId(), uid);
+        SmsTracker tracker;
+        if (mFeatureFlags.skipStkShortCodeCheck()) {
+            tracker = getSmsTracker(callingPackage, callingUser, map, sentIntent,
+                    deliveryIntent, format, null /*messageUri*/, false /*expectMore*/,
+                    null /*fullMessageText*/, false /*isText*/,
+                    true /*persistMessage*/, SMS_MESSAGE_PRIORITY_NOT_SPECIFIED,
+                    SMS_MESSAGE_PERIOD_NOT_SPECIFIED, false /*isForVvm*/, 0L /* messageId */,
+                    0 /* messageRef */, true /*skipShortCodeDestAddrCheck*/,
+                    PendingRequest.getNextUniqueMessageId(), uid);
+        } else {
+            tracker = getSmsTracker(callingPackage, callingUser, map, sentIntent,
+                    deliveryIntent, format, null /*messageUri*/, false /*expectMore*/,
+                    null /*fullMessageText*/, false /*isText*/,
+                    true /*persistMessage*/, false /*isForVvm*/, 0L /* messageId */,
+                    0 /* messageRef */, PendingRequest.getNextUniqueMessageId(), uid);
 
+        }
         sendSubmitPdu(tracker);
     }
 
