@@ -6711,6 +6711,12 @@ public class SatelliteController extends Handler {
     private void updateEntitlementPlmnListPerCarrier(int subId) {
         if (!getConfigForSubId(subId).getBoolean(KEY_SATELLITE_ENTITLEMENT_SUPPORTED_BOOL, false)) {
             plogd("don't support entitlement");
+            mEntitlementPlmnListPerCarrier.remove(subId);
+            mEntitlementBarredPlmnListPerCarrier.remove(subId);
+            mEntitlementDataPlanMapPerCarrier.remove(subId);
+            mEntitlementServiceTypeMapPerCarrier.remove(subId);
+            mEntitlementDataServicePolicyMapPerCarrier.remove(subId);
+            mEntitlementVoiceServicePolicyMapPerCarrier.remove(subId);
             return;
         }
 
@@ -8901,6 +8907,7 @@ public class SatelliteController extends Handler {
             mHasSentBroadcast.set(true);
             selectBindingSatelliteSubscription(false);
         }
+        updateCachedDeviceProvisionStatus();
     }
 
     // to check if the contents of carrier config is loaded properly
@@ -10333,10 +10340,14 @@ public class SatelliteController extends Handler {
      */
     public int[] getSupportedServicesOnCarrierRoamingNtn(int subId) {
         if (isValidSubscriptionId(subId) && isSatelliteSupportedViaCarrier(subId)) {
-            // check available services supported at entitlement for sub id
-            int[] services = getAvailableServicesWithEntitlementForSubId(subId);
-            plogd("getSupportedServicesOnCarrierRoamingNtn[DataSource=Entitlement]: subId=" + subId
-                    + " services=" + Arrays.toString(services));
+            int[] services = new int[0];
+            if (getConfigForSubId(subId).getBoolean(KEY_SATELLITE_ENTITLEMENT_SUPPORTED_BOOL,
+                    false)) {
+                // check available services supported at entitlement for sub id
+                services = getAvailableServicesWithEntitlementForSubId(subId);
+                plogd("getSupportedServicesOnCarrierRoamingNtn[DataSource=Entitlement]: subId="
+                        + subId + " services=" + Arrays.toString(services));
+            }
 
             if (services.length == 0) {
                 services = getSupportedSatelliteServicesFromConfig(subId);
