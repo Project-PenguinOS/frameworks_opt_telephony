@@ -1127,8 +1127,14 @@ public abstract class Phone extends Handler implements PhoneInternalInterface {
                 ccm.registerCarrierConfigChangeListener(new HandlerExecutor(this),
                         mCarrierConfigChangeListener);
             }
-            updateEmergencySmsModeTimer();
-            mEmergencySmsModeInitialized = true;
+            try {
+                updateEmergencySmsModeTimer();
+            } catch (IllegalStateException ex) {
+                Rlog.d(mLogTag, "Got exception when loading carrier config, ex=", ex);
+                // Default for KEY_EMERGENCY_SMS_MODE_TIMER_MS_INT is 0 and CarrierConfig isn't
+                // available yet, so return false.
+                return false;
+            }
         }
         long lastSmsTimeMs = mTimeLastEmergencySmsSentMs;
         if (lastSmsTimeMs == EMERGENCY_SMS_NO_TIME_RECORDED) {
