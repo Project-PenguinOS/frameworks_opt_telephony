@@ -43,6 +43,7 @@ import android.telephony.SignalStrength;
 import android.telephony.SignalStrengthUpdateRequest;
 import android.telephony.SignalThresholdInfo;
 import android.telephony.SubscriptionInfo;
+import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyManager;
 import android.util.LocalLog;
 import android.util.Pair;
@@ -117,6 +118,7 @@ public class SignalStrengthController extends Handler {
     private long mSignalStrengthUpdatedTime;
     @Nullable
     private SignalStrength mLastSignalStrength = null;
+    private int mLastSubId = SubscriptionManager.INVALID_SUBSCRIPTION_ID;
 
     /**
      * List of LTE EARFCNs (E-UTRAN Absolute Radio Frequency Channel Number,
@@ -777,11 +779,13 @@ public class SignalStrengthController extends Handler {
     }
 
     void notifySignalStrength() {
-        if (!mSignalStrength.equals(mLastSignalStrength)) {
+        int subId = mPhone.getSubId();
+        if (!mSignalStrength.equals(mLastSignalStrength) || subId != mLastSubId) {
             try {
                 mSignalStrengthChangedRegistrants.notifyRegistrants();
                 mPhone.notifySignalStrength();
                 mLastSignalStrength = mSignalStrength;
+                mLastSubId = subId;
             } catch (NullPointerException ex) {
                 loge("updateSignalStrength() Phone already destroyed: " + ex
                         + "SignalStrength not notified");
@@ -825,6 +829,7 @@ public class SignalStrengthController extends Handler {
         ipw.increaseIndent();
         pw.println("mSignalRequestRecords=" + mSignalRequestRecords);
         pw.println(" mLastSignalStrength=" + mLastSignalStrength);
+        pw.println(" mLastSubId=" + mLastSubId);
         pw.println(" mSignalStrength=" + mSignalStrength);
         pw.println(" mLteRsrpBoost=" + mLteRsrpBoost);
         pw.println(" mNrRsrpBoost=" + Arrays.toString(mNrRsrpBoost));
