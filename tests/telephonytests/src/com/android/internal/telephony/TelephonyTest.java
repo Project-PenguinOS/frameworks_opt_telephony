@@ -110,6 +110,7 @@ import com.android.internal.telephony.data.LinkBandwidthEstimator;
 import com.android.internal.telephony.data.PhoneSwitcher;
 import com.android.internal.telephony.domainselection.DomainSelectionResolver;
 import com.android.internal.telephony.emergency.EmergencyNumberTracker;
+import com.android.internal.telephony.emergency.EmergencyStateTracker;
 import com.android.internal.telephony.flags.FeatureFlags;
 import com.android.internal.telephony.imsphone.ImsExternalCallTracker;
 import com.android.internal.telephony.imsphone.ImsNrSaModeHandler;
@@ -269,6 +270,7 @@ public abstract class TelephonyTest {
     protected CellularNetworkSecuritySafetySource mSafetySource;
     protected CellularIdentifierDisclosureNotifier mIdentifierDisclosureNotifier;
     protected DomainSelectionResolver mDomainSelectionResolver;
+    protected EmergencyStateTracker mEmergencyStateTracker;
     protected NullCipherNotifier mNullCipherNotifier;
 
     // Initialized classes
@@ -562,6 +564,7 @@ public abstract class TelephonyTest {
         mSafetySource = Mockito.mock(CellularNetworkSecuritySafetySource.class);
         mIdentifierDisclosureNotifier = Mockito.mock(CellularIdentifierDisclosureNotifier.class);
         mDomainSelectionResolver = Mockito.mock(DomainSelectionResolver.class);
+        mEmergencyStateTracker = Mockito.mock(EmergencyStateTracker.class);
         mNullCipherNotifier = Mockito.mock(NullCipherNotifier.class);
 
         lenient().doReturn(true).when(mFeatureFlags).dataServiceNotifyImsDataNetwork();
@@ -578,7 +581,7 @@ public abstract class TelephonyTest {
                 .removeTetheringConditionWhenEnablingIndications();
         lenient().doReturn(true).when(mFeatureFlags).enableDataStallRecoveryRandomization();
         lenient().doReturn(true).when(mFeatureFlags).adsRespectOwnersPreference();
-
+        lenient().doReturn(true).when(mFeatureFlags).allowNonStandaloneOpportunisticAdsPolicy();
 
         WorkerThread.reset();
         TelephonyManager.disableServiceHandleCaching();
@@ -946,6 +949,8 @@ public abstract class TelephonyTest {
         lenient().doReturn(false).when(mDomainSelectionResolver).isDomainSelectionSupported();
         DomainSelectionResolver.setDomainSelectionResolver(mDomainSelectionResolver);
 
+        replaceInstance(EmergencyStateTracker.class, "INSTANCE", null, mEmergencyStateTracker);
+
         //Use reflection to mock singletons
         replaceInstance(CallManager.class, "INSTANCE", null, mCallManager);
         replaceInstance(TelephonyComponentFactory.class, "sInstance", null,
@@ -1043,6 +1048,7 @@ public abstract class TelephonyTest {
         mTestableLoopers.clear();
         mTestableLoopers = null;
         mTestableLooper = null;
+        mEmergencyStateTracker = null;
         DomainSelectionResolver.setDomainSelectionResolver(null);
     }
 

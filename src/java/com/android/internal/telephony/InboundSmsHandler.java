@@ -1865,8 +1865,11 @@ public abstract class InboundSmsHandler extends StateMachine {
             bopts.setBackgroundActivityStartsAllowed(true);
             bundle = bopts.toBundle();
         }
-        long duration = mPowerWhitelistManager.whitelistAppTemporarilyForEvent(
-                pkgName, PowerWhitelistManager.EVENT_SMS, REASON_EVENT_SMS, reason);
+        long duration = 0;
+        if (mPowerWhitelistManager != null) {
+            duration = mPowerWhitelistManager.whitelistAppTemporarilyForEvent(
+                    pkgName, PowerWhitelistManager.EVENT_SMS, REASON_EVENT_SMS, reason);
+        }
         if (bopts == null) bopts = BroadcastOptions.makeBasic();
         bopts.setTemporaryAppAllowlist(duration,
                 TEMPORARY_ALLOWLIST_TYPE_FOREGROUND_SERVICE_ALLOWED,
@@ -2114,7 +2117,7 @@ public abstract class InboundSmsHandler extends StateMachine {
         @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
         private final String[] mDeleteWhereArgs;
         private long mBroadcastTimeMillis;
-        public Intent mWaitingForIntent;
+        public volatile Intent mWaitingForIntent;
         private final InboundSmsTracker mInboundSmsTracker;
 
         /**
@@ -2139,11 +2142,12 @@ public abstract class InboundSmsHandler extends StateMachine {
          * the timer for it expires. It fakes the receipt of the intent to unblock the state
          * machine.
          */
-        public void fakeNextAction() {
-            if (mWaitingForIntent != null) {
-                logeWithLocalLog("fakeNextAction: " + mWaitingForIntent.getAction(),
+        public synchronized void fakeNextAction() {
+            Intent intent = mWaitingForIntent;
+            if (intent != null) {
+                logeWithLocalLog("fakeNextAction: " + intent.getAction(),
                         mInboundSmsTracker.getMessageId());
-                handleAction(mWaitingForIntent, false);
+                handleAction(intent, false);
             } else {
                 logeWithLocalLog("fakeNextAction: mWaitingForIntent is null",
                         mInboundSmsTracker.getMessageId());
@@ -2162,6 +2166,10 @@ public abstract class InboundSmsHandler extends StateMachine {
 
         @SuppressLint("MissingPermission")
         private synchronized void handleAction(@NonNull Intent intent, boolean onReceive) {
+            if (intent == null) {
+                loge("handleAction: intent is null");
+                return;
+            }
             String action = intent.getAction();
             if (mWaitingForIntent == null || !mWaitingForIntent.getAction().equals(action)) {
                 logeWithLocalLog("handleAction: Received " + action + " when expecting "
@@ -2202,11 +2210,14 @@ public abstract class InboundSmsHandler extends StateMachine {
                 intent.setComponent(null);
                 // Only the primary user will receive notification of incoming mms.
                 // That app will do the actual downloading of the mms.
-                long duration = mPowerWhitelistManager.whitelistAppTemporarilyForEvent(
-                        mContext.getPackageName(),
-                        PowerWhitelistManager.EVENT_MMS,
-                        REASON_EVENT_MMS,
-                        "mms-broadcast");
+                long duration = 0;
+                if (mPowerWhitelistManager != null) {
+                    duration = mPowerWhitelistManager.whitelistAppTemporarilyForEvent(
+                            mContext.getPackageName(),
+                            PowerWhitelistManager.EVENT_MMS,
+                            REASON_EVENT_MMS,
+                            "mms-broadcast");
+                }
                 BroadcastOptions bopts = BroadcastOptions.makeBasic();
                 bopts.setTemporaryAppAllowlist(duration,
                         TEMPORARY_ALLOWLIST_TYPE_FOREGROUND_SERVICE_ALLOWED,
