@@ -40,6 +40,8 @@ import android.telephony.satellite.SatelliteManager;
 import android.telephony.satellite.SatelliteManager.SatelliteException;
 import android.telephony.satellite.SatelliteModemEnableRequestAttributes;
 import android.telephony.satellite.SystemSelectionSpecifier;
+import android.hardware.radio.network.SatelliteNetworkInfo;
+import android.hardware.radio.network.PrioritizedNetworkScanRequest;
 import android.telephony.satellite.stub.INtnSignalStrengthConsumer;
 import android.telephony.satellite.stub.ISatellite;
 import android.telephony.satellite.stub.ISatelliteCapabilitiesConsumer;
@@ -204,6 +206,11 @@ public class SatelliteModemInterface {
         @Override
         public void onTerrestrialNetworkAvailableChanged(boolean isAvailable) {
             mTerrestrialNetworkAvailableChangedRegistrants.notifyResult(isAvailable);
+        }
+
+        @Override
+        public void prioritizedScanModeChanged(boolean prioritized) {
+            Log.d(TAG, "prioritizedScanModeChanged: " + prioritized);
         }
 
         private boolean notifyResultIfExpectedListener() {
@@ -595,7 +602,7 @@ public class SatelliteModemInterface {
     }
 
     /**
-     * Unregisters for the terrestrial network available changed.
+     * Unregisters for terrestrial network available changed from satellite modem.
      *
      * @param h Handler to be removed from the registrant list.
      */
@@ -1144,9 +1151,14 @@ public class SatelliteModemInterface {
                         SatelliteManager.SATELLITE_RESULT_SERVICE_ERROR);
             }
         } else {
+            /* This request is primarily supported via cellular HAL APIs. The satellite vendor
+             * service acts as a backward-compatibility fallback for older Android versions that
+             * lack the HAL API definition. Therefore, if the vendor service is unavailable, treat
+             * the request as unsupported by the modem.
+             */
             ploge("setSatellitePlmn: Satellite service is unavailable.");
             sendMessageWithResult(message, null,
-                    SatelliteManager.SATELLITE_RESULT_RADIO_NOT_AVAILABLE);
+                    SatelliteManager.SATELLITE_RESULT_REQUEST_NOT_SUPPORTED);
         }
     }
 
@@ -1179,6 +1191,11 @@ public class SatelliteModemInterface {
                         SatelliteManager.SATELLITE_RESULT_SERVICE_ERROR);
             }
         } else {
+            /* This request is primarily supported via cellular HAL APIs. The satellite vendor
+             * service acts as a backward-compatibility fallback for older Android versions that
+             * lack the HAL API definition. Therefore, if the vendor service is unavailable, treat
+             * the request as unsupported by the modem.
+             */
             ploge("requestSetSatelliteEnabledForCarrier: Satellite service is unavailable.");
             sendMessageWithResult(message, null,
                     SatelliteManager.SATELLITE_RESULT_REQUEST_NOT_SUPPORTED);
@@ -1220,9 +1237,14 @@ public class SatelliteModemInterface {
                         SatelliteManager.SATELLITE_RESULT_SERVICE_ERROR);
             }
         } else {
+            /* This request is primarily supported via cellular HAL APIs. The satellite vendor
+             * service acts as a backward-compatibility fallback for older Android versions that
+             * lack the HAL API definition. Therefore, if the vendor service is unavailable, treat
+             * the request as unsupported by the modem.
+             */
             ploge("requestIsSatelliteEnabledForCarrier: Satellite service is unavailable.");
             sendMessageWithResult(message, null,
-                    SatelliteManager.SATELLITE_RESULT_RADIO_NOT_AVAILABLE);
+                    SatelliteManager.SATELLITE_RESULT_REQUEST_NOT_SUPPORTED);
         }
     }
 
@@ -1455,6 +1477,177 @@ public class SatelliteModemInterface {
             ploge("updateSystemSelectionChannels: Satellite service is unavailable.");
             sendMessageWithResult(message, null,
                     SatelliteManager.SATELLITE_RESULT_RADIO_NOT_AVAILABLE);
+        }
+    }
+
+    /**
+     * Set the satellite network information including PLMNs, supported technologies and
+     * frequencies.
+     *
+     * <p>This API replaces {@link #setSatellitePlmn} to provide more detailed information about
+     * satellite networks, such as satellite technology and frequencies, to help the modem
+     * prioritize network scanning.
+     *
+     * <p>MCC/MNC broadcast by the non-terrestrial networks may not be included in OPLMNwACT file on
+     * SIM profile. Acquisition of satellite based system is lower priority to terrestrial
+     * networks. UE shall make all attempts to acquire terrestrial service prior to camping on
+     * satellite service.
+     *
+     * One usecase in which modem can identify satellite PLMNs outside
+     * of {@code satelliteNetworkInfo.allowedPlmns} and {@code satelliteNetworkInfo.disallowedPlmns}
+     * is NR NTN Networks. The modem shall attempt to attach to any non-terrestrial network not
+     * defined in {@code satelliteNetworkInfo.allowedPlmns} as well as
+     * {@code satelliteNetworkInfo.disallowedPlmns} and wait for the attach response to confirm
+     * whether user is allowed to attach or not.
+     *
+     * @param simSlot Indicates the SIM slot to which this API will be applied. The modem will use
+     *                this information to determine the relevant carrier.
+     * @param satelliteNetworkInfo Configuration containing allowed and all known satellite PLMNs
+     *        with their respective technologies and frequencies.
+     * @param message The Message to send to result of the operation to.
+     */
+    public void setSatelliteNetworkInfo(int simSlot,
+            @NonNull SatelliteNetworkInfo satelliteNetworkInfo, @Nullable Message message) {
+        plogd("setSatelliteNetworkInfo: simSlot=" + simSlot);
+        if (mSatelliteService != null) {
+            try {
+                mSatelliteService.setSatelliteNetworkInfo(simSlot,
+                        SatelliteServiceUtils.toStubSatelliteNetworkInfo(satelliteNetworkInfo),
+                        new IIntegerConsumer.Stub() {
+                            @Override
+                            public void accept(int result) {
+                                int error = SatelliteServiceUtils.fromSatelliteError(result);
+                                plogd("setSatelliteNetworkInfo: " + error);
+                                Binder.withCleanCallingIdentity(() -> {
+                                    if (message != null) {
+                                        sendMessageWithResult(message, null, error);
+                                    }
+                                });
+                            }
+                        });
+            } catch (RemoteException e) {
+                ploge("setSatelliteNetworkInfo: RemoteException " + e);
+                if (message != null) {
+                    sendMessageWithResult(message, null,
+                            SatelliteManager.SATELLITE_RESULT_SERVICE_ERROR);
+                }
+            }
+        } else {
+            /* This request is primarily supported via cellular HAL APIs. The satellite vendor
+             * service acts as a backward-compatibility fallback for older Android versions that
+             * lack the HAL API definition. Therefore, if the vendor service is unavailable, treat
+             * the request as unsupported by the modem.
+             */
+            ploge("setSatelliteNetworkInfo: Satellite service is unavailable.");
+            if (message != null) {
+                sendMessageWithResult(message, null,
+                        SatelliteManager.SATELLITE_RESULT_REQUEST_NOT_SUPPORTED);
+            }
+        }
+    }
+
+    /**
+     * Enable a prioritized scanning mode for specific networks.
+     * This is an optional API. If this API is implemented,
+     * {@link #disablePrioritizedNetworkScan} must also be implemented.
+     *
+     * <p>The modem shall prioritize scanning for the target networks,
+     * overriding standard power-saving back-off timers. This scanning must persist until
+     * an attachment is successful or the mode is explicitly disabled using
+     * {@link disablePrioritizedNetworkScan}. After successful attachment, if the network
+     * is lost, modem must go back to prioritized scanning.
+     *
+     * <p>The modem should do the prioritized scanning only when it is in out of service state.
+     * <p> Note: A "limited service" state is considered out-of-service for this operation.
+     * <p> Note: The cell reselection priority must not be changed based upon scanRequest.
+     *
+     * @param simSlot Indicates the SIM slot to which this method will be applied.
+     * @param scanRequest The prioritized scan request info.
+     * @param message The Message to send to result of the operation to.
+     */
+    public void enablePrioritizedNetworkScan(int simSlot,
+            @NonNull PrioritizedNetworkScanRequest scanRequest, @Nullable Message message) {
+        plogd("enablePrioritizedNetworkScan: simSlot=" + simSlot);
+        if (mSatelliteService != null) {
+            try {
+                mSatelliteService.enablePrioritizedNetworkScan(simSlot,
+                        SatelliteServiceUtils.toStubPrioritizedNetworkScanRequest(scanRequest),
+                        new IIntegerConsumer.Stub() {
+                            @Override
+                            public void accept(int result) {
+                                int error = SatelliteServiceUtils.fromSatelliteError(result);
+                                plogd("enablePrioritizedNetworkScan: " + error);
+                                Binder.withCleanCallingIdentity(() -> {
+                                    if (message != null) {
+                                        sendMessageWithResult(message, null, error);
+                                    }
+                                });
+                            }
+                        });
+            } catch (RemoteException e) {
+                ploge("enablePrioritizedNetworkScan: RemoteException " + e);
+                if (message != null) {
+                    sendMessageWithResult(message, null,
+                            SatelliteManager.SATELLITE_RESULT_SERVICE_ERROR);
+                }
+            }
+        } else {
+            /* This request is primarily supported via cellular HAL APIs. The satellite vendor
+             * service acts as a backward-compatibility fallback for older Android versions that
+             * lack the HAL API definition. Therefore, if the vendor service is unavailable, treat
+             * the request as unsupported by the modem.
+             */
+            ploge("enablePrioritizedNetworkScan: Satellite service is unavailable.");
+            if (message != null) {
+                sendMessageWithResult(message, null,
+                        SatelliteManager.SATELLITE_RESULT_REQUEST_NOT_SUPPORTED);
+            }
+        }
+    }
+
+    /**
+     * Disable a prioritized scanning mode for specific networks.
+     * This is an optional API. It must be implemented if
+     * {@link #enablePrioritizedNetworkScan} is implemented.
+     *
+     * @param simSlot Indicates the SIM slot to which this method will be applied.
+     * @param message The Message to send to result of the operation to.
+     */
+    public void disablePrioritizedNetworkScan(int simSlot, @Nullable Message message) {
+        plogd("disablePrioritizedNetworkScan: simSlot=" + simSlot);
+        if (mSatelliteService != null) {
+            try {
+                mSatelliteService.disablePrioritizedNetworkScan(simSlot,
+                        new IIntegerConsumer.Stub() {
+                            @Override
+                            public void accept(int result) {
+                                int error = SatelliteServiceUtils.fromSatelliteError(result);
+                                plogd("disablePrioritizedNetworkScan: " + error);
+                                Binder.withCleanCallingIdentity(() -> {
+                                    if (message != null) {
+                                        sendMessageWithResult(message, null, error);
+                                    }
+                                });
+                            }
+                        });
+            } catch (RemoteException e) {
+                ploge("disablePrioritizedNetworkScan: RemoteException " + e);
+                if (message != null) {
+                    sendMessageWithResult(message, null,
+                            SatelliteManager.SATELLITE_RESULT_SERVICE_ERROR);
+                }
+            }
+        } else {
+            /* This request is primarily supported via cellular HAL APIs. The satellite vendor
+             * service acts as a backward-compatibility fallback for older Android versions that
+             * lack the HAL API definition. Therefore, if the vendor service is unavailable, treat
+             * the request as unsupported by the modem.
+             */
+            ploge("disablePrioritizedNetworkScan: Satellite service is unavailable.");
+            if (message != null) {
+                sendMessageWithResult(message, null,
+                        SatelliteManager.SATELLITE_RESULT_REQUEST_NOT_SUPPORTED);
+            }
         }
     }
 
