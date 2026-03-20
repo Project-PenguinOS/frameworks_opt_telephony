@@ -6217,6 +6217,10 @@ public class SatelliteControllerTest extends TelephonyTest {
     private void setUpResponseForRequestIsSatelliteProvisioned(
             boolean isSatelliteProvisioned, @SatelliteManager.SatelliteResult int error) {
         mSatelliteControllerUT.setSatelliteProvisioned(isSatelliteProvisioned);
+        mTestSubscriptionManager.setIsSatelliteProvisionedForNonIpDatagram(SUB_ID,
+                isSatelliteProvisioned);
+        mTestSubscriptionManager.setIsSatelliteProvisionedForNonIpDatagram(SUB_ID1,
+                isSatelliteProvisioned);
     }
 
     private void setUpResponseForRequestIsSatelliteProvisioned(String subscriberId,
