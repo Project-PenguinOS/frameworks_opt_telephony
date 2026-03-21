@@ -688,6 +688,54 @@ public class GsmCdmaPhoneTest extends TelephonyTest {
 
     @Test
     @SmallTest
+    public void testIsInEmergencySmsModeInitialization() throws Exception {
+        // Create a new GsmCdmaPhone instance so it is not initialized.
+        GsmCdmaPhone phone = new GsmCdmaPhone(mContext, mSimulatedCommands, mNotifier, true, 0,
+            PhoneConstants.PHONE_TYPE_GSM, mTelephonyComponentFactory, (c, p) -> mImsManager,
+                mFeatureFlags);
+
+        // Mocking CarrierConfigManager to throw an IllegalStateException
+        doThrow(new IllegalStateException("CarrierConfig not ready")).when(mCarrierConfigManager)
+                .getConfigForSubId(anyInt(), any());
+
+        // Call isInEmergencySmsMode() when uninitialized. It should hit the initialization block,
+        // catch the exception, and return false due to the finally block.
+        assertFalse(phone.isInEmergencySmsMode());
+
+        // Verify that registerCarrierConfigChangeListener was called once during initialization.
+        verify(mCarrierConfigManager, atLeastOnce()).registerCarrierConfigChangeListener(any(),
+                any(CarrierConfigManager.CarrierConfigChangeListener.class));
+    }
+
+    @Test
+    @SmallTest
+    public void testIsInEmergencySmsModeInitializationSuccess() throws Exception {
+        // Create a new GsmCdmaPhone instance so it is not initialized.
+        GsmCdmaPhone phone = new GsmCdmaPhone(mContext, mSimulatedCommands, mNotifier, true, 0,
+            PhoneConstants.PHONE_TYPE_GSM, mTelephonyComponentFactory, (c, p) -> mImsManager,
+                mFeatureFlags);
+
+        int timeout = 200;
+        mContextFixture.getCarrierConfigBundle().putInt(
+                CarrierConfigManager.KEY_EMERGENCY_SMS_MODE_TIMER_MS_INT, timeout);
+
+        // First call should initialize and return false due to finally block.
+        assertFalse(phone.isInEmergencySmsMode());
+
+        // Second call should skip initialization and proceed with normal logic.
+        // Since no emergency SMS was sent, it should still return false.
+        assertFalse(phone.isInEmergencySmsMode());
+
+        // Now send an emergency SMS and check it returns true.
+        String emergencyNumber = "111";
+        doReturn(true).when(mTelephonyManager).isEmergencyNumber(emergencyNumber);
+        phone.notifySmsSent(emergencyNumber);
+        processAllMessages();
+        assertTrue(phone.isInEmergencySmsMode());
+    }
+
+    @Test
+    @SmallTest
     public void testVoiceMailNumberGsm() {
         String voiceMailNumber = "1234567890";
         // first test for GSM
