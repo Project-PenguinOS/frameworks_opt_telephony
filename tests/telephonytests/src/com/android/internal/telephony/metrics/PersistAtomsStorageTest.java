@@ -6903,4 +6903,31 @@ public class PersistAtomsStorageTest extends TelephonyTest {
         }
         assertEquals(expectedCount, actualCount);
     }
+
+    @Test
+    public void testGetCarrierRoamingSatelliteControllerStats_NoDeadlock() throws Exception {
+        mPersistAtomsStorage = new TestablePersistAtomsStorage(mContext);
+        final Object satelliteStatsLock = SatelliteStats.getInstance();
+        final java.util.concurrent.CountDownLatch threadStarted =
+                new java.util.concurrent.CountDownLatch(1);
+        final java.util.concurrent.CountDownLatch testFinished =
+                new java.util.concurrent.CountDownLatch(1);
+
+        // Explicitly lock the SatelliteStats instance (to simulate a synchronized method)
+        synchronized (satelliteStatsLock) {
+            new Thread(() -> {
+                threadStarted.countDown();
+                // Since this call uses mHandler.post() internally,
+                // it should return immediately even if the SatelliteStats lock is held.
+                mPersistAtomsStorage.getCarrierRoamingSatelliteControllerStats(0);
+                testFinished.countDown();
+            }).start();
+
+            assertTrue(threadStarted.await(1, java.util.concurrent.TimeUnit.SECONDS));
+            // Wait for 5 seconds: if a deadlock (synchronous call) occurs,
+            // it will time out here and fail.
+            assertTrue("Call hung - potential deadlock!",
+                       testFinished.await(5, java.util.concurrent.TimeUnit.SECONDS));
+        }
+    }
 }

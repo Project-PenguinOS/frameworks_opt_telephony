@@ -931,6 +931,32 @@ public class PhoneSwitcherTest extends TelephonyTest {
     }
 
     @Test
+    public void testAutoDataSwitchPolicyChanged() throws Exception {
+        initialize();
+        setSlotIndexToSubId(0, 1);
+
+        mDataSettingsManagerCallbacks.get(0).onDataEnabledOverrideChanged(true,
+                TelephonyManager.MOBILE_DATA_POLICY_AUTO_DATA_SWITCH);
+        processAllMessages();
+
+        verify(mAutoDataSwitchController).evaluateAutoDataSwitch(AutoDataSwitchController
+                .EVALUATION_REASON_DATA_SETTINGS_CHANGED);
+    }
+
+    @Test
+    public void testDataEnabledOverrideChanged_otherPolicy() throws Exception {
+        initialize();
+        setSlotIndexToSubId(0, 1);
+        clearInvocations(mAutoDataSwitchController);
+
+        mDataSettingsManagerCallbacks.get(0).onDataEnabledOverrideChanged(true,
+                TelephonyManager.MOBILE_DATA_POLICY_MMS_ALWAYS_ALLOWED);
+        processAllMessages();
+
+        verify(mAutoDataSwitchController, never()).evaluateAutoDataSwitch(anyInt());
+    }
+
+    @Test
     public void testRoamingToggle() throws Exception {
         initialize();
         setSlotIndexToSubId(0, 1);
@@ -1986,6 +2012,54 @@ public class PhoneSwitcherTest extends TelephonyTest {
         mSlotIndexToSubId[slotId][0] = subId;
         Phone phone = slotId == 0 ? mPhone : mPhone2;
         doReturn(subId).when(phone).getSubId();
+    }
+
+    @Test
+    public void testEmergencyCallEnd_RaceCondition() throws Exception {
+        doReturn(true).when(mMockRadioConfig).isSetPreferredDataCommandSupported();
+        doReturn(true).when(mDomainSelectionResolver).isDomainSelectionSupported();
+        initialize();
+
+        // Phone 0 has sub 1, phone 1 has sub 2.
+        // Sub 1 is default data sub.
+        setMsimDefaultDataSubId(1);
+        setAllPhonesInactive();
+        clearInvocations(mMockRadioConfig);
+        clearInvocations(mTelephonyRegistryManager);
+
+        // 1. Emergency call starts on Phone 0
+        notifyPhoneAsInCall(mPhone);
+        processAllMessages();
+        // DDS should stay on Phone 0 (already there)
+        verify(mMockRadioConfig, never()).setPreferredDataModem(anyInt(), any());
+
+        // 2. Emergency call ends, but EmergencyStateTracker still reports isInEmergencyMode = true
+        // This simulates the race condition where PhoneSwitcher receives call end notification
+        // before EmergencyStateTracker has finished its transition.
+        doReturn(true).when(mEmergencyStateTracker).isInEmergencyMode();
+
+        // Simulate call end notification to PhoneSwitcher
+        notifyPhoneAsInactive(mPhone);
+        processAllMessages();
+
+        // VERIFY: DDS switch should be SKIPPED because
+        // EmergencyStateTracker.isInEmergencyMode() is true
+        verify(mMockRadioConfig, never()).setPreferredDataModem(anyInt(), any());
+
+        // 3. Now simulate entering ECBM
+        Message ecbmMessage = getEcbmRegistration(mPhone);
+        notifyEcbmStart(mPhone, ecbmMessage);
+
+        // VERIFY: DDS should still be on Phone 0 (in ECBM)
+        verify(mMockRadioConfig, never()).setPreferredDataModem(anyInt(), any());
+
+        // 4. End ECBM
+        doReturn(false).when(mEmergencyStateTracker).isInEmergencyMode();
+        notifyEcbmEnd(mPhone, ecbmMessage);
+
+        // Verify that the DDS is successfully switched back if needed (it was already on 0,
+        // so no switch command expected here unless it was overridden)
+        processAllMessages();
     }
 
     /**

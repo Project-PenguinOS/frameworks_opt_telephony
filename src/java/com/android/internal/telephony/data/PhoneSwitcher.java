@@ -92,6 +92,8 @@ import com.android.internal.telephony.PhoneFactory;
 import com.android.internal.telephony.RadioConfig;
 import com.android.internal.telephony.data.DataNetworkController.NetworkRequestList;
 import com.android.internal.telephony.data.DataSettingsManager.DataSettingsManagerCallback;
+import com.android.internal.telephony.domainselection.DomainSelectionResolver;
+import com.android.internal.telephony.emergency.EmergencyStateTracker;
 import com.android.internal.telephony.flags.FeatureFlags;
 import com.android.internal.telephony.imsphone.ImsPhone;
 import com.android.internal.telephony.nano.TelephonyProto.TelephonyEvent;
@@ -586,33 +588,11 @@ public class PhoneSwitcher extends Handler {
 
                     log("register handler to receive IMS registration : " + phoneId);
                 }
-                mDataSettingsManagerCallbacks.computeIfAbsent(phoneId,
-                        v -> new DataSettingsManagerCallback(this::post) {
-                            @Override
-// QTI_BEGIN: 2023-02-26: Telephony: Fix data during call option not working
-                            public void onDataEnabledOverrideChanged(boolean enabled,
-                                    @TelephonyManager.MobileDataPolicy int policy) {
-// QTI_END: 2023-02-26: Telephony: Fix data during call option not working
-// QTI_BEGIN: 2025-02-06: Telephony: Telephony-Data: Decouple Qualcomm value adds.
-                                PhoneSwitcher.this.onDataEnabledOverrideChanged(enabled, policy);
-// QTI_END: 2025-02-06: Telephony: Telephony-Data: Decouple Qualcomm value adds.
-                            }
-
-                            @Override
-                            public void onDataEnabledChanged(boolean enabled,
-                                    @TelephonyManager.DataEnabledChangedReason int reason,
-                                    @NonNull String callingPackage) {
-                                PhoneSwitcher.this.onDataEnabledChanged();
-                            }
-
-                            @Override
-                            public void onDataRoamingEnabledChanged(boolean enabled) {
-                                PhoneSwitcher.this.mAutoDataSwitchController.evaluateAutoDataSwitch(
-                                        AutoDataSwitchController
-                                                .EVALUATION_REASON_DATA_SETTINGS_CHANGED);
-                            }});
+                int finalPhoneId = phoneId;
+                mDataSettingsManagerCallbacks.computeIfAbsent(finalPhoneId,
+                        v -> createDataSettingsManagerCallback(finalPhoneId));
                 phone.getDataSettingsManager().registerCallback(
-                        mDataSettingsManagerCallbacks.get(phoneId));
+                        mDataSettingsManagerCallbacks.get(finalPhoneId));
             }
             Set<CommandException.Error> ddsFailure = new HashSet<>();
             mCurrentDdsSwitchFailure.add(ddsFailure);
@@ -1019,43 +999,72 @@ public class PhoneSwitcher extends Handler {
                 log("register handler to receive IMS registration : " + phoneId);
             }
 
-            mDataSettingsManagerCallbacks.computeIfAbsent(phone.getPhoneId(),
-                    v -> new DataSettingsManagerCallback(this::post) {
-                        @Override
-                        public void onDataEnabledChanged(boolean enabled,
-                                @TelephonyManager.DataEnabledChangedReason int reason,
-                                @NonNull String callingPackage) {
-                            PhoneSwitcher.this.onDataEnabledChanged();
-                        }
-// QTI_BEGIN: 2023-05-25: Telephony: Add missed callbacks for PhoneSwitcher
-
-                        @Override
-                        public void onDataEnabledOverrideChanged(boolean enabled,
-                                @TelephonyManager.MobileDataPolicy int policy) {
-                            // Add it when mobile data is on
-// QTI_END: 2023-05-25: Telephony: Add missed callbacks for PhoneSwitcher
-// QTI_BEGIN: 2025-02-06: Telephony: Telephony-Data: Decouple Qualcomm value adds.
-                            PhoneSwitcher.this.onDataEnabledOverrideChanged(enabled, policy);
-// QTI_END: 2025-02-06: Telephony: Telephony-Data: Decouple Qualcomm value adds.
-// QTI_BEGIN: 2023-05-25: Telephony: Add missed callbacks for PhoneSwitcher
-                        }
-// QTI_END: 2023-05-25: Telephony: Add missed callbacks for PhoneSwitcher
-
-                        @Override
-                        public void onDataRoamingEnabledChanged(boolean enabled) {
-                            PhoneSwitcher.this.mAutoDataSwitchController.evaluateAutoDataSwitch(
-                                    AutoDataSwitchController
-                                            .EVALUATION_REASON_DATA_SETTINGS_CHANGED);
-                        }
-                    });
+            int finalPhoneId = phoneId;
+            mDataSettingsManagerCallbacks.computeIfAbsent(finalPhoneId,
+                    v -> createDataSettingsManagerCallback(finalPhoneId));
             phone.getDataSettingsManager().registerCallback(
-                    mDataSettingsManagerCallbacks.get(phone.getPhoneId()));
+                    mDataSettingsManagerCallbacks.get(finalPhoneId));
 
             Set<CommandException.Error> ddsFailure = new HashSet<>();
             mCurrentDdsSwitchFailure.add(ddsFailure);
         }
 
         mAutoDataSwitchController.onMultiSimConfigChanged(activeModemCount);
+    }
+
+    private DataSettingsManagerCallback createDataSettingsManagerCallback(int phoneId) {
+        return new DataSettingsManagerCallback(this::post) {
+            @Override
+            public void onDataEnabledChanged(boolean enabled,
+                    @TelephonyManager.DataEnabledChangedReason int reason,
+                    @NonNull String callingPackage) {
+                PhoneSwitcher.this.onDataEnabledChanged();
+            }
+            @Override
+            public void onDataRoamingEnabledChanged(boolean enabled) {
+                PhoneSwitcher.this.mAutoDataSwitchController.evaluateAutoDataSwitch(
+                        AutoDataSwitchController
+                                .EVALUATION_REASON_DATA_SETTINGS_CHANGED);
+            }
+            @Override
+            public void onDataEnabledOverrideChanged(boolean enabled, int policy) {
+                PhoneSwitcher.this.onDataEnabledOverrideChanged(phoneId,
+                        enabled, policy);
+            }
+        };
+    }
+
+    /**
+     * Called when data enabled override changed.
+     *
+     * @param phoneId The phone that changed.
+     * @param enabled {@code true} indicates data enabled override is enabled.
+     * @param policy {@link TelephonyManager.MobileDataPolicy} indicating the policy that was
+     *               enabled or disabled.
+     */
+    private void onDataEnabledOverrideChanged(int phoneId, boolean enabled, int policy) {
+        // Since the standalone always has user data enabled, the standalone opportunistic
+        // is needed to be re-evaluated when autodata switch changes.
+        if (!mFlags.allowNonStandaloneOpportunisticAdsPolicy()
+                && !isStandaloneOpportunistic(phoneId)) {
+            return;
+        }
+
+        // PhoneSwitcher only handles MOBILE_DATA_POLICY_AUTO_DATA_SWITCH. Other policies are
+        // irrelevant to PhoneSwitcher for now.
+        if (policy == TelephonyManager.MOBILE_DATA_POLICY_AUTO_DATA_SWITCH) {
+            logl("onDataEnabledOverrideChanged: ADS policy changed, phoneId=" + phoneId
+                    + " enabled=" + enabled);
+
+            // We need to evaluate auto data switch enablement when the ADS policy is changed.
+            onDataEnabledChanged();
+        }
+    }
+
+    private boolean isStandaloneOpportunistic(int phoneId) {
+        int subId = SubscriptionManager.getSubscriptionId(phoneId);
+        SubscriptionInfo subInfo = mSubscriptionManagerService.getSubscriptionInfo(subId);
+        return subInfo != null && subInfo.isOpportunistic() && subInfo.getGroupUuid() == null;
     }
 
     /**
@@ -1085,6 +1094,14 @@ public class PhoneSwitcher extends Handler {
             if (imsPhone != null && imsPhone.isInEcm()) {
                 return true;
             }
+        }
+        return false;
+    }
+
+    private boolean isInEmergencyMode() {
+        if (isInEmergencyCallbackMode()) return true;
+        if (DomainSelectionResolver.getInstance().isDomainSelectionSupported()) {
+            return EmergencyStateTracker.getInstance().isInEmergencyMode();
         }
         return false;
     }
@@ -1451,8 +1468,8 @@ public class PhoneSwitcher extends Handler {
             mPreferredDataPhoneId = mEmergencyOverride.mPhoneId;
             mLastSwitchPreferredDataReason = DataSwitch.Reason.DATA_SWITCH_REASON_UNKNOWN;
         } else {
-             if (isInEmergencyCallbackMode()) {
-                logl("updatePreferredDataPhoneId: in emergency callback, skip switching data");
+             if (isInEmergencyMode()) {
+                logl("updatePreferredDataPhoneId: in emergency mode, skip switching data");
                 return;
             }
             if (isAnyVoiceCallActiveOnDevice()) {

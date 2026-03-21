@@ -68,8 +68,12 @@ import static com.android.internal.telephony.util.TelephonyUtils.IS_DEBUGGABLE;
 import android.annotation.NonNull;
 import android.app.StatsManager;
 import android.content.Context;
+import android.content.pm.PackageManager;
+import android.os.Build;
+import android.os.SystemProperties;
 import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyManager;
+import android.telephony.TelephonyProtoEnums;
 import android.util.StatsEvent;
 
 import com.android.internal.annotations.VisibleForTesting;
@@ -188,6 +192,7 @@ public class MetricsCollector implements StatsManager.StatsPullAtomCallback {
     private final StatsManager mStatsManager;
     private final VonrHelper mVonrHelper;
     private final AirplaneModeStats mAirplaneModeStats;
+    private final Context mContext;
     private final DefaultNetworkMonitor mDefaultNetworkMonitor;
     private final Set<DataCallSessionStats> mOngoingDataCallStats = ConcurrentHashMap.newKeySet();
     private static final Random sRandom = new Random();
@@ -207,6 +212,7 @@ public class MetricsCollector implements StatsManager.StatsPullAtomCallback {
         mDeviceStateHelper = deviceStateHelper;
         mStatsManager = (StatsManager) context.getSystemService(Context.STATS_MANAGER);
         mVonrHelper = vonrHelper;
+        mContext = context;
         if (mStatsManager != null) {
             // Most (but not all) of these are subject to cooldown specified by MIN_COOLDOWN_MILLIS.
             registerAtom(CELLULAR_DATA_SERVICE_SWITCH);
@@ -681,10 +687,55 @@ public class MetricsCollector implements StatsManager.StatsPullAtomCallback {
                 .filter(UiccSlot::isMultipleEnabledProfileSupported)
                 .count();
 
+        PackageManager pm = mContext != null ? mContext.getPackageManager() : null;
+
         data.add(TelephonyStatsLog.buildStatsEvent(DEVICE_TELEPHONY_PROPERTIES, true,
                 isAutoDataSwitchOn, mStorage.getAutoDataSwitchToggleCount(),
-                hasDedicatedManagedProfileSub, mepSupportedSlotCount));
+                hasDedicatedManagedProfileSub, mepSupportedSlotCount,
+                SystemProperties.getInt("ro.vendor.api_level",
+                        Build.VERSION.DEVICE_INITIAL_SDK_INT),
+                SystemProperties.getInt("ro.board_api_level", Build.VERSION.DEVICE_INITIAL_SDK_INT),
+                getTelephonyFeaturesBitmask(pm)));
         return StatsManager.PULL_SUCCESS;
+    }
+
+    // Bit positions for DeviceTelephonyProperties.telephony_features
+    private long getTelephonyFeaturesBitmask(PackageManager pm) {
+        if (pm == null) {
+            return 0;
+        }
+        long bitmask = 0;
+        if (pm.hasSystemFeature(PackageManager.FEATURE_TELEPHONY_CALLING)) {
+            bitmask |= (1L << (TelephonyProtoEnums.DEVICE_TELEPHONY_FEATURES_CALLING - 1));
+        }
+        if (pm.hasSystemFeature(PackageManager.FEATURE_TELEPHONY_DATA)) {
+            bitmask |= (1L << (TelephonyProtoEnums.DEVICE_TELEPHONY_FEATURES_DATA - 1));
+        }
+        if (pm.hasSystemFeature(PackageManager.FEATURE_TELEPHONY_MESSAGING)) {
+            bitmask |= (1L << (TelephonyProtoEnums.DEVICE_TELEPHONY_FEATURES_MESSAGING - 1));
+        }
+        if (pm.hasSystemFeature(PackageManager.FEATURE_TELEPHONY_RADIO_ACCESS)) {
+            bitmask |= (1L << (TelephonyProtoEnums.DEVICE_TELEPHONY_FEATURES_RADIO_ACCESS - 1));
+        }
+        if (pm.hasSystemFeature(PackageManager.FEATURE_TELEPHONY_SUBSCRIPTION)) {
+            bitmask |= (1L << (TelephonyProtoEnums.DEVICE_TELEPHONY_FEATURES_SUBSCRIPTION - 1));
+        }
+        if (pm.hasSystemFeature(PackageManager.FEATURE_TELEPHONY)) {
+            bitmask |= (1L << (TelephonyProtoEnums.DEVICE_TELEPHONY_FEATURES_TELEPHONY - 1));
+        }
+        if (pm.hasSystemFeature(PackageManager.FEATURE_TELEPHONY_IMS)) {
+            bitmask |= (1L << (TelephonyProtoEnums.DEVICE_TELEPHONY_FEATURES_IMS - 1));
+        }
+        if (pm.hasSystemFeature(PackageManager.FEATURE_TELEPHONY_EUICC)) {
+            bitmask |= (1L << (TelephonyProtoEnums.DEVICE_TELEPHONY_FEATURES_EUICC - 1));
+        }
+        if (pm.hasSystemFeature(PackageManager.FEATURE_TELEPHONY_EUICC_MEP)) {
+            bitmask |= (1L << (TelephonyProtoEnums.DEVICE_TELEPHONY_FEATURES_EUICC_MEP - 1));
+        }
+        if (pm.hasSystemFeature(PackageManager.FEATURE_TELEPHONY_SATELLITE)) {
+            bitmask |= (1L << (TelephonyProtoEnums.DEVICE_TELEPHONY_FEATURES_SATELLITE - 1));
+        }
+        return bitmask;
     }
 
     private int pullImsRegistrationFeatureTagStats(List<StatsEvent> data) {

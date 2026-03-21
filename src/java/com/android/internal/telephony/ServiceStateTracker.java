@@ -2361,7 +2361,8 @@ public class ServiceStateTracker extends Handler {
         String satellitePlmn = null;
         SatelliteModemStateListener satelliteModemStateListener = getSatelliteModemStateListener();
         boolean shouldOverrideSatellitePlmnForNtnViaCarrier = mFeatureFlags.vzwAstSkyloFallback()
-                && SatelliteController.getInstance().isUsingNonTerrestrialNetworkViaCarrier().first;
+                && SatelliteController.getInstance()
+                .isUsingNonTerrestrialNetworkViaCarrier(mPhone.getSubId());
         if (shouldOverrideSatellitePlmnForNtnViaCarrier || (satelliteModemStateListener != null
                 && satelliteModemStateListener.isInConnectedState())) {
             satellitePlmn = getSatelliteDisplayName();
