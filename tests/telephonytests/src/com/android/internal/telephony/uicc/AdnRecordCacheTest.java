@@ -40,7 +40,6 @@ import android.platform.test.flag.junit.SetFlagsRule;
 
 import com.android.internal.telephony.CommandException;
 import com.android.internal.telephony.TelephonyTest;
-import com.android.internal.telephony.flags.Flags;
 import com.android.internal.telephony.gsm.UsimPhoneBookManager;
 
 import org.junit.After;
@@ -338,7 +337,6 @@ public class AdnRecordCacheTest extends TelephonyTest {
 
     @Test
     public void requestLoadAllAdnLike_LoadFailure_RetriesBlocked() {
-        mSetFlagsRule.enableFlags(Flags.FLAG_CACHE_ADN_RECORD_LOADER_EXCEPTIONS);
         // Simulate failure
         doAnswer(
                 invocation -> {
