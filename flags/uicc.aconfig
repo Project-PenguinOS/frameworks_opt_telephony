@@ -98,17 +98,6 @@ flag {
     bug:"343796688"
 }
 
-# OWNER=jayachandranc TARGET=26Q2
-flag {
-    name: "cache_adn_record_loader_exceptions"
-    namespace: "telephony"
-    description: "Cache AdnRecordLoader exceptions to prevent infinite retry loops"
-    bug:"477430965"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
 # OWNER=nharold TARGET=26Q3
 flag {
     name: "downloadable_subscription_include_carrier_identifier_internal"

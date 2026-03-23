@@ -5114,12 +5114,9 @@ public class RIL extends BaseCommands implements CommandsInterface {
             @NonNull SatelliteNetworkInfo satelliteNetworkInfo, Message result) {
         RadioNetworkProxy networkProxy = getRadioServiceProxy(RadioNetworkProxy.class);
         if (getHalVersion(HAL_SERVICE_NETWORK).less(RADIO_HAL_VERSION_2_4)) {
-            riljLog("setSatelliteNetworkInfo: not supported on HAL < 2.4");
-            if (result != null) {
-                AsyncResult.forMessage(result, null,
-                        CommandException.fromRilErrno(REQUEST_NOT_SUPPORTED));
-                result.sendToTarget();
-            }
+            riljLog("setSatelliteNetworkInfo: SatelliteModemInterface is used.");
+            SatelliteModemInterface.getInstance().setSatelliteNetworkInfo(
+                    simSlot, satelliteNetworkInfo, result);
             return;
         }
 
@@ -5148,12 +5145,8 @@ public class RIL extends BaseCommands implements CommandsInterface {
             @NonNull PrioritizedNetworkScanRequest scanRequest, Message result) {
         RadioNetworkProxy networkProxy = getRadioServiceProxy(RadioNetworkProxy.class);
         if (getHalVersion(HAL_SERVICE_NETWORK).less(RADIO_HAL_VERSION_2_4)) {
-            riljLog("enablePrioritizedNetworkScan: not supported on HAL < 2.4");
-            if (result != null) {
-                AsyncResult.forMessage(result, null,
-                        CommandException.fromRilErrno(REQUEST_NOT_SUPPORTED));
-                result.sendToTarget();
-            }
+            SatelliteModemInterface.getInstance().enablePrioritizedNetworkScan(
+                    simSlot, scanRequest, result);
             return;
         }
 
@@ -5181,12 +5174,8 @@ public class RIL extends BaseCommands implements CommandsInterface {
     public void disablePrioritizedNetworkScan(int simSlot, Message result) {
         RadioNetworkProxy networkProxy = getRadioServiceProxy(RadioNetworkProxy.class);
         if (getHalVersion(HAL_SERVICE_NETWORK).less(RADIO_HAL_VERSION_2_4)) {
-            riljLog("disablePrioritizedNetworkScan: not supported on HAL < 2.4");
-            if (result != null) {
-                AsyncResult.forMessage(result, null,
-                        CommandException.fromRilErrno(REQUEST_NOT_SUPPORTED));
-                result.sendToTarget();
-            }
+            SatelliteModemInterface.getInstance().disablePrioritizedNetworkScan(
+                    simSlot, result);
             return;
         }
 

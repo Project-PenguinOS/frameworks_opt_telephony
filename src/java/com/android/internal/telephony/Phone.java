@@ -5185,16 +5185,6 @@ public abstract class Phone extends Handler implements PhoneInternalInterface {
      */
     public void setSatelliteNetworkInfo(int simSlot,
             @NonNull SatelliteNetworkInfo satelliteNetworkInfo, Message result) {
-        if (getHalVersion(HAL_SERVICE_NETWORK).less(RIL.RADIO_HAL_VERSION_2_4)) {
-            logd("setSatelliteNetworkInfo: request not supported because HAL version is less "
-                    + "than 2.4");
-            CommandException ex = new CommandException(
-                    CommandException.Error.REQUEST_NOT_SUPPORTED);
-            AsyncResult.forMessage(result, null, ex);
-            result.sendToTarget();
-            return;
-        }
-
         logd("setSatelliteNetworkInfo: simSlot=" + simSlot
                 + " satelliteNetworkInfo=" + satelliteNetworkInfo);
         mCi.setSatelliteNetworkInfo(simSlot, satelliteNetworkInfo, result);

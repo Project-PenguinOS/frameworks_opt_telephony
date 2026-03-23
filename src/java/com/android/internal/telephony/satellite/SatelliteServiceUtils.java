@@ -48,6 +48,10 @@ import android.telephony.satellite.SatelliteManager;
 import android.telephony.satellite.SatelliteModemEnableRequestAttributes;
 import android.telephony.satellite.SatelliteSubscriptionInfo;
 import android.telephony.satellite.SystemSelectionSpecifier;
+import android.hardware.radio.network.SatelliteNetworkInfo;
+import android.hardware.radio.network.PrioritizedNetworkScanRequest;
+import android.hardware.radio.network.NetworkInfo;
+import android.hardware.radio.network.SatelliteTechnology;
 import android.telephony.satellite.stub.NTRadioTechnology;
 import android.telephony.satellite.stub.SatelliteModemState;
 import android.telephony.satellite.stub.SatelliteResult;
@@ -715,6 +719,98 @@ public class SatelliteServiceUtils {
         return systemSelectionSpecifier.stream().map(
                 SatelliteServiceUtils::convertSystemSelectionSpecifierToHALFormat).collect(
                 Collectors.toList());
+    }
+
+    /**
+     * Convert NetworkInfo from HAL definition to stub definition.
+     * @param networkInfo The NetworkInfo from the HAL.
+     * @return The converted NetworkInfo for the stub.
+     */
+    @NonNull public static android.telephony.satellite.stub.NetworkInfo toStubNetworkInfo(
+            @NonNull NetworkInfo networkInfo) {
+        android.telephony.satellite.stub.NetworkInfo converted =
+                new android.telephony.satellite.stub.NetworkInfo();
+        converted.plmn = networkInfo.plmn;
+        converted.arfcns = networkInfo.arfcns;
+        converted.accessNetwork = networkInfo.accessNetwork;
+        converted.satelliteTechnology = toStubSatelliteTechnology(networkInfo);
+        converted.hasSamePriorityAsTn = networkInfo.hasSamePriorityAsTn;
+        return converted;
+    }
+
+    /**
+     * Convert satellite technology from HAL definition to stub definition.
+     * @param networkInfo The network info containing satellite technology from the HAL.
+     * @return The converted NTRadioTechnology for the stub.
+     */
+    public static int toStubSatelliteTechnology(@NonNull NetworkInfo networkInfo) {
+        int halSatelliteTechnology = networkInfo.satelliteTechnology;
+        switch (halSatelliteTechnology) {
+            case android.hardware.radio.network.SatelliteTechnology.SAT_TECH_NB_IOT_NTN:
+                return NTRadioTechnology.NB_IOT_NTN;
+            case android.hardware.radio.network.SatelliteTechnology.SAT_TECH_DTC:
+                if (networkInfo.accessNetwork == AccessNetworkConstants.AccessNetworkType.EUTRAN) {
+                    return NTRadioTechnology.LTE_DTC;
+                } else if (networkInfo.accessNetwork
+                        == AccessNetworkConstants.AccessNetworkType.NGRAN) {
+                    return NTRadioTechnology.NR_DTC;
+                }
+                return NTRadioTechnology.LTE_DTC; // Default
+            case android.hardware.radio.network.SatelliteTechnology.SAT_TECH_3GPP_NTN:
+                return NTRadioTechnology.NR_NTN;
+            default:
+                return NTRadioTechnology.UNKNOWN;
+        }
+    }
+
+    /**
+     * Convert SatelliteNetworkInfo from HAL definition to stub definition.
+     * @param satelliteNetworkInfo The SatelliteNetworkInfo from the HAL.
+     * @return The converted SatelliteNetworkInfo for the stub.
+     */
+    @NonNull public static android.telephony.satellite.stub.SatelliteNetworkInfo
+            toStubSatelliteNetworkInfo(@NonNull SatelliteNetworkInfo satelliteNetworkInfo) {
+        android.telephony.satellite.stub.SatelliteNetworkInfo converted =
+                new android.telephony.satellite.stub.SatelliteNetworkInfo();
+        if (satelliteNetworkInfo.allowedPlmns != null) {
+            converted.allowedPlmns = new android.telephony.satellite.stub.NetworkInfo[
+                    satelliteNetworkInfo.allowedPlmns.length];
+            for (int i = 0; i < satelliteNetworkInfo.allowedPlmns.length; i++) {
+                converted.allowedPlmns[i] = toStubNetworkInfo(
+                        satelliteNetworkInfo.allowedPlmns[i]);
+            }
+        }
+        if (satelliteNetworkInfo.disallowedPlmns != null) {
+            converted.disallowedPlmns = new android.telephony.satellite.stub.NetworkInfo[
+                    satelliteNetworkInfo.disallowedPlmns.length];
+            for (int i = 0; i < satelliteNetworkInfo.disallowedPlmns.length; i++) {
+                converted.disallowedPlmns[i] = toStubNetworkInfo(
+                        satelliteNetworkInfo.disallowedPlmns[i]);
+            }
+        }
+        return converted;
+    }
+
+    /**
+     * Convert PrioritizedNetworkScanRequest from HAL definition to stub definition.
+     * @param scanRequest The PrioritizedNetworkScanRequest from the HAL.
+     * @return The converted PrioritizedNetworkScanRequest for the stub.
+     */
+    @NonNull public static android.telephony.satellite.stub.PrioritizedNetworkScanRequest
+            toStubPrioritizedNetworkScanRequest(
+            @NonNull PrioritizedNetworkScanRequest scanRequest) {
+        android.telephony.satellite.stub.PrioritizedNetworkScanRequest converted =
+                new android.telephony.satellite.stub.PrioritizedNetworkScanRequest();
+        if (scanRequest.networkInfos != null) {
+            converted.networkInfos = new android.telephony.satellite.stub.NetworkInfo[
+                    scanRequest.networkInfos.length];
+            for (int i = 0; i < scanRequest.networkInfos.length; i++) {
+                converted.networkInfos[i] = toStubNetworkInfo(scanRequest.networkInfos[i]);
+            }
+        }
+        converted.searchIntervalMs = scanRequest.searchIntervalMs;
+        converted.validDurationSec = scanRequest.validDurationSec;
+        return converted;
     }
 
     /**
