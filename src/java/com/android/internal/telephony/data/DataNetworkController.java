@@ -97,6 +97,7 @@ import com.android.internal.telephony.SlidingWindowEventCounter;
 import com.android.internal.telephony.TelephonyCapabilities;
 import com.android.internal.telephony.TelephonyComponentFactory;
 import com.android.internal.telephony.data.AccessNetworksManager.AccessNetworksManagerCallback;
+import com.android.internal.telephony.data.DataConfig.DataConfigDiff;
 import com.android.internal.telephony.data.DataConfigManager.DataConfigManagerCallback;
 import com.android.internal.telephony.data.DataEvaluation.DataAllowedReason;
 import com.android.internal.telephony.data.DataEvaluation.DataDisallowedReason;
@@ -1103,8 +1104,8 @@ public class DataNetworkController extends Handler {
                 DataNetworkController.this.onDeviceConfigUpdated();
             }
             @Override
-            public void onDynamicConfigChanged() {
-                DataNetworkController.this.onDynamicConfigChanged();
+            public void onDynamicConfigChanged(@NonNull DataConfigDiff diff) {
+                DataNetworkController.this.onDynamicConfigChanged(diff);
             }
         });
         mPhone.getServiceStateTracker().registerForPsRestrictedEnabled(this,
@@ -3020,12 +3021,31 @@ public class DataNetworkController extends Handler {
 
     /**
      * Called when DataConfig is updated dynamically.
+     *
+     * @param diff The difference between the old and new configuration.
      */
-    private void onDynamicConfigChanged() {
-        log("onDataConfigUpdated: Config changed. Re-evaluating all data networks.");
+    private void onDynamicConfigChanged(@NonNull DataConfigDiff diff) {
+        log("onDynamicConfigChanged: Config changed. Re-evaluating affected data networks. diff="
+                + diff);
 
-        sendMessage(obtainMessage(EVENT_REEVALUATE_EXISTING_DATA_NETWORKS,
-                DataEvaluationReason.DATA_DYNAMIC_CONFIG_CHANGED));
+        boolean isAnyNetworkAffected = false;
+        for (DataNetwork dataNetwork : mDataNetworkList) {
+            if (dataNetwork.isConnecting() || dataNetwork.isConnected()) {
+                Set<Integer> capabilities = Arrays.stream(
+                        dataNetwork.getNetworkCapabilities().getCapabilities())
+                        .boxed().collect(Collectors.toSet());
+                if (diff.isConnectionCapabilityAffected(mPhone.getCarrierId(), capabilities)) {
+                    isAnyNetworkAffected = true;
+                    break;
+                }
+            }
+        }
+
+        if (isAnyNetworkAffected) {
+            sendMessage(obtainMessage(EVENT_REEVALUATE_EXISTING_DATA_NETWORKS,
+                    DataEvaluationReason.DATA_DYNAMIC_CONFIG_CHANGED));
+        }
+
         sendMessage(obtainMessage(EVENT_REEVALUATE_UNSATISFIED_NETWORK_REQUESTS,
                 DataEvaluationReason.DATA_DYNAMIC_CONFIG_CHANGED));
     }
