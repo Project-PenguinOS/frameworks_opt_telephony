@@ -1240,6 +1240,38 @@ public class EmergencyStateTrackerTest extends TelephonyTest {
 
     @Test
     @SmallTest
+    public void testHasActiveCall() throws Exception {
+        EmergencyStateTracker emergencyStateTracker = setupEmergencyStateTracker(
+                /* isSuplDdsSwitchRequiredForEmergencyCall= */ true);
+        Phone phone0 = setupTestPhoneForEmergencyCall(/* isRoaming= */ true,
+                /* isRadioOn= */ true);
+        setUpAsyncResultForSetEmergencyMode(phone0, E_REG_RESULT);
+
+        // First active call
+        CompletableFuture<Integer> future = emergencyStateTracker.startEmergencyCall(phone0,
+                mTestConnection1, false);
+        processAllMessages();
+
+        assertEquals(future.getNow(DisconnectCause.ERROR_UNSPECIFIED),
+                Integer.valueOf(DisconnectCause.NOT_DISCONNECTED));
+
+        emergencyStateTracker.onEmergencyCallStateChanged(Call.State.ACTIVE, mTestConnection1);
+        emergencyStateTracker.onEmergencyCallDomainUpdated(
+                PhoneConstants.PHONE_TYPE_IMS, mTestConnection1);
+        processAllMessages();
+
+        assertTrue(emergencyStateTracker.hasActiveCall(mTestConnection1));
+        assertTrue(emergencyStateTracker.isInEmergencyCall());
+
+        emergencyStateTracker.endCall(mTestConnection1);
+        processAllMessages();
+
+        assertFalse(emergencyStateTracker.hasActiveCall(mTestConnection1));
+        assertFalse(emergencyStateTracker.isInEmergencyCall());
+    }
+
+    @Test
+    @SmallTest
     public void testRecoverNormalInCellularWhenVoWiFiConnected() {
         EmergencyStateTracker emergencyStateTracker = setupEmergencyStateTracker(
                 /* isSuplDdsSwitchRequiredForEmergencyCall= */ true);
