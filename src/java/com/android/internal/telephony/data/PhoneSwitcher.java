@@ -661,9 +661,6 @@ public class PhoneSwitcher extends Handler {
     }
 
 // QTI_BEGIN: 2025-02-06: Telephony: Telephony-Data: Decouple Qualcomm value adds.
-    protected void onDataEnabledOverrideChanged(boolean enabled,
-            @TelephonyManager.MobileDataPolicy int policy) {}
-
 // QTI_END: 2025-02-06: Telephony: Telephony-Data: Decouple Qualcomm value adds.
     private final BroadcastReceiver mSimStateIntentReceiver = new BroadcastReceiver() {
         @Override
@@ -1042,7 +1039,7 @@ public class PhoneSwitcher extends Handler {
      * @param policy {@link TelephonyManager.MobileDataPolicy} indicating the policy that was
      *               enabled or disabled.
      */
-    private void onDataEnabledOverrideChanged(int phoneId, boolean enabled, int policy) {
+    protected void onDataEnabledOverrideChanged(int phoneId, boolean enabled, int policy) {
         // Since the standalone always has user data enabled, the standalone opportunistic
         // is needed to be re-evaluated when autodata switch changes.
         if (!mFlags.allowNonStandaloneOpportunisticAdsPolicy()
