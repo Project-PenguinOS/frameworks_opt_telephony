@@ -1019,7 +1019,11 @@ public class PhoneSwitcher extends Handler {
     private boolean isInEmergencyMode() {
         if (isInEmergencyCallbackMode()) return true;
         if (DomainSelectionResolver.getInstance().isDomainSelectionSupported()) {
-            return EmergencyStateTracker.getInstance().isInEmergencyMode();
+            // If there is an active call, we are not in the restricted "emergency mode"
+            // that prevents DDS switching. This allows Auto Data Switch to function
+            // during the call.
+            return EmergencyStateTracker.getInstance().isInEmergencyMode()
+                    && !isAnyVoiceCallActiveOnDevice();
         }
         return false;
     }
