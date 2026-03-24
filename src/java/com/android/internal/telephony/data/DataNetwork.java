@@ -2347,7 +2347,9 @@ public class DataNetwork extends StateMachine {
                 } else {
                     // Let Connectivity release this immediately after linger time expires.
                     log("Unregistering TNA-" + mNetworkAgent.getId());
+// QTI_END: 2024-07-15: Telephony: Fix dangling data network issue
                     updateLingerAndTearDownDelayTimers(mLastKnownDataNetworkType);
+// QTI_BEGIN: 2024-07-15: Telephony: Fix dangling data network issue
                     mNetworkAgent.unregister();
                 }
 // QTI_END: 2024-07-15: Telephony: Fix dangling data network issue
