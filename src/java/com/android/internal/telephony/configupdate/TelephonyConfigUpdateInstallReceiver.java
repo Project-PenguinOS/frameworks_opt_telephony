@@ -16,12 +16,19 @@
 
 package com.android.internal.telephony.configupdate;
 
+import static android.telephony.CarrierConfigManager.CARRIER_ROAMING_NTN_CONNECT_AUTOMATIC;
+import static android.telephony.CarrierConfigManager.CARRIER_ROAMING_NTN_CONNECT_HYBRID;
+import static android.telephony.CarrierConfigManager.SATELLITE_DATA_SUPPORT_ALL;
+import static android.telephony.CarrierConfigManager.SATELLITE_DATA_SUPPORT_ONLY_RESTRICTED;
+
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.content.Context;
 import android.content.Intent;
 import android.os.FileUtils;
+import android.text.TextUtils;
 import android.util.Log;
+import android.webkit.URLUtil;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.telephony.TelephonyConfigData;
@@ -169,6 +176,52 @@ public class TelephonyConfigUpdateInstallReceiver extends ConfigUpdateInstallRec
                         return false;
                     }
                 }
+
+                SatelliteConfig.PlmnConfig plmnConfig =
+                        satelliteConfig.getSatellitePlmnConfigByCarrierId(carrierId, plmn);
+                if (plmnConfig != null) {
+                    if (!isValidNtnConnectType(plmnConfig.getNtnConnectType())) {
+                        Log.e(TAG, "found invalid ntnConnecttype : "
+                                + plmnConfig.getNtnConnectType());
+                        mConfigUpdaterMetricsStats.reportCarrierConfigError(SatelliteConstants
+                                .CONFIG_UPDATE_RESULT_CARRIER_DATA_INVALID_CONNECT_TYPE_PER_PLMN);
+                        return false;
+                    }
+                }
+            }
+
+            Integer ntnConnectType = satelliteConfig
+                    .getSatelliteNtnConnectTypeByCarrierId(carrierId);
+            if (ntnConnectType != null) {
+                if (!isValidNtnConnectType(ntnConnectType)) {
+                    Log.e(TAG, "found invalid ntnConnecttype : " + ntnConnectType);
+                    mConfigUpdaterMetricsStats.reportCarrierConfigError(SatelliteConstants
+                            .CONFIG_UPDATE_RESULT_CARRIER_DATA_INVALID_CONNECT_TYPE);
+                    return false;
+                }
+            }
+
+            Integer dataSupportMode = satelliteConfig
+                    .getSatelliteDataSupportModeByCarrierId(carrierId);
+            if (dataSupportMode != null) {
+                if (!isValidDataSupportMode(dataSupportMode)) {
+                    Log.e(TAG, "found invalid dataSupportMode : " + dataSupportMode);
+                    mConfigUpdaterMetricsStats.reportCarrierConfigError(SatelliteConstants
+                            .CONFIG_UPDATE_RESULT_CARRIER_DATA_INVALID_DATA_SUPPORT_MODE);
+                    return false;
+                }
+            }
+
+            String entitlementUrl = satelliteConfig
+                    .getSatelliteEntitlementServerUrlByCarrierId(carrierId);
+            if (!TextUtils.isEmpty(entitlementUrl)) {
+                if (!isValidEntitlementServerUrl(entitlementUrl)) {
+                    Log.e(TAG, "found not properly formatted entitlement url: "
+                            + entitlementUrl);
+                    mConfigUpdaterMetricsStats.reportCarrierConfigError(SatelliteConstants
+                            .CONFIG_UPDATE_RESULT_CARRIER_DATA_INVALID_ENTITLEMENT_URL);
+                    return false;
+                }
             }
         }
         Log.d(TAG, "the config data is valid");
@@ -204,6 +257,40 @@ public class TelephonyConfigUpdateInstallReceiver extends ConfigUpdateInstallRec
             return false;
         }
         Log.d(TAG, "maxAllowedDataMode is valid");
+        return true;
+    }
+
+
+    private boolean isValidDataSupportMode(int dataSupportMode) {
+        if (dataSupportMode < SATELLITE_DATA_SUPPORT_ONLY_RESTRICTED
+                || dataSupportMode > SATELLITE_DATA_SUPPORT_ALL) {
+            Log.e(TAG, "isValidDataSupportMode: dataSupportMode="
+                    + dataSupportMode + " is not valid");
+            return false;
+        }
+        return true;
+    }
+
+    private boolean isValidNtnConnectType(int ntnConnectType) {
+        if (ntnConnectType < CARRIER_ROAMING_NTN_CONNECT_AUTOMATIC
+                || ntnConnectType > CARRIER_ROAMING_NTN_CONNECT_HYBRID) {
+            Log.e(TAG, "isValidNtnConnectType: ntnConnectType="
+                    + ntnConnectType + " is not valid");
+            return false;
+        }
+        return true;
+    }
+
+    private boolean isValidEntitlementServerUrl(String url) {
+        if (TextUtils.isEmpty(url)) {
+            Log.e(TAG, "isValidEntitlementServerUrl: url is empty");
+            return false;
+        }
+        // Ensure it is a secure HTTPS connection
+        if (!URLUtil.isHttpsUrl(url)) {
+            Log.e(TAG, "isValidEntitlementServerUrl: url is not https connection");
+            return false;
+        }
         return true;
     }
 

@@ -16,6 +16,10 @@
 
 package com.android.internal.telephony.configupdate;
 
+import static android.telephony.CarrierConfigManager.CARRIER_ROAMING_NTN_CONNECT_AUTOMATIC;
+import static android.telephony.CarrierConfigManager.CARRIER_ROAMING_NTN_CONNECT_HYBRID;
+import static android.telephony.CarrierConfigManager.SATELLITE_DATA_SUPPORT_ALL;
+import static android.telephony.CarrierConfigManager.SATELLITE_DATA_SUPPORT_ONLY_RESTRICTED;
 import static android.telephony.NetworkRegistrationInfo.FIRST_SERVICE_TYPE;
 import static android.telephony.NetworkRegistrationInfo.LAST_SERVICE_TYPE;
 
@@ -31,6 +35,7 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
@@ -346,6 +351,74 @@ public class TelephonyConfigUpdateInstallReceiverTest extends TelephonyTest {
         doReturn(invalidPlmnsServices4).when(mockConfig).getSupportedSatelliteServices(anyInt());
         doReturn(mockConfig).when(mockParser).getConfig();
         assertFalse(spyReceiver.isValidSatelliteCarrierConfigData(mockParser));
+
+        doReturn(validPlmnsServices).when(mockConfig).getSupportedSatelliteServices(anyInt());
+
+        // ntnConnectType test in SatelliteConfig.PlmnConfig
+        SatelliteConfig.PlmnConfig mockPlmnConfig = mock(SatelliteConfig.PlmnConfig.class);
+        doReturn(mockPlmnConfig).when(mockConfig)
+                .getSatellitePlmnConfigByCarrierId(anyInt(), anyString());
+
+        // Check invalid NtnConnectType (Invalid)
+        doReturn(CARRIER_ROAMING_NTN_CONNECT_HYBRID + 1)
+                .when(mockPlmnConfig).getNtnConnectType();
+        assertFalse(spyReceiver
+                .isValidSatelliteCarrierConfigData(mockParser));
+
+        // Check normal NtnConnectType (Valid)
+        doReturn(CARRIER_ROAMING_NTN_CONNECT_AUTOMATIC).when(mockPlmnConfig).getNtnConnectType();
+        assertTrue(spyReceiver
+                .isValidSatelliteCarrierConfigData(mockParser));
+
+        doReturn(null).when(mockConfig)
+                .getSatellitePlmnConfigByCarrierId(anyInt(), anyString());
+
+        // Check invalid NtnConnectType (Invalid - lower bound)
+        doReturn(CARRIER_ROAMING_NTN_CONNECT_AUTOMATIC - 1)
+                .when(mockConfig).getSatelliteNtnConnectTypeByCarrierId(anyInt());
+        assertFalse(spyReceiver
+                .isValidSatelliteCarrierConfigData(mockParser));
+
+        // Check normal NtnConnectType (Valid)
+        doReturn(CARRIER_ROAMING_NTN_CONNECT_HYBRID)
+                .when(mockConfig).getSatelliteNtnConnectTypeByCarrierId(anyInt());
+        assertTrue(spyReceiver
+                .isValidSatelliteCarrierConfigData(mockParser));
+
+        doReturn(null).when(mockConfig).getSatelliteNtnConnectTypeByCarrierId(anyInt());
+
+        // Check invalid DataSupportMode (Invalid)
+        doReturn(SATELLITE_DATA_SUPPORT_ALL + 1).when(mockConfig)
+                .getSatelliteDataSupportModeByCarrierId(anyInt());
+        assertFalse(spyReceiver
+                .isValidSatelliteCarrierConfigData(mockParser));
+
+        // Check normal DataSupportMode (Valid)
+        doReturn(SATELLITE_DATA_SUPPORT_ONLY_RESTRICTED)
+                .when(mockConfig).getSatelliteDataSupportModeByCarrierId(anyInt());
+        assertTrue(spyReceiver
+                .isValidSatelliteCarrierConfigData(mockParser));
+
+        doReturn(null).when(mockConfig)
+                .getSatelliteDataSupportModeByCarrierId(anyInt());
+
+        // Check wrong url format, not web url format
+        doReturn("invalid_url_format").when(mockConfig)
+                .getSatelliteEntitlementServerUrlByCarrierId(anyInt());
+        assertFalse(spyReceiver
+                .isValidSatelliteCarrierConfigData(mockParser));
+
+        // Check https protocol
+        doReturn("http://www.google.com").when(mockConfig)
+                .getSatelliteEntitlementServerUrlByCarrierId(anyInt());
+        assertFalse(spyReceiver
+                .isValidSatelliteCarrierConfigData(mockParser));
+
+        // normal URL (HTTPS)
+        doReturn("https://www.google.com").when(mockConfig)
+                .getSatelliteEntitlementServerUrlByCarrierId(anyInt());
+        assertTrue(spyReceiver
+                .isValidSatelliteCarrierConfigData(mockParser));
     }
 
     @Test
