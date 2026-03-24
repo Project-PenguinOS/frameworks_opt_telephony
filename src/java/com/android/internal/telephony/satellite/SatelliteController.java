@@ -4698,6 +4698,16 @@ public class SatelliteController extends Handler {
 
     private int getCarrierRoamingNtnConnectTypeForPlmn(int subId, String plmn) {
         plogd("getCarrierRoamingNtnConnectTypeForPlmn: subId=" + subId + ", plmn=" + plmn);
+        // get from configupdater
+        Integer ntnConnectTypePerPlmnViaConfigUpdater =
+                getNtnConnectTypeViaConfigupdater(subId, plmn);
+        if (ntnConnectTypePerPlmnViaConfigUpdater != null) {
+            logd("getCarrierRoamingNtnConnectTypeForPlmn: ntnConnectTypePerPlmnViaConfigUpdater="
+                    + ntnConnectTypePerPlmnViaConfigUpdater);
+            return ntnConnectTypePerPlmnViaConfigUpdater;
+        }
+
+        // get from carrierconfig
         PersistableBundle perPlmnConfigs = getPersistableBundle(subId).getPersistableBundle(
             CarrierConfigManager.KEY_SATELLITE_CONFIGS_PER_PLMN_BUNDLE);
         if (perPlmnConfigs == null) {
@@ -4923,10 +4933,34 @@ public class SatelliteController extends Handler {
         return false;
     }
 
+    @Nullable
+    private Boolean isSatelliteEmergencyMessagingSupportedViaConfigupdater(int subId) {
+        SatelliteConfig config = getSatelliteConfig();
+        if (config == null) {
+            logd("isSatelliteEmergencyMessagingSupportedViaConfigupdater: "
+                    + "return null (satelliteConfig is null)");
+            return null;
+        }
+
+        return config.isEmergencyMessagingSupportedBySubId(subId);
+    }
+
     private boolean isSatelliteEmergencyMessagingSupportedViaCarrier(int subId) {
         if (!isSatelliteSupportedViaCarrier(subId)) {
             return false;
         }
+
+        // get emergency messaging support from configupdater
+        Boolean isEmergencyMsgSupportViaConfigupdater =
+                isSatelliteEmergencyMessagingSupportedViaConfigupdater(subId);
+        if (isEmergencyMsgSupportViaConfigupdater != null) {
+            plogd("isSatelliteEmergencyMessagingSupportedViaCarrier: using SatelliteConfig"
+                    + " for subId=" + subId + ", isEmergencyMsgSupportViaConfigupdater="
+                    + isEmergencyMsgSupportViaConfigupdater);
+            return isEmergencyMsgSupportViaConfigupdater;
+        }
+
+        // get emergency messaging support from carrier config
         PersistableBundle config = getPersistableBundle(subId);
         if (!config.getBoolean(KEY_EMERGENCY_MESSAGING_SUPPORTED_BOOL)) {
             return false;
@@ -6875,9 +6909,59 @@ public class SatelliteController extends Handler {
         return strArray;
     }
 
-    boolean isSatelliteSupportedViaCarrier(int subId) {
+    private Boolean isSatelliteAttachSupportedViaConfigupdater(int subId) {
+        SatelliteConfig config = getSatelliteConfig();
+        if (config == null) {
+            logd("isSatelliteAttachSupportedViaConfigupdater: "
+                    + "return null (satelliteConfig is null)");
+            return null;
+        }
+
+        return config.isSatelliteAttachSupportedBySubId(subId);
+    }
+
+    /**
+     * @param subId subscription ID
+     * @return {@code true} if satellite is supported via carrier, {@code false} otherwise.
+     */
+    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PRIVATE)
+    public boolean isSatelliteSupportedViaCarrier(int subId) {
+        Boolean isAttachSupported = isSatelliteAttachSupportedViaConfigupdater(subId);
+        if (isAttachSupported != null) {
+            plogd("isSatelliteSupportedViaCarrier: using SatelliteConfig for subId=" + subId
+                    + ", isAttachSupported=" + isAttachSupported);
+            return isAttachSupported;
+        }
+
         return getConfigForSubId(subId)
                 .getBoolean(KEY_SATELLITE_ATTACH_SUPPORTED_BOOL);
+    }
+
+    private Boolean isSatelliteEntitlementSupportedViaConfigupdater(int subId) {
+        SatelliteConfig config = getSatelliteConfig();
+        if (config == null) {
+            logd("isSatelliteEntitlementSupportedViaConfigupdater: "
+                    + "return null (satelliteConfig is null)");
+            return null;
+        }
+
+        return config.isSatelliteEntitlementSupportedBySubId(subId);
+    }
+
+    /** Return the satellite entitlement supported bool from carrier config. */
+    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PRIVATE)
+    protected boolean isSatelliteEntitlementSupported(int subId) {
+        // get satellite entitlement support via configupdater
+        Boolean isEntitlementSupported = isSatelliteEntitlementSupportedViaConfigupdater(subId);
+        if (isEntitlementSupported != null) {
+            logd("isSatelliteEntitlementSupported: using SatelliteConfig for subId=" + subId
+                    + ", entitlementSupported=" + isEntitlementSupported);
+            return isEntitlementSupported;
+        }
+
+        // get satellite entitlement support via carrier config
+        return getConfigForSubId(subId)
+                .getBoolean(CarrierConfigManager.KEY_SATELLITE_ENTITLEMENT_SUPPORTED_BOOL);
     }
 
     private boolean isSatelliteEntitlementEnabled(int subId) {
@@ -6989,6 +7073,18 @@ public class SatelliteController extends Handler {
                 KEY_SATELLITE_ROAMING_TURN_OFF_SESSION_FOR_EMERGENCY_CALL_BOOL);
     }
 
+    private Integer getCarrierRoamingNtnConnectTypeViaConfigUpdater(int subId) {
+        SatelliteConfig satelliteConfig = getSatelliteConfig();
+        if (satelliteConfig == null) {
+            logd("getCarrierRoamingNtnConnectTypeViaConfigUpdater: "
+                    + "return null (satelliteConfig is null)");
+            return null;
+        }
+
+        int carrierId = SatelliteServiceUtils.getCarrierIdFromSubscription(subId);
+        return satelliteConfig.getSatelliteNtnConnectTypeByCarrierId(carrierId);
+    }
+
     private int getCarrierRoamingNtnConnectType(int subId) {
         if (mFeatureFlags.vzwAstSkyloFallback()) {
             plogd("getCarrierRoamingNtnConnectType: Checking connect "
@@ -7002,6 +7098,14 @@ public class SatelliteController extends Handler {
                 return config.connectType;
             }
         }
+
+        Integer ntnConnectType = getCarrierRoamingNtnConnectTypeViaConfigUpdater(subId);
+        if (ntnConnectType != null) {
+            plogd("getCarrierRoamingNtnConnectType: using SatelliteConfig for subId="
+                    + subId + ", ntnConnectType=" + ntnConnectType);
+            return ntnConnectType;
+        }
+
         int connectType = getConfigForSubId(subId).getInt(
                 KEY_CARRIER_ROAMING_NTN_CONNECT_TYPE_INT);
         plogd("getCarrierRoamingNtnConnectType: Falling back to global "
@@ -7027,7 +7131,17 @@ public class SatelliteController extends Handler {
             return SatelliteConstants.GLOBAL_NTN_CONNECT_TYPE_UNKNOWN;
         }
 
-        int globalNtnConnectType = getConfigForSubId(subId).getInt(
+        int globalNtnConnectType;
+
+        Integer ntnConnectType = getCarrierRoamingNtnConnectTypeViaConfigUpdater(subId);
+        if (ntnConnectType != null) {
+            plogd("getSupportedConnectTypeMetrics: using SatelliteConfig for subId="
+                    + subId + ", ntnConnectType=" + ntnConnectType);
+            globalNtnConnectType = ntnConnectType;
+            return SatelliteServiceUtils.fromSupportedConnectionMode(globalNtnConnectType);
+        }
+
+        globalNtnConnectType = getConfigForSubId(subId).getInt(
                 KEY_CARRIER_ROAMING_NTN_CONNECT_TYPE_INT);
         return SatelliteServiceUtils.fromSupportedConnectionMode(globalNtnConnectType);
     }
@@ -7076,9 +7190,35 @@ public class SatelliteController extends Handler {
         return handoverType;
     }
 
+    private Integer getCarrierSatelliteDataSupportedModeViaConfigUpdater(int subId) {
+        SatelliteConfig satelliteConfig = getSatelliteConfig();
+        if (satelliteConfig == null) {
+            logd("getCarrierSatelliteDataSupportedModeViaConfigUpdater: "
+                    + "return null (satelliteConfig is null)");
+            return null;
+        }
+
+        Integer dataSupportMode = satelliteConfig.getSatelliteDataSupportModeBySubId(subId);
+        plogd("getCarrierSatelliteDataSupportedModeFromConfig: using SatelliteConfig"
+                + " for subId=" + subId + ", dataSupportMode="
+                + dataSupportMode);
+        return dataSupportMode;
+    }
+
     @CarrierConfigManager.SATELLITE_DATA_SUPPORT_MODE
     private int getCarrierSatelliteDataSupportedModeFromConfig(int subId) {
-        return getConfigForSubId(subId).getInt(KEY_SATELLITE_DATA_SUPPORT_MODE_INT);
+        Integer dataSupportModeViaConfigupdater =
+                getCarrierSatelliteDataSupportedModeViaConfigUpdater(subId);
+        if (dataSupportModeViaConfigupdater != null) {
+            plogd("getCarrierSatelliteDataSupportedModeFromConfig: using SatelliteConfig for subId="
+                    + subId + ", dataSupportMode=" + dataSupportModeViaConfigupdater);
+            return dataSupportModeViaConfigupdater;
+        }
+
+        int dataSupportMode = getConfigForSubId(subId).getInt(KEY_SATELLITE_DATA_SUPPORT_MODE_INT);
+        plogd("getCarrierSatelliteDataSupportedModeFromConfig: using CarrierConfig for subId="
+                + subId + ", dataSupportMode=" + dataSupportMode);
+        return dataSupportMode;
     }
 
     /**
@@ -7156,7 +7296,7 @@ public class SatelliteController extends Handler {
     }
 
     private void updateRestrictReasonForEntitlementPerCarrier(int subId) {
-        if (!getConfigForSubId(subId).getBoolean(KEY_SATELLITE_ENTITLEMENT_SUPPORTED_BOOL, false)) {
+        if (!isSatelliteEntitlementSupported(subId)) {
             plogd("don't support entitlement");
             return;
         }
@@ -7662,6 +7802,32 @@ public class SatelliteController extends Handler {
         return mSatelliteTechPerPlmnForActiveSubId.getOrDefault(subId, new HashMap<>());
     }
 
+    @Nullable
+    private Integer getNtnConnectTypeViaConfigupdater(int subId, String plmn) {
+        if (TextUtils.isEmpty(plmn)) {
+            logd("getNtnConnectTypeViaConfigupdater: return null (empty plmn)");
+            return null;
+        }
+
+        SatelliteConfig satelliteConfig = getSatelliteConfig();
+        if (satelliteConfig == null) {
+            logd("getNtnConnectTypeViaConfigupdater: return null (satelliteConfig is null)");
+            return null;
+        }
+
+        SatelliteConfig.PlmnConfig plmnConfig =
+                satelliteConfig.getSatellitePlmnConfigBySubId(subId, plmn);
+
+        if (plmnConfig == null) {
+            logd("getNtnConnectTypeViaConfigupdater: return null (plmnConfig is null)");
+            return null;
+        }
+
+        plogd("getNtnConnectTypeViaConfigupdater: connectType=" + plmnConfig.getNtnConnectType());
+        return plmnConfig.getNtnConnectType();
+    }
+
+
     /**
      * Populate the satellite configs for the given PLMN
      *
@@ -7690,6 +7856,16 @@ public class SatelliteController extends Handler {
         PersistableBundle plmnSpecificConfig = perPlmnConfigs.getPersistableBundle(plmn);
         if (plmnSpecificConfig == null) {
             plogd("updateCurrentSatellitePerPlmnConfiguration: plmnSpecificConfig is null");
+            Integer ntnConnectTypePerPlmnViaConfigupdater =
+                    getNtnConnectTypeViaConfigupdater(subId, plmn);
+            if (ntnConnectTypePerPlmnViaConfigupdater != null) {
+                logd("updateCurrentSatellitePerPlmnConfiguration: "
+                        + "ntnConnectTypePerPlmnViaConfigupdater="
+                        + ntnConnectTypePerPlmnViaConfigupdater);
+                config.connectType = ntnConnectTypePerPlmnViaConfigupdater;
+            } else {
+                config.connectType = CarrierConfigManager.CARRIER_ROAMING_NTN_CONNECT_UNKNOWN;
+            }
             mCurrentSatellitePerPlmnConfigurations.put(subId, config);
             return;
         }
@@ -7699,10 +7875,12 @@ public class SatelliteController extends Handler {
                         CarrierConfigManager
                             .KEY_CARRIER_ROAMING_NTN_EMERGENCY_CALL_TO_SATELLITE_HANDOVER_TYPE_INT,
                         SatelliteManager.EMERGENCY_CALL_TO_SATELLITE_HANDOVER_TYPE_UNKNOWN);
-        config.connectType =
-                plmnSpecificConfig.getInt(
-                        CarrierConfigManager.KEY_CARRIER_ROAMING_NTN_CONNECT_TYPE_INT,
-                        CarrierConfigManager.CARRIER_ROAMING_NTN_CONNECT_UNKNOWN);
+
+        if (config.connectType == CarrierConfigManager.CARRIER_ROAMING_NTN_CONNECT_UNKNOWN) {
+            config.connectType = getCarrierRoamingNtnConnectTypeForPlmn(subId, plmn);
+            plogd("updateCurrentSatellitePerPlmnConfiguration: using CarrierConfig for subId="
+                    + subId + ", plmn=" + plmn + ", connectType=" + config.connectType);
+        }
 
         int[] supportedSatelliteTechs = plmnSpecificConfig.getIntArray(
                 CarrierConfigManager.KEY_SATELLITE_TECHNOLOGY_INT_ARRAY);
@@ -10364,8 +10542,7 @@ public class SatelliteController extends Handler {
     public int[] getSupportedServicesOnCarrierRoamingNtn(int subId) {
         if (isValidSubscriptionId(subId) && isSatelliteSupportedViaCarrier(subId)) {
             int[] services = new int[0];
-            if (getConfigForSubId(subId).getBoolean(KEY_SATELLITE_ENTITLEMENT_SUPPORTED_BOOL,
-                    false)) {
+            if (isSatelliteEntitlementSupported(subId)) {
                 // check available services supported at entitlement for sub id
                 services = getAvailableServicesWithEntitlementForSubId(subId);
                 plogd("getSupportedServicesOnCarrierRoamingNtn[DataSource=Entitlement]: subId="
@@ -10907,11 +11084,15 @@ public class SatelliteController extends Handler {
 
         int newSource = SatelliteConstants.SATELLITE_ELIGIBILITY_SOURCE_UNKNOWN;
         boolean attachSupported = isSatelliteSupportedViaCarrier(subId);
-        boolean entitlementSupportedByCarrier = getConfigForSubId(subId).getBoolean(
-                KEY_SATELLITE_ENTITLEMENT_SUPPORTED_BOOL, false);
+        boolean entitlementSupportedByCarrier = isSatelliteEntitlementSupported(subId);
+        boolean entitlementSupportedByConfigupdater =
+                Boolean.TRUE.equals(isSatelliteEntitlementSupportedViaConfigupdater(subId));
+
         if (attachSupported) {
             if (entitlementSupportedByCarrier) {
                 newSource = SatelliteConstants.SATELLITE_ELIGIBILITY_SOURCE_ENTITLEMENT;
+            } else if (entitlementSupportedByConfigupdater) {
+                newSource = SatelliteConstants.SATELLITE_ELIGIBILITY_SOURCE_CONFIGUPDATER;
             } else {
                 newSource = SatelliteConstants.SATELLITE_ELIGIBILITY_SOURCE_CARRIER_CONFIG;
             }
@@ -11037,8 +11218,7 @@ public class SatelliteController extends Handler {
         }
 
         if (isValidSubscriptionId(subId)) {
-            Map<String, Integer> dataServicePolicy = getConfigForSubId(subId).getBoolean(
-                    KEY_SATELLITE_ENTITLEMENT_SUPPORTED_BOOL, false)
+            Map<String, Integer> dataServicePolicy = isSatelliteEntitlementSupported(subId)
                     ? mEntitlementDataServicePolicyMapPerCarrier.get(subId)
                     : null;
             plogd("getSatelliteDataServicePolicyForPlmn: dataServicePolicy=" + dataServicePolicy);
@@ -11364,16 +11544,14 @@ public class SatelliteController extends Handler {
     /** Returns whether the device is entitled for given subscription. */
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
     public boolean isDeviceEntitledForSubscription(int subId) {
-        PersistableBundle config = getConfigForSubId(subId);
-        boolean attachSupported = config.getBoolean(KEY_SATELLITE_ATTACH_SUPPORTED_BOOL);
+        boolean attachSupported = isSatelliteSupportedViaCarrier(subId);
         if (!attachSupported) {
             logd("isDeviceEntitledForSubscription: subId=" + subId
                     + ", satellite attach not supported, returning false");
             return false;
         }
 
-        boolean entitlementSupportedByCarrier = config.getBoolean(
-                KEY_SATELLITE_ENTITLEMENT_SUPPORTED_BOOL, false);
+        boolean entitlementSupportedByCarrier = isSatelliteEntitlementSupported(subId);
         if (entitlementSupportedByCarrier) {
             boolean isEntitled = mSatelliteEntitlementStatusPerCarrier.getOrDefault(subId,
                     false);

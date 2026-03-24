@@ -195,6 +195,8 @@ public class SatelliteConstants {
     public static final int SATELLITE_ENTITLEMENT_QUERY_TRIGGER_AIRPLANE_MODE_TOGGLE = 7;
     // Entitlement query retry
     public static final int SATELLITE_ENTITLEMENT_QUERY_TRIGGER_RETRY = 8;
+    // Entitlement refresh triggered on config data updated
+    public static final int SATELLITE_ENTITLEMENT_QUERY_TRIGGER_CONFIG_UPDATED = 9;
     @IntDef(prefix = {"SATELLITE_ENTITLEMENT_QUERY_"}, value = {
             SATELLITE_ENTITLEMENT_QUERY_TRIGGER_UNKNOWN,
             SATELLITE_ENTITLEMENT_QUERY_TRIGGER_BOOTUP,
@@ -204,7 +206,8 @@ public class SatelliteConstants {
             SATELLITE_ENTITLEMENT_QUERY_TRIGGER_FCM_TICKLE,
             SATELLITE_ENTITLEMENT_QUERY_TRIGGER_SIM_REFRESH,
             SATELLITE_ENTITLEMENT_QUERY_TRIGGER_AIRPLANE_MODE_TOGGLE,
-            SATELLITE_ENTITLEMENT_QUERY_TRIGGER_RETRY
+            SATELLITE_ENTITLEMENT_QUERY_TRIGGER_RETRY,
+            SATELLITE_ENTITLEMENT_QUERY_TRIGGER_CONFIG_UPDATED
     })
     @Retention(RetentionPolicy.SOURCE)
     public @interface SatelliteEntitlementQueryTrigger {}
@@ -219,12 +222,15 @@ public class SatelliteConstants {
     public static final int SATELLITE_ELIGIBILITY_SOURCE_ENTITLEMENT = 1;
     // Service is available based on a carrier configuration for the subscription.
     public static final int SATELLITE_ELIGIBILITY_SOURCE_CARRIER_CONFIG = 2;
+    // Service is available based on a configupdater for the subscription.
+    public static final int SATELLITE_ELIGIBILITY_SOURCE_CONFIGUPDATER = 3;
 
     /** @hide */
     @IntDef(prefix = {"SATELLITE_ELIGIBILITY_SOURCE_"}, value = {
             SATELLITE_ELIGIBILITY_SOURCE_UNKNOWN,
             SATELLITE_ELIGIBILITY_SOURCE_ENTITLEMENT,
-            SATELLITE_ELIGIBILITY_SOURCE_CARRIER_CONFIG
+            SATELLITE_ELIGIBILITY_SOURCE_CARRIER_CONFIG,
+            SATELLITE_ELIGIBILITY_SOURCE_CONFIGUPDATER
     })
     @Retention(RetentionPolicy.SOURCE)
     public @interface SatelliteEligibilitySource {}
