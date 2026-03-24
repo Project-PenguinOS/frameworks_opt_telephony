@@ -8365,6 +8365,13 @@ public class SatelliteController extends Handler {
             return;
         }
 
+        if (mIsNotificationShowing.get() == visible) {
+            logd("updateSatelliteSystemNotification: visibility unchanged. "
+                    + "mIsNotificationShowing=" + mIsNotificationShowing.get()
+                    + ", visible=" + visible);
+            return;
+        }
+
         plogd(
                 "updateSatelliteSystemNotification subId="
                         + subId
