@@ -216,13 +216,8 @@ public class DataProfileManager extends Handler {
         mPhone.getContext().getContentResolver().registerContentObserver(
                 Telephony.Carriers.CONTENT_URI, true, new ContentObserver(this) {
                     @Override
-                    public void onChange(boolean selfChange, Uri uri) {
-                        final Uri restoreUri =
-                                Uri.withAppendedPath(Telephony.Carriers.CONTENT_URI, "restore");
-                        if (uri != null && uri.toString().startsWith(restoreUri.toString())) {
-                            log("Received APN settings reset notification. Clearing cache.");
-                            mLastInternetDataProfiles.evictAll();
-                        }
+                    public void onChange(boolean selfChange) {
+                        super.onChange(selfChange);
                         sendEmptyMessage(EVENT_APN_DATABASE_CHANGED);
                     }
                 });
