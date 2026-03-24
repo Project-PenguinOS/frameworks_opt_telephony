@@ -73,6 +73,7 @@ import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -87,6 +88,7 @@ import android.content.ContentValues;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.Uri;
+import android.os.Binder;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -5005,6 +5007,114 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
         }
     }
 
+    @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
+    public void testCanManageSubscriptionAsUser() {
+        SubscriptionInfo subInfo = FAKE_SUBSCRIPTION_INFO1.toSubscriptionInfo();
+        UserHandle userHandle = FAKE_USER_HANDLE;
+        int subId = insertSubscription(FAKE_SUBSCRIPTION_INFO1);
+
+        // Mock TelephonyManager for the subId
+        TelephonyManager mockTm = Mockito.mock(TelephonyManager.class);
+        doReturn(mockTm).when(mTelephonyManager).createForSubscriptionId(eq(subId));
+        doReturn(TelephonyManager.CARRIER_PRIVILEGE_STATUS_HAS_ACCESS)
+                .when(mockTm).checkCarrierPrivilegesForPackage(eq(CALLING_PACKAGE));
+        doReturn(FAKE_CARRIER_ID1).when(mockTm).getSimCarrierId();
+
+        // Caller does NOT have READ_PRIVILEGED_PHONE_STATE, packageName is "self"
+        String selfPackageName = mContext.getPackageName();
+        doNothing().when(mAppOpsManager).checkPackage(anyInt(), eq(selfPackageName));
+        doReturn(TelephonyManager.CARRIER_PRIVILEGE_STATUS_HAS_ACCESS)
+                .when(mockTm).checkCarrierPrivilegesForPackage(eq(selfPackageName));
+        assertThat(mSubscriptionManagerServiceUT.canManageSubscriptionAsUser(
+                subInfo, selfPackageName, userHandle)).isTrue();
+        verify(mAppOpsManager).checkPackage(Binder.getCallingUid(), selfPackageName);
+
+        doReturn(TelephonyManager.CARRIER_PRIVILEGE_STATUS_NO_ACCESS)
+                .when(mockTm).checkCarrierPrivilegesForPackage(eq(selfPackageName));
+        assertThat(mSubscriptionManagerServiceUT.canManageSubscriptionAsUser(
+                subInfo, selfPackageName, userHandle)).isFalse();
+
+        // Caller does NOT have READ_PRIVILEGED_PHONE_STATE, packageName is NOT "self"
+        // And AppOpsManager check fails
+        Mockito.clearInvocations(mAppOpsManager);
+        doThrow(new SecurityException())
+                .when(mAppOpsManager).checkPackage(anyInt(), eq(CALLING_PACKAGE));
+        assertThrows(SecurityException.class, () ->
+                mSubscriptionManagerServiceUT.canManageSubscriptionAsUser(
+                        subInfo, CALLING_PACKAGE, userHandle));
+        verify(mAppOpsManager).checkPackage(Binder.getCallingUid(), CALLING_PACKAGE);
+
+        // Caller has READ_PRIVILEGED_PHONE_STATE
+        mContextFixture.addCallingOrSelfPermission(Manifest.permission.READ_PRIVILEGED_PHONE_STATE);
+        Mockito.clearInvocations(mAppOpsManager);
+
+        doReturn(TelephonyManager.CARRIER_PRIVILEGE_STATUS_HAS_ACCESS)
+                .when(mockTm).checkCarrierPrivilegesForPackage(eq(selfPackageName));
+        assertThat(mSubscriptionManagerServiceUT.canManageSubscriptionAsUser(
+                subInfo, selfPackageName, userHandle)).isTrue();
+
+        doReturn(TelephonyManager.CARRIER_PRIVILEGE_STATUS_NO_ACCESS)
+                .when(mockTm).checkCarrierPrivilegesForPackage(eq(selfPackageName));
+
+        assertThat(mSubscriptionManagerServiceUT.canManageSubscriptionAsUser(
+                subInfo, selfPackageName, userHandle)).isFalse();
+        verify(mAppOpsManager, never()).checkPackage(Binder.getCallingUid(), selfPackageName);
+
+        mContextFixture.removeCallingOrSelfPermission(
+                Manifest.permission.READ_PRIVILEGED_PHONE_STATE);
+    }
+
+    @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
+    public void testCanManageSubscription_CarrierIdMatch() {
+        // This test requires the CarrierId matching to be supported
+        Mockito.reset(mFeatureFlags);
+        doReturn(true).when(mFeatureFlags)
+                .downloadableSubscriptionIncludeCarrierIdentifierInternal();
+
+        mContextFixture.addCallingOrSelfPermission(Manifest.permission.READ_PRIVILEGED_PHONE_STATE);
+
+        int subId = insertSubscription(FAKE_SUBSCRIPTION_INFO1);
+        SubscriptionInfo subInfo = FAKE_SUBSCRIPTION_INFO1.toSubscriptionInfo();
+
+        // The subscriptions should be mostly different, but subInfo2 should
+        // share a CarrierId with subInfo
+        SubscriptionInfoInternal targetSubscriptionInfoInternal = new SubscriptionInfoInternal
+                .Builder(FAKE_SUBSCRIPTION_INFO2)
+                .setCarrierId(subInfo.getCarrierId()).build();
+        int targetSubId = insertSubscription(targetSubscriptionInfoInternal);
+        SubscriptionInfo targetSubInfo = targetSubscriptionInfoInternal.toSubscriptionInfo();
+
+        TelephonyManager mockTm = Mockito.mock(TelephonyManager.class);
+        doReturn(mockTm).when(mTelephonyManager).createForSubscriptionId(eq(subId));
+        doReturn(TelephonyManager.CARRIER_PRIVILEGE_STATUS_HAS_ACCESS)
+                .when(mockTm).checkCarrierPrivilegesForPackage(eq(CALLING_PACKAGE));
+        doReturn(FAKE_CARRIER_ID1).when(mockTm).getSimCarrierId();
+
+        TelephonyManager mockTargetTm = Mockito.mock(TelephonyManager.class);
+        doReturn(mockTargetTm).when(mTelephonyManager).createForSubscriptionId(eq(targetSubId));
+        doReturn(TelephonyManager.CARRIER_PRIVILEGE_STATUS_NO_ACCESS)
+                .when(mockTargetTm).checkCarrierPrivilegesForPackage(eq(CALLING_PACKAGE));
+        doReturn(FAKE_CARRIER_ID1).when(mockTargetTm).getSimCarrierId();
+
+        assertThat(
+                mSubscriptionManagerServiceUT
+                        .canManageSubscriptionAsUser(
+                                targetSubInfo, CALLING_PACKAGE, FAKE_USER_HANDLE))
+                                        .isTrue();
+
+        // Now remove Carrier Privileges from the source subscription and confirm that the
+        // target subscription can no longer be managed.
+        doReturn(TelephonyManager.CARRIER_PRIVILEGE_STATUS_NO_ACCESS)
+                .when(mockTm).checkCarrierPrivilegesForPackage(eq(CALLING_PACKAGE));
+        assertThat(
+                mSubscriptionManagerServiceUT
+                        .canManageSubscriptionAsUser(
+                                targetSubInfo, CALLING_PACKAGE, FAKE_USER_HANDLE))
+                                        .isFalse();
+    }
+
     /**
      * Helper to mock Carrier Privileges for the specific test package
      */
@@ -5412,3 +5522,4 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
                 .getEnrollableSubscriptionPlans(subId, CALLING_PACKAGE)).isNull();
     }
 }
+

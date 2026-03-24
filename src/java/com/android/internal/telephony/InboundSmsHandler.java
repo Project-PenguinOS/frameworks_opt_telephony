@@ -1277,8 +1277,7 @@ public abstract class InboundSmsHandler extends StateMachine {
     }
 
     private boolean isMainUserUnlocked() {
-        UserHandle mainUser = mFeatureFlags.smsMmsDeliverBroadcastsRedirectToMainUser() ?
-                mUserManager.getMainUser() : null;
+        UserHandle mainUser = mUserManager.getMainUser();
         if (mainUser != null) {
             return mUserManager.isUserUnlocked(mainUser);
         }
@@ -1308,8 +1307,7 @@ public abstract class InboundSmsHandler extends StateMachine {
                 .setChannelId(NotificationChannelController.CHANNEL_ID_SMS);
         NotificationManager mNotificationManager =
             (NotificationManager) mContext.getSystemService(Context.NOTIFICATION_SERVICE);
-        UserHandle mainUser = mFeatureFlags.smsMmsDeliverBroadcastsRedirectToMainUser() ?
-                mUserManager.getMainUser() : null;
+        UserHandle mainUser = mUserManager.getMainUser();
         if (mainUser != null) {
             mNotificationManager.notifyAsUser(
                     NOTIFICATION_TAG, NOTIFICATION_ID_NEW_MESSAGE, mBuilder.build(), mainUser);
@@ -1484,8 +1482,7 @@ public abstract class InboundSmsHandler extends StateMachine {
                 } else {
                     long messageId = resultReceiver != null
                             ? resultReceiver.mInboundSmsTracker.getMessageId() : -1;
-                    if (mFeatureFlags.smsMmsDeliverBroadcastsRedirectToMainUser()
-                            && handle.equals(mainUser)) {
+                    if (handle.equals(mainUser)) {
                         logeWithLocalLog("dispatchIntent: MAIN user is not running", messageId);
                     } else if (handle.equals(UserHandle.SYSTEM)) {
                         logeWithLocalLog("dispatchIntent: SYSTEM user is not running", messageId);
@@ -1570,10 +1567,8 @@ public abstract class InboundSmsHandler extends StateMachine {
                     sendBroadcastForGenericOtp(intent, permission, appOp, opts, resultReceiver,
                             user);
                 } else {
-                    String smsRetrieverHashMatchedPackageName = getSmsRetrieverTargetPackageName(
-                            textLinks);
                     sendBroadcastToTrustedPackages(intent, permission, appOp, opts,
-                            resultReceiver, user, smsRetrieverHashMatchedPackageName);
+                            resultReceiver, user, getOtpTrustedPackagesFromTextLinks(textLinks));
                 }
             } else {
                 sendBroadcastWithStandardPermissions(intent, permission, appOp, opts,
@@ -1694,7 +1689,8 @@ public abstract class InboundSmsHandler extends StateMachine {
     // was matched to a specific app. This method extracts and returns the package name for that
     // intended app from the TextClassifier response.
     @Nullable
-    private String getSmsRetrieverTargetPackageName(@NonNull Collection<TextLinks.TextLink> links) {
+    private static String getSmsRetrieverTargetPackageNameFromTextLinks(
+            @NonNull Collection<TextLinks.TextLink> links) {
         for (TextLinks.TextLink link : links) {
             for (int i = 0; i < link.getEntityCount(); i++) {
                 if (link.getEntity(i).equals(TextClassifier.TYPE_SMS_RETRIEVER_OTP)) {
@@ -1704,6 +1700,51 @@ public abstract class InboundSmsHandler extends StateMachine {
             }
         }
         return null;
+    }
+
+    // When the TextClassifier detects an SMS_WEB_OTP type, it means a web domain is associated with
+    // the WebOTP message. This method returns the list of owner packages of that web domain,
+    // extracted from the TextClassifier response.
+    // TODO: b/478818593 - Consolidate TextLinks-related logic is repeated across multiple places.
+    @Nullable
+    private static ArrayList<String> getWebOtpOwnerPackagesFromTextLinks(
+            @NonNull Collection<TextLinks.TextLink> links) {
+        for (TextLinks.TextLink link : links) {
+            for (int i = 0; i < link.getEntityCount(); i++) {
+                if (android.view.flags.Flags.redactWebOtpSmsApi()
+                        && link.getEntity(i).equals(TextClassifier.TYPE_SMS_WEB_OTP)) {
+                    ArrayList<String> extraOtpTrustedPackages =
+                            link.getExtras().getStringArrayList(
+                                TextClassifier.EXTRA_OTP_TRUSTED_PACKAGES);
+                    if (extraOtpTrustedPackages != null && !extraOtpTrustedPackages.isEmpty()) {
+                        // There is only one domain per WebOTP message, hence there will only be
+                        // one corresponding list trusted packages for that domain.
+                        return extraOtpTrustedPackages;
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    // Returns additional trusted packages which are allowed to receive the OTP SMS broadcast.
+    // Returns an empty list if there are no additional trusted packages.
+    // NOTE: The returned list may contain duplicated packages.
+    @VisibleForTesting
+    public static List<String> getOtpTrustedPackagesFromTextLinks(
+            @NonNull Collection<TextLinks.TextLink> links) {
+        List<String> additionalTrustedPackageNames = new ArrayList<>();
+        // We allow the SMS Retriever Hash owner to receive the SMS broadcast.
+        String smsRetrieverTargetPackageName = getSmsRetrieverTargetPackageNameFromTextLinks(links);
+        if (smsRetrieverTargetPackageName != null) {
+            additionalTrustedPackageNames.add(smsRetrieverTargetPackageName);
+        }
+        // We allow domain owners of the corresponding Web OTPs to receive the SMS broadcast.
+        List<String> webOtpOwnerPackages = getWebOtpOwnerPackagesFromTextLinks(links);
+        if (webOtpOwnerPackages != null) {
+            additionalTrustedPackageNames.addAll(webOtpOwnerPackages);
+        }
+        return additionalTrustedPackageNames;
     }
 
     private void sendBroadcastWithStandardPermissions(Intent intent, String permission,
@@ -1720,10 +1761,10 @@ public abstract class InboundSmsHandler extends StateMachine {
     @SuppressLint("MissingPermission")
     private void sendBroadcastToTrustedPackages(Intent intent, String permission,
             String appOp, Bundle opts, SmsBroadcastReceiver resultReceiver, UserHandle user,
-            @Nullable String additionalTrustedPackage) {
+            @Nullable List<String> additionalTrustedPackages) {
         Set<String> trustedPackages = SmsManager.getSmsOtpTrustedPackages(mContext, user);
-        if (additionalTrustedPackage != null) {
-            trustedPackages.add(additionalTrustedPackage);
+        if (additionalTrustedPackages != null) {
+            trustedPackages.addAll(additionalTrustedPackages);
         }
         final String[] trustedPackagesArray = new String[trustedPackages.size()];
         int i = 0;
@@ -1788,11 +1829,7 @@ public abstract class InboundSmsHandler extends StateMachine {
 
     @SuppressLint("MissingPermission")
     private  boolean isMainUser(int userId) {
-        if (mFeatureFlags.smsMmsDeliverBroadcastsRedirectToMainUser()) {
-            return userId == mUserManager.getMainUser().getIdentifier();
-        } else {
-            return userId == UserHandle.SYSTEM.getIdentifier();
-        }
+        return userId == mUserManager.getMainUser().getIdentifier();
     }
 
     /**
@@ -2180,15 +2217,9 @@ public abstract class InboundSmsHandler extends StateMachine {
                 String mimeType = intent.getType();
 
                 setWaitingForIntent(intent);
-                if (mFeatureFlags.smsMmsDeliverBroadcastsRedirectToMainUser()) {
-                    dispatchIntent(intent, WapPushOverSms.getPermissionForType(mimeType),
-                            WapPushOverSms.getAppOpsStringPermissionForIntent(mimeType), options,
-                            this, mUserManager.getMainUser(), subId);
-                } else {
-                    dispatchIntent(intent, WapPushOverSms.getPermissionForType(mimeType),
-                            WapPushOverSms.getAppOpsStringPermissionForIntent(mimeType), options,
-                            this, UserHandle.SYSTEM, subId);
-                }
+                dispatchIntent(intent, WapPushOverSms.getPermissionForType(mimeType),
+                        WapPushOverSms.getAppOpsStringPermissionForIntent(mimeType), options,
+                        this, mUserManager.getMainUser(), subId);
             } else {
                 // Now that the intents have been deleted we can clean up the PDU data.
                 if (!Intents.DATA_SMS_RECEIVED_ACTION.equals(action)

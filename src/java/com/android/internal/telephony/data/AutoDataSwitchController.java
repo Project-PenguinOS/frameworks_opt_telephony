@@ -37,6 +37,7 @@ import static android.telephony.CarrierConfigManager.OPP_AUTO_DATA_SWITCH_POLICY
 import static android.telephony.CarrierConfigManager.OPP_AUTO_DATA_SWITCH_POLICY_FOLLOW_SYSTEM;
 import static android.telephony.CarrierConfigManager.OpportunisticNetworkSwitchPolicy;
 import static android.telephony.SubscriptionManager.DEFAULT_PHONE_INDEX;
+import static android.telephony.SubscriptionManager.DEFAULT_SUBSCRIPTION_ID;
 import static android.telephony.SubscriptionManager.INVALID_PHONE_INDEX;
 
 import android.annotation.IntDef;
@@ -911,137 +912,157 @@ public class AutoDataSwitchController extends Handler {
             return;
         }
 
-        int preferredPhoneId = mPhoneSwitcher.getPreferredDataPhoneId();
+        int currentPreferredPhoneId = mPhoneSwitcher.getPreferredDataPhoneId();
+        int opportunisticSetDataSubId = mPhoneSwitcher.getOpportunisticSetDataSubId();
+        int opportunisticSetDataPhoneId = opportunisticSetDataSubId == DEFAULT_SUBSCRIPTION_ID
+                ? INVALID_PHONE_INDEX
+                : mSubscriptionManagerService.getPhoneId(opportunisticSetDataSubId);
+        int stickyTargetPhoneId = isActiveModemPhone(opportunisticSetDataPhoneId)
+                ? opportunisticSetDataPhoneId : defaultDataPhoneId;
+
         StringBuilder debugMessage = new StringBuilder("onEvaluateAutoDataSwitch:");
         debugMessage.append(" defaultPhoneId: ").append(defaultDataPhoneId)
-                .append(" preferredPhoneId: ").append(preferredPhoneId)
+                .append(" currentPreferredPhoneId: ").append(currentPreferredPhoneId)
+                .append(" stickyTargetPhoneId: ").append(stickyTargetPhoneId)
                 .append(", reason: ").append(evaluationReasonToString(reason));
-        if (preferredPhoneId == defaultDataPhoneId) {
-            // on default data sub
-            StabilityEventExtra res = evaluateAnyCandidateToUse(defaultDataPhoneId, debugMessage);
-            logl(debugMessage.toString());
-            if (res.targetPhoneId != INVALID_PHONE_INDEX) {
-                mSelectedTargetPhoneId = res.targetPhoneId;
-                startStabilityCheck(res.targetPhoneId, res.switchType, res.needValidation);
-            } else {
-                cancelAnyPendingSwitch();
-            }
+
+        if (currentPreferredPhoneId == stickyTargetPhoneId) {
+            onEvaluateAutoDataSwitchOutOfTarget(stickyTargetPhoneId, defaultDataPhoneId,
+                    debugMessage);
         } else {
-            // on backup data sub
-            Phone backupDataPhone = PhoneFactory.getPhone(preferredPhoneId);
-            if (backupDataPhone == null || !isActiveModemPhone(preferredPhoneId)) {
-                logle(debugMessage.append(" Unexpected null phone ").append(preferredPhoneId)
-                        .append(" as the current active data phone").toString());
-                return;
-            }
+            onEvaluateAutoDataSwitchToTarget(stickyTargetPhoneId, currentPreferredPhoneId,
+                    defaultDataPhoneId, debugMessage);
+        }
+    }
 
-            DataEvaluation internetEvaluation;
-            if (!defaultDataPhone.isUserDataEnabled()) {
-                mSelectedTargetPhoneId = INVALID_PHONE_INDEX;
-                mPhoneSwitcherCallback.onRequireImmediatelySwitchToPhone(DEFAULT_PHONE_INDEX,
-                        EVALUATION_REASON_DATA_SETTINGS_CHANGED);
-                cancelAnyPendingSwitch();
-                logl(debugMessage.append(
-                        ", immediately back to default as user turns off default").toString());
-                return;
-// QTI_BEGIN: 2025-10-14: Telephony: Google Auto DDS FR changes
-            } else if (autoDdsValueAddedEvaluationforDdsRevert()) {
-                mSelectedTargetPhoneId = INVALID_PHONE_INDEX;
-                mPhoneSwitcherCallback.onRequireImmediatelySwitchToPhone(
-                        DEFAULT_PHONE_INDEX, EVALUATION_REASON_DATA_SETTINGS_CHANGED);
-                cancelAnyPendingSwitch();
-                log(debugMessage.append(
-                        ", immediately back to default as additional value added evaluation")
-                        .toString());
-// QTI_END: 2025-10-14: Telephony: Google Auto DDS FR changes
-            } else if (!(internetEvaluation = getInternetEvaluation(backupDataPhone))
-                    .isSubsetOf(DataEvaluation.DataDisallowedReason.NOT_IN_SERVICE)) {
-                mSelectedTargetPhoneId = INVALID_PHONE_INDEX;
-                mPhoneSwitcherCallback.onRequireImmediatelySwitchToPhone(
-                        DEFAULT_PHONE_INDEX, EVALUATION_REASON_DATA_SETTINGS_CHANGED);
-                cancelAnyPendingSwitch();
-                logl(debugMessage.append(
-                                ", immediately back to default because backup ")
-                        .append(internetEvaluation).toString());
-                return;
-            }
+    private void onEvaluateAutoDataSwitchOutOfTarget(int stickyTargetPhoneId,
+            int defaultDataPhoneId, StringBuilder debugMessage) {
+        // on target data sub
+        StabilityEventExtra res = evaluateSwitchOutOfTarget(stickyTargetPhoneId, debugMessage);
+        logl(debugMessage.toString());
+        if (res.targetPhoneId != INVALID_PHONE_INDEX) {
+            int phoneIdToReport = (res.targetPhoneId == defaultDataPhoneId)
+                    ? DEFAULT_PHONE_INDEX : res.targetPhoneId;
+            mSelectedTargetPhoneId = res.targetPhoneId;
+            startStabilityCheck(phoneIdToReport, res.switchType, res.needValidation);
+        } else {
+            cancelAnyPendingSwitch();
+        }
+    }
 
-            boolean backToDefault = false;
-            int switchType = STABILITY_CHECK_AVAILABILITY_SWITCH;
-            boolean needValidation = true;
+    private void onEvaluateAutoDataSwitchToTarget(int stickyTargetPhoneId,
+            int currentPreferredPhoneId, int defaultDataPhoneId, StringBuilder debugMessage) {
+        // on backup data sub
+        Phone backupDataPhone = PhoneFactory.getPhone(currentPreferredPhoneId);
+        if (backupDataPhone == null || !isActiveModemPhone(currentPreferredPhoneId)) {
+            logle(debugMessage.append(" Unexpected null phone ").append(currentPreferredPhoneId)
+                    .append(" as the current active data phone").toString());
+            return;
+        }
 
-            if (mDefaultNetworkIsOnNonCellular) {
-                debugMessage.append(", back to default as default network")
-                        .append(" is active on nonCellular transport");
-                backToDefault = true;
-                needValidation = false;
-            } else {
-                PhoneSignalStatus.UsableState defaultUsableState =
-                        mPhonesSignalStatus[defaultDataPhoneId].getUsableState();
-                PhoneSignalStatus.UsableState currentUsableState =
-                        mPhonesSignalStatus[preferredPhoneId].getUsableState();
+        DataEvaluation internetEvaluation;
+        if (!PhoneFactory.getPhone(defaultDataPhoneId).isUserDataEnabled()) {
+            mSelectedTargetPhoneId = INVALID_PHONE_INDEX;
+            // Switch back to default immediately if default data is disabled
+            mPhoneSwitcherCallback.onRequireImmediatelySwitchToPhone(DEFAULT_PHONE_INDEX,
+                    EVALUATION_REASON_DATA_SETTINGS_CHANGED);
 
-                boolean isCurrentUsable = currentUsableState.mScore
-                        > PhoneSignalStatus.UsableState.NOT_USABLE.mScore;
+            cancelAnyPendingSwitch();
+            logl(debugMessage.append(
+                    ", immediately back to default as user turns off default data").toString());
+            return;
+        } else if (autoDdsValueAddedEvaluationforDdsRevert()) {
+            mSelectedTargetPhoneId = INVALID_PHONE_INDEX;
+            mPhoneSwitcherCallback.onRequireImmediatelySwitchToPhone(
+                    DEFAULT_PHONE_INDEX, EVALUATION_REASON_DATA_SETTINGS_CHANGED);
+            cancelAnyPendingSwitch();
+            log(debugMessage.append(
+                    ", immediately back to default as additional value added evaluation")
+                    .toString());
+        } else if (!(internetEvaluation = getInternetEvaluation(backupDataPhone))
+                .isSubsetOf(DataEvaluation.DataDisallowedReason.NOT_IN_SERVICE)) {
+            mSelectedTargetPhoneId = INVALID_PHONE_INDEX;
+            int phoneIdToReport = (stickyTargetPhoneId == defaultDataPhoneId)
+                    ? DEFAULT_PHONE_INDEX : stickyTargetPhoneId;
+            mPhoneSwitcherCallback.onRequireImmediatelySwitchToPhone(
+                    phoneIdToReport, EVALUATION_REASON_DATA_SETTINGS_CHANGED);
+            cancelAnyPendingSwitch();
+            logl(debugMessage.append(
+                            ", immediately back to target because backup ")
+                    .append(internetEvaluation).toString());
+            return;
+        }
 
-                if (currentUsableState.mScore < defaultUsableState.mScore) {
-                    debugMessage.append(", back to default phone ").append(preferredPhoneId)
-                            .append(" : ").append(defaultUsableState)
-                            .append(" , backup phone: ").append(currentUsableState);
+        StabilityEventExtra eventExtra = evaluateSwitchToTarget(stickyTargetPhoneId,
+                currentPreferredPhoneId, debugMessage);
 
-                    backToDefault = true;
-                    // Require validation if the current preferred phone is usable.
-                    needValidation = isCurrentUsable && mRequirePingTestBeforeSwitch;
-                } else if (defaultUsableState.mScore == currentUsableState.mScore) {
-                    debugMessage.append(", default phone ").append(preferredPhoneId)
-                            .append(" : ").append(defaultUsableState)
-                            .append(" , backup phone: ").append(currentUsableState);
+        logl(debugMessage.toString());
+        if (eventExtra != null) {
+            int phoneIdToReport = (stickyTargetPhoneId == defaultDataPhoneId)
+                    ? DEFAULT_PHONE_INDEX : stickyTargetPhoneId;
+            mSelectedTargetPhoneId = stickyTargetPhoneId;
+            startStabilityCheck(phoneIdToReport, eventExtra.switchType, eventExtra.needValidation);
+        } else {
+            // cancel any previous attempts of switching back to target phone
+            cancelAnyPendingSwitch();
+        }
+    }
 
-                    if (isCurrentUsable) {
-                        // Both phones are usable.
-                        if (isRatSignalStrengthBasedSwitchEnabled()
-                                && currentUsableState == PhoneSignalStatus.UsableState.HOME
-                                && defaultUsableState == PhoneSignalStatus.UsableState.HOME) {
-                            int defaultScore = mPhonesSignalStatus[defaultDataPhoneId]
-                                    .getRatSignalScore();
-                            int currentScore = mPhonesSignalStatus[preferredPhoneId]
-                                    .getRatSignalScore();
-                            if ((currentScore - defaultScore) <= mScoreTolerance) {
-                                debugMessage
-                                        .append(", back to default for score ")
-                                        .append(defaultScore).append(" versus current ")
-                                        .append(currentScore);
-                                backToDefault = true;
-                                switchType = STABILITY_CHECK_PERFORMANCE_SWITCH;
-                                needValidation = mRequirePingTestBeforeSwitch;
-                            } else {
-                                debugMessage.append(", default's score ").append(defaultScore)
-                                        .append(" doesn't justify the switch given the current ")
-                                        .append(currentScore);
-                            }
-                        } else {
-                            // Only OOS/in service switch is enabled, switch back.
-                            debugMessage.append(", back to default as it's usable. ");
-                            backToDefault = true;
-                            needValidation = mRequirePingTestBeforeSwitch;
-                        }
-                    } else {
-                        debugMessage.append(", back to default as both phones are unusable.");
-                        backToDefault = true;
-                        switchType = STABILITY_CHECK_AVAILABILITY_SWITCH_BACK;
-                        needValidation = false;
-                    }
-                }
-            }
+    private StabilityEventExtra evaluateSwitchToTarget(int targetPhoneId,
+            int currentPhoneId, StringBuilder debugMessage) {
+        if (mDefaultNetworkIsOnNonCellular) {
+            debugMessage.append(", back to target as default network")
+                    .append(" is active on nonCellular transport");
+            return new StabilityEventExtra(targetPhoneId, STABILITY_CHECK_AVAILABILITY_SWITCH,
+                    false);
+        }
 
-            logl(debugMessage.toString());
-            if (backToDefault) {
-                mSelectedTargetPhoneId = defaultDataPhoneId;
-                startStabilityCheck(DEFAULT_PHONE_INDEX, switchType, needValidation);
-            } else {
-                // cancel any previous attempts of switching back to default phone
-                cancelAnyPendingSwitch();
-            }
+        PhoneSignalStatus.UsableState targetUsableState =
+                mPhonesSignalStatus[targetPhoneId].getUsableState();
+        PhoneSignalStatus.UsableState currentUsableState =
+                mPhonesSignalStatus[currentPhoneId].getUsableState();
+
+        debugMessage.append(", target phone ").append(targetPhoneId)
+                .append(" : ").append(targetUsableState)
+                .append(" , current phone: ").append(currentUsableState);
+
+        int comparison = comparePhones(currentPhoneId, targetPhoneId, debugMessage);
+
+        if (comparison > 0) {
+            // Current is better (meaning Candidate/Current > Target)
+            return null;
+        }
+
+        boolean isCurrentUsable = currentUsableState.mScore
+                > PhoneSignalStatus.UsableState.NOT_USABLE.mScore;
+
+        if (comparison < 0) {
+            // Target is strictly better (Target > Current)
+            // Require validation if the current preferred phone is usable.
+            return new StabilityEventExtra(targetPhoneId, STABILITY_CHECK_AVAILABILITY_SWITCH,
+                    isCurrentUsable && mRequirePingTestBeforeSwitch);
+        }
+
+        // Comparison == 0. Both phones are in the same usable state and within score tolerance.
+        if (!isCurrentUsable) {
+            debugMessage.append(", back to target as both phones are unusable.");
+            return new StabilityEventExtra(targetPhoneId,
+                    STABILITY_CHECK_AVAILABILITY_SWITCH_BACK, false);
+        }
+
+        // Both phones are usable.
+        // Check if it was a performance comparison (meaning both are HOME and feature enabled)
+        if (isRatSignalStrengthBaseSwitchQualified(currentUsableState, targetUsableState)) {
+            // It was a score comparison, and they are within tolerance.
+            // Bias towards target (switch back).
+            return new StabilityEventExtra(targetPhoneId,
+                    STABILITY_CHECK_PERFORMANCE_SWITCH, mRequirePingTestBeforeSwitch);
+        } else {
+            // Usability was equal (e.g. both ROAMING, or feature disabled), not a score comparison.
+            // Bias towards target.
+            debugMessage.append(", back to target as it's usable. ");
+            return new StabilityEventExtra(targetPhoneId,
+                    STABILITY_CHECK_AVAILABILITY_SWITCH, mRequirePingTestBeforeSwitch);
         }
     }
 
@@ -1059,24 +1080,24 @@ public class AutoDataSwitchController extends Handler {
 
 // QTI_END: 2025-10-14: Telephony: Google Auto DDS FR changes
     /**
-     * Called when consider switching from primary default data sub to another data sub.
-     * @param defaultPhoneId The default data phone
+     * Called when consider switching from sticky target sub to another data sub.
+     * @param stickyTargetPhoneId The default/target data phone
      * @param debugMessage Debug message.
      * @return StabilityEventExtra As evaluation result.
      */
-    @NonNull private StabilityEventExtra evaluateAnyCandidateToUse(int defaultPhoneId,
+    @NonNull private StabilityEventExtra evaluateSwitchOutOfTarget(int stickyTargetPhoneId,
             @NonNull StringBuilder debugMessage) {
-        Phone defaultDataPhone = PhoneFactory.getPhone(defaultPhoneId);
+        Phone targetDataPhone = PhoneFactory.getPhone(stickyTargetPhoneId);
         int switchType = STABILITY_CHECK_AVAILABILITY_SWITCH;
         StabilityEventExtra invalidResult = new StabilityEventExtra(INVALID_PHONE_INDEX,
                 switchType, mRequirePingTestBeforeSwitch);
 
-        if (defaultDataPhone == null) {
+        if (targetDataPhone == null) {
             debugMessage.append(", no candidate as no sim loaded");
             return invalidResult;
         }
 
-        if (!defaultDataPhone.isUserDataEnabled()) {
+        if (!targetDataPhone.isUserDataEnabled()) {
             debugMessage.append(", no candidate as user disabled mobile data");
             return invalidResult;
         }
@@ -1089,43 +1110,35 @@ public class AutoDataSwitchController extends Handler {
 
         // check whether primary and secondary signal status are worth switching
         if (!isRatSignalStrengthBasedSwitchEnabled()
-                && isHomeService(mPhonesSignalStatus[defaultPhoneId].mDataRegState)) {
-            debugMessage.append(", no candidate as default phone is in HOME service");
+                && isHomeService(mPhonesSignalStatus[stickyTargetPhoneId].mDataRegState)) {
+            debugMessage.append(", no candidate as target phone is in HOME service");
             return invalidResult;
         }
 
-        PhoneSignalStatus defaultPhoneStatus = mPhonesSignalStatus[defaultPhoneId];
         for (int phoneId = 0; phoneId < mPhonesSignalStatus.length; phoneId++) {
-            if (phoneId == defaultPhoneId) continue;
+            if (phoneId == stickyTargetPhoneId) continue;
 
             Phone secondaryDataPhone = null;
-            PhoneSignalStatus candidatePhoneStatus = mPhonesSignalStatus[phoneId];
-            PhoneSignalStatus.UsableState currentUsableState =
-                    mPhonesSignalStatus[defaultPhoneId].getUsableState();
-            PhoneSignalStatus.UsableState candidateUsableState =
-                    mPhonesSignalStatus[phoneId].getUsableState();
-            debugMessage.append(", found phone ").append(phoneId).append(" ")
-                    .append(candidateUsableState)
-                    .append(", default is ").append(currentUsableState);
-            if (candidateUsableState.mScore > currentUsableState.mScore) {
-                secondaryDataPhone = PhoneFactory.getPhone(phoneId);
-            } else if (isRatSignalStrengthBasedSwitchEnabled()
-                    && currentUsableState == PhoneSignalStatus.UsableState.HOME
-                    && candidateUsableState == PhoneSignalStatus.UsableState.HOME) {
-                // Both phones are home, so compare RAT/signal score.
+            debugMessage.append(", found phone ").append(phoneId);
 
-                int defaultScore = defaultPhoneStatus.getRatSignalScore();
-                int candidateScore = candidatePhoneStatus.getRatSignalScore();
-                if ((candidateScore - defaultScore) > mScoreTolerance) {
-                    debugMessage.append(" with ").append(defaultScore)
-                            .append(" versus candidate higher score ").append(candidateScore);
-                    secondaryDataPhone = PhoneFactory.getPhone(phoneId);
+            int comparison = comparePhones(phoneId, stickyTargetPhoneId, debugMessage);
+
+            if (comparison > 0) {
+                // Candidate is better
+                secondaryDataPhone = PhoneFactory.getPhone(phoneId);
+                // Determine switch type based on usability or performance
+                PhoneSignalStatus.UsableState currentUsableState =
+                        mPhonesSignalStatus[stickyTargetPhoneId].getUsableState();
+                PhoneSignalStatus.UsableState candidateUsableState =
+                        mPhonesSignalStatus[phoneId].getUsableState();
+                if (isRatSignalStrengthBaseSwitchQualified(currentUsableState,
+                        candidateUsableState)) {
                     switchType = STABILITY_CHECK_PERFORMANCE_SWITCH;
                 } else {
-                    debugMessage.append(", candidate's score ").append(candidateScore)
-                            .append(" doesn't justify the switch given the current ")
-                            .append(defaultScore);
+                    switchType = STABILITY_CHECK_AVAILABILITY_SWITCH;
                 }
+            } else {
+                debugMessage.append(" not better than target");
             }
 
             if (secondaryDataPhone != null) {
@@ -1142,6 +1155,51 @@ public class AutoDataSwitchController extends Handler {
         }
         debugMessage.append(", found no qualified candidate.");
         return invalidResult;
+    }
+
+    /**
+     * Compares two phones to determine which one is "better".
+     *
+     * @param candidateId The phone ID of the candidate.
+     * @param baselineId The phone ID of the baseline (e.g. current default or preferred).
+     * @param debugMessage StringBuilder for debug logs.
+     * @return 1 if candidate is better, -1 if baseline is better, 0 if equal (within tolerance).
+     */
+    private int comparePhones(int candidateId, int baselineId, StringBuilder debugMessage) {
+        PhoneSignalStatus.UsableState candidateState =
+                mPhonesSignalStatus[candidateId].getUsableState();
+        PhoneSignalStatus.UsableState baselineState =
+                mPhonesSignalStatus[baselineId].getUsableState();
+
+        if (candidateState.mScore > baselineState.mScore) {
+            return 1;
+        } else if (candidateState.mScore < baselineState.mScore) {
+            return -1;
+        }
+
+        // Usable states are equal.
+        if (isRatSignalStrengthBaseSwitchQualified(baselineState, candidateState)) {
+            int baselineScore = mPhonesSignalStatus[baselineId].getRatSignalScore();
+            int candidateScore = mPhonesSignalStatus[candidateId].getRatSignalScore();
+            int diff = candidateScore - baselineScore;
+
+            if (diff > mScoreTolerance) {
+                debugMessage.append(" candidate score ").append(candidateScore)
+                        .append(" > baseline ").append(baselineScore);
+                return 1;
+            } else if (diff < -mScoreTolerance) {
+                // If candidate is significantly worse (baseline significantly better)
+                debugMessage.append(" candidate score ").append(candidateScore)
+                        .append(" < baseline ").append(baselineScore);
+                return -1;
+            } else {
+                debugMessage.append(" candidate score ").append(candidateScore)
+                        .append(" within tolerance of baseline ").append(baselineScore);
+                return 0;
+            }
+        }
+
+        return 0;
     }
 
     /**
@@ -1190,6 +1248,14 @@ public class AutoDataSwitchController extends Handler {
 
         // Switch between primary and OPPT networks is controlled by both device and carrier configs
         return shouldExcludeOpportunisticForSwitch() || isPerformanceBasedSwitchEnabledForOppt();
+    }
+
+    private boolean isRatSignalStrengthBaseSwitchQualified(
+            PhoneSignalStatus.UsableState currentUsableState,
+            PhoneSignalStatus.UsableState candidateUsableState) {
+        return isRatSignalStrengthBasedSwitchEnabled()
+                && currentUsableState == PhoneSignalStatus.UsableState.HOME
+                && candidateUsableState == PhoneSignalStatus.UsableState.HOME;
     }
 
     /**

@@ -218,7 +218,7 @@ public class RadioDataProxy extends RadioServiceProxy {
             android.hardware.radio.data.DataProfileInfo[] dpis =
                     new android.hardware.radio.data.DataProfileInfo[profiles.length];
             for (int i = 0; i < profiles.length; i++) {
-                dpis[i] = RILUtils.convertToHalDataProfile(profiles[i]);
+                dpis[i] = RILUtils.convertToHalDataProfile(profiles[i], mHalVersion);
             }
             mDataProxy.setDataProfile(serial, dpis);
         } else if (mHalVersion.greaterOrEqual(RIL.RADIO_HAL_VERSION_1_5)) {
@@ -265,7 +265,8 @@ public class RadioDataProxy extends RadioServiceProxy {
             throws RemoteException {
         if (isEmpty()) return;
         if (isAidl()) {
-            mDataProxy.setInitialAttachApn(serial, RILUtils.convertToHalDataProfile(dataProfile));
+            mDataProxy.setInitialAttachApn(serial,
+                    RILUtils.convertToHalDataProfile(dataProfile, mHalVersion));
         } else if (mHalVersion.greaterOrEqual(RIL.RADIO_HAL_VERSION_1_5)) {
             ((android.hardware.radio.V1_5.IRadio) mRadioProxy).setInitialAttachApn_1_5(serial,
                     RILUtils.convertToHalDataProfile15(dataProfile));
@@ -320,7 +321,8 @@ public class RadioDataProxy extends RadioServiceProxy {
                     .setTrafficDescriptor(trafficDescriptor)
                     .setApnSetting(dataProfileInfo.getApnSetting())
                     .build();
-            mDataProxy.setupDataCall(serial, accessNetwork, RILUtils.convertToHalDataProfile(dp),
+            mDataProxy.setupDataCall(serial, accessNetwork,
+                    RILUtils.convertToHalDataProfile(dp, mHalVersion),
                     roamingAllowed, reason, RILUtils.convertToHalLinkProperties(linkProperties),
                     dnsesArr, pduSessionId, RILUtils.convertToHalSliceInfoAidl(sliceInfo),
                     matchAllRuleAllowed);

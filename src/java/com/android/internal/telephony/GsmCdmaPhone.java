@@ -412,7 +412,7 @@ public class GsmCdmaPhone extends Phone {
         if (hasCalling()) {
             post(() -> loadTtyMode());
 
-            CallManager.getInstance().registerPhone(this);
+            CallManager.getInstance(context).registerPhone(this);
         }
 
         mSubscriptionsChangedListener =
@@ -447,11 +447,11 @@ public class GsmCdmaPhone extends Phone {
                 }
             } else if (TelecomManager.ACTION_CURRENT_TTY_MODE_CHANGED.equals(action)) {
                 int ttyMode = intent.getIntExtra(
-                        TelecomManager.EXTRA_CURRENT_TTY_MODE, TelecomManager.TTY_MODE_OFF);
+                        TelecomManager.EXTRA_CURRENT_TTY_MODE, TelephonyManager.TTY_MODE_OFF);
                 updateTtyMode(ttyMode);
             } else if (TelecomManager.ACTION_TTY_PREFERRED_MODE_CHANGED.equals(action)) {
                 int newPreferredTtyMode = intent.getIntExtra(
-                        TelecomManager.EXTRA_TTY_PREFERRED_MODE, TelecomManager.TTY_MODE_OFF);
+                        TelecomManager.EXTRA_TTY_PREFERRED_MODE, TelephonyManager.TTY_MODE_OFF);
                 updateUiTtyMode(newPreferredTtyMode);
             } else if (TelephonyManager.ACTION_SIM_APPLICATION_STATE_CHANGED.equals(action)
                            || TelephonyManager.ACTION_SIM_CARD_STATE_CHANGED.equals(action)) {
@@ -4090,25 +4090,25 @@ public class GsmCdmaPhone extends Phone {
 
     private void updateTtyMode(int ttyMode) {
         logi(String.format("updateTtyMode ttyMode=%d", ttyMode));
-        setTTYMode(telecomModeToPhoneMode(ttyMode), null);
+        setTTYMode(ttyModeToPhoneMode(ttyMode), null);
     }
     private void updateUiTtyMode(int ttyMode) {
         logi(String.format("updateUiTtyMode ttyMode=%d", ttyMode));
-        setUiTTYMode(telecomModeToPhoneMode(ttyMode), null);
+        setUiTTYMode(ttyModeToPhoneMode(ttyMode), null);
     }
 
     /**
-     * Given a telecom TTY mode, convert to a Telephony mode equivalent.
-     * @param telecomMode Telecom TTY mode.
+     * Given a TTY mode, convert to a Telephony mode equivalent.
+     * @param ttyMode TTY mode.
      * @return Telephony phone TTY mode.
      */
-    private static int telecomModeToPhoneMode(int telecomMode) {
-        switch (telecomMode) {
+    private static int ttyModeToPhoneMode(int ttyMode) {
+        switch (ttyMode) {
             // AT command only has 0 and 1, so mapping VCO
             // and HCO to FULL
-            case TelecomManager.TTY_MODE_FULL:
-            case TelecomManager.TTY_MODE_VCO:
-            case TelecomManager.TTY_MODE_HCO:
+            case TelephonyManager.TTY_MODE_FULL:
+            case TelephonyManager.TTY_MODE_VCO:
+            case TelephonyManager.TTY_MODE_HCO:
                 return Phone.TTY_MODE_FULL;
             default:
                 return Phone.TTY_MODE_OFF;
@@ -4121,15 +4121,15 @@ public class GsmCdmaPhone extends Phone {
     private void loadTtyMode() {
         if (!hasCalling()) return;
 
-        int ttyMode = TelecomManager.TTY_MODE_OFF;
-        TelecomManager telecomManager = mContext.getSystemService(TelecomManager.class);
-        if (telecomManager != null) {
-            ttyMode = telecomManager.getCurrentTtyMode();
+        int ttyMode = TelephonyManager.TTY_MODE_OFF;
+        TelephonyManager telephonyManager = mContext.getSystemService(TelephonyManager.class);
+        if (telephonyManager != null) {
+            ttyMode = telephonyManager.getCurrentTtyMode();
         }
         updateTtyMode(ttyMode);
         //Get preferred TTY mode from settings as UI Tty mode is always user preferred Tty mode.
         ttyMode = Settings.Secure.getInt(mContext.getContentResolver(),
-                Settings.Secure.PREFERRED_TTY_MODE, TelecomManager.TTY_MODE_OFF);
+                Settings.Secure.PREFERRED_TTY_MODE, TelephonyManager.TTY_MODE_OFF);
         updateUiTtyMode(ttyMode);
     }
 

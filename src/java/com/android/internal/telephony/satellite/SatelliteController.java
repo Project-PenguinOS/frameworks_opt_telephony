@@ -611,6 +611,7 @@ public class SatelliteController extends Handler {
      */
     private final ConcurrentHashMap<IBinder, ISelectedNbIotSatelliteSubscriptionCallback>
             mSelectedNbIotSatelliteSubscriptionChangedListeners = new ConcurrentHashMap<>();
+
     protected ConcurrentHashMap<String, Integer> mResultReceiverCountPerMethodMap =
             new ConcurrentHashMap<>();
     /** Key: subId, value: (key: PLMN, value: set of
@@ -6191,11 +6192,11 @@ public class SatelliteController extends Handler {
         }
 
         List<String> allPlmnList = new ArrayList<>(getAllPlmnSet());
-        phone.setSatellitePlmn(phone.getPhoneId(), getCarrierPlmnListForModem(subId),
+         List<String> allowedPlmns = getAllowedCarrierPlmnListForModem(subId);
+        phone.setSatellitePlmn(phone.getPhoneId(), allowedPlmns,
                 allPlmnList, obtainMessage(EVENT_SET_SATELLITE_PLMN_INFO_DONE));
 
         if (mFeatureFlags.nrNtn()) {
-            List<String> allowedPlmns = getCarrierPlmnListForModem(subId);
             Set<String> allowedPlmnsSet = new HashSet<>(allowedPlmns);
             List<String> disallowedPlmns = allPlmnList.stream()
                     .filter(plmn -> !allowedPlmnsSet.contains(plmn))
@@ -6875,17 +6876,22 @@ public class SatelliteController extends Handler {
      *
      * @param subId Associated subscription ID
      */
-    private List<String> getCarrierPlmnListForModem(int subId) {
+    private List<String> getAllowedCarrierPlmnListForModem(int subId) {
         List<String> plmnList = new ArrayList<>();
+        boolean entitlementSupported = getConfigForSubId(subId).getBoolean(
+                        KEY_SATELLITE_ENTITLEMENT_SUPPORTED_BOOL);
+        boolean isEntitled = mSatelliteEntitlementStatusPerCarrier.getOrDefault(subId, false);
+        plogd("getAllowedCarrierPlmnListForModem: entitlementSupported=" + entitlementSupported
+                + ", isEntitled=" + isEntitled + ", subId=" + subId);
         if (isOnlyEmergencyServiceSupported(subId)) {
             plmnList.addAll(getEmergencyPlmnList(subId));
             plmnList.addAll(getDisasterPlmnList(subId));
-        } else {
+        } else if (!entitlementSupported || isEntitled) {
             plmnList.addAll(getCarrierPlmnList(subId));
             plmnList.removeAll(getEmergencyPlmnList(subId));
         }
 
-        plogd("getCarrierPlmnListForModem: plmnList=" + String.join(",", plmnList));
+        plogd("getAllowedCarrierPlmnListForModem: plmnList=" + String.join(",", plmnList));
         return plmnList;
     }
 
@@ -8368,7 +8374,7 @@ public class SatelliteController extends Handler {
 
         mIsNotificationShowing.set(true);
         mCarrierRoamingSatelliteControllerStats.reportCountOfSatelliteNotificationDisplayed(subId);
-        mCarrierRoamingSatelliteControllerStats.reportCarrierId(subId, getSatelliteCarrierId());
+        mCarrierRoamingSatelliteControllerStats.reportCarrierId(subId);
         mSessionMetricsStats.addCountOfSatelliteNotificationDisplayed();
     }
 
@@ -10426,7 +10432,8 @@ public class SatelliteController extends Handler {
             }
         } else if (isInSatelliteModeForCarrierRoaming(phone)) {
             ServiceState serviceState = phone.getServiceState();
-            if (serviceState.getState() != ServiceState.STATE_OUT_OF_SERVICE) {
+            if (serviceState.getState() != ServiceState.STATE_OUT_OF_SERVICE
+                    || serviceState.getDataRegState() != ServiceState.STATE_OUT_OF_SERVICE) {
                 carrierRoamingNtnSignalStrength = new NtnSignalStrength(
                         phone.getSignalStrength().getLevel());
                 plogd("getCarrierRoamingNtnSignalStrength[phoneId=" + phone.getPhoneId()
@@ -11340,12 +11347,7 @@ public class SatelliteController extends Handler {
     }
 
     /**
-     * Request to evaluate and potentially enable satellite for a specific carrier based on
-     * resolving a communication restriction.
-     * <p>
-     * This method is typically invoked when the connection mode is set to
-     * {@link CarrierConfigManager#CARRIER_ROAMING_NTN_CONNECT_AUTOMATIC} and a user or
-     * system event suggests that restrictions should be re-evaluated.
+     * Request to enable or disable satellite for a specific subscription.
      *
      * @param subId The subscription ID to evaluate enablement for.
      * @param reason The restriction reason to evaluate (e.g.,
@@ -11353,10 +11355,19 @@ public class SatelliteController extends Handler {
      * @param callback The callback used to return the result of the evaluation.
      */
     // TODO(b/323046234): Migrate to use Auto Satellite Enablement.
-    public void requestEnableSatelliteForCarrier(int subId,
+    public void requestEnableSatelliteForCarrier(int subId, boolean enable,
             @SatelliteManager.SatelliteCommunicationRestrictionReason int reason,
             @NonNull IIntegerConsumer callback) {
-        Consumer<Integer> result = FunctionalUtils.ignoreRemoteException(callback::accept);
-        evaluateEnablingSatelliteForCarrier(subId, reason, result);
+        plogd("requestEnableSatelliteForCarrier: subId=" + subId + ", enable=" + enable
+                + ", reason=" + reason);
+        if (enable) {
+            plogd("requestEnableSatelliteForCarrier: enabling satellite for carrier, removing "
+                    + "restriction: " + reason + " for subId=" + subId);
+            removeAttachRestrictionForCarrier(subId, reason, callback);
+        } else {
+            plogd("requestEnableSatelliteForCarrier: disabling satellite for carrier, adding "
+                    + "restriction: " + reason + " for subId=" + subId);
+            addAttachRestrictionForCarrier(subId, reason, callback);
+        }
     }
 }

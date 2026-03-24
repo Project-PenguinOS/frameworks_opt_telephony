@@ -407,6 +407,7 @@ import com.android.internal.telephony.cdma.sms.CdmaSmsSubaddress;
 import com.android.internal.telephony.cdma.sms.SmsEnvelope;
 import com.android.internal.telephony.data.KeepaliveStatus;
 import com.android.internal.telephony.data.KeepaliveStatus.KeepaliveStatusCode;
+import com.android.internal.telephony.flags.Flags;
 import com.android.internal.telephony.imsphone.ImsCallInfo;
 import com.android.internal.telephony.uicc.AdnCapacity;
 import com.android.internal.telephony.uicc.IccCardApplicationStatus;
@@ -993,7 +994,7 @@ public class RILUtils {
      * @return The converted DataProfileInfo
      */
     public static android.hardware.radio.data.DataProfileInfo convertToHalDataProfile(
-            @Nullable DataProfile dp) {
+            @Nullable DataProfile dp, HalVersion radioHalVersion) {
         if (dp == null) return null;
         android.hardware.radio.data.DataProfileInfo dpi =
                 new android.hardware.radio.data.DataProfileInfo();
@@ -1025,7 +1026,8 @@ public class RILUtils {
             dpi.alwaysOn = dp.getApnSetting().isAlwaysOn();
             dpi.infrastructureBitmap = dp.getApnSetting().getInfrastructureBitmask();
         }
-        dpi.trafficDescriptor = convertToHalTrafficDescriptorAidl(dp.getTrafficDescriptor());
+        dpi.trafficDescriptor = convertToHalTrafficDescriptorAidl(dp.getTrafficDescriptor(),
+                radioHalVersion);
 
         // profile id is only meaningful when it's persistent on the modem.
         dpi.profileId = (dpi.persistent) ? dp.getProfileId()
@@ -1163,7 +1165,8 @@ public class RILUtils {
      * @return The converted TrafficDescriptor
      */
     public static android.hardware.radio.data.TrafficDescriptor
-            convertToHalTrafficDescriptorAidl(@Nullable TrafficDescriptor trafficDescriptor) {
+            convertToHalTrafficDescriptorAidl(@Nullable TrafficDescriptor trafficDescriptor,
+            HalVersion radioHalVersion) {
         if (trafficDescriptor == null) {
             return new android.hardware.radio.data.TrafficDescriptor();
         }
@@ -1177,6 +1180,10 @@ public class RILUtils {
             android.hardware.radio.data.OsAppId osAppId = new android.hardware.radio.data.OsAppId();
             osAppId.osAppId = trafficDescriptor.getOsAppId();
             td.osAppId = osAppId;
+        }
+        if (Flags.enableTrafficDescriptorConnectionCapability() && radioHalVersion.greaterOrEqual(
+                RIL.RADIO_HAL_VERSION_2_4)) {
+            td.connectionCapability = (byte) (trafficDescriptor.getConnectionCapability() & 0xFF);
         }
         return td;
     }
@@ -3725,6 +3732,9 @@ public class RILUtils {
         }
         if (osAppId != null) {
             builder.setOsAppId(osAppId);
+        }
+        if (td.connectionCapability != 0 && Flags.enableTrafficDescriptorConnectionCapability()) {
+            builder.setConnectionCapability(td.connectionCapability & 0xFF);
         }
         return builder.build();
     }

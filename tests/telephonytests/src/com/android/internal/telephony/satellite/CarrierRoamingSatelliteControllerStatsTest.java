@@ -43,9 +43,12 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+
+import java.util.List;
 
 @RunWith(AndroidTestingRunner.class)
 @TestableLooper.RunWithLooper
@@ -186,16 +189,22 @@ public class CarrierRoamingSatelliteControllerStatsTest extends TelephonyTest {
                 new ExpectedCarrierRoamingSatelliteControllerStatsParam();
         doReturn(new int[]{TEST_SUB_ID_0}).when(
                 mMockSubscriptionManagerService).getActiveSubIdList(anyBoolean());
+        doReturn(false).when(mMockSatellitecontroller).isInCarrierRoamingNbIotNtn(any());
+        doReturn(SatelliteConstants.GLOBAL_NTN_CONNECT_TYPE_UNKNOWN).when(
+                mMockSatellitecontroller).getSupportedConnectTypeMetrics(anyInt());
+        doReturn(false).when(mMockSatellitecontroller).isDeviceEntitledForSubscription(anyInt());
 
+        expected.initializeParams();
         expected.setCountOfSatelliteConfigUpdateRequest(1);
         // Session gaps will be -1, when it is not reported.
         expected.setSatelliteSessionGapMinSec(SATELLITE_SESSION_GAP_INVALID_SEC);
         expected.setSatelliteSessionGapAvgSec(SATELLITE_SESSION_GAP_INVALID_SEC);
         expected.setSatelliteSessionGapMaxSec(SATELLITE_SESSION_GAP_INVALID_SEC);
-        expected.setCarrierId(0);
+        expected.setCarrierId(TEST_CARRIER_ID_0);
         expected.setIsDeviceEntitled(false);
         expected.setIsMultiSim(false);
         expected.setIsNbIotNtn(false);
+        expected.setSupportedConnectionType(SatelliteConstants.GLOBAL_NTN_CONNECT_TYPE_UNKNOWN);
 
         clearInvocations(mMockSatelliteStats);
         mTestCarrierRoamingSatelliteControllerStats.reportCountOfSatelliteConfigUpdateRequest();
@@ -205,21 +214,44 @@ public class CarrierRoamingSatelliteControllerStatsTest extends TelephonyTest {
         doReturn(new int[]{TEST_SUB_ID_0, TEST_SUB_ID_1}).when(
                 mMockSubscriptionManagerService).getActiveSubIdList(anyBoolean());
 
-        expected.initializeParams();
-        expected.setCountOfSatelliteConfigUpdateRequest(1);
-        // Session gaps will be -1, when it is not reported.
-        expected.setSatelliteSessionGapMinSec(SATELLITE_SESSION_GAP_INVALID_SEC);
-        expected.setSatelliteSessionGapAvgSec(SATELLITE_SESSION_GAP_INVALID_SEC);
-        expected.setSatelliteSessionGapMaxSec(SATELLITE_SESSION_GAP_INVALID_SEC);
-        expected.setCarrierId(0);
-        expected.setIsDeviceEntitled(false);
+        // isMultiSIm become true for the metric for TEST_CARRIER_ID_0
         expected.setIsMultiSim(true);
-        expected.setIsNbIotNtn(false);
+
+        final ExpectedCarrierRoamingSatelliteControllerStatsParam expected1 =
+                new ExpectedCarrierRoamingSatelliteControllerStatsParam();
+
+        expected1.setCountOfSatelliteConfigUpdateRequest(1);
+        // Session gaps will be -1, when it is not reported.
+        expected1.setSatelliteSessionGapMinSec(SATELLITE_SESSION_GAP_INVALID_SEC);
+        expected1.setSatelliteSessionGapAvgSec(SATELLITE_SESSION_GAP_INVALID_SEC);
+        expected1.setSatelliteSessionGapMaxSec(SATELLITE_SESSION_GAP_INVALID_SEC);
+        expected1.setCarrierId(TEST_CARRIER_ID_1);
+        expected1.setIsDeviceEntitled(false);
+        expected1.setIsMultiSim(true);
+        expected1.setIsNbIotNtn(false);
+        expected1.setSupportedConnectionType(SatelliteConstants.GLOBAL_NTN_CONNECT_TYPE_UNKNOWN);
 
         clearInvocations(mMockSatelliteStats);
         mTestCarrierRoamingSatelliteControllerStats.reportCountOfSatelliteConfigUpdateRequest();
-        verify(mMockSatelliteStats, times(1)).onCarrierRoamingSatelliteControllerStatsMetrics(
-                ArgumentMatchers.argThat(argument -> verifyAssets(expected, argument)));
+
+        ArgumentCaptor<SatelliteStats.CarrierRoamingSatelliteControllerStatsParams> captor =
+                ArgumentCaptor.forClass(
+                        SatelliteStats.CarrierRoamingSatelliteControllerStatsParams.class);
+        // Verify whether onCarrierRoamingSatelliteControllerStatsMetrics is invoked 2 times.
+        verify(mMockSatelliteStats, times(2)).onCarrierRoamingSatelliteControllerStatsMetrics(
+                captor.capture());
+
+        List<SatelliteStats.CarrierRoamingSatelliteControllerStatsParams> capturedArgs =
+                captor.getAllValues();
+        assertEquals(2, capturedArgs.size());
+
+        for (SatelliteStats.CarrierRoamingSatelliteControllerStatsParams actualArg : capturedArgs) {
+            if (actualArg.getCarrierId() == TEST_CARRIER_ID_0) {
+                verifyAssets(expected, actualArg);
+            } else if (actualArg.getCarrierId() == TEST_CARRIER_ID_1) {
+                verifyAssets(expected1, actualArg);
+            }
+        }
     }
 
     @Test
@@ -287,8 +319,7 @@ public class CarrierRoamingSatelliteControllerStatsTest extends TelephonyTest {
         expected.setIsMultiSim(false);
 
         clearInvocations(mMockSatelliteStats);
-        mTestCarrierRoamingSatelliteControllerStats.reportCarrierId(TEST_SUB_ID_0,
-                TEST_CARRIER_ID_0);
+        mTestCarrierRoamingSatelliteControllerStats.reportCarrierId(TEST_SUB_ID_0);
         verify(mMockSatelliteStats, times(1)).onCarrierRoamingSatelliteControllerStatsMetrics(
                 ArgumentMatchers.argThat(argument -> verifyAssets(expected, argument)));
 
@@ -304,8 +335,7 @@ public class CarrierRoamingSatelliteControllerStatsTest extends TelephonyTest {
         expected.setIsMultiSim(true);
 
         clearInvocations(mMockSatelliteStats);
-        mTestCarrierRoamingSatelliteControllerStats.reportCarrierId(TEST_SUB_ID_1,
-                TEST_CARRIER_ID_1);
+        mTestCarrierRoamingSatelliteControllerStats.reportCarrierId(TEST_SUB_ID_1);
         verify(mMockSatelliteStats, times(1)).onCarrierRoamingSatelliteControllerStatsMetrics(
                 ArgumentMatchers.argThat(argument -> verifyAssets(expected, argument)));
     }

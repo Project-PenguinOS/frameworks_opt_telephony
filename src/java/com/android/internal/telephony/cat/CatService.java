@@ -488,11 +488,11 @@ public class CatService extends Handler implements AppInterface {
             case SET_UP_EVENT_LIST:
                 if (isSupportedSetupEventCommand(cmdMsg)) {
                     sendTerminalResponse(cmdParams.mCmdDet, ResultCode.OK, false, 0, null);
-                    broadcastSetupEventList(cmdMsg);
                 } else {
                     sendTerminalResponse(cmdParams.mCmdDet, ResultCode.BEYOND_TERMINAL_CAPABILITY,
                             false, 0, null);
                 }
+                broadcastSetupEventList(cmdMsg);
                 break;
             case PROVIDE_LOCAL_INFORMATION:
                 ResponseData resp;
@@ -533,6 +533,10 @@ public class CatService extends Handler implements AppInterface {
                  * config_stk_sms_send_support is true and the SMS should be sent by framework
                  */
                 if (cmdParams instanceof SendSMSParams) {
+                    if (Flags.supportStkSendRawPduSms()) {
+                        sendStkSms((SendSMSParams) cmdParams);
+                        return;
+                    }
                     String text = null, destAddr = null;
                     if (((SendSMSParams) cmdParams).mTextSmsMsg != null) {
                         text = ((SendSMSParams) cmdParams).mTextSmsMsg.text;
@@ -573,6 +577,12 @@ public class CatService extends Handler implements AppInterface {
                 break;
             case SEND_DTMF:
             case SEND_SS:
+                if ((((DisplayTextParams) cmdParams).mTextMsg.text != null)
+                        && (((DisplayTextParams) cmdParams).mTextMsg.text.equals(STK_DEFAULT))) {
+                    message = mContext.getText(com.android.internal.R.string.sending);
+                    ((DisplayTextParams) cmdParams).mTextMsg.text = message.toString();
+                }
+                break;
             case SEND_USSD:
                 if (Flags.supportStkCommandUssdAndCall()) {
                     sendUssd(cmdParams.mCmdDet,
@@ -691,6 +701,55 @@ public class CatService extends Handler implements AppInterface {
     }
 
     /**
+     * Used to send STK based sms via CATService
+     * @param cmdParams Send SMS Command Params
+     * @hide
+     */
+    @VisibleForTesting
+    public void sendStkSms(SendSMSParams cmdParams) {
+        String destAddr = null;
+        if (cmdParams.mDestAddress != null) {
+            destAddr = cmdParams.mDestAddress.text;
+        }
+
+        if (cmdParams.mRawTpdu == null || destAddr == null) {
+            sendTerminalResponse(cmdParams.mCmdDet, ResultCode.CMD_DATA_NOT_UNDERSTOOD,
+                    false, 0x00, null);
+            return;
+        }
+
+        SubscriptionManager subscriptionManager = (SubscriptionManager)
+                mContext.getSystemService(Context.TELEPHONY_SUBSCRIPTION_SERVICE);
+        SubscriptionInfo subInfo =
+                subscriptionManager.getActiveSubscriptionInfoForSimSlotIndex(mSlotId);
+
+        if (subInfo == null) {
+            sendTerminalResponse(cmdParams.mCmdDet, ResultCode.CMD_DATA_NOT_UNDERSTOOD,
+                    false, 0x00, null);
+            CatLog.d(this, "Subscription info is null");
+            return;
+        }
+
+        PendingIntent sentPendingIntent = PendingIntent.getBroadcast(mContext, 0,
+                new Intent(SMS_SENT_ACTION)
+                        .putExtra("cmdDetails", cmdParams.mCmdDet)
+                        .setPackage(mContext.getPackageName()),
+                PendingIntent.FLAG_MUTABLE);
+        PendingIntent deliveryPendingIntent = PendingIntent.getBroadcast(mContext, 0,
+                new Intent(SMS_DELIVERY_ACTION)
+                        .putExtra("cmdDetails", cmdParams.mCmdDet)
+                        .setPackage(mContext.getPackageName()),
+                PendingIntent.FLAG_MUTABLE);
+
+        ProxyController proxyController = ProxyController.getInstance(
+                mContext, mFeatureFlags);
+        SmsController smsController = proxyController.getSmsController();
+        smsController.sendRawPduForSubscriber(subInfo.getSubscriptionId(),
+                mContext.getOpPackageName(), destAddr, cmdParams.mRawTpdu,
+                sentPendingIntent, deliveryPendingIntent);
+    }
+
+    /**
      * BroadcastReceiver class to handle error and success cases of
      * SEND and DELIVERY pending intents used for sending of STK SMS
      */
@@ -733,14 +792,19 @@ public class CatService extends Handler implements AppInterface {
                             true, additionalInfo, null);
                 } else {
                     CatLog.d(this, " STK SMS sent successfully ");
+                    if (mFeatureFlags.stkSendSmsTerminalResponseOnSendSuccess()) {
+                        sendTerminalResponse(commandDetails, ResultCode.OK, false, 0, null);
+                    }
                 }
             }
             if (intent.getAction().equals(SMS_DELIVERY_ACTION)) {
                 int resultCode = getResultCode();
                 switch (resultCode) {
                     case Activity.RESULT_OK:
-                        sendTerminalResponse(commandDetails, ResultCode.OK, false, 0, null);
                         CatLog.d(this, " STK SMS delivered successfully ");
+                        if (!mFeatureFlags.stkSendSmsTerminalResponseOnSendSuccess()) {
+                            sendTerminalResponse(commandDetails, ResultCode.OK, false, 0, null);
+                        }
                         break;
                     default:
                         CatLog.d(this, "Error delivering STK SMS : " + resultCode);

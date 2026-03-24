@@ -451,6 +451,31 @@ public class IccSmsInterfaceManager {
     }
 
     /**
+     * Send a raw SMS PDU. Intended for STK App use only.
+     *
+     * @param callingPackage the package name of the caller
+     * @param callingUser the user of the caller
+     * @param destAddr the address to send the message to
+     * @param pdu the raw SMS PDU to send
+     * @param sentIntent if not NULL this <code>PendingIntent</code> is
+     *  broadcast when the message is successfully sent, or failed.
+     *  The result code will be <code>Activity.RESULT_OK</code> for success, or relevant errors
+     *  the sentIntent may include the extra "errorCode" containing a radio technology specific
+     *  value, generally only useful for troubleshooting.
+     * @param deliveryIntent if not NULL this <code>PendingIntent</code> is
+     *  broadcast when the message is delivered to the recipient.  The
+     *  raw pdu of the status report is in the extended data ("pdu").
+     * @param uid the android uid of the caller
+     * Note: SEND_SMS permission should be checked by the caller of this method
+     */
+    @VisibleForTesting
+    public void sendRawPdu(String callingPackage, int callingUser, String destAddr, byte[] pdu,
+            PendingIntent sentIntent, PendingIntent deliveryIntent, int uid) {
+        mDispatchersController.sendRawPdu(callingPackage, callingUser, destAddr, pdu, sentIntent,
+                deliveryIntent, uid);
+    }
+
+    /**
      * Send a data based SMS to a specific application port.
      *
      * @param callingPackage the package name of the calling app
@@ -1313,8 +1338,8 @@ public class IccSmsInterfaceManager {
                     + " sentIntent=" + sentIntent + " deliveryIntent=" + deliveryIntent);
         }
         final ContentResolver resolver = mContext.getContentResolver();
-        if (!isFailedOrDraft(resolver, messageUri)) {
-            loge("sendStoredText: not FAILED or DRAFT message");
+        if (!isSendableStoredMessage(resolver, messageUri)) {
+            loge("sendStoredText: message not sendable");
             returnUnspecifiedFailure(sentIntent);
             return;
         }
@@ -1356,8 +1381,8 @@ public class IccSmsInterfaceManager {
             return;
         }
         final ContentResolver resolver = mContext.getContentResolver();
-        if (!isFailedOrDraft(resolver, messageUri)) {
-            loge("sendStoredMultipartText: not FAILED or DRAFT message");
+        if (!isSendableStoredMessage(resolver, messageUri)) {
+            loge("sendStoredMultipartText: message not sendable");
             returnUnspecifiedFailure(sentIntents);
             return;
         }
@@ -1448,7 +1473,7 @@ public class IccSmsInterfaceManager {
         return numberOnIcc;
     }
 
-    private boolean isFailedOrDraft(ContentResolver resolver, Uri messageUri) {
+    private boolean isSendableStoredMessage(ContentResolver resolver, Uri messageUri) {
         // Clear the calling identity and query the database using the phone user id
         // Otherwise the AppOps check in TelephonyProvider would complain about mismatch
         // between the calling uid and the package uid
@@ -1464,10 +1489,11 @@ public class IccSmsInterfaceManager {
             if (cursor != null && cursor.moveToFirst()) {
                 final int type = cursor.getInt(0);
                 return type == Telephony.Sms.MESSAGE_TYPE_DRAFT
-                        || type == Telephony.Sms.MESSAGE_TYPE_FAILED;
+                        || type == Telephony.Sms.MESSAGE_TYPE_FAILED
+                        || (Flags.messagePromotion() && type == Telephony.Sms.MESSAGE_TYPE_OUTBOX);
             }
         } catch (SQLiteException e) {
-            loge("isFailedOrDraft: query message type failed", e);
+            loge("isSendableStoredMessage: query message type failed", e);
         } finally {
             if (cursor != null) {
                 cursor.close();
@@ -1478,7 +1504,7 @@ public class IccSmsInterfaceManager {
     }
 
     // Return an array including both the SMS text (0) and address (1)
-    private String[] loadTextAndAddress(ContentResolver resolver, Uri messageUri) {
+    public String[] loadTextAndAddress(ContentResolver resolver, Uri messageUri) {
         // Clear the calling identity and query the database using the phone user id
         // Otherwise the AppOps check in TelephonyProvider would complain about mismatch
         // between the calling uid and the package uid

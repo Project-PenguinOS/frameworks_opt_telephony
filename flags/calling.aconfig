@@ -95,3 +95,36 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+# OWNER=pmadapurmath TARGET=26Q2
+flag {
+    name: "fix_unhold_fg_call"
+    namespace: "telephony"
+    description: "Allow the fg to be unheld if it's unheld. Normally, we should always be performing this on the bg call but it's possible for states to reach a bad state due to race conditions."
+    bug:"469349595"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+# OWNER=pmadapurmath TARGET=26Q2
+flag {
+    name: "allow_multiple_incoming_for_dsda"
+    namespace: "telephony"
+    description: "Modify logic in CallManager to allow multiple ringing connections on different phones so that the call can be passed through to Telecom and be marked as a missed call."
+    bug:"484342500"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+# OWNER=tgunn TARGET=26Q2
+flag {
+    name: "rebuild_telecom_accounts_async"
+    namespace: "telephony"
+    description: "Move rebuilding of telecom accounts to a background thread to prevent ANRs."
+    bug: "471115015"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}

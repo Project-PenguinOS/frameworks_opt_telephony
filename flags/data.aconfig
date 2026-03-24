@@ -88,17 +88,6 @@ flag {
   }
 }
 
-# OWNER=sewookseo TARGET=26Q2
-flag {
-  name: "remove_unregistered_qos_filter"
-  namespace: "telephony"
-  description: "Fix QoS callback filter is not cleared from QosCT even after clients unregister QoS callback."
-  bug:"446528114"
-  metadata {
-    purpose: PURPOSE_BUGFIX
-  }
-}
-
 # OWNER=sangyun TARGET=26Q2
 flag {
   name: "enable_traffic_descriptor_connection_capability"
@@ -148,6 +137,17 @@ flag {
     metadata {
         purpose: PURPOSE_BUGFIX
     }
+}
+
+# OWNER=rambowang TARGET=26Q2
+flag {
+  name: "ads_respect_owners_preference"
+  namespace: "telephony"
+  description: "Controls if ADSC respects owner's preferred data network instead of default one"
+  bug:"481016179"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
 }
 
 # OWNER=sangyun TARGET=26Q2

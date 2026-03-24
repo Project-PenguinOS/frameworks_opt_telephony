@@ -27,6 +27,7 @@ import com.android.telephony.Rlog;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -76,6 +77,12 @@ public class DataConfig {
      * <br>Value: Set of {@link android.net.NetworkCapabilities} IDs.
      */
     private final Map<Integer, Set<Integer>> mRoamingMeteredCapabilities = new ArrayMap<>();
+
+    /**
+     * Stores all unique Network Capabilities defined in this configuration.
+     * Populated during parsing to avoid recalculation.
+     */
+    private final Set<Integer> mAllNetworkCapabilities = new HashSet<>();
 
     private final TelephonyConfigData.DataConfigProto mConfigData;
 
@@ -174,6 +181,7 @@ public class DataConfig {
 
         mConnectionCapabilities.put(carrierId, capsMap);
         mApnRequiredMap.put(carrierId, apnReqMap);
+        mAllNetworkCapabilities.addAll(capsMap.keySet());
     }
 
     public int getVersion() {
@@ -262,7 +270,40 @@ public class DataConfig {
         return targetMap.getOrDefault(DEFAULT_CARRIER_ID, null);
     }
 
+    /**
+     * @return A set of all unique Network Capabilities defined in the dynamic configuration.
+     *         This includes capabilities from both default and carrier-specific rules.
+     */
+    @NonNull
+    public Set<Integer> getAllNetworkCapabilities() {
+        return mAllNetworkCapabilities;
+    }
+
     private static void logd(String log) {
         Rlog.d(TAG, log);
+    }
+
+    /**
+     * Compares this DataConfig with another object for equality.
+     * Two DataConfigs are considered equal if all their underlying functional
+     * configurations (connection capabilities, APN requirements, and metered capabilities)
+     * are identical.
+     */
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        DataConfig that = (DataConfig) o;
+
+        return mConnectionCapabilities.equals(that.mConnectionCapabilities)
+                && mApnRequiredMap.equals(that.mApnRequiredMap)
+                && mHomeMeteredCapabilities.equals(that.mHomeMeteredCapabilities)
+                && mRoamingMeteredCapabilities.equals(that.mRoamingMeteredCapabilities);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(mConnectionCapabilities, mApnRequiredMap,
+                mHomeMeteredCapabilities, mRoamingMeteredCapabilities);
     }
 }

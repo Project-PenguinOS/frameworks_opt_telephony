@@ -91,6 +91,18 @@ flag {
     is_exported: true
 }
 
+# OWNER=pmadapurmath TARGET=26Q4
+flag {
+    name: "enable_vt_call_low_battery_config"
+    namespace: "telephony"
+    description: "This flag controls the availability and functionality of the KEY_ALLOW_VIDEO_CALL_IN_LOW_BATTERY_BOOL carrier config."
+    bug: "416476913"
+    metadata {
+        purpose: PURPOSE_FEATURE
+    }
+    is_exported: true
+}
+
 # OWNER=shashannk TARGET=26Q2
 flag {
     name: "support_ims_sms_smma"
@@ -115,6 +127,50 @@ flag {
     namespace: "telephony"
     description: "Ensures that ImsService feature creation and modification are executed sequentially to prevent race conditions."
     bug:"403628336"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+# OWNER=breadley TARGET=26Q3
+flag {
+  name: "init_rcs_provisioning_monitor_async"
+  namespace: "telephony"
+  description: "Init RcsProvisioningMonitor in a background thread to prevent ANR"
+  bug: "469248684"
+  metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+# OWNER=shashannk TARGET=26Q2
+flag {
+    name: "support_stk_send_raw_pdu_sms"
+    namespace: "telephony"
+    description: "This flag controls the STK SMS sending mechanism, using raw PDU instead of intent."
+    bug:"467254147"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+# OWNER=arunrajms TARGET=26Q3
+flag {
+    name: "enable_vonr_check"
+    namespace: "telephony"
+    description: "This flag enables checking KEY_VONR_ENABLED_BOOL before enabling VoNR capability in ImsManager."
+    bug: "476375119"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+# OWNER=shashannk TARGET=26Q2
+flag {
+    name: "stk_send_sms_terminal_response_on_send_success"
+    namespace: "telephony"
+    description: "This flag controls whether the terminal response for STK SMS is sent on send success or delivery success."
+    bug:"480768765"
     metadata {
         purpose: PURPOSE_BUGFIX
     }

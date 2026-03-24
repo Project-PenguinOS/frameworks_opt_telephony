@@ -117,7 +117,6 @@ public class CdmaInboundSmsHandlerTest extends TelephonyTest {
                 getSystemService(Context.USER_SERVICE);
         doReturn(MOCKED_MAIN_USER).when(userManager).getMainUser();
         doReturn(true).when(userManager).isUserUnlocked();
-        doReturn(true).when(mFeatureFlags).smsMmsDeliverBroadcastsRedirectToMainUser();
 
         try {
             doReturn(new int[]{0, MOCKED_MAIN_USER.getIdentifier()})

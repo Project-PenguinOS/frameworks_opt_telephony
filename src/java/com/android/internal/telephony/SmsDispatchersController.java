@@ -229,6 +229,7 @@ public class SmsDispatchersController extends Handler {
         public static final int TYPE_TEXT = 2;
         public static final int TYPE_MULTIPART_TEXT = 3;
         public static final int TYPE_RETRY_SMS = 4;
+        public static final int TYPE_RAW_SMS = 5;
         private static final AtomicLong sNextUniqueMessageId = new AtomicLong(0);
 
         public final int type;
@@ -596,7 +597,7 @@ public class SmsDispatchersController extends Handler {
         }
     }
 
-    private String getSmscAddressFromUSIMWithPhoneIdentity(String callingPkg) {
+    protected String getSmscAddressFromUSIMWithPhoneIdentity(String callingPkg) {
         final long identity = Binder.clearCallingIdentity();
         try {
             IccSmsInterfaceManager iccSmsIntMgr = mPhone.getIccSmsInterfaceManager();
@@ -1412,6 +1413,9 @@ public class SmsDispatchersController extends Handler {
                 case PendingRequest.TYPE_MULTIPART_TEXT:
                     sendMultipartText(domain, r);
                     break;
+                case PendingRequest.TYPE_RAW_SMS:
+                    sendRawPdu(domain, r);
+                    break;
                 case PendingRequest.TYPE_RETRY_SMS:
                     sendRetrySms(r.tracker, (domain == NetworkRegistrationInfo.DOMAIN_PS));
                     break;
@@ -1665,6 +1669,66 @@ public class SmsDispatchersController extends Handler {
                     PendingRequest.getNextUniqueMessageId(), uid);
         }
     }
+
+    /**
+     * Send a raw SMS PDU.
+     * @param callingPackage the package name of the caller
+     * @param callingUser the user of the caller
+     * @param destAddr the address to send the message to
+     * @param pdu the raw SMS PDU to send
+     * @param sentIntent if not NULL this <code>PendingIntent</code> is
+     *  broadcast when the message is successfully sent, or failed.
+     *  The result code will be <code>Activity.RESULT_OK</code> for success, or relevant errors
+     *  the sentIntent may include the extra "errorCode" containing a radio technology specific
+     *  value, generally only useful for troubleshooting.
+     * @param deliveryIntent if not NULL this <code>PendingIntent</code> is
+     *  broadcast when the message is delivered to the recipient.  The
+     *  raw pdu of the status report is in the extended data ("pdu").
+     * @param uid the android uid of the caller
+     */
+    public void sendRawPdu(String callingPackage, int callingUser, String destAddr, byte[] pdu,
+            PendingIntent sentIntent, PendingIntent deliveryIntent, int uid) {
+        String scAddr = getSmscAddressFromUSIMWithPhoneIdentity(callingPackage);
+        if (isSmsDomainSelectionEnabled()) {
+            sendSmsUsingDomainSelection(getDomainSelectionConnectionHolder(false),
+                    new PendingRequest(PendingRequest.TYPE_RAW_SMS, null, callingPackage,
+                            callingUser, destAddr, scAddr, asArrayList(sentIntent),
+                            asArrayList(deliveryIntent), false, pdu, 0, null, null, false, 0,
+                            false, 0, 0L, false, false, uid), "sendRawPdu");
+            return;
+        }
+
+        if (mImsSmsDispatcher.isAvailable()) {
+            mImsSmsDispatcher.sendRawPdu(callingPackage, callingUser, destAddr, scAddr, pdu,
+                    sentIntent, deliveryIntent, uid);
+        } else if (isCdmaMo()) {
+            mCdmaDispatcher.sendRawPdu(callingPackage, callingUser, destAddr, scAddr, pdu,
+                    sentIntent, deliveryIntent, uid);
+        } else {
+            mGsmDispatcher.sendRawPdu(callingPackage, callingUser, destAddr, scAddr,
+                    pdu, sentIntent, deliveryIntent, uid);
+        }
+    }
+
+    private void sendRawPdu(@NetworkRegistrationInfo.Domain int domain,
+            @NonNull PendingRequest request) {
+        if (domain == NetworkRegistrationInfo.DOMAIN_PS) {
+            mImsSmsDispatcher.sendRawPdu(request.callingPackage, request.callingUser,
+                    request.destAddr, request.scAddr, request.data, request.sentIntents.get(0),
+                    request.deliveryIntents.get(0), request.mApplicationUid);
+        } else {
+            if (isCdmaMo(domain)) {
+                mCdmaDispatcher.sendRawPdu(request.callingPackage, request.callingUser,
+                        request.destAddr, request.scAddr, request.data, request.sentIntents.get(0),
+                        request.deliveryIntents.get(0), request.mApplicationUid);
+            } else {
+                mGsmDispatcher.sendRawPdu(request.callingPackage, request.callingUser,
+                        request.destAddr, request.scAddr, request.data, request.sentIntents.get(0),
+                        request.deliveryIntents.get(0), request.mApplicationUid);
+            }
+        }
+    }
+
 
     /**
      * Send a text based SMS.
@@ -2271,7 +2335,7 @@ public class SmsDispatchersController extends Handler {
 
         SubscriptionManager subscriptionManager = (SubscriptionManager) mContext
                 .getSystemService(Context.TELEPHONY_SUBSCRIPTION_SERVICE);
-        String destAddr = subscriptionManager.getPhoneNumber(mPhone.getSubId());
+        String destAddr = subscriptionManager.getLastKnownPhoneNumber(mPhone.getSubId());
         if (TextUtils.isEmpty(destAddr)) {
             logd("sendMtSmsPollingMessage: destAddr is null or empty.");
             return;

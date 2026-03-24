@@ -360,6 +360,7 @@ public class ServiceStateTracker extends Handler {
 
     @NonNull
     private final FeatureFlags mFeatureFlags;
+    private boolean mIsSimReadyForDisplay = false;
 
     private class SstSubscriptionsChangedListener extends OnSubscriptionsChangedListener {
 
@@ -1334,6 +1335,7 @@ public class ServiceStateTracker extends Handler {
 
             // GSM
             case EVENT_SIM_READY:
+                mIsSimReadyForDisplay = false;
                 // Reset the mPrevSubId so we treat a SIM power bounce
                 // as a first boot.  See b/19194287
                 mPrevSubId = SubscriptionManager.INVALID_SUBSCRIPTION_ID;
@@ -1411,7 +1413,8 @@ public class ServiceStateTracker extends Handler {
             case EVENT_SIM_RECORDS_LOADED:
                 log("EVENT_SIM_RECORDS_LOADED: what=" + msg.what);
                 mCdnr.updateEfFromUsim((SIMRecords) mIccRecords);
-                updateCarrierDisplayName();
+                pollState(); // This poll will fetch the operator name.
+                updateCarrierDisplayName(); // Hides the stale name (since flag is still false)
                 break;
 
             case EVENT_LOCATION_UPDATES_ENABLED:
@@ -2409,9 +2412,14 @@ public class ServiceStateTracker extends Handler {
         } else if (combinedRegState == ServiceState.STATE_IN_SERVICE) {
             // In either home or roaming service
             plmn = mSS.getOperatorAlpha();
-            showPlmn = !TextUtils.isEmpty(plmn)
+            if (!showOperatorName()) {
+                showPlmn = false;
+                plmn = null;
+            } else {
+                showPlmn = !TextUtils.isEmpty(plmn)
                     && ((rule & CARRIER_NAME_DISPLAY_BITMASK_SHOW_PLMN)
                     == CARRIER_NAME_DISPLAY_BITMASK_SHOW_PLMN);
+            }
             if (DBG) log("updateCarrierDisplayName: rawPlmn = " + plmn);
         } else {
             // Power off state, such as airplane mode, show plmn as null
@@ -2428,6 +2436,10 @@ public class ServiceStateTracker extends Handler {
         //    EXTRA_SPN = spn
         //    EXTRA_DATA_SPN = dataSpn
         spn = getServiceProviderName();
+        if (!showOperatorName()) {
+            showSpn = false;
+            spn = null;
+        }
         dataSpn = spn;
         showSpn = !noService && !TextUtils.isEmpty(spn)
                 && ((rule & CARRIER_NAME_DISPLAY_BITMASK_SHOW_SPN)
@@ -2629,7 +2641,7 @@ public class ServiceStateTracker extends Handler {
         UiccCardApplication newUiccApplication = getUiccCardApplication();
 
         if (mUiccApplication != newUiccApplication) {
-
+            mIsSimReadyForDisplay = false;
             // Remove the EF records that come from UICC
             if (mIccRecords instanceof SIMRecords) {
                 mCdnr.updateEfFromUsim(null /* usim */);
@@ -2883,7 +2895,24 @@ public class ServiceStateTracker extends Handler {
             .collect(Collectors.toList());
     }
 
+    private boolean updateSimReadyForDisplay() {
+        boolean updateCarrierNameAfterSimReady = mFeatureFlags.updateCarrierNameAfterSimReady();
+        if (updateCarrierNameAfterSimReady) {
+            boolean recordsLoaded = mIccRecords != null && mIccRecords.getRecordsLoaded();
+            if (recordsLoaded != mIsSimReadyForDisplay) {
+                log("updateSimReadyForDisplay: IsSimReadyForDisplay changed to " + recordsLoaded);
+                mIsSimReadyForDisplay = recordsLoaded;
+                return true;
+            }
+        } else if (!mIsSimReadyForDisplay) {
+            mIsSimReadyForDisplay = true;
+            return true;
+        }
+        return false;
+    }
+
     private void pollStateDone() {
+
         if (TelephonyUtils.IS_DEBUGGABLE
                 && SystemProperties.getBoolean(PROP_FORCE_ROAMING, false)) {
             mNewSS.setRoaming(true);
@@ -3167,10 +3196,12 @@ public class ServiceStateTracker extends Handler {
             setNotification(CS_REJECT_CAUSE_ENABLED);
         }
 
+        boolean simReadyChanged = updateSimReadyForDisplay();
         // Trigger updateCarrierDisplayName when
         // 1. Service state is changed.
         // 2. phone type is Cdma or CdmaLte and ERI text has changed.
-        if (hasChanged || hasSatelliteConnectionChanged) {
+        // 3. SIM is ready and carrier name is empty.
+        if (hasChanged || hasSatelliteConnectionChanged || simReadyChanged) {
             updateCarrierDisplayName();
         }
 
@@ -4818,8 +4849,20 @@ public class ServiceStateTracker extends Handler {
         boolean forceWaitForCarrierConfig = mPhone.getContext().getResources()
                 .getBoolean(com.android.internal.R.bool
                         .config_update_operator_name_after_carrier_config_loaded);
+        if (!forceWaitForCarrierConfig) {
+            return true;
+        }
 
-        return (!forceWaitForCarrierConfig || isCarrierConfigApplied()) && !isSimAbsent();
+        if (mFeatureFlags.updateCarrierNameAfterSimReady()) {
+            if (!mIsSimReadyForDisplay && mIccRecords != null && mIccRecords.getRecordsLoaded()) {
+                mIsSimReadyForDisplay = true;
+            }
+            if (!mIsSimReadyForDisplay) {
+                return false;
+            }
+        }
+
+        return isCarrierConfigApplied() && !isSimAbsent();
     }
 
     /**
