@@ -451,7 +451,7 @@ public class SubscriptionInfoInternal {
 
     /**
      * Whether satellite attach for carrier is enabled or disabled by user.
-     * By default, its enabled. It is intended to use integer to fit the database format.
+     * By default, it is unset (-1). It is intended to use integer to fit the database format.
      */
     private final int mIsSatelliteAttachEnabledForCarrier;
 
@@ -1268,7 +1268,8 @@ public class SubscriptionInfoInternal {
     }
 
     /**
-     * @return {@code 1} if satellite attach for carrier is enabled by user.
+     * @return {@code 1} if satellite attach for carrier is enabled by user,
+     * {@code 0} if disabled, and {@code -1} if unset.
      */
     public int getSatelliteAttachEnabledForCarrier() {
         return mIsSatelliteAttachEnabledForCarrier;
@@ -2054,8 +2055,9 @@ public class SubscriptionInfoInternal {
 
         /**
          * Whether satellite attach for carrier is enabled by user.
+         * The value -1 indicates an unset state, which falls back to the device's default config.
          */
-        private int mIsSatelliteAttachEnabledForCarrier = 1;
+        private int mIsSatelliteAttachEnabledForCarrier = -1;
 
         /**
          * Whether this subscription is used for communicating with non-terrestrial network or not.
@@ -3133,8 +3135,9 @@ public class SubscriptionInfoInternal {
 
         /**
          * Set whether satellite attach for carrier is enabled or disabled by user.
+         *
          * @param isSatelliteAttachEnabledForCarrier {@code 1} if satellite attach for carrier is
-         * enabled.
+         * enabled, {@code 0} if disabled, and {@code -1} if unset.
          * @return The builder.
          */
         @NonNull
