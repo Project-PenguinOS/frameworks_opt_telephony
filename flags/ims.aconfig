@@ -175,25 +175,3 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
-
-# OWNER=shashannk TARGET=26Q2
-flag {
-    name: "stk_smsc_address_extraction"
-    namespace: "telephony"
-    description: "Extract and use SMSC Address from STK SEND SHORT MESSAGE command"
-    bug: "480768765"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-# OWNER=shashannk TARGET=26Q2
-flag {
-    name: "skip_stk_short_code_check"
-    namespace: "telephony"
-    description: "Skip premium short code checks for STK SMS"
-    bug: "491386743"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}

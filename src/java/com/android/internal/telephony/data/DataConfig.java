@@ -24,8 +24,6 @@ import android.util.ArrayMap;
 import com.android.internal.telephony.TelephonyConfigData;
 import com.android.telephony.Rlog;
 
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -281,19 +279,6 @@ public class DataConfig {
         return mAllNetworkCapabilities;
     }
 
-    /**
-     * Returns a set of all carrier IDs configured in this configuration.
-     */
-    @NonNull
-    private Set<Integer> getConfiguredCarrierIds() {
-        Set<Integer> carrierIds = new HashSet<>();
-        carrierIds.addAll(mConnectionCapabilities.keySet());
-        carrierIds.addAll(mApnRequiredMap.keySet());
-        carrierIds.addAll(mHomeMeteredCapabilities.keySet());
-        carrierIds.addAll(mRoamingMeteredCapabilities.keySet());
-        return carrierIds;
-    }
-
     private static void logd(String log) {
         Rlog.d(TAG, log);
     }
@@ -320,128 +305,5 @@ public class DataConfig {
     public int hashCode() {
         return Objects.hash(mConnectionCapabilities, mApnRequiredMap,
                 mHomeMeteredCapabilities, mRoamingMeteredCapabilities);
-    }
-
-    /**
-     * Represents the difference between two DataConfig objects.
-     */
-    public static class DataConfigDiff {
-        /**
-         * The affected carrier capabilities. Key is the carrier ID (Integer) and the value is a set
-         * of affected network capabilities (Set of Integers).
-         */
-        private final Map<Integer, Set<Integer>> mAffectedCarrierCapabilities = new HashMap<>();
-
-        public DataConfigDiff(@NonNull Map<Integer, Set<Integer>> affectedCarrierCapabilities) {
-            for (Map.Entry<Integer, Set<Integer>> entry : affectedCarrierCapabilities.entrySet()) {
-                mAffectedCarrierCapabilities.put(entry.getKey(),
-                        new HashSet<>(entry.getValue()));
-            }
-        }
-
-        /**
-         * Checks if the given carrier ID and network connection capabilities are affected by
-         * config change.
-         *
-         * @param carrierId The carrier ID to check.
-         * @param capabilities The set of network connection capabilities to check.
-         * @return {@code true} if affected, {@code false} otherwise.
-         */
-        public boolean isConnectionCapabilityAffected(int carrierId,
-                @NonNull Set<Integer> capabilities) {
-            // Check specific carrier
-            if (isAffectedInternal(carrierId, capabilities)) {
-                return true;
-            }
-            // Check default carrier fallback
-            return isAffectedInternal(0 /* DEFAULT_CARRIER_ID */, capabilities);
-        }
-
-        private boolean isAffectedInternal(int carrierId, Set<Integer> capabilities) {
-            Set<Integer> affectedCaps = mAffectedCarrierCapabilities.get(carrierId);
-            return affectedCaps != null && !Collections.disjoint(affectedCaps, capabilities);
-        }
-
-        @Override
-        public String toString() {
-            return "DataConfigDiff{"
-                    + "affectedCarrierCapabilities=" + mAffectedCarrierCapabilities
-                    + '}';
-        }
-    }
-
-    /**
-     * Calculates the difference between two DataConfig objects.
-     *
-     * <p>This method explicitly calculates differences for Connection Capability mapping and APN
-     * requirements only. Note that metered capability changes are excluded because they do not
-     * require the re-establishment of data networks.
-     *
-     * @param oldConfig The old configuration.
-     * @param newConfig The new configuration.
-     * @return The DataConfigDiff object.
-     */
-    @NonNull
-    public static DataConfigDiff calculateDiff(@Nullable DataConfig oldConfig,
-            @Nullable DataConfig newConfig) {
-        Map<Integer, Set<Integer>> affectedMap = new HashMap<>();
-
-        if (oldConfig == null && newConfig == null) {
-            return new DataConfigDiff(affectedMap);
-        }
-
-        if (oldConfig == null) {
-            // Initial installation: everything in new config is affected.
-            for (int carrierId : newConfig.getConfiguredCarrierIds()) {
-                affectedMap.put(carrierId, new HashSet<>(newConfig.getAllNetworkCapabilities()));
-            }
-            return new DataConfigDiff(affectedMap);
-        }
-
-        if (newConfig == null) {
-            // Config removed: everything from old config is affected.
-            for (int carrierId : oldConfig.getConfiguredCarrierIds()) {
-                affectedMap.put(carrierId, new HashSet<>(oldConfig.getAllNetworkCapabilities()));
-            }
-            return new DataConfigDiff(affectedMap);
-        }
-
-        // Compare Connection Capabilities and APN Requirements
-        Set<Integer> allCarriers = new HashSet<>();
-        allCarriers.addAll(oldConfig.getConfiguredCarrierIds());
-        allCarriers.addAll(newConfig.getConfiguredCarrierIds());
-
-        for (int carrierId : allCarriers) {
-            Map<Integer, Integer> oldConnCaps = oldConfig.getConnectionCapabilities(carrierId);
-            Map<Integer, Integer> newConnCaps = newConfig.getConnectionCapabilities(carrierId);
-            Map<Integer, Boolean> oldApnReq = oldConfig.getApnRequired(carrierId);
-            Map<Integer, Boolean> newApnReq = newConfig.getApnRequired(carrierId);
-
-            Set<Integer> affectedCapsForThisCarrier = new HashSet<>();
-
-            Set<Integer> allCaps = new HashSet<>();
-            if (oldConnCaps != null) allCaps.addAll(oldConnCaps.keySet());
-            if (newConnCaps != null) allCaps.addAll(newConnCaps.keySet());
-            if (oldApnReq != null) allCaps.addAll(oldApnReq.keySet());
-            if (newApnReq != null) allCaps.addAll(newApnReq.keySet());
-
-            for (int cap : allCaps) {
-                Integer oldConnVal = oldConnCaps != null ? oldConnCaps.get(cap) : null;
-                Integer newConnVal = newConnCaps != null ? newConnCaps.get(cap) : null;
-                Boolean oldApnVal = oldApnReq != null ? oldApnReq.get(cap) : null;
-                Boolean newApnVal = newApnReq != null ? newApnReq.get(cap) : null;
-
-                if (!Objects.equals(oldConnVal, newConnVal)
-                        || !Objects.equals(oldApnVal, newApnVal)) {
-                    affectedCapsForThisCarrier.add(cap);
-                }
-            }
-
-            if (!affectedCapsForThisCarrier.isEmpty()) {
-                affectedMap.put(carrierId, affectedCapsForThisCarrier);
-            }
-        }
-
-        return new DataConfigDiff(affectedMap);
     }
 }

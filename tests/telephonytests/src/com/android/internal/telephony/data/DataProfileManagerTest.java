@@ -1974,66 +1974,6 @@ public class DataProfileManagerTest extends TelephonyTest {
                 .isNull();
     }
 
-    @Test
-    public void testClearLastInternetDataProfiles() throws Exception {
-        // Setup: add something to mLastInternetDataProfiles
-        int subId = 1;
-        doReturn(subId).when(mPhone).getSubId();
-        // Create a real DataProfile from mAllApnSettings[0] (GP_APN)
-        DataProfile dp = mDataProfileManagerUT.getDataProfileForNetworkRequest(
-                new TelephonyNetworkRequest(new NetworkRequest.Builder()
-                        .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET).build(),
-                        mPhone, mFeatureFlags),
-                TelephonyManager.NETWORK_TYPE_LTE, false, false, false);
-
-        Field field = DataProfileManager.class.getDeclaredField("mLastInternetDataProfiles");
-        field.setAccessible(true);
-        android.util.LruCache<Integer, DataProfile> lastInternetDataProfiles =
-                (android.util.LruCache<Integer, DataProfile>) field.get(mDataProfileManagerUT);
-        lastInternetDataProfiles.put(subId, dp);
-        lastInternetDataProfiles.put(subId + 1, dp); // Add another subId
-
-        assertThat(lastInternetDataProfiles.get(subId)).isEqualTo(dp);
-        assertThat(lastInternetDataProfiles.get(subId + 1)).isEqualTo(dp);
-
-        // Action: clear the cache for subId 1
-        mDataProfileManagerUT.clearLastInternetDataProfiles(subId);
-        processAllMessages();
-
-        // Assert: subId 1 should be gone, but subId 2 should remain
-        assertThat(lastInternetDataProfiles.get(subId)).isNull();
-        assertThat(lastInternetDataProfiles.get(subId + 1)).isEqualTo(dp);
-    }
-
-    @Test
-    public void testUpdatePreferredDataProfileReversion() throws Exception {
-        // Setup: Ensure DB and Config return null for preferred profile
-        mPreferredApnId = -1;
-        doReturn(null).when(mDataConfigManager).getDefaultPreferredApn();
-
-        // Add a profile to the cache
-        int subId = mPhone.getSubId();
-        // Create a real DataProfile from mAllApnSettings[0] (GP_APN)
-        DataProfile dp = mDataProfileManagerUT.getDataProfileForNetworkRequest(
-                new TelephonyNetworkRequest(new NetworkRequest.Builder()
-                        .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET).build(),
-                        mPhone, mFeatureFlags),
-                TelephonyManager.NETWORK_TYPE_LTE, false, false, false);
-
-        Field field = DataProfileManager.class.getDeclaredField("mLastInternetDataProfiles");
-        field.setAccessible(true);
-        android.util.LruCache<Integer, DataProfile> lastInternetDataProfiles =
-                (android.util.LruCache<Integer, DataProfile>) field.get(mDataProfileManagerUT);
-        lastInternetDataProfiles.put(subId, dp);
-
-        // Action: trigger preferred profile update (e.g. via APN db changed)
-        mDataProfileManagerUT.obtainMessage(2 /*EVENT_APN_DATABASE_CHANGED*/).sendToTarget();
-        processAllMessages();
-
-        // Assert: It should have picked the profile from the cache
-        assertThat(mDataProfileManagerUT.isDataProfilePreferred(dp)).isTrue();
-    }
-
     private void changeSimStateTo(@TelephonyManager.SimState int simState) {
         mSimInserted = simState == TelephonyManager.SIM_STATE_LOADED;
         doReturn(IccCardConstants.State.intToState(simState)).when(mIccCard).getState();

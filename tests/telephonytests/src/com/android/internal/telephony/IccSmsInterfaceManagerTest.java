@@ -179,8 +179,8 @@ public class IccSmsInterfaceManagerTest extends TelephonyTest {
     @Test
     public void testSendRawPdu() {
         byte[] pdu = new byte[] {0x01, 0x02};
-        mIccSmsInterfaceManager.sendRawPdu("callingPackage", 0, "1234", "5678", pdu, null, null, 0);
+        mIccSmsInterfaceManager.sendRawPdu("callingPackage", 0, "1234", pdu, null, null, 0);
         verify(mSmsDispatchersController).sendRawPdu(eq("callingPackage"), eq(0),
-                eq("1234"), eq("5678"), eq(pdu), isNull(), isNull(), eq(0));
+                eq("1234"), eq(pdu), isNull(), isNull(), eq(0));
     }
 }

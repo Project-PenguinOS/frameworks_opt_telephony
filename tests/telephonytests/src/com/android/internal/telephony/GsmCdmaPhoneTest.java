@@ -43,7 +43,6 @@ import static org.mockito.Mockito.anyBoolean;
 import static org.mockito.Mockito.anyInt;
 import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.atLeast;
-import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
@@ -148,7 +147,6 @@ public class GsmCdmaPhoneTest extends TelephonyTest {
     // app is not currently debuggable. For now, we use the real device config and ensure that
     // we reset the cellular_security namespace property to its pre-test value after every test.
     private DeviceConfig.Properties mPreTestProperties;
-    private CarrierConfigManager.CarrierConfigChangeListener mCarrierConfigChangeListener;
 
     @Before
     public void setUp() throws Exception {
@@ -170,18 +168,6 @@ public class GsmCdmaPhoneTest extends TelephonyTest {
             PhoneConstants.PHONE_TYPE_GSM, mTelephonyComponentFactory, (c, p) -> mImsManager,
                 mFeatureFlags);
         mPhoneUT.setVoiceCallSessionStats(mVoiceCallSessionStats);
-        // Trigger lazy initialization of CarrierConfigChangeListener
-        mPhoneUT.isInEmergencySmsMode();
-
-        ArgumentCaptor<CarrierConfigManager.CarrierConfigChangeListener> listenerArgumentCaptor =
-                ArgumentCaptor.forClass(CarrierConfigManager.CarrierConfigChangeListener.class);
-        verify(mCarrierConfigManager, atLeastOnce()).registerCarrierConfigChangeListener(any(),
-                listenerArgumentCaptor.capture());
-        // Find the listener registered by Phone
-        mCarrierConfigChangeListener = listenerArgumentCaptor.getAllValues().stream()
-                .filter(l -> l.getClass().getName().contains("Phone"))
-                .findFirst().orElse(listenerArgumentCaptor.getAllValues().get(0));
-
         ArgumentCaptor<Integer> integerArgumentCaptor = ArgumentCaptor.forClass(Integer.class);
         verify(mUiccController).registerForIccChanged(eq(mPhoneUT), integerArgumentCaptor.capture(),
                 nullable(Object.class));
@@ -613,7 +599,6 @@ public class GsmCdmaPhoneTest extends TelephonyTest {
         int timeout = 200;
         mContextFixture.getCarrierConfigBundle().putInt(
                 CarrierConfigManager.KEY_EMERGENCY_SMS_MODE_TIMER_MS_INT, timeout);
-        mCarrierConfigChangeListener.onCarrierConfigChanged(0, 0, 0, 0);
         doReturn(true).when(mTelephonyManager).isEmergencyNumber(emergencyNumber);
 
         mPhoneUT.notifySmsSent(nonEmergencyNumber);
@@ -631,32 +616,8 @@ public class GsmCdmaPhoneTest extends TelephonyTest {
         // Feature not supported
         mContextFixture.getCarrierConfigBundle().putInt(
                 CarrierConfigManager.KEY_EMERGENCY_SMS_MODE_TIMER_MS_INT, 0);
-        mCarrierConfigChangeListener.onCarrierConfigChanged(0, 0, 0, 0);
         mPhoneUT.notifySmsSent(emergencyNumber);
         processAllMessages();
-        assertFalse(mPhoneUT.isInEmergencySmsMode());
-    }
-
-    @Test
-    @SmallTest
-    public void testEmergencySmsModeTimerUpdate() {
-        String emergencyNumber = "111";
-        int timeout = 200;
-        mContextFixture.getCarrierConfigBundle().putInt(
-                CarrierConfigManager.KEY_EMERGENCY_SMS_MODE_TIMER_MS_INT, timeout);
-        mCarrierConfigChangeListener.onCarrierConfigChanged(0, 0, 0, 0);
-        doReturn(true).when(mTelephonyManager).isEmergencyNumber(emergencyNumber);
-
-        mPhoneUT.notifySmsSent(emergencyNumber);
-        processAllMessages();
-        assertTrue(mPhoneUT.isInEmergencySmsMode());
-
-        // Update timer to 0 (unsupported) while in emergency SMS mode
-        mContextFixture.getCarrierConfigBundle().putInt(
-                CarrierConfigManager.KEY_EMERGENCY_SMS_MODE_TIMER_MS_INT, 0);
-        mCarrierConfigChangeListener.onCarrierConfigChanged(0, 0, 0, 0);
-        processAllMessages();
-        // It should now return false even if the original timer hadn't expired
         assertFalse(mPhoneUT.isInEmergencySmsMode());
     }
 
@@ -667,7 +628,6 @@ public class GsmCdmaPhoneTest extends TelephonyTest {
         int timeout = 200;
         mContextFixture.getCarrierConfigBundle().putInt(
                 CarrierConfigManager.KEY_EMERGENCY_SMS_MODE_TIMER_MS_INT, timeout);
-        mCarrierConfigChangeListener.onCarrierConfigChanged(0, 0, 0, 0);
         doReturn(true).when(mTelephonyManager).isEmergencyNumber(emergencyNumber);
 
         // Feature flag enabled
@@ -684,54 +644,6 @@ public class GsmCdmaPhoneTest extends TelephonyTest {
         mPhoneUT.notifySmsSent(emergencyNumber);
         processAllMessages();
         assertTrue(mPhoneUT.isInEmergencySmsMode());
-    }
-
-    @Test
-    @SmallTest
-    public void testIsInEmergencySmsModeInitialization() throws Exception {
-        // Create a new GsmCdmaPhone instance so it is not initialized.
-        GsmCdmaPhone phone = new GsmCdmaPhone(mContext, mSimulatedCommands, mNotifier, true, 0,
-            PhoneConstants.PHONE_TYPE_GSM, mTelephonyComponentFactory, (c, p) -> mImsManager,
-                mFeatureFlags);
-
-        // Mocking CarrierConfigManager to throw an IllegalStateException
-        doThrow(new IllegalStateException("CarrierConfig not ready")).when(mCarrierConfigManager)
-                .getConfigForSubId(anyInt(), any());
-
-        // Call isInEmergencySmsMode() when uninitialized. It should hit the initialization block,
-        // catch the exception, and return false due to the finally block.
-        assertFalse(phone.isInEmergencySmsMode());
-
-        // Verify that registerCarrierConfigChangeListener was called once during initialization.
-        verify(mCarrierConfigManager, atLeastOnce()).registerCarrierConfigChangeListener(any(),
-                any(CarrierConfigManager.CarrierConfigChangeListener.class));
-    }
-
-    @Test
-    @SmallTest
-    public void testIsInEmergencySmsModeInitializationSuccess() throws Exception {
-        // Create a new GsmCdmaPhone instance so it is not initialized.
-        GsmCdmaPhone phone = new GsmCdmaPhone(mContext, mSimulatedCommands, mNotifier, true, 0,
-            PhoneConstants.PHONE_TYPE_GSM, mTelephonyComponentFactory, (c, p) -> mImsManager,
-                mFeatureFlags);
-
-        int timeout = 200;
-        mContextFixture.getCarrierConfigBundle().putInt(
-                CarrierConfigManager.KEY_EMERGENCY_SMS_MODE_TIMER_MS_INT, timeout);
-
-        // First call should initialize and return false due to finally block.
-        assertFalse(phone.isInEmergencySmsMode());
-
-        // Second call should skip initialization and proceed with normal logic.
-        // Since no emergency SMS was sent, it should still return false.
-        assertFalse(phone.isInEmergencySmsMode());
-
-        // Now send an emergency SMS and check it returns true.
-        String emergencyNumber = "111";
-        doReturn(true).when(mTelephonyManager).isEmergencyNumber(emergencyNumber);
-        phone.notifySmsSent(emergencyNumber);
-        processAllMessages();
-        assertTrue(phone.isInEmergencySmsMode());
     }
 
     @Test

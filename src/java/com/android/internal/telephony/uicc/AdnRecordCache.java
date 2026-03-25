@@ -25,6 +25,7 @@ import android.telephony.Rlog;
 import android.util.SparseArray;
 
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.internal.telephony.flags.Flags;
 import com.android.internal.telephony.gsm.UsimPhoneBookManager;
 
 import java.util.ArrayList;
@@ -83,7 +84,9 @@ public class AdnRecordCache extends Handler implements IccConstants {
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     public void reset() {
         mAdnLikeFiles.clear();
-        mAdnLikeFilesLoadingIssues.clear();
+        if (Flags.cacheAdnRecordLoaderExceptions()) {
+            mAdnLikeFilesLoadingIssues.clear();
+        }
         mUsimPhoneBookManager.reset();
 
         clearWaiters();
@@ -287,14 +290,16 @@ public class AdnRecordCache extends Handler implements IccConstants {
         }
 
         // Have we previously failed to load this efid?
-        if (mAdnLikeFilesLoadingIssues.indexOfKey(efid) >= 0) {
-            if (response != null) {
-                AsyncResult.forMessage(response).exception =
-                            mAdnLikeFilesLoadingIssues.get(efid);
-                Rlog.e(LOG_TAG, "Error(cached) loading ADN records for efid: " + efid);
-                response.sendToTarget();
+        if (Flags.cacheAdnRecordLoaderExceptions()) {
+            if (mAdnLikeFilesLoadingIssues.indexOfKey(efid) >= 0) {
+                if (response != null) {
+                    AsyncResult.forMessage(response).exception =
+                                mAdnLikeFilesLoadingIssues.get(efid);
+                    Rlog.e(LOG_TAG, "Error(cached) loading ADN records for efid: " + efid);
+                    response.sendToTarget();
+                }
+                return;
             }
-            return;
         }
 
         // Have we already *started* loading this efid?
@@ -371,7 +376,9 @@ public class AdnRecordCache extends Handler implements IccConstants {
                 if (ar.exception == null) {
                     mAdnLikeFiles.put(efid, (ArrayList<AdnRecord>) ar.result);
                 } else {
-                    mAdnLikeFilesLoadingIssues.put(efid, ar.exception);
+                    if (Flags.cacheAdnRecordLoaderExceptions()) {
+                        mAdnLikeFilesLoadingIssues.put(efid, ar.exception);
+                    }
                 }
                 notifyWaiters(waiters, ar);
                 break;

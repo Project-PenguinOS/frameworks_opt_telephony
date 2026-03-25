@@ -2947,7 +2947,6 @@ public class GsmCdmaPhone extends Phone {
                 }
                 // Obtain new radio capabilities from the modem, since some are SIM-dependent
                 mCi.getRadioCapability(obtainMessage(EVENT_GET_RADIO_CAPABILITY));
-                super.handleMessage(msg);
                 break;
 
             case EVENT_SET_ROAMING_PREFERENCE_DONE:

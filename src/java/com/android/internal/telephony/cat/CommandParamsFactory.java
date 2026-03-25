@@ -870,14 +870,6 @@ public class CommandParamsFactory extends Handler {
         DisplayTextParams displayTextParams = new DisplayTextParams(cmdDet, textMsg);
         ComprehensionTlv ctlvTpdu = searchForTag(ComprehensionTlvTag.SMS_TPDU,
                 ctlvs);
-
-        String smscAddress = null;
-        if (Flags.stkSmscAddressExtraction()) {
-            ComprehensionTlv ctlvSmsc = searchForTag(ComprehensionTlvTag.ADDRESS, ctlvs);
-            if (ctlvSmsc != null) {
-                smscAddress = ValueParser.retrieveAddress(ctlvSmsc);
-            }
-        }
         // Retrieves smsMessage from the SMS TPDU COMPREHENSION-TLV object
         SmsMessage smsMessage = ValueParser.retrieveTpduAsSmsMessage(ctlvTpdu);
         if (smsMessage != null) {
@@ -899,8 +891,7 @@ public class CommandParamsFactory extends Handler {
                 rawTpdu = null;
             }
 
-            mCmdParams = new SendSMSParams(cmdDet, smsText, destAddr, displayTextParams,
-                    smscAddress, rawTpdu);
+            mCmdParams = new SendSMSParams(cmdDet, smsText, destAddr, displayTextParams, rawTpdu);
             return false;
         }
         return true;

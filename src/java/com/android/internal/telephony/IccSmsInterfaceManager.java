@@ -456,7 +456,6 @@ public class IccSmsInterfaceManager {
      * @param callingPackage the package name of the caller
      * @param callingUser the user of the caller
      * @param destAddr the address to send the message to
-     * @param scAddr the service center address to send the message to
      * @param pdu the raw SMS PDU to send
      * @param sentIntent if not NULL this <code>PendingIntent</code> is
      *  broadcast when the message is successfully sent, or failed.
@@ -470,10 +469,10 @@ public class IccSmsInterfaceManager {
      * Note: SEND_SMS permission should be checked by the caller of this method
      */
     @VisibleForTesting
-    public void sendRawPdu(String callingPackage, int callingUser, String destAddr, String scAddr,
-            byte[] pdu, PendingIntent sentIntent, PendingIntent deliveryIntent, int uid) {
-        mDispatchersController.sendRawPdu(callingPackage, callingUser, destAddr, scAddr, pdu,
-                sentIntent, deliveryIntent, uid);
+    public void sendRawPdu(String callingPackage, int callingUser, String destAddr, byte[] pdu,
+            PendingIntent sentIntent, PendingIntent deliveryIntent, int uid) {
+        mDispatchersController.sendRawPdu(callingPackage, callingUser, destAddr, pdu, sentIntent,
+                deliveryIntent, uid);
     }
 
     /**

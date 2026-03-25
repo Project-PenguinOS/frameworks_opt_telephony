@@ -1,4 +1,4 @@
-//
+
 // Copyright 2024 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -33,10 +33,6 @@ message TelephonyConfigProto {
 
 // 1. Container for all satellite-related configs that can be dynamically updated.
 //
-// Certain configurations (e.g., those marked for Carrier Enablement) are used
-// to dynamically enable or modify telephony features (such as Carrier
-// Satellite) without requiring a full Android OS update (OTA).
-//
 // version:
 //   The version of this configuration file. Used to prevent applying older
 //   configs.
@@ -57,66 +53,19 @@ message SatelliteConfigProto {
   optional CarrierRoamingConfigProto carrier_roaming_config = 4;
 }
 
-// Container for all device-level satellite-related configurations that can be
-// dynamically updated. These settings apply globally to the device, regardless
-// of the active carrier.
 message CarrierRoamingConfigProto {
   optional int32 max_allowed_data_mode = 1;
   repeated string device_satellite_plmn = 2;
-
-  // Whether to forcefully override the roaming mode of Wi-Fi Calling when connected to NTN.
-  // Mapped from: config_override_wfc_roaming_mode_while_using_ntn
-  optional bool override_wfc_roaming_mode_while_using_ntn = 3;
 }
 
-// Container for all carrier-specific satellite-related configurations that can
-// be dynamically updated. These settings are matched to the device's active
-// SIM via the carrier_id.
 message CarrierSupportedSatelliteServicesProto {
   optional int32 carrier_id = 1;
-
-  // Supported Satellite Provider Capabilities
-  // Also, Mapped from: KEY_SATELLITE_CONFIGS_PER_PLMN_BUNDLE
   repeated SatelliteProviderCapabilityProto supported_satellite_provider_capabilities = 2;
-
-  // Whether satellite PLMN scan and attachment are supported.
-  // Mapped from: KEY_SATELLITE_ATTACH_SUPPORTED_BOOL
-  optional bool attach_supported = 3;
-
-  // Satellite network data traffic support mode.
-  // 0: Restricted, 1: Bandwidth restricted, 2: Full.
-  // Mapped from: KEY_SATELLITE_DATA_SUPPORT_MODE_INT
-  optional int32 data_support_mode = 4;
-
-  // Satellite connection method.
-  // 0: Automatic, 1: Manual, 2: Hybrid.
-  // Mapped from: KEY_CARRIER_ROAMING_NTN_CONNECT_TYPE_INT
-  optional int32 ntn_connect_type = 5;
-
-  // Whether satellite emergency messaging is supported.
-  // Mapped from: KEY_EMERGENCY_MESSAGING_SUPPORTED_BOOL
-  optional bool emergency_messaging_supported = 6;
-
-  // Whether satellite entitlement is supported.
-  // Mapped from: KEY_SATELLITE_ENTITLEMENT_SUPPORTED_BOOL
-  optional bool entitlement_supported = 7;
-
-  // The URL of the entitlement server.
-  // Mapped from: KEY_ENTITLEMENT_SERVER_URL_STRING
-  optional string entitlement_server_url = 8;
 }
 
-// Detailed satellite settings per PLMN.
-// Some of fields are mapped from: KEY_SATELLITE_CONFIGS_PER_PLMN_BUNDLE
 message SatelliteProviderCapabilityProto{
-  // The PLMN identifier.
   optional string carrier_plmn = 1;
   repeated int32 allowed_services = 2;
-
-  // Satellite connection method.
-  // 0: Automatic, 1: Manual, 2: Hybrid.
-  // Mapped from: KEY_CARRIER_ROAMING_NTN_CONNECT_TYPE_INT
-  optional int32 ntn_connect_type = 3;
 }
 
 message SatelliteRegionProto {
@@ -212,3 +161,4 @@ message MeteredCapabilities {
   optional int32 carrier_id = 1;
   repeated int32 capability_ids = 2;
 }
+

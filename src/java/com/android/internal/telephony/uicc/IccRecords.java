@@ -130,6 +130,7 @@ public abstract class IccRecords extends Handler implements IccConstants {
     protected RegistrantList mRecordsEventsRegistrants = new RegistrantList();
     protected RegistrantList mNewSmsRegistrants = new RegistrantList();
     protected RegistrantList mNetworkSelectionModeAutomaticRegistrants = new RegistrantList();
+    protected RegistrantList mSpnUpdatedRegistrants = new RegistrantList();
     protected RegistrantList mRecordsOverrideRegistrants = new RegistrantList();
 
 // QTI_BEGIN: 2020-01-05: Telephony: Split uicc records loading in two groups.
@@ -252,6 +253,7 @@ public abstract class IccRecords extends Handler implements IccConstants {
     public static final int DEFAULT_CARRIER_NAME_DISPLAY_CONDITION = 0;
 
     // ***** Event Constants
+    public static final int EVENT_MWI = 0; // Message Waiting indication
     public static final int EVENT_CFI = 1; // Call Forwarding indication
     public static final int EVENT_SPN = 2; // Service Provider Name
 
@@ -620,12 +622,29 @@ public abstract class IccRecords extends Handler implements IccConstants {
     }
 
 // QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
+    public void registerForSpnUpdate(Handler h, int what, Object obj) {
+        if (mDestroyed.get()) {
+            return;
+        }
+
+        Registrant r = new Registrant(h, what, obj);
+        mSpnUpdatedRegistrants.add(r);
+
+        if (!TextUtils.isEmpty(mSpn)) {
+            r.notifyRegistrant(new AsyncResult(null, null, null));
+        }
+    }
+    public void unregisterForSpnUpdate(Handler h) {
+        mSpnUpdatedRegistrants.remove(h);
+    }
+
     public void registerForRecordsEvents(Handler h, int what, Object obj) {
         Registrant r = new Registrant (h, what, obj);
         mRecordsEventsRegistrants.add(r);
 
         /* Notify registrant of all the possible events. This is to make sure registrant is
         notified even if event occurred in the past. */
+        r.notifyResult(EVENT_MWI);
         r.notifyResult(EVENT_CFI);
     }
 
@@ -901,6 +920,7 @@ public abstract class IccRecords extends Handler implements IccConstants {
     protected void setServiceProviderName(String spn) {
         if (!TextUtils.equals(mSpn, spn)) {
             mSpn = spn != null ? spn.trim() : null;
+            mSpnUpdatedRegistrants.notifyRegistrants();
         }
     }
 

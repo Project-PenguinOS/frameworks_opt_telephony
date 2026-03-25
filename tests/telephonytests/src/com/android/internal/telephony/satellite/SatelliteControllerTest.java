@@ -98,12 +98,6 @@ import static com.android.internal.telephony.satellite.SatelliteConstants.SESSIO
 import static com.android.internal.telephony.satellite.SatelliteController.DEFAULT_CARRIER_EMERGENCY_CALL_WAIT_FOR_CONNECTION_TIMEOUT_MILLIS;
 import static com.android.internal.telephony.satellite.SatelliteController.SATELLITE_DATA_PLAN_METERED;
 import static com.android.internal.telephony.satellite.SatelliteController.SATELLITE_DATA_PLAN_UNMETERED;
-
-import android.telephony.satellite.stub.ISatellite;
-import android.telephony.satellite.stub.SatelliteNetworkInfo;
-import android.telephony.satellite.stub.PrioritizedNetworkScanRequest;
-import com.android.internal.telephony.HalVersion;
-import com.android.internal.telephony.satellite.SatelliteModemInterface;
 import static com.android.internal.telephony.satellite.SatelliteController.SATELLITE_MODE_ENABLED_FALSE;
 import static com.android.internal.telephony.satellite.SatelliteController.SATELLITE_MODE_ENABLED_TRUE;
 import static com.android.internal.telephony.satellite.SatelliteController.SatellitePerPlmnConfiguration;
@@ -1182,43 +1176,6 @@ public class SatelliteControllerTest extends TelephonyTest {
         assertFalse(mSatelliteControllerUT.isInSatelliteModeForCarrierRoaming(mPhone));
         assertEquals(new ArrayList<>(),
                 mSatelliteControllerUT.getCapabilitiesForCarrierRoamingSatelliteMode(mPhone));
-    }
-
-    @Test
-    public void testHandleServiceStateSatelliteTechnologies() {
-        when(mFeatureFlags.vzwAstSkyloFallback()).thenReturn(true);
-        String plmn = "00101";
-        when(mServiceState.getOperatorNumeric()).thenReturn(plmn);
-
-        PersistableBundle satelliteConfigsPerPlmnBundle = new PersistableBundle();
-        PersistableBundle plmnConfigBundle = new PersistableBundle();
-        plmnConfigBundle.putInt(
-                CarrierConfigManager.KEY_CARRIER_ROAMING_NTN_CONNECT_TYPE_INT,
-                CarrierConfigManager.CARRIER_ROAMING_NTN_CONNECT_AUTOMATIC);
-        plmnConfigBundle.putIntArray(CarrierConfigManager.KEY_SATELLITE_TECHNOLOGY_INT_ARRAY,
-                new int[] {SatelliteManager.NT_RADIO_TECHNOLOGY_LTE_DTC});
-        satelliteConfigsPerPlmnBundle.putPersistableBundle(plmn, plmnConfigBundle);
-        mCarrierConfigBundle.putPersistableBundle(
-                CarrierConfigManager.KEY_SATELLITE_CONFIGS_PER_PLMN_BUNDLE,
-                satelliteConfigsPerPlmnBundle);
-
-        NetworkRegistrationInfo satelliteNri = new NetworkRegistrationInfo.Builder()
-                .setIsNonTerrestrialNetwork(true)
-                .setAvailableServices(List.of(NetworkRegistrationInfo.SERVICE_TYPE_DATA))
-                .setSatelliteTechnology(SatelliteManager.NT_RADIO_TECHNOLOGY_LTE_DTC)
-                .build();
-        mCarrierConfigBundle.putInt(KEY_SATELLITE_CONNECTION_HYSTERESIS_SEC_INT, 1 * 60);
-        mCarrierConfigBundle.putBoolean(KEY_SATELLITE_ATTACH_SUPPORTED_BOOL, true);
-        invokeCarrierConfigChanged();
-        when(mServiceState.getNetworkRegistrationInfoList()).thenReturn(List.of(satelliteNri));
-        when(mServiceState.isUsingNonTerrestrialNetwork()).thenReturn(true);
-        sendServiceStateChangedEvent();
-        processAllMessages();
-        assertTrue(mSatelliteControllerUT.isInSatelliteModeForCarrierRoaming(mPhone));
-        assertEquals(List.of(SERVICE_TYPE_DATA),
-                mSatelliteControllerUT.getCapabilitiesForCarrierRoamingSatelliteMode(mPhone));
-        assertEquals(SatelliteManager.NT_RADIO_TECHNOLOGY_LTE_DTC,
-                mSatelliteControllerUT.getSatelliteTechnologyForCarrierRoaming(mPhone));
     }
 
     @Test
@@ -6223,10 +6180,6 @@ public class SatelliteControllerTest extends TelephonyTest {
     private void setUpResponseForRequestIsSatelliteProvisioned(
             boolean isSatelliteProvisioned, @SatelliteManager.SatelliteResult int error) {
         mSatelliteControllerUT.setSatelliteProvisioned(isSatelliteProvisioned);
-        mTestSubscriptionManager.setIsSatelliteProvisionedForNonIpDatagram(SUB_ID,
-                isSatelliteProvisioned);
-        mTestSubscriptionManager.setIsSatelliteProvisionedForNonIpDatagram(SUB_ID1,
-                isSatelliteProvisioned);
     }
 
     private void setUpResponseForRequestIsSatelliteProvisioned(String subscriberId,
@@ -9247,38 +9200,6 @@ public class SatelliteControllerTest extends TelephonyTest {
         logd("Wait for the expected result within timer");
         assertTrue("Timed out waiting for setSatelliteNetworkInfo with expected PLMN and satTechs",
                 latch.await(TIMEOUT, TimeUnit.MILLISECONDS));
-    }
-
-    @Test
-    public void testSetSatelliteNetworkInfoFallback() throws Exception {
-        if (!mFeatureFlags.nrNtn()) return;
-
-        logd("Prepare carrier configuration");
-        String plmn = "12345";
-        int phoneId = mPhone.getPhoneId();
-        PersistableBundle plmnConfig = new PersistableBundle();
-        plmnConfig.putIntArray(CarrierConfigManager.KEY_SATELLITE_TECHNOLOGY_INT_ARRAY,
-                new int[] {SatelliteManager.NT_RADIO_TECHNOLOGY_NR_NTN});
-        PersistableBundle configsBundle = new PersistableBundle();
-        configsBundle.putPersistableBundle(plmn, plmnConfig);
-        PersistableBundle rootBundle = new PersistableBundle();
-        rootBundle.putBoolean(CarrierConfigManager.KEY_SATELLITE_ATTACH_SUPPORTED_BOOL, true);
-        rootBundle.putPersistableBundle(
-                CarrierConfigManager.KEY_SATELLITE_CONFIGS_PER_PLMN_BUNDLE, configsBundle);
-        doReturn(rootBundle).when(mCarrierConfigManager).getConfigForSubId(anyInt());
-        doReturn(rootBundle).when(mCarrierConfigManager).getConfigForSubId(anyInt(), any());
-
-        // Mock HAL version < 2.4
-        HalVersion halVersion23 = new HalVersion(2, 3);
-        doReturn(halVersion23).when(mPhone).getHalVersion(
-                eq(android.telephony.TelephonyManager.HAL_SERVICE_NETWORK));
-
-        logd("Trigger carrier config update");
-        invokeCarrierConfigChanged();
-
-        logd("Verify that SatelliteModemInterface.setSatelliteNetworkInfo was called");
-        verify(mMockSatelliteModemInterface).setSatelliteNetworkInfo(
-                eq(phoneId), any(android.hardware.radio.network.SatelliteNetworkInfo.class), any());
     }
 
     @Test

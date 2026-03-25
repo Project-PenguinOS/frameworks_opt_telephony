@@ -19,6 +19,8 @@ package com.android.internal.telephony.data;
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -194,13 +196,13 @@ public class DataConfigManagerTest extends TelephonyTest {
         // Setup DataConfig to return NULL (Missing Configuration)
         // We simulate a valid DataConfig object that has no entry for this carrier/metering,
         // returning null to signal "use default/fallback".
-        TelephonyConfigData.DataConfigProto proto = TelephonyConfigData.DataConfigProto.newBuilder()
-                .setVersion(1)
-                .build();
-        DataConfig dataConfig = new DataConfig(proto);
+        DataConfig mockDataConfig = mock(DataConfig.class);
+        doReturn(null).when(mockDataConfig).getMeteredNetworkCapabilities(anyInt(), anyBoolean());
 
+        // Inject this mock config into the manager
+        // (Using the existing mocking mechanism from setUp or a helper)
         ConfigParser mockParser = mock(DataConfigParser.class);
-        doReturn(dataConfig).when(mockParser).getConfig();
+        doReturn(mockDataConfig).when(mockParser).getConfig();
 
         // Trigger the "Config Update" callback manually
         ArgumentCaptor<ConfigProviderAdaptor.Callback> callbackCaptor =

@@ -34,7 +34,6 @@ import android.os.PersistableBundle;
 import android.telephony.AccessNetworkConstants;
 import android.telephony.NetworkRegistrationInfo;
 import android.telephony.ServiceState;
-import android.telephony.satellite.stub.NTRadioTechnology;
 import android.testing.AndroidTestingRunner;
 import android.testing.TestableLooper;
 
@@ -279,36 +278,5 @@ public class SatelliteServiceUtilsTest extends TelephonyTest {
                 eq(AccessNetworkConstants.TRANSPORT_TYPE_WWAN)))
                 .thenReturn(List.of(nri));
         assertTrue(SatelliteServiceUtils.isSatellitePlmn(subId, mServiceState));
-    }
-
-    @Test
-    public void testToStubSatelliteTechnology() {
-        android.hardware.radio.network.NetworkInfo halNetworkInfo =
-                new android.hardware.radio.network.NetworkInfo();
-
-        halNetworkInfo.satelliteTechnology =
-                android.hardware.radio.network.SatelliteTechnology.SAT_TECH_NB_IOT_NTN;
-        assertEquals(NTRadioTechnology.NB_IOT_NTN,
-                SatelliteServiceUtils.toStubSatelliteTechnology(halNetworkInfo));
-
-        halNetworkInfo.satelliteTechnology =
-                android.hardware.radio.network.SatelliteTechnology.SAT_TECH_3GPP_NTN;
-        assertEquals(NTRadioTechnology.NR_NTN,
-                SatelliteServiceUtils.toStubSatelliteTechnology(halNetworkInfo));
-
-        halNetworkInfo.satelliteTechnology =
-                android.hardware.radio.network.SatelliteTechnology.SAT_TECH_DTC;
-        halNetworkInfo.accessNetwork = AccessNetworkConstants.AccessNetworkType.EUTRAN;
-        assertEquals(NTRadioTechnology.LTE_DTC,
-                SatelliteServiceUtils.toStubSatelliteTechnology(halNetworkInfo));
-
-        halNetworkInfo.accessNetwork = AccessNetworkConstants.AccessNetworkType.NGRAN;
-        assertEquals(NTRadioTechnology.NR_DTC,
-                SatelliteServiceUtils.toStubSatelliteTechnology(halNetworkInfo));
-
-        halNetworkInfo.satelliteTechnology =
-                android.hardware.radio.network.SatelliteTechnology.SAT_TECH_NONE;
-        assertEquals(NTRadioTechnology.UNKNOWN,
-                SatelliteServiceUtils.toStubSatelliteTechnology(halNetworkInfo));
     }
 }

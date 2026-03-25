@@ -24,21 +24,19 @@ public class SendSMSParams extends CommandParams {
     TextMessage mDestAddress;
     DisplayTextParams mDisplayText;
     @Nullable byte[] mRawTpdu;
-    @Nullable String mSmscAddress;
 
     public SendSMSParams(CommandDetails cmdDet, TextMessage textMsg, TextMessage destAddress,
-            DisplayTextParams displayText, @Nullable String smscAddress, @Nullable byte[] rawTpdu) {
+            DisplayTextParams displayText, @Nullable byte[] rawTpdu) {
         super(cmdDet);
         mTextSmsMsg = textMsg;
         mDestAddress = destAddress;
         mDisplayText = displayText;
-        mSmscAddress = smscAddress;
         mRawTpdu = rawTpdu;
     }
 
     public SendSMSParams(CommandDetails cmdDet, TextMessage textMsg, TextMessage destAddress,
-            DisplayTextParams displayText, @Nullable byte[] rawTpdu) {
-        this(cmdDet, textMsg, destAddress, displayText, null, rawTpdu);
+            DisplayTextParams displayText) {
+        this(cmdDet, textMsg, destAddress, displayText, null);
     }
 
 }

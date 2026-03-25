@@ -240,7 +240,7 @@ public class CATServiceTest extends TelephonyTest {
 
         mCatService.sendStkSms(cmdPrms);
         verify(mSmsController, Mockito.times(1)).sendRawPduForSubscriber(anyInt(),
-                anyString(), anyString(), nullable(String.class), any(byte[].class), any(), any());
+                anyString(), anyString(), any(byte[].class), any(), any());
     }
 
     @Test
