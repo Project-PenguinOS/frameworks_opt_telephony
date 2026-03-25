@@ -243,4 +243,27 @@ public class SatelliteConstants {
     })
     @Retention(RetentionPolicy.SOURCE)
     public @interface EmergencyNumberSource {}
+
+    // Defines the trigger for a outgoing satellite message
+    // Trigger is unknown
+    public static final int SATELLITE_MESSAGE_TRIGGER_UNKNOWN = 0;
+    // User explicitly opened the messaging application to send satellite messages
+    public static final int SATELLITE_MESSAGE_TRIGGER_DIRECT_MESSAGES_UI = 1;
+    // User attempted non-emergency call and opted to use satellite messaging
+    public static final int SATELLITE_MESSAGE_TRIGGER_NON_EMERGENCY_DIALER_DIALOG = 2;
+    // User attempted emergency call and transistioned to satellite messaging by
+    // clicking user satellite messaging button in Dialer.
+    public static final int SATELLITE_MESSAGE_TRIGGER_EMERGENCY_DIALER_BUTTON = 3;
+    // User accessed satellite messaging by using satellite system notification
+    public static final int SATELLITE_MESSAGE_TRIGGER_SYSTEM_NOTIFICATION = 4;
+
+    @IntDef(prefix = {"SATELLITE_MESSAGE_TRIGGER_"}, value = {
+        SATELLITE_MESSAGE_TRIGGER_UNKNOWN,
+        SATELLITE_MESSAGE_TRIGGER_DIRECT_MESSAGES_UI,
+        SATELLITE_MESSAGE_TRIGGER_NON_EMERGENCY_DIALER_DIALOG,
+        SATELLITE_MESSAGE_TRIGGER_EMERGENCY_DIALER_BUTTON,
+        SATELLITE_MESSAGE_TRIGGER_SYSTEM_NOTIFICATION
+    })
+    @Retention(RetentionPolicy.SOURCE)
+    public @interface SatelliteMessageTrigger {}
 }

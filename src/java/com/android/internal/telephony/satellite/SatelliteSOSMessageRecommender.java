@@ -465,6 +465,10 @@ public class SatelliteSOSMessageRecommender extends Handler {
                         .setEmergencyNumberSourceUsedInHandoverIntent(
                             mEmergencyNumberSourceUsedInHandoverIntent.get())
                         .build());
+
+        if (isDialerNotified) {
+            mSatelliteController.onEmergencyDialerButtonDisplayed(subId);
+        }
     }
 
     private void cleanUpResources(boolean isDialerNotified) {

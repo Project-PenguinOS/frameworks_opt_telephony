@@ -395,6 +395,7 @@ message OutgoingSms {
     optional string calling_package_name = 24;
     optional int32 app_uid = 25;
     optional string plmn = 26;
+    optional int32 satellite_message_trigger = 27;
 
     // Internal use only
     optional int32 hashCode = 10001;
@@ -907,6 +908,9 @@ message CarrierRoamingSatelliteSession {
     optional int64 energy_consumed_nwh = 45;
     optional int32 eligibility_source = 46;
     optional bool is_wifi_connected = 47;
+    optional int32 count_of_non_emergency_dialer_dialog_displayed = 48;
+    optional int32 count_of_emergency_dialer_button_displayed = 49;
+    optional int32 count_of_satellite_notification_displayed = 50;
 }
 
 message CarrierRoamingSatelliteControllerStats {
