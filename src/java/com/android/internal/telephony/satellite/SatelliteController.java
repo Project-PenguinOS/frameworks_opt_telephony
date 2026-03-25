@@ -23,6 +23,7 @@ import static android.telephony.CarrierConfigManager.CARRIER_ROAMING_NTN_CONNECT
 import static android.telephony.CarrierConfigManager.CARRIER_ROAMING_NTN_CONNECT_HYBRID;
 import static android.telephony.CarrierConfigManager.CARRIER_ROAMING_NTN_CONNECT_MANUAL;
 import static android.telephony.CarrierConfigManager.CARRIER_ROAMING_NTN_CONNECT_TYPE;
+import static android.telephony.CarrierConfigManager.ImsServiceEntitlement.KEY_ENTITLEMENT_SERVER_URL_STRING;
 import static android.telephony.CarrierConfigManager.KEY_CARRIER_CONFIG_APPLIED_BOOL;
 import static android.telephony.CarrierConfigManager.KEY_CARRIER_ROAMING_NTN_CONNECT_TYPE_INT;
 import static android.telephony.CarrierConfigManager.KEY_CARRIER_ROAMING_NTN_EMERGENCY_CALL_TO_SATELLITE_HANDOVER_TYPE_INT;
@@ -6691,7 +6692,8 @@ public class SatelliteController extends Handler {
                         KEY_SATELLITE_SUPPORTED_EMERGENCY_PLMN_STRING_ARRAY,
                         KEY_SATELLITE_SUPPORTED_DISASTER_PLMN_STRING_ARRAY,
                         KEY_CARRIER_ROAMING_SATELLITE_EMERGENCY_MESSAGING_PROVIDER_PER_COUNTRY_BUNDLE,
-                        KEY_CARRIER_ROAMING_SATELLITE_EMERGENCY_MESSAGING_REDIRECTION_DESTINATION_STRING
+                        KEY_CARRIER_ROAMING_SATELLITE_EMERGENCY_MESSAGING_REDIRECTION_DESTINATION_STRING,
+                        KEY_ENTITLEMENT_SERVER_URL_STRING
                 );
             } catch (Exception e) {
                 logw("getConfigForSubId: " + e);
@@ -6920,11 +6922,24 @@ public class SatelliteController extends Handler {
         return config.isSatelliteAttachSupportedBySubId(subId);
     }
 
+
     /**
-     * @param subId subscription ID
-     * @return {@code true} if satellite is supported via carrier, {@code false} otherwise.
+     * Checks whether satellite attach is supported by the carrier for the given subscription ID.
+     *
+     * <p>This method determines the satellite support status by evaluating configurations in
+     * the following order of priority:
+     * <ol>
+     *   <li>It first checks if the support status defined in the {@code SatelliteConfig}
+     *   ({@code isSatelliteAttachSupportedViaConfigupdater}).</li>
+     *   <li>If the value is {@code null} (not configured via ConfigUpdater),
+     *   it falls back to the static carrier configuration using
+     *   {@link CarrierConfigManager#KEY_SATELLITE_ATTACH_SUPPORTED_BOOL}.</li>
+     * </ol>
+     *
+     * @param subId The subscription ID for which the satellite support is being checked.
+     * @return {@code true} if satellite attach is supported by the carrier for the given
+     *         {@code subId}, {@code false} otherwise.
      */
-    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PRIVATE)
     public boolean isSatelliteSupportedViaCarrier(int subId) {
         Boolean isAttachSupported = isSatelliteAttachSupportedViaConfigupdater(subId);
         if (isAttachSupported != null) {
@@ -6948,9 +6963,23 @@ public class SatelliteController extends Handler {
         return config.isSatelliteEntitlementSupportedBySubId(subId);
     }
 
-    /** Return the satellite entitlement supported bool from carrier config. */
-    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PRIVATE)
-    protected boolean isSatelliteEntitlementSupported(int subId) {
+    /**
+     * Checks whether the satellite entitlement check is supported for the given subscription ID.
+     *
+     * <p>This method determines the entitlement support status by evaluating configurations in
+     * the following order of priority:
+     * <ol>
+     *   It first checks if the value is explicitly defined in the {@code SatelliteConfig}.</li>
+     *   If the value is {@code null} (not configured via ConfigUpdater),
+     *   it falls back to the carrier configuration using
+     *   {@link CarrierConfigManager#KEY_SATELLITE_ENTITLEMENT_SUPPORTED_BOOL}.</li>
+     * </ol>
+     *
+     * @param subId The subscription ID
+     * @return {@code true} if the satellite entitlement is supported for the given {@code subId},
+     *         {@code false} otherwise.
+     */
+    public boolean isSatelliteEntitlementSupported(int subId) {
         // get satellite entitlement support via configupdater
         Boolean isEntitlementSupported = isSatelliteEntitlementSupportedViaConfigupdater(subId);
         if (isEntitlementSupported != null) {
@@ -6962,6 +6991,48 @@ public class SatelliteController extends Handler {
         // get satellite entitlement support via carrier config
         return getConfigForSubId(subId)
                 .getBoolean(CarrierConfigManager.KEY_SATELLITE_ENTITLEMENT_SUPPORTED_BOOL);
+    }
+
+    @Nullable
+    private String getEntitlementServerUrlFromSatelliteConfig(int subId) {
+        SatelliteConfig config = SatelliteController.getInstance().getSatelliteConfig();
+        if (config == null) {
+            Log.d(TAG, "getEntitlementServerUrlFromSatelliteConfig return null"
+                    + " (SatelliteConfig is null)");
+            return null;
+        }
+
+        return config.getSatelliteEntitlementServerUrlBySubId(subId);
+    }
+
+    /**
+     * Retrieves the satellite entitlement server URL for the given subscription ID.
+     *
+     * <p>This method determines the entitlement server URL by evaluating configurations in
+     * the following order of priority:
+     * <ol>
+     *   <li>It first checks if the URL is defined in the dynamic {@code SatelliteConfig}
+     *   ({@code getEntitlementServerUrlFromSatelliteConfig}).</li>
+     *   <li>If the URL is empty or not configured via ConfigUpdater,
+     *   it falls back to the static carrier configuration using
+     *   {@link CarrierConfigManager.ImsServiceEntitlement#KEY_ENTITLEMENT_SERVER_URL_STRING}.</li>
+     * </ol>
+     *
+     * @param subId The subscription ID for which the entitlement server URL is requested.
+     * @return The satellite entitlement server URL as a {@code String}, or an empty string
+     *         ({@code ""}) if it is not configured in either source.
+     */
+    public String getSatelliteEntitlementServerUrl(int subId) {
+        // 1. get from SatelliteConfig
+        String url = getEntitlementServerUrlFromSatelliteConfig(subId);
+        if (!TextUtils.isEmpty(url)) {
+            Log.d(TAG, "getSatelliteEntitlementServerUrl: "
+                    + "using SatelliteConfig for subId=" + subId + ", entitlementServerUrl=" + url);
+            return url;
+        }
+        // 2. get from CarrierConfig
+        return getConfigForSubId(subId).getString(
+                CarrierConfigManager.ImsServiceEntitlement.KEY_ENTITLEMENT_SERVER_URL_STRING, "");
     }
 
     private boolean isSatelliteEntitlementEnabled(int subId) {
@@ -7085,7 +7156,25 @@ public class SatelliteController extends Handler {
         return satelliteConfig.getSatelliteNtnConnectTypeByCarrierId(carrierId);
     }
 
-    private int getCarrierRoamingNtnConnectType(int subId) {
+    /**
+     * Gets the carrier roaming Non-Terrestrial Network connect type for a given subscription ID.
+     *
+     * <p>This method determines the NTN connect type by evaluating configurations in the following
+     * order of priority:
+     * <ol>
+     *   <li> it first checks the PLMN-specific satellite configuration.</li>
+     *   <li> Next, it checks the {@code SatelliteConfig} (ConfigUpdater).</li>
+     *   <li> Finally, it falls back to the static global carrier configuration using
+     *   {@link CarrierConfigManager#KEY_CARRIER_ROAMING_NTN_CONNECT_TYPE_INT}.</li>
+     * </ol>
+     *
+     * @param subId The subscription ID for which to retrieve the NTN connect type.
+     * @return The NTN connect type for the specified subscription (e.g.,
+     *         {@link CarrierConfigManager#CARRIER_ROAMING_NTN_CONNECT_AUTOMATIC},
+     *         {@link CarrierConfigManager#CARRIER_ROAMING_NTN_CONNECT_MANUAL}, etc.).
+     */
+
+    public int getCarrierRoamingNtnConnectType(int subId) {
         if (mFeatureFlags.vzwAstSkyloFallback()) {
             plogd("getCarrierRoamingNtnConnectType: Checking connect "
                         + "type from PLMN config for subId: " + subId);
