@@ -6339,8 +6339,21 @@ public class SubscriptionManagerService extends ISub.Stub {
 
     private boolean canManageSubscriptionAsUserInternal(@NonNull SubscriptionInfo subInfo,
             @NonNull String packageName, @NonNull UserHandle user) {
-        // iterate through the active "visible" subs, looking for one that matches
-        for (int subId : getActiveSubIdListAsUser(false, user)) {
+
+        // iterate through the visible subs for the current user or subs that are not assigned
+        // to any user, such as occurs on certain device types / user configurations.
+        // Yes, this approach seems ridiculous, but concatenating primitive arrays is ridiculous.
+        int[] subIdsForCurrentUser = getActiveSubIdListAsUser(
+                false /* visibleOnly */, user);
+        int[] subIdsForNullUser = getActiveSubIdListAsUser(
+                false /* visibleOnly */, new UserHandle(UserHandle.USER_NULL));
+        // Some day we should make a generic concatenate() method
+        int[] activeSubIds = new int[subIdsForCurrentUser.length + subIdsForNullUser.length];
+        System.arraycopy(subIdsForCurrentUser, 0, activeSubIds, 0, subIdsForCurrentUser.length);
+        System.arraycopy(subIdsForNullUser, 0, activeSubIds,
+                subIdsForCurrentUser.length, subIdsForNullUser.length);
+
+        for (int subId : activeSubIds) {
             TelephonyManager tm = mTelephonyManager.createForSubscriptionId(subId);
 
             final boolean hasCarrierPrivilegesOnSub =

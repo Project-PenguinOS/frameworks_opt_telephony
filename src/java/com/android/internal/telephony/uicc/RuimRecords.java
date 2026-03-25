@@ -106,11 +106,6 @@ public class RuimRecords extends IccRecords {
     private static final int EVENT_GET_ICCID_DONE = 5;
     private static final int EVENT_UPDATE_DONE = 14;
     private static final int EVENT_GET_SST_DONE = 17;
-    private static final int EVENT_GET_ALL_SMS_DONE = 18;
-    private static final int EVENT_MARK_SMS_READ_DONE = 19;
-
-    private static final int EVENT_SMS_ON_RUIM = 21;
-    private static final int EVENT_GET_SMS_DONE = 22;
 
     private static final int EVENT_APP_LOCKED = 32;
     private static final int EVENT_APP_NETWORK_LOCKED = 33;
@@ -834,13 +829,6 @@ public class RuimRecords extends IccRecords {
                 }
             break;
 
-            case EVENT_GET_ALL_SMS_DONE:
-            case EVENT_MARK_SMS_READ_DONE:
-            case EVENT_SMS_ON_RUIM:
-            case EVENT_GET_SMS_DONE:
-                Rlog.w(LOG_TAG, "Event not supported: " + msg.what);
-                break;
-
             // TODO: probably EF_CST should be read instead
             case EVENT_GET_SST_DONE:
                 log("Event EVENT_GET_SST_DONE Received");
@@ -937,38 +925,6 @@ public class RuimRecords extends IccRecords {
 // QTI_END: 2020-01-05: Telephony: Split uicc records loading in two groups.
 
         // Further records that can be inserted are Operator/OEM dependent
-
-        // FIXME: CSIM IMSI may not contain the MNC.
-        if (false) {
-            String operator = getRUIMOperatorNumeric();
-            if (!TextUtils.isEmpty(operator)) {
-// QTI_BEGIN: 2020-01-05: Telephony: Split uicc records loading in two groups.
-                log("onAllEssentialRecordsLoaded set 'gsm.sim.operator.numeric' to operator='" +
-// QTI_END: 2020-01-05: Telephony: Split uicc records loading in two groups.
-                        operator + "'");
-                log("update icc_operator_numeric=" + operator);
-                mTelephonyManager.setSimOperatorNumericForPhone(
-                        mParentApp.getPhoneId(), operator);
-            } else {
-// QTI_BEGIN: 2020-01-05: Telephony: Split uicc records loading in two groups.
-                log("onAllEssentialRecordsLoaded empty 'gsm.sim.operator.numeric' skipping");
-// QTI_END: 2020-01-05: Telephony: Split uicc records loading in two groups.
-            }
-
-            String imsi = getIMSI();
-
-            if (!TextUtils.isEmpty(imsi)) {
-// QTI_BEGIN: 2020-01-05: Telephony: Split uicc records loading in two groups.
-                log("onAllEssentialRecordsLoaded set mcc imsi=" + (VDBG ? ("=" + imsi) : ""));
-// QTI_END: 2020-01-05: Telephony: Split uicc records loading in two groups.
-                mTelephonyManager.setSimCountryIsoForPhone(mParentApp.getPhoneId(),
-                        MccTable.countryCodeForMcc(imsi.substring(0, 3)));
-            } else {
-// QTI_BEGIN: 2020-01-05: Telephony: Split uicc records loading in two groups.
-                log("onAllEssentialRecordsLoaded empty imsi skipping setting mcc");
-// QTI_END: 2020-01-05: Telephony: Split uicc records loading in two groups.
-            }
-        }
 
 // QTI_BEGIN: 2020-01-05: Telephony: Split uicc records loading in two groups.
         mEssentialRecordsListenerNotified = true;

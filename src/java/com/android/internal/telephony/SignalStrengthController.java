@@ -152,9 +152,12 @@ public class SignalStrengthController extends Handler {
 
     private final AtomicBoolean mNTNConnected = new AtomicBoolean(false);
 
+    private final String mLogTag;
+
     public SignalStrengthController(@NonNull Phone phone) {
         mPhone = phone;
         mCi = mPhone.mCi;
+        mLogTag = TAG + "-" + mPhone.getPhoneId();
 
         mCi.registerForRilConnected(this, EVENT_RIL_CONNECTED, null);
         mCi.registerForAvailable(this, EVENT_RADIO_AVAILABLE, null);
@@ -1132,7 +1135,7 @@ public class SignalStrengthController extends Handler {
      * "earfcn2_start-earfcn2_end" ... }
      */
     @Nullable
-    private static ArrayList<Pair<Integer, Integer>> convertEarfcnStringArrayToPairList(
+    private ArrayList<Pair<Integer, Integer>> convertEarfcnStringArrayToPairList(
             @Nullable String[] earfcnsList) {
         ArrayList<Pair<Integer, Integer>> earfcnPairList = new ArrayList<Pair<Integer, Integer>>();
 
@@ -1380,17 +1383,17 @@ public class SignalStrengthController extends Handler {
         return mPhone.getServiceState().isUsingNonTerrestrialNetwork();
     }
 
-    private static void log(String msg) {
-        if (DBG) Rlog.d(TAG, msg);
+    private void log(String msg) {
+        if (DBG) Rlog.d(mLogTag, msg);
     }
 
-    private static void loge(String msg) {
-        Rlog.e(TAG, msg);
+    private void loge(String msg) {
+        Rlog.e(mLogTag, msg);
     }
 
     /** Print to both Radio log and LocalLog, used only for critical but non-sensitive msg. */
     private void localLog(String msg) {
-        Rlog.d(TAG, msg);
-        mLocalLog.log(TAG + ": " + msg);
+        Rlog.d(mLogTag, msg);
+        mLocalLog.log(mLogTag + ": " + msg);
     }
 }
