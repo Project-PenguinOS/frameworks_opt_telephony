@@ -4269,7 +4269,7 @@ public class SatelliteControllerTest extends TelephonyTest {
         // Check don't display again after displayed already a system notification.
         sendServiceStateChangedEvent();
         processAllMessages();
-        verify(mMockNotificationManager, times(2)).notifyAsUser(anyString(), anyInt(), any(),
+        verify(mMockNotificationManager, times(1)).notifyAsUser(anyString(), anyInt(), any(),
                 any());
     }
 
@@ -6707,6 +6707,13 @@ public class SatelliteControllerTest extends TelephonyTest {
         Message msg = mSatelliteControllerUT.obtainMessage(
                 95 /* EVENT_SCREEN_STATE_CHANGED */, null);
         msg.obj = new AsyncResult(null, isScreenOn, exception);
+        msg.sendToTarget();
+    }
+
+    private void sendEventChargingStateChanged(Boolean isCharging, Throwable exception) {
+        Message msg = mSatelliteControllerUT.obtainMessage(
+                98 /* EVENT_CHARGING_STATE_CHANGED */, null);
+        msg.obj = new AsyncResult(null, isCharging, exception);
         msg.sendToTarget();
     }
 
@@ -9465,6 +9472,7 @@ public class SatelliteControllerTest extends TelephonyTest {
         stats1.onSessionEnd(SUB_ID, SATELLITE_APPS_1);
 
         TestCarrierRoamingSatelliteSessionStats.increaseCurrentTime(10_000L);
+        sendEventChargingStateChanged(true, null);
         processAllMessages();
 
         TestCarrierRoamingSatelliteSessionStats.increaseCurrentTime(30_000L);
@@ -9500,10 +9508,12 @@ public class SatelliteControllerTest extends TelephonyTest {
         assertThat(param1.getTotalSatelliteModeTimeSec()).isEqualTo(59);
         assertThat(param1.getScreenOnTimeSec()).isEqualTo(54);
         assertThat(param1.isWifiConnected()).isEqualTo(true);
+        assertThat(param1.wasChargingDuringSession()).isEqualTo(false);
 
         assertThat(param2.getTotalSatelliteModeTimeSec()).isEqualTo(599);
         assertThat(param2.getScreenOnTimeSec()).isEqualTo(564);
-        assertThat(param1.isWifiConnected()).isEqualTo(true);
+        assertThat(param2.isWifiConnected()).isEqualTo(true);
+        assertThat(param2.wasChargingDuringSession()).isEqualTo(true);
     }
 
     @Test

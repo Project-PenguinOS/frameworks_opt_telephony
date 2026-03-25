@@ -823,6 +823,25 @@ public class ServiceStateTrackerTest extends TelephonyTest {
                 mSimulatedCommands.getGetNetworkSelectionModeCallCount());
     }
 
+    @Test
+    public void testInitialPollState() {
+        final int getOperatorCallCount = mSimulatedCommands.getGetOperatorCallCount();
+        final int getDataRegistrationStateCallCount =
+                mSimulatedCommands.getGetDataRegistrationStateCallCount();
+        final int getVoiceRegistrationStateCallCount =
+                mSimulatedCommands.getGetVoiceRegistrationStateCallCount();
+
+        sst.requestInitialPollState();
+        processAllMessages();
+
+        // Verify that pollStateInternal(true) was triggered
+        assertEquals(getOperatorCallCount + 1, mSimulatedCommands.getGetOperatorCallCount());
+        assertEquals(getDataRegistrationStateCallCount + 1,
+                mSimulatedCommands.getGetDataRegistrationStateCallCount());
+        assertEquals(getVoiceRegistrationStateCallCount + 1,
+                mSimulatedCommands.getGetVoiceRegistrationStateCallCount());
+    }
+
     @Ignore
     @Test
     public void testSpnUpdateShowPlmnOnly() {

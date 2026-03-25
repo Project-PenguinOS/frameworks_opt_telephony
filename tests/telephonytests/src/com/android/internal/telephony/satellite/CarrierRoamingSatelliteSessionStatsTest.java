@@ -17,11 +17,18 @@
 package com.android.internal.telephony.satellite;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.verify;
 
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
+import android.os.BatteryManager;
 import android.telephony.ServiceState;
 import android.testing.AndroidTestingRunner;
 import android.testing.TestableLooper;
@@ -53,6 +60,7 @@ public class CarrierRoamingSatelliteSessionStatsTest extends TelephonyTest {
     @Mock private Phone mMockPhone;
     @Mock private ServiceState mMockServiceState;
     @Mock private FeatureFlags mMockFeatureFlags;
+    @Mock private BatteryManager mMockBatteryManager;
 
     private TestCarrierRoamingSatelliteSessionStats mCarrierRoamingSatelliteSessionStats;
 
@@ -61,6 +69,8 @@ public class CarrierRoamingSatelliteSessionStatsTest extends TelephonyTest {
         super.setUp(getClass().getSimpleName());
         MockitoAnnotations.initMocks(this);
         logd(TAG + " Setup!");
+
+        mContextFixture.setSystemService(Context.BATTERY_SERVICE, mMockBatteryManager);
         replaceInstance(SatelliteStats.class, "sInstance", null, mMockSatelliteStats);
 
         doReturn(mContext).when(mMockPhone).getContext();
@@ -186,6 +196,89 @@ public class CarrierRoamingSatelliteSessionStatsTest extends TelephonyTest {
 
         // WiFi connected stats should be false
         assertEquals(expectedWifiConnectedStatus, params.isWifiConnected());
+    }
+
+    @Test
+    public void testBatteryMetrics() {
+        doReturn(true).when(mMockFeatureFlags).satelliteMetricsEnhancement();
+        doReturn(new int[]{SUB_ID}).when(mSubscriptionManagerService).getActiveSubIdList(
+                anyBoolean());
+
+        // Start state
+        int startBatteryLevel = 80;
+        long startEnergyCounter = 12345L;
+        doReturn(startBatteryLevel).when(mMockBatteryManager)
+                .getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY);
+        doReturn(startEnergyCounter).when(mMockBatteryManager)
+                .getLongProperty(BatteryManager.BATTERY_PROPERTY_ENERGY_COUNTER);
+        doReturn(false).when(mMockBatteryManager).isCharging();
+
+        mCarrierRoamingSatelliteSessionStats.onSessionStart(
+                CARRIER_ID,
+                mMockPhone,
+                new int[]{},
+                0,
+                Collections.emptyList(),
+                0,
+                0,
+                "12345",
+                mMockFeatureFlags,
+                true /* isScreenOn */,
+                false);
+
+        // Simulate charging event during session
+        mCarrierRoamingSatelliteSessionStats.setWasChargingDuringSession();
+
+        // End state
+        int endBatteryLevel = 70;
+        long endEnergyCounter = 10000L;
+        doReturn(endBatteryLevel).when(mMockBatteryManager)
+                .getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY);
+        doReturn(endEnergyCounter).when(mMockBatteryManager)
+                .getLongProperty(BatteryManager.BATTERY_PROPERTY_ENERGY_COUNTER);
+
+        mCarrierRoamingSatelliteSessionStats.onSessionEnd(SUB_ID, Collections.emptyList());
+
+        ArgumentCaptor<SatelliteStats.CarrierRoamingSatelliteSessionParams> captor =
+                ArgumentCaptor.forClass(SatelliteStats.CarrierRoamingSatelliteSessionParams.class);
+        verify(mMockSatelliteStats).onCarrierRoamingSatelliteSessionMetrics(captor.capture());
+
+        SatelliteStats.CarrierRoamingSatelliteSessionParams params = captor.getValue();
+
+        assertEquals(startBatteryLevel - endBatteryLevel, params.getBatteryLevelDropPercent());
+        assertEquals(startEnergyCounter - endEnergyCounter, params.getEnergyConsumedNwh());
+        assertTrue(params.wasChargingDuringSession());
+    }
+
+    @Test
+    public void testBatteryMetrics_EnhancementDisabled() {
+        doReturn(false).when(mMockFeatureFlags).satelliteMetricsEnhancement();
+        doReturn(new int[]{SUB_ID}).when(mSubscriptionManagerService).getActiveSubIdList(
+                anyBoolean());
+
+        mCarrierRoamingSatelliteSessionStats.onSessionStart(
+                CARRIER_ID,
+                mMockPhone,
+                new int[] {},
+                0,
+                Collections.emptyList(),
+                0,
+                0,
+                "12345",
+                mMockFeatureFlags,
+                true /* isScreenOn */,
+                false);
+
+        mCarrierRoamingSatelliteSessionStats.onSessionEnd(SUB_ID, Collections.emptyList());
+
+        ArgumentCaptor<SatelliteStats.CarrierRoamingSatelliteSessionParams> captor =
+                ArgumentCaptor.forClass(SatelliteStats.CarrierRoamingSatelliteSessionParams.class);
+        verify(mMockSatelliteStats).onCarrierRoamingSatelliteSessionMetrics(captor.capture());
+
+        SatelliteStats.CarrierRoamingSatelliteSessionParams params = captor.getValue();
+
+        assertEquals(-1, params.getBatteryLevelDropPercent());
+        assertEquals(-1, params.getEnergyConsumedNwh());
     }
 
     private static class TestCarrierRoamingSatelliteSessionStats

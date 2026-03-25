@@ -32,7 +32,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
@@ -60,7 +59,6 @@ import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -78,36 +76,6 @@ public class TelephonyConfigUpdateInstallReceiverTest extends TelephonyTest {
     private Executor mExecutor;
     @Mock
     private ConfigProviderAdaptor.Callback mCallback;
-
-    /**
-     * A testable version of TelephonyConfigUpdateInstallReceiver that allows access
-     * to protected members across DEX boundaries.
-     */
-    public static class TestableReceiver extends TelephonyConfigUpdateInstallReceiver {
-        @Override
-        public boolean isFileExists(String fileName) {
-            return super.isFileExists(fileName);
-        }
-
-        @Override
-        public void writeContentToFile(File dir, File file, byte[] content) throws IOException {
-            super.writeContentToFile(dir, file, content);
-        }
-
-        @Override
-        public boolean restoreContentData() {
-            return super.restoreContentData();
-        }
-
-        @Override
-        public void postInstallForRestore() {
-            super.postInstallForRestore();
-        }
-
-        public Map<String, ConfigParser> getConfigParsers() {
-            return mConfigParsers;
-        }
-    }
 
     @Before
     public void setUp() throws Exception {
@@ -145,25 +113,31 @@ public class TelephonyConfigUpdateInstallReceiverTest extends TelephonyTest {
     @Test
     public void testPostInstall() throws Exception {
         // create spyTelephonyConfigUpdateInstallReceiver
-        TestableReceiver spyReceiver = spy(new TestableReceiver());
-        doReturn(true).when(spyReceiver).copySourceFileToTargetFile(any(), any());
+        TelephonyConfigUpdateInstallReceiver spyTelephonyConfigUpdateInstallReceiver =
+                spy(new TelephonyConfigUpdateInstallReceiver());
+        doReturn(true).when(spyTelephonyConfigUpdateInstallReceiver)
+                .copySourceFileToTargetFile(any(), any());
         replaceInstance(TelephonyConfigUpdateInstallReceiver.class, "sReceiverAdaptorInstance",
-                null, spyReceiver);
+                null, spyTelephonyConfigUpdateInstallReceiver);
 
-        assertSame(spyReceiver, TelephonyConfigUpdateInstallReceiver.getInstance());
+        assertSame(spyTelephonyConfigUpdateInstallReceiver,
+                TelephonyConfigUpdateInstallReceiver.getInstance());
 
         ConcurrentHashMap<Executor, ConfigProviderAdaptor.Callback> spyCallbackHashMap = spy(
                 new ConcurrentHashMap<>());
         spyCallbackHashMap.put(mExecutor, mCallback);
-        spyReceiver.setCallbackMap(spyCallbackHashMap);
+        spyTelephonyConfigUpdateInstallReceiver.setCallbackMap(spyCallbackHashMap);
 
         // Mocks for Satellite
         SatelliteConfigParser spySatelliteParser = mock(SatelliteConfigParser.class);
         doReturn(new SatelliteConfig()).when(spySatelliteParser).getConfig();
         doReturn(DOMAIN_SATELLITE).when(spySatelliteParser).getDomain();
-        doReturn(true).when(spyReceiver).isValidSatelliteCarrierConfigData(any());
-        doReturn(true).when(spyReceiver).isValidMaxAllowedDataMode(any());
-        doReturn(true).when(spyReceiver).isValidSatelliteProvider(any());
+        doReturn(true).when(spyTelephonyConfigUpdateInstallReceiver)
+                .isValidSatelliteCarrierConfigData(any());
+        doReturn(true).when(spyTelephonyConfigUpdateInstallReceiver)
+                .isValidMaxAllowedDataMode(any());
+        doReturn(true).when(spyTelephonyConfigUpdateInstallReceiver)
+                .isValidSatelliteProvider(any());
         doReturn(10).when(spySatelliteParser).getVersion();
 
         // Mocks for Data
@@ -174,36 +148,38 @@ public class TelephonyConfigUpdateInstallReceiverTest extends TelephonyTest {
         doReturn(validProto).when(mockDataConfig).getConfigData();
         doReturn(mockDataConfig).when(spyDataParser).getConfig();
         doReturn(DOMAIN_DATA).when(spyDataParser).getDomain();
-        doReturn(true).when(spyReceiver).isValidDataConfig(any());
+        doReturn(true).when(spyTelephonyConfigUpdateInstallReceiver)
+                .isValidDataConfig(any());
         doReturn(10).when(spyDataParser).getVersion();
 
         // 1. Success case for both
-        doReturn(spySatelliteParser).when(spyReceiver)
+        doReturn(spySatelliteParser).when(spyTelephonyConfigUpdateInstallReceiver)
                 .getNewConfigParser(eq(DOMAIN_SATELLITE), any());
-        doReturn(spyDataParser).when(spyReceiver)
+        doReturn(spyDataParser).when(spyTelephonyConfigUpdateInstallReceiver)
                 .getNewConfigParser(eq(DOMAIN_DATA), any());
 
-        spyReceiver.postInstall(mContext, new Intent());
+        spyTelephonyConfigUpdateInstallReceiver.postInstall(mContext, new Intent());
 
         verify(spyCallbackHashMap, times(2)).entrySet();
-        verify(spyReceiver, times(1)).copySourceFileToTargetFile(any(), any());
+        verify(spyTelephonyConfigUpdateInstallReceiver, times(1))
+                .copySourceFileToTargetFile(any(), any());
         Mockito.clearInvocations(spyCallbackHashMap);
-        Mockito.clearInvocations(spyReceiver);
+        Mockito.clearInvocations(spyTelephonyConfigUpdateInstallReceiver);
 
         // 2. Smaller version case
         // Setup existing parsers with version 10
-        spyReceiver.overrideConfigParser(spySatelliteParser);
-        spyReceiver.overrideConfigParser(spyDataParser);
+        spyTelephonyConfigUpdateInstallReceiver.overrideConfigParser(spySatelliteParser);
+        spyTelephonyConfigUpdateInstallReceiver.overrideConfigParser(spyDataParser);
 
         // New parsers with version 5
         SatelliteConfigParser newSatelliteParser = mock(SatelliteConfigParser.class);
         doReturn(new SatelliteConfig()).when(newSatelliteParser).getConfig();
         doReturn(DOMAIN_SATELLITE).when(newSatelliteParser).getDomain();
-        doReturn(true).when(spyReceiver) // Need validation to pass
+        doReturn(true).when(spyTelephonyConfigUpdateInstallReceiver) // Need validation to pass
                 .isValidSatelliteCarrierConfigData(newSatelliteParser);
-        doReturn(true).when(spyReceiver)
+        doReturn(true).when(spyTelephonyConfigUpdateInstallReceiver)
                 .isValidMaxAllowedDataMode(newSatelliteParser);
-        doReturn(true).when(spyReceiver)
+        doReturn(true).when(spyTelephonyConfigUpdateInstallReceiver)
                 .isValidSatelliteProvider(newSatelliteParser);
         doReturn(5).when(newSatelliteParser).getVersion();
 
@@ -212,48 +188,54 @@ public class TelephonyConfigUpdateInstallReceiverTest extends TelephonyTest {
         doReturn(newDataConfig).when(newDataParser).getConfig();
         doReturn(validProto).when(newDataConfig).getConfigData();
         doReturn(DOMAIN_DATA).when(newDataParser).getDomain();
-        doReturn(true).when(spyReceiver)
+        doReturn(true).when(spyTelephonyConfigUpdateInstallReceiver)
                 .isValidDataConfig(newDataParser);
         doReturn(5).when(newDataParser).getVersion();
 
-        doReturn(newSatelliteParser).when(spyReceiver)
+        doReturn(newSatelliteParser).when(spyTelephonyConfigUpdateInstallReceiver)
                 .getNewConfigParser(eq(DOMAIN_SATELLITE), any());
-        doReturn(newDataParser).when(spyReceiver)
+        doReturn(newDataParser).when(spyTelephonyConfigUpdateInstallReceiver)
                 .getNewConfigParser(eq(DOMAIN_DATA), any());
 
-        spyReceiver.postInstall(mContext, new Intent());
+        spyTelephonyConfigUpdateInstallReceiver.postInstall(mContext, new Intent());
 
         verify(spyCallbackHashMap, times(0)).keySet();
-        verify(spyReceiver, times(0)).copySourceFileToTargetFile(any(), any());
+        verify(spyTelephonyConfigUpdateInstallReceiver, times(0))
+                .copySourceFileToTargetFile(any(), any());
         Mockito.clearInvocations(spyCallbackHashMap);
-        Mockito.clearInvocations(spyReceiver);
+        Mockito.clearInvocations(spyTelephonyConfigUpdateInstallReceiver);
 
         // 3. Invalid config case
         // Reset override
-        spyReceiver.cleanUpTelephonyConfigs();
+        spyTelephonyConfigUpdateInstallReceiver.cleanUpTelephonyConfigs();
 
         // Let's rely on doReturn(false).
-        doReturn(false).when(spyReceiver).isValidSatelliteCarrierConfigData(any());
-        doReturn(false).when(spyReceiver).isValidDataConfig(any());
+        doReturn(false).when(spyTelephonyConfigUpdateInstallReceiver)
+                .isValidSatelliteCarrierConfigData(any());
+        doReturn(false).when(spyTelephonyConfigUpdateInstallReceiver)
+                .isValidDataConfig(any());
 
-        spyReceiver.postInstall(mContext, new Intent());
+        spyTelephonyConfigUpdateInstallReceiver.postInstall(mContext, new Intent());
 
         verify(spyCallbackHashMap, times(0)).keySet();
-        verify(spyReceiver, times(0)).copySourceFileToTargetFile(any(), any());
+        verify(spyTelephonyConfigUpdateInstallReceiver, times(0))
+                .copySourceFileToTargetFile(any(), any());
     }
 
 
     @Test
     public void testGetConfig() throws Exception {
         TelephonyConfigUpdateInstallReceiver.getInstance().cleanUpTelephonyConfigs();
-        TestableReceiver spyReceiver = spy(new TestableReceiver());
-        spyReceiver.cleanUpTelephonyConfigs();
+        TelephonyConfigUpdateInstallReceiver spyTelephonyConfigUpdateInstallReceiver =
+                spy(new TelephonyConfigUpdateInstallReceiver());
+        spyTelephonyConfigUpdateInstallReceiver.cleanUpTelephonyConfigs();
 
         replaceInstance(TelephonyConfigUpdateInstallReceiver.class, "sReceiverAdaptorInstance",
-                null, spyReceiver);
+                null, spyTelephonyConfigUpdateInstallReceiver);
 
         // 1. Test null case
-        doReturn(null).when(spyReceiver).getNewConfigParser(any(), any());
+        doReturn(null).when(
+                spyTelephonyConfigUpdateInstallReceiver).getNewConfigParser(any(), any());
 
         assertNull(TelephonyConfigUpdateInstallReceiver.getInstance().getConfigParser(
                 DOMAIN_SATELLITE));
@@ -261,18 +243,20 @@ public class TelephonyConfigUpdateInstallReceiverTest extends TelephonyTest {
                 DOMAIN_DATA));
 
         // Clear cached EMPTY_PARSER before testing success case
-        spyReceiver.clearOverriddenConfigParser(DOMAIN_SATELLITE);
-        spyReceiver.clearOverriddenConfigParser(DOMAIN_DATA);
+        spyTelephonyConfigUpdateInstallReceiver.clearOverriddenConfigParser(DOMAIN_SATELLITE);
+        spyTelephonyConfigUpdateInstallReceiver.clearOverriddenConfigParser(DOMAIN_DATA);
 
         // 2. Test success case
         SatelliteConfigParser mockSatParser = mock(SatelliteConfigParser.class);
         doReturn(new SatelliteConfig()).when(mockSatParser).getConfig();
-        doReturn(mockSatParser).when(spyReceiver).getNewConfigParser(eq(DOMAIN_SATELLITE), any());
+        doReturn(mockSatParser).when(spyTelephonyConfigUpdateInstallReceiver)
+                .getNewConfigParser(eq(DOMAIN_SATELLITE), any());
 
         DataConfigParser mockDataParser = mock(DataConfigParser.class);
         DataConfig mockDataConfig = mock(DataConfig.class);
         doReturn(mockDataConfig).when(mockDataParser).getConfig();
-        doReturn(mockDataParser).when(spyReceiver).getNewConfigParser(eq(DOMAIN_DATA), any());
+        doReturn(mockDataParser).when(spyTelephonyConfigUpdateInstallReceiver)
+                .getNewConfigParser(eq(DOMAIN_DATA), any());
 
         assertNotNull(TelephonyConfigUpdateInstallReceiver.getInstance().getConfigParser(
                 DOMAIN_SATELLITE));
@@ -302,13 +286,15 @@ public class TelephonyConfigUpdateInstallReceiverTest extends TelephonyTest {
 
     @Test
     public void testIsValidSatelliteCarrierConfigData() {
-        TestableReceiver spyReceiver = spy(new TestableReceiver());
+        TelephonyConfigUpdateInstallReceiver spyTelephonyConfigUpdateInstallReceiver =
+                spy(new TelephonyConfigUpdateInstallReceiver());
         SatelliteConfigParser mockParser = mock(SatelliteConfigParser.class);
         SatelliteConfig mockConfig = mock(SatelliteConfig.class);
         doReturn(new ArraySet<>()).when(mockConfig).getAllSatelliteCarrierIds();
         doReturn(mockConfig).when(mockParser).getConfig();
 
-        assertTrue(spyReceiver.isValidSatelliteCarrierConfigData(mockParser));
+        assertTrue(spyTelephonyConfigUpdateInstallReceiver
+                .isValidSatelliteCarrierConfigData(mockParser));
 
         doReturn(Set.of(1)).when(mockConfig).getAllSatelliteCarrierIds();
         Map<String, Set<Integer>> validPlmnsServices = new HashMap<>();
@@ -317,87 +303,99 @@ public class TelephonyConfigUpdateInstallReceiverTest extends TelephonyTest {
         doReturn(validPlmnsServices).when(mockConfig).getSupportedSatelliteServices(anyInt());
         doReturn(mockConfig).when(mockParser).getConfig();
 
-        assertTrue(spyReceiver.isValidSatelliteCarrierConfigData(mockParser));
+        assertTrue(spyTelephonyConfigUpdateInstallReceiver
+                .isValidSatelliteCarrierConfigData(mockParser));
 
         doReturn(Set.of(1)).when(mockConfig).getAllSatelliteCarrierIds();
         Map<String, Set<Integer>> invalidPlmnsServices1 = new HashMap<>();
         invalidPlmnsServices1.put("123456", Set.of(FIRST_SERVICE_TYPE - 1, 3, LAST_SERVICE_TYPE));
         doReturn(invalidPlmnsServices1).when(mockConfig).getSupportedSatelliteServices(anyInt());
         doReturn(mockConfig).when(mockParser).getConfig();
-        assertFalse(spyReceiver.isValidSatelliteCarrierConfigData(mockParser));
+        assertFalse(spyTelephonyConfigUpdateInstallReceiver
+                .isValidSatelliteCarrierConfigData(mockParser));
 
         doReturn(Set.of(1)).when(mockConfig).getAllSatelliteCarrierIds();
         Map<String, Set<Integer>> invalidPlmnsServices2 = new HashMap<>();
         invalidPlmnsServices2.put("123456", Set.of(FIRST_SERVICE_TYPE, 3, LAST_SERVICE_TYPE + 1));
         doReturn(invalidPlmnsServices2).when(mockConfig).getSupportedSatelliteServices(anyInt());
         doReturn(mockConfig).when(mockParser).getConfig();
-        assertFalse(spyReceiver.isValidSatelliteCarrierConfigData(mockParser));
+        assertFalse(spyTelephonyConfigUpdateInstallReceiver
+                .isValidSatelliteCarrierConfigData(mockParser));
 
         doReturn(Set.of(1)).when(mockConfig).getAllSatelliteCarrierIds();
         Map<String, Set<Integer>> invalidPlmnsServices3 = new HashMap<>();
         invalidPlmnsServices3.put("1234", Set.of(FIRST_SERVICE_TYPE, 3, LAST_SERVICE_TYPE));
         doReturn(invalidPlmnsServices3).when(mockConfig).getSupportedSatelliteServices(anyInt());
         doReturn(mockConfig).when(mockParser).getConfig();
-        assertFalse(spyReceiver.isValidSatelliteCarrierConfigData(mockParser));
+        assertFalse(spyTelephonyConfigUpdateInstallReceiver
+                .isValidSatelliteCarrierConfigData(mockParser));
 
         doReturn(Set.of(1)).when(mockConfig).getAllSatelliteCarrierIds();
         Map<String, Set<Integer>> invalidPlmnsServices4 = new HashMap<>();
         invalidPlmnsServices4.put("1234567", Set.of(FIRST_SERVICE_TYPE, 3, LAST_SERVICE_TYPE));
         doReturn(invalidPlmnsServices4).when(mockConfig).getSupportedSatelliteServices(anyInt());
         doReturn(mockConfig).when(mockParser).getConfig();
-        assertFalse(spyReceiver.isValidSatelliteCarrierConfigData(mockParser));
+        assertFalse(spyTelephonyConfigUpdateInstallReceiver
+                .isValidSatelliteCarrierConfigData(mockParser));
     }
 
     @Test
     public void testIsValidMaxAllowedDataMode() {
-        TestableReceiver spyReceiver = spy(new TestableReceiver());
+        TelephonyConfigUpdateInstallReceiver spyTelephonyConfigUpdateInstallReceiver =
+                spy(new TelephonyConfigUpdateInstallReceiver());
         SatelliteConfigParser mockParser = mock(SatelliteConfigParser.class);
         SatelliteConfig mockConfig = mock(SatelliteConfig.class);
         doReturn(mockConfig).when(mockParser).getConfig();
 
-        assertTrue(spyReceiver.isValidMaxAllowedDataMode(mockParser));
+        assertTrue(spyTelephonyConfigUpdateInstallReceiver.isValidMaxAllowedDataMode(mockParser));
 
         doReturn(null).when(mockConfig).getSatelliteMaxAllowedDataMode();
-        assertTrue(spyReceiver.isValidMaxAllowedDataMode(mockParser));
+        assertTrue(spyTelephonyConfigUpdateInstallReceiver.isValidMaxAllowedDataMode(mockParser));
 
         doReturn(0).when(mockConfig).getSatelliteMaxAllowedDataMode();
-        assertTrue(spyReceiver.isValidMaxAllowedDataMode(mockParser));
+        assertTrue(spyTelephonyConfigUpdateInstallReceiver.isValidMaxAllowedDataMode(mockParser));
 
         doReturn(1).when(mockConfig).getSatelliteMaxAllowedDataMode();
-        assertTrue(spyReceiver.isValidMaxAllowedDataMode(mockParser));
+        assertTrue(spyTelephonyConfigUpdateInstallReceiver.isValidMaxAllowedDataMode(mockParser));
 
         doReturn(2).when(mockConfig).getSatelliteMaxAllowedDataMode();
-        assertTrue(spyReceiver.isValidMaxAllowedDataMode(mockParser));
+        assertTrue(spyTelephonyConfigUpdateInstallReceiver.isValidMaxAllowedDataMode(mockParser));
 
         doReturn(-1).when(mockConfig).getSatelliteMaxAllowedDataMode();
-        assertFalse(spyReceiver.isValidMaxAllowedDataMode(mockParser));
+        assertFalse(spyTelephonyConfigUpdateInstallReceiver.isValidMaxAllowedDataMode(mockParser));
 
         doReturn(3).when(mockConfig).getSatelliteMaxAllowedDataMode();
-        assertFalse(spyReceiver.isValidMaxAllowedDataMode(mockParser));
+        assertFalse(spyTelephonyConfigUpdateInstallReceiver.isValidMaxAllowedDataMode(mockParser));
     }
 
     @Test
     public void testIsValidDeviceSatellitePlmns() {
-        TestableReceiver spyReceiver = spy(new TestableReceiver());
+        TelephonyConfigUpdateInstallReceiver spyTelephonyConfigUpdateInstallReceiver =
+                spy(new TelephonyConfigUpdateInstallReceiver());
         SatelliteConfigParser mockParser = mock(SatelliteConfigParser.class);
         SatelliteConfig mockConfig = mock(SatelliteConfig.class);
         doReturn(mockConfig).when(mockParser).getConfig();
 
-        assertTrue(spyReceiver.isValidSatelliteProvider(mockParser));
+        assertTrue(spyTelephonyConfigUpdateInstallReceiver
+                .isValidSatelliteProvider(mockParser));
 
         doReturn(null).when(mockConfig).getDeviceSatelliteProviderList();
-        assertTrue(spyReceiver.isValidSatelliteProvider(mockParser));
+        assertTrue(spyTelephonyConfigUpdateInstallReceiver
+                .isValidSatelliteProvider(mockParser));
 
         doReturn(List.of("310211", "310212")).when(mockConfig).getDeviceSatelliteProviderList();
-        assertTrue(spyReceiver.isValidSatelliteProvider(mockParser));
+        assertTrue(spyTelephonyConfigUpdateInstallReceiver
+                .isValidSatelliteProvider(mockParser));
 
         doReturn(List.of("310211", "123")).when(mockConfig).getDeviceSatelliteProviderList();
-        assertFalse(spyReceiver.isValidSatelliteProvider(mockParser));
+        assertFalse(spyTelephonyConfigUpdateInstallReceiver
+                .isValidSatelliteProvider(mockParser));
     }
 
     @Test
     public void testIsValidDataConfig() {
-        TestableReceiver spyReceiver = spy(new TestableReceiver());
+        TelephonyConfigUpdateInstallReceiver spyReceiver =
+                spy(new TelephonyConfigUpdateInstallReceiver());
         DataConfigParser mockParser = mock(DataConfigParser.class);
         DataConfig mockConfig = mock(DataConfig.class);
 
@@ -469,51 +467,5 @@ public class TelephonyConfigUpdateInstallReceiverTest extends TelephonyTest {
         doReturn(proto).when(mockConfig).getConfigData();
 
         assertFalse(spyReceiver.isValidDataConfig(mockParser));
-    }
-
-    @Test
-    public void testPostInstallForRestore_NotifiesEvenIfConfigNull() throws Exception {
-        TestableReceiver spyReceiver = spy(new TestableReceiver());
-        replaceInstance(TelephonyConfigUpdateInstallReceiver.class, "sReceiverAdaptorInstance",
-                null, spyReceiver);
-
-        // Mock dependencies to bypass disk I/O
-        doReturn(new byte[0]).when(spyReceiver).getContentFromContentPath(any());
-        doReturn(true).when(spyReceiver).copySourceFileToTargetFile(any(), any());
-
-        // Simulate a parser with a NULL inner config (The "Cleared" state)
-        DataConfigParser mockParser = mock(DataConfigParser.class);
-        doReturn(null).when(mockParser).getConfig();
-        doReturn(DOMAIN_DATA).when(mockParser).getDomain();
-        doReturn(mockParser).when(spyReceiver).getNewConfigParser(eq(DOMAIN_DATA), any());
-
-        spyReceiver.registerCallback(Runnable::run, mCallback);
-
-        // Execute the flow directly
-        spyReceiver.postInstallForRestore();
-
-        // VERIFY: Listeners are notified even with a null inner config (The Fix!)
-        verify(mCallback, times(1)).onChanged(mockParser);
-        assertEquals(mockParser, spyReceiver.getConfigParsers().get(DOMAIN_DATA));
-    }
-
-    @Test
-    public void testRestoreContentData_NoBackup_ForcesEmptyState() throws Exception {
-        TestableReceiver spyReceiver = spy(new TestableReceiver());
-
-        // Mock file system: No backup file present
-        doReturn(false).when(spyReceiver).isFileExists(any());
-
-        // Mock our new helper to avoid real disk writes
-        doNothing().when(spyReceiver).writeContentToFile(any(), any(), any());
-
-        // Spy on the restore method to verify it is called
-        doNothing().when(spyReceiver).postInstallForRestore();
-
-        spyReceiver.restoreContentData();
-
-        // VERIFY: System wrote an empty byte array and triggered the restore flow
-        verify(spyReceiver).writeContentToFile(any(), any(), eq(new byte[0]));
-        verify(spyReceiver).postInstallForRestore();
     }
 }
