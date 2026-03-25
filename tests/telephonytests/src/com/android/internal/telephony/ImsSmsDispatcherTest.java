@@ -31,6 +31,7 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -352,6 +353,30 @@ public class ImsSmsDispatcherTest extends TelephonyTest {
 
         imsSmsDispatcher.sendRawPdu(callingPackage, mCallingUserId, "5551212", null, pdu, null,
                 null, 0);
+
+        ArgumentCaptor<SMSDispatcher.SmsTracker> captor =
+                ArgumentCaptor.forClass(SMSDispatcher.SmsTracker.class);
+        verify(imsSmsDispatcher).sendSms(captor.capture());
+        SMSDispatcher.SmsTracker smsTracker = captor.getValue();
+        assertEquals(pdu, smsTracker.getData().get("pdu"));
+    }
+
+    @Test
+    @SmallTest
+    public void testSendRawPdu_skipStkShortCodeCheck() throws Exception {
+        String callingPackage = "com.example.test";
+        byte[] pdu = new byte[] {0x01, 0x02};
+        doReturn(true).when(mFeatureFlags).skipStkShortCodeCheck();
+
+        ImsSmsDispatcher imsSmsDispatcher = spy(mImsSmsDispatcher);
+        doNothing().when(imsSmsDispatcher).sendSms(any());
+        doReturn(mSmsUsageMonitor).when(mSmsDispatchersController).getUsageMonitor();
+
+        imsSmsDispatcher.sendRawPdu(callingPackage, mCallingUserId, "5551212", null, pdu, null,
+                null, 0);
+
+        verify(mSmsUsageMonitor, never()).checkDestination(any(), any());
+        verify(mSmsUsageMonitor, never()).getPremiumSmsPermission(any());
 
         ArgumentCaptor<SMSDispatcher.SmsTracker> captor =
                 ArgumentCaptor.forClass(SMSDispatcher.SmsTracker.class);
