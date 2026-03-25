@@ -110,12 +110,12 @@ public class MessageUpgradeControllerTest {
     public void testIsMessageUpgradeSupported_emptyPackage_throwsIllegalArgumentException() {
         IllegalArgumentException emptyException = assertThrows(IllegalArgumentException.class, () ->
                 MessageUpgradeController.isMessageUpgradeSupportedForPackage(
-                        mContext, TEST_USER_ID, ""));
+                        mContext, TEST_USER_ID, "", false));
         assertEquals("callingPkg cannot be null or empty", emptyException.getMessage());
 
         IllegalArgumentException nullException = assertThrows(IllegalArgumentException.class, () ->
                 MessageUpgradeController.isMessageUpgradeSupportedForPackage(
-                        mContext, TEST_USER_ID, null));
+                        mContext, TEST_USER_ID, null, false));
         assertEquals("callingPkg cannot be null or empty", nullException.getMessage());
     }
 
@@ -153,7 +153,7 @@ public class MessageUpgradeControllerTest {
 
         // Should not crash, should log error and return false
         boolean result = MessageUpgradeController.isMessageUpgradeSupportedForPackage(
-                mContext, TEST_USER_ID, TEST_CALLING_PKG);
+                mContext, TEST_USER_ID, TEST_CALLING_PKG, false);
 
         assertFalse("Should return false when worker fails to instantiate", result);
     }
@@ -188,13 +188,14 @@ public class MessageUpgradeControllerTest {
     @SmallTest
     public void testIsMessageUpgradeSupported_success_delegatesToWorker() throws Exception {
         injectMockWorker(TEST_USER_ID, mMockWorker);
-        when(mMockWorker.isMessageUpgradeSupportedForPackage(TEST_CALLING_PKG)).thenReturn(true);
+        when(mMockWorker.isMessageUpgradeSupportedForPackage(TEST_CALLING_PKG, false))
+                .thenReturn(true);
 
         boolean result = MessageUpgradeController.isMessageUpgradeSupportedForPackage(
-                mContext, TEST_USER_ID, TEST_CALLING_PKG);
+                mContext, TEST_USER_ID, TEST_CALLING_PKG, false);
 
         assertTrue(result);
-        verify(mMockWorker).isMessageUpgradeSupportedForPackage(TEST_CALLING_PKG);
+        verify(mMockWorker).isMessageUpgradeSupportedForPackage(TEST_CALLING_PKG, false);
     }
 
     @Test
@@ -249,10 +250,11 @@ public class MessageUpgradeControllerTest {
     @SmallTest
     public void testUserRemovedReceiver_cleansUpWorkerAndCloses() throws Exception {
         injectMockWorker(TEST_USER_ID, mMockWorker);
-        when(mMockWorker.isMessageUpgradeSupportedForPackage(TEST_CALLING_PKG)).thenReturn(true);
+        when(mMockWorker.isMessageUpgradeSupportedForPackage(TEST_CALLING_PKG, false))
+                .thenReturn(true);
 
         MessageUpgradeController.isMessageUpgradeSupportedForPackage(
-                mContext, TEST_USER_ID, TEST_CALLING_PKG);
+                mContext, TEST_USER_ID, TEST_CALLING_PKG, false);
 
         // Simulate broadcast
         Intent intent = new Intent(Intent.ACTION_USER_REMOVED);

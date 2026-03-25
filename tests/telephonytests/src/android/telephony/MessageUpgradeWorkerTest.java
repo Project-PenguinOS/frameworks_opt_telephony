@@ -117,17 +117,17 @@ public class MessageUpgradeWorkerTest {
     @SmallTest
     public void testIsMessageUpgradeSupportedForPackage() {
         // The worker should identify that the DMA supports message upgrade
-        assertTrue(mWorker.isMessageUpgradeSupportedForPackage(TEST_CALLING_PACKAGE));
+        assertTrue(mWorker.isMessageUpgradeSupportedForPackage(TEST_CALLING_PACKAGE, false));
 
         // If the calling package *is* the DMA, it shouldn't upgrade its own messages
-        assertFalse(mWorker.isMessageUpgradeSupportedForPackage(TEST_DMA_PACKAGE));
+        assertFalse(mWorker.isMessageUpgradeSupportedForPackage(TEST_DMA_PACKAGE, false));
     }
 
     @Test
     @SmallTest
     public void testIsMessageUpgradeSupportedForPackage_nullOrEmptyInput() {
-        assertFalse(mWorker.isMessageUpgradeSupportedForPackage(null));
-        assertFalse(mWorker.isMessageUpgradeSupportedForPackage(""));
+        assertFalse(mWorker.isMessageUpgradeSupportedForPackage(null, false));
+        assertFalse(mWorker.isMessageUpgradeSupportedForPackage("", false));
     }
 
     @Test
