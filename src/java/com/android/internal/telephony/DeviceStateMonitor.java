@@ -106,6 +106,7 @@ public class DeviceStateMonitor extends Handler {
     private final RegistrantList mSignalStrengthReportDecisionCallbackRegistrants =
             new RegistrantList();
     private final RegistrantList mScreenStateRegistrants = new RegistrantList();
+    private final RegistrantList mChargingStateRegistrants = new RegistrantList();
 
     private final NetworkRequest mWifiNetworkRequest =
             new NetworkRequest.Builder()
@@ -556,6 +557,7 @@ public class DeviceStateMonitor extends Handler {
         final boolean shouldEnableBarringInfoReportsOld = shouldEnableBarringInfoReports();
         final boolean wasHighPowerEnabled = shouldEnableHighPowerConsumptionIndications();
         boolean wasScreenOn = mIsScreenOn;
+        boolean wasCharged = mIsCharging;
         switch (eventType) {
             case EVENT_SCREEN_STATE_CHANGED:
                 if (mIsScreenOn == state) return;
@@ -675,6 +677,13 @@ public class DeviceStateMonitor extends Handler {
         // Determine whether to notify registrants about the screen on, off state change.
         if (wasScreenOn != mIsScreenOn) {
             mScreenStateRegistrants.notifyResult(mIsScreenOn);
+        }
+
+        // Determine whether to notify registrants about the charger connected or not.
+        if (mFeatureFlags.satelliteMetricsEnhancement()) {
+            if (wasCharged != mIsCharging) {
+                mChargingStateRegistrants.notifyResult(mIsCharging);
+            }
         }
     }
 
@@ -903,6 +912,39 @@ public class DeviceStateMonitor extends Handler {
      */
     public void unregisterForSignalStrengthReportDecision(Handler h) {
         mSignalStrengthReportDecisionCallbackRegistrants.remove(h);
+    }
+
+    /**
+     * Register a callback to receive the charging state changed event.
+     * @param h Handler to notify
+     * @param what msg.what when the message is delivered
+     * @param obj AsyncResult.userObj when the message is delivered
+     */
+    public void registerForChargingStateChanged(Handler h, int what, Object obj) {
+        if (!mFeatureFlags.satelliteMetricsEnhancement()) {
+            Rlog.d(TAG, "registerForChargingStateChanged: satelliteMetricsEnhancement is not"
+                    + " enabled, ignore.");
+            return;
+        }
+
+        Registrant r = new Registrant(h, what, obj);
+        mChargingStateRegistrants.add(r);
+        // Initial notification
+        mChargingStateRegistrants.notifyResult(mIsCharging);
+    }
+
+    /**
+     * Unregister for charging state changed notifications.
+     * @param h Handler to notify
+     */
+    public void unregisterForChargingStateChanged(Handler h) {
+        if (!mFeatureFlags.satelliteMetricsEnhancement()) {
+            Rlog.d(TAG, "unregisterForChargingStateChanged: satelliteMetricsEnhancement is not"
+                    + " enabled, ignore.");
+            return;
+        }
+
+        mChargingStateRegistrants.remove(h);
     }
 
     /**
