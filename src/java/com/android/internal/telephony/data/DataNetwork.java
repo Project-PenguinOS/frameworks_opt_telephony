@@ -3367,6 +3367,32 @@ public class DataNetwork extends StateMachine {
                     : DataFailCause.NO_RETRY_FAILURE;
             mRetryDelayMillis = DataCallResponse.RETRY_DURATION_UNDEFINED;
             transitionTo(mDisconnectedState);
+        } else if (isDisconnecting()) {
+            // The data call response is missing from the list. This means the PDN is gone. This
+            // is the PDN lost reported by the modem.
+            // Case :
+            // - In new HAL, in case of DDS switch from phone0 to phone1, the deactivate data call
+            // request and response are successful for the phone0 pdns, the state of those DN is
+            // still "disconnecting".
+            // - If now modem reports an empty list for phone0, it indicates modem no longer
+            // has any list of responses related to phone0, so it will no longer able to set the
+            // link status as Inactive, as a result the DN will still always be in "disconnecting"
+            // state until the event EVENT_STUCK_IN_TRANSIENT_STATE is executed.
+            // - But before the transient time can complete, if DDS switches back to Phone0 due to
+            // cases like Temporary DDS switch during voice call on nDDS sub (phone0) or manual DDS
+            // switch to phone0 by user, in those cases no new PDN will be seen on phone0, as all
+            // network request will get attached to the existing DataNetwork which is in
+            // "disconnecting" state. Here the device with DDS as Phone0 will not have any PDN.
+            //  - So when empty list received from modem and if the DN is in "diconnecting"
+            // state, then move the DN to diconnected state to avoid such issues.
+            log("onDataStateChanged: Empty list reported by "
+                    + AccessNetworkConstants.transportTypeToString(mTransport) + " data service."
+                    + "As DataNetwork is in Disconnecting state, move it to disconnected state."
+                    + " requireExplicitDisconnect " + requireExplicitDisconnect);
+            mFailCause = mEverConnected ? DataFailCause.LOST_CONNECTION
+                    : DataFailCause.NO_RETRY_FAILURE;
+            mRetryDelayMillis = DataCallResponse.RETRY_DURATION_UNDEFINED;
+            transitionTo(mDisconnectedState);
         }
     }
 
