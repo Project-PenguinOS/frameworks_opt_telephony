@@ -660,8 +660,6 @@ public class PhoneSwitcher extends Handler {
         logl("PhoneSwitcher started");
     }
 
-// QTI_BEGIN: 2025-02-06: Telephony: Telephony-Data: Decouple Qualcomm value adds.
-// QTI_END: 2025-02-06: Telephony: Telephony-Data: Decouple Qualcomm value adds.
     private final BroadcastReceiver mSimStateIntentReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
