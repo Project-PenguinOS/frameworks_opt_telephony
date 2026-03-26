@@ -303,6 +303,7 @@ public class SmsStats {
         proto.callingPackageName = (isInSatelliteModeForCarrierRoaming(mPhone)
                 && callingPackageName != null) ? callingPackageName : "";
         proto.appUid = uid;
+        proto.satelliteMessageTrigger = getSatelliteMessageTrigger(proto.isNtn, proto.isNbIotNtn);
         return proto;
     }
 
@@ -495,6 +496,14 @@ public class SmsStats {
                 .map(ServiceState::getOperatorNumeric)
                 .orElse(SatelliteConstants.DEFAULT_PLMN);
         return plmn;
+    }
+
+    private int getSatelliteMessageTrigger(boolean isNtn, boolean isNbIotNtn) {
+        if (isNtn && !isNbIotNtn) {
+            int trigger = SatelliteController.getInstance().getSatelliteMessageTrigger(mPhone);
+            Rlog.d(TAG, "getSatelliteMessageTrigger: trigger=" + trigger);
+        }
+        return SatelliteConstants.SATELLITE_MESSAGE_TRIGGER_DIRECT_MESSAGES_UI;
     }
 
     private void loge(String format, Object... args) {

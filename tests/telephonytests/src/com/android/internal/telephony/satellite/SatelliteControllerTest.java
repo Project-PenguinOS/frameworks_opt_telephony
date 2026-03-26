@@ -9700,6 +9700,70 @@ public class SatelliteControllerTest extends TelephonyTest {
         manualPlmns = mSatelliteControllerUT.getManualConnectSatellitePlmnsForCarrier(SUB_ID);
         assertTrue(manualPlmns.isEmpty());
     }
+    @Test
+    public void testGetSatelliteMessageTrigger() {
+        mSatelliteControllerUT.setSatellitePhone(SUB_ID);
+
+        // Initially default
+        assertEquals(SatelliteConstants.SATELLITE_MESSAGE_TRIGGER_DIRECT_MESSAGES_UI,
+                mSatelliteControllerUT.getSatelliteMessageTrigger(mPhone));
+
+        // 1. Notification displayed
+        mSatelliteControllerUT.elapsedRealtime = TimeUnit.HOURS.toMillis(10);
+        mSatelliteControllerUT.onAutoConnectSatelliteNotificationDisplayed(SUB_ID);
+        assertEquals(SatelliteConstants.SATELLITE_MESSAGE_TRIGGER_SYSTEM_NOTIFICATION,
+                mSatelliteControllerUT.getSatelliteMessageTrigger(mPhone));
+
+        // 2. Non-emergency dialog displayed (higher priority than notification)
+        mSatelliteControllerUT.elapsedRealtime += 1000;
+        mSatelliteControllerUT.onNonEmergencyDialerDialogDisplayed(mPhone);
+        assertEquals(SatelliteConstants.SATELLITE_MESSAGE_TRIGGER_NON_EMERGENCY_DIALER_DIALOG,
+                mSatelliteControllerUT.getSatelliteMessageTrigger(mPhone));
+
+        // 3. Emergency button displayed (highest priority)
+        mSatelliteControllerUT.elapsedRealtime += 1000;
+        mSatelliteControllerUT.onEmergencyDialerButtonDisplayed(SUB_ID);
+        assertEquals(SatelliteConstants.SATELLITE_MESSAGE_TRIGGER_EMERGENCY_DIALER_BUTTON,
+                mSatelliteControllerUT.getSatelliteMessageTrigger(mPhone));
+
+        // 4. Move time forward but stay within 2 hours of all events
+        mSatelliteControllerUT.elapsedRealtime += TimeUnit.HOURS.toMillis(1);
+        assertEquals(SatelliteConstants.SATELLITE_MESSAGE_TRIGGER_EMERGENCY_DIALER_BUTTON,
+                mSatelliteControllerUT.getSatelliteMessageTrigger(mPhone));
+
+        // 5. Expire Emergency Button window (Button was at 10h 2s, current is 12h 2s + 1ms)
+        mSatelliteControllerUT.elapsedRealtime = TimeUnit.HOURS.toMillis(10)
+                + TimeUnit.SECONDS.toMillis(2)
+                + TimeUnit.HOURS.toMillis(2) + 1;
+        // Button expired. Dialog was at 10h 1s. Diff is 2h 1s 1ms. Expired.
+        // Notification was at 10h. Diff is 2h 2s 1ms. Expired.
+        assertEquals(SatelliteConstants.SATELLITE_MESSAGE_TRIGGER_DIRECT_MESSAGES_UI,
+                mSatelliteControllerUT.getSatelliteMessageTrigger(mPhone));
+    }
+
+    @Test
+    public void testCarrierRoamingSatelliteSessionMetrics_CountOfDialerDisplayed() {
+        CarrierRoamingSatelliteSessionStats.clearInstancesForTest();
+        mSatelliteControllerUT.onNonEmergencyDialerDialogDisplayed(mPhone);
+        mSatelliteControllerUT.onEmergencyDialerButtonDisplayed(SUB_ID);
+        mSatelliteControllerUT.onAutoConnectSatelliteNotificationDisplayed(SUB_ID);
+
+        CarrierRoamingSatelliteSessionStats sessionStats =
+                CarrierRoamingSatelliteSessionStats.getInstance(SUB_ID);
+        sessionStats.onSessionStart(CARRIER_ID_1, mPhone, SUPPORTED_SERVICES_1,
+                SATELLITE_ENTITLEMENT_SERVICE_POLICY_CONSTRAINED, SATELLITE_APPS_1,
+                GLOBAL_NTN_CONNECT_TYPE_AUTOMATIC,
+                SESSION_NTN_CONNECT_TYPE_AUTOMATIC, SATELLITE_PLMN_1, mFeatureFlags, true, true);
+        sessionStats.onSessionEnd(SUB_ID, SATELLITE_APPS_1);
+
+        ArgumentCaptor<SatelliteStats.CarrierRoamingSatelliteSessionParams> captor =
+                ArgumentCaptor.forClass(SatelliteStats.CarrierRoamingSatelliteSessionParams.class);
+        verify(mMockSatelliteStats).onCarrierRoamingSatelliteSessionMetrics(captor.capture());
+        SatelliteStats.CarrierRoamingSatelliteSessionParams params = captor.getValue();
+        assertEquals(1, params.getCountOfNonEmergencyDialerDialogDisplayed());
+        assertEquals(1, params.getCountOfEmergencyDialerButtonDisplayed());
+        assertEquals(1, params.getCountOfSatelliteNotificationDisplayed());
+    }
 
     private static class TestCarrierRoamingSatelliteSessionStats extends
             CarrierRoamingSatelliteSessionStats {
