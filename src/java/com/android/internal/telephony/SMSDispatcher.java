@@ -1674,7 +1674,7 @@ public abstract class SMSDispatcher extends Handler {
             if (mFeatureFlags.messagePromotion() && persistMessage) {
                 boolean upgradeMessage =
                         MessageUpgradeController.isMessageUpgradeSupportedForPackage(
-                                mContext, callingUser, callingPkg);
+                                mContext, callingUser, callingPkg, /*shouldLog=*/true);
                 if (upgradeMessage) {
                     tracker.persistPendingMessageIfRequired(mContext);
                     if (tracker.mMessageUri != null) {
@@ -1919,7 +1919,7 @@ public abstract class SMSDispatcher extends Handler {
         boolean upgradeMessage = false;
         if (mFeatureFlags.messagePromotion() && persistMessage) {
             upgradeMessage = MessageUpgradeController.isMessageUpgradeSupportedForPackage(
-                    mContext, callingUser, callingPkg);
+                    mContext, callingUser, callingPkg, /*shouldLog=*/true);
         }
 
         for (int i = 0; i < msgCount; i++) {

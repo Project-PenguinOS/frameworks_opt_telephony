@@ -2371,6 +2371,9 @@ public class SatelliteStats {
         private final long mEnergyConsumedNwh;
         private final @SatelliteConstants.SatelliteEligibilitySource int mEligibilitySource;
         private final boolean mIsWifiConnected;
+        private final int mCountOfNonEmergencyDialerDialogDisplayed;
+        private final int mCountOfEmergencyDialerButtonDisplayed;
+        private final int mCountOfSatelliteNotificationDisplayed;
 
         private CarrierRoamingSatelliteSessionParams(Builder builder) {
             this.mCarrierId = builder.mCarrierId;
@@ -2422,6 +2425,12 @@ public class SatelliteStats {
             this.mEnergyConsumedNwh = builder.mEnergyConsumedNwh;
             this.mEligibilitySource = builder.mEligibilitySource;
             this.mIsWifiConnected = builder.mIsWifiConnected;
+            this.mCountOfNonEmergencyDialerDialogDisplayed =
+                builder.mCountOfNonEmergencyDialerDialogDisplayed;
+            this.mCountOfEmergencyDialerButtonDisplayed =
+                builder.mCountOfEmergencyDialerButtonDisplayed;
+            this.mCountOfSatelliteNotificationDisplayed =
+                builder.mCountOfSatelliteNotificationDisplayed;
         }
 
         public int getCarrierId() {
@@ -2635,6 +2644,21 @@ public class SatelliteStats {
             return mIsWifiConnected;
         }
 
+        /** Returns number of times non-emergency dialer dialog is displayed. */
+        public int getCountOfNonEmergencyDialerDialogDisplayed() {
+            return mCountOfNonEmergencyDialerDialogDisplayed;
+        }
+
+        /** Returns number of times emergency dialer button is displayed. */
+        public int getCountOfEmergencyDialerButtonDisplayed() {
+            return mCountOfEmergencyDialerButtonDisplayed;
+        }
+
+        /** Returns number of times satellite notification is displayed. */
+        public int getCountOfSatelliteNotificationDisplayed() {
+            return mCountOfSatelliteNotificationDisplayed;
+        }
+
         /**
          * A builder class to create {@link CarrierRoamingSatelliteSessionParams} data structure
          * class
@@ -2691,6 +2715,9 @@ public class SatelliteStats {
             private @SatelliteConstants.SatelliteEligibilitySource int mEligibilitySource =
                     SatelliteConstants.SATELLITE_ELIGIBILITY_SOURCE_UNKNOWN;
             private boolean mIsWifiConnected = false;
+            private int mCountOfNonEmergencyDialerDialogDisplayed = 0;
+            private int mCountOfEmergencyDialerButtonDisplayed = 0;
+            private int mCountOfSatelliteNotificationDisplayed = 0;
 
 
             /**
@@ -3123,6 +3150,24 @@ public class SatelliteStats {
                 return this;
             }
 
+            /** Sets count of non-emergency dialer dialog displayed. */
+            public Builder setCountOfNonEmergencyDialerDialogDisplayed(int count) {
+                this.mCountOfNonEmergencyDialerDialogDisplayed = count;
+                return this;
+            }
+
+            /** Sets count of emergency dialer button displayed. */
+            public Builder setCountOfEmergencyDialerButtonDisplayed(int count) {
+                this.mCountOfEmergencyDialerButtonDisplayed = count;
+                return this;
+            }
+
+            /** Sets count of satellite system notification displayed. */
+            public Builder setCountOfSatelliteNotificationDisplayed(int count) {
+                this.mCountOfSatelliteNotificationDisplayed = count;
+                return this;
+            }
+
             /**
              * Returns CarrierRoamingSatelliteSessionParams, which contains whole component of
              * {@link CarrierRoamingSatelliteSession} atom
@@ -3184,6 +3229,12 @@ public class SatelliteStats {
                     + ", EnergyConsumedNwh=" + mEnergyConsumedNwh
                     + ", eligibilitySource=" + mEligibilitySource
                     + ", isWifiConnected=" + mIsWifiConnected
+                    + ", countOfNonEmergencyDialerDialogDisplayed="
+                    + mCountOfNonEmergencyDialerDialogDisplayed
+                    + ", countOfEmergencyDialerButtonDisplayed="
+                    + mCountOfEmergencyDialerButtonDisplayed
+                    + ", countOfSatelliteNotificationDisplayed="
+                    + mCountOfSatelliteNotificationDisplayed
                     + ")";
         }
     }
@@ -4386,6 +4437,12 @@ public class SatelliteStats {
         proto.eligibilitySource = param.getEligibilitySource();
         proto.plmn = param.getPlmn();
         proto.isWifiConnected = param.isWifiConnected();
+        proto.countOfNonEmergencyDialerDialogDisplayed =
+            param.getCountOfNonEmergencyDialerDialogDisplayed();
+        proto.countOfEmergencyDialerButtonDisplayed =
+            param.getCountOfEmergencyDialerButtonDisplayed();
+        proto.countOfSatelliteNotificationDisplayed =
+            param.getCountOfSatelliteNotificationDisplayed();
         if (DBG) logd("onCarrierRoamingSatelliteSessionMetrics: " + param);
         mAtomsStorage.addCarrierRoamingSatelliteSessionStats(proto);
     }
