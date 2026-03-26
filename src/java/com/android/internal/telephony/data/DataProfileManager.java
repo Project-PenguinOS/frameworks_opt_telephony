@@ -89,6 +89,9 @@ public class DataProfileManager extends Handler {
     /** Event for SIM refresh. */
     private static final int EVENT_SIM_REFRESH = 3;
 
+    /** Event for clearing the last internet data profiles cache. */
+    private static final int EVENT_CLEAR_LAST_INTERNET_DATA_PROFILES = 4;
+
     private final Phone mPhone;
     private final String mLogTag;
     private final LocalLog mLocalLog = new LocalLog(128);
@@ -236,10 +239,24 @@ public class DataProfileManager extends Handler {
                 log("Update data profiles due to APN db updated.");
                 updateDataProfiles(false/*force update IA*/);
                 break;
+            case EVENT_CLEAR_LAST_INTERNET_DATA_PROFILES:
+                int subId = msg.arg1;
+                log("Clearing last internet data profiles cache for subId " + subId + ".");
+                mLastInternetDataProfiles.remove(subId);
+                break;
             default:
                 loge("Unexpected event " + msg);
                 break;
         }
+    }
+
+    /**
+     * Clear the last internet data profiles cache for the given subId.
+     *
+     * @param subId The subscription id.
+     */
+    public void clearLastInternetDataProfiles(int subId) {
+        sendMessage(obtainMessage(EVENT_CLEAR_LAST_INTERNET_DATA_PROFILES, subId, 0));
     }
 
     /**

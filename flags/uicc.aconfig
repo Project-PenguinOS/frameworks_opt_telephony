@@ -98,34 +98,12 @@ flag {
     bug:"343796688"
 }
 
-# OWNER=jayachandranc TARGET=26Q2
-flag {
-    name: "cache_adn_record_loader_exceptions"
-    namespace: "telephony"
-    description: "Cache AdnRecordLoader exceptions to prevent infinite retry loops"
-    bug:"477430965"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
 # OWNER=nharold TARGET=26Q3
 flag {
     name: "downloadable_subscription_include_carrier_identifier_internal"
     namespace: "telephony"
     description: "Add the CarrierIdentifier to the DownloadableSubscription"
     bug:"477378293"
-}
-
-# OWNER=stevestatia TARGET=26Q2
-flag {
-    name: "update_spn_display_name"
-    namespace: "telephony"
-    description: "This flag controls updating subscription display name when SPN is updated."
-    bug:"476250026"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
 }
 
 # OWNER=gargakash TARGET=26Q3
