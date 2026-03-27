@@ -20,6 +20,7 @@ import static android.telephony.TelephonyManager.ACTION_DATA_STALL_DETECTED;
 import static android.telephony.ims.stub.ImsRegistrationImplBase.REGISTRATION_TECH_IWLAN;
 
 import android.annotation.NonNull;
+import android.annotation.Nullable;
 import android.app.usage.NetworkStats;
 import android.app.usage.NetworkStatsManager;
 import android.content.BroadcastReceiver;
@@ -34,6 +35,7 @@ import android.net.NetworkCapabilities;
 import android.net.NetworkRequest;
 import android.net.NetworkTemplate;
 import android.net.wifi.WifiManager;
+import android.os.BatteryManager;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.HandlerThread;
@@ -96,6 +98,7 @@ public class CarrierRoamingSatelliteSessionStats {
     private int mServiceDataPolicy;
     private Phone mPhone;
     private Context mContext;
+    private BatteryManager mBatteryManager;
     private long mSatelliteDataConsumedBytes = 0L;
     private long mDataUsageOnSessionStartBytes = 0L;
     private Map<String, Long> mPerAppDataUsageOnSessionStartMap = new HashMap<>();
@@ -123,6 +126,8 @@ public class CarrierRoamingSatelliteSessionStats {
     String[] mSatelliteAppsPackageNameArray = null;
     private long[] mPerAppSatelliteDataConsumedBytesArray = new long[]{0L};
     private static final int MAX_SATELLITE_TOP_APPS_TRACKED = 5;
+    private static final int INVALID_BATTERY_PROPERTY_CAPACITY = -1;
+    private static final long INVALID_BATTERY_PROPERTY_ENERGY_COUNTER = -1L;
     private int[] mSatelliteAppsUidArray = new int[MAX_SATELLITE_TOP_APPS_TRACKED];
     private @SatelliteConstants.SatelliteGlobalConnectType int mSupportedConnectionMode;
     private @SatelliteConstants.SatelliteSessionConnectType int mSessionConnectionMode;
@@ -133,6 +138,9 @@ public class CarrierRoamingSatelliteSessionStats {
     private boolean mIsWfcRegistered;
     private int mAccumulatedScreenOnTimeSec;
     private long mScreenOnStartTimeMillis;
+    private boolean mWasChargingDuringSession;
+    private int mStartBatteryPropertyCapacity;
+    private long mStartBatteryPropertyEnergyCounter;
 
     private final ConnectivityManager.NetworkCallback mNetworkCallback =
             new ConnectivityManager.NetworkCallback() {
@@ -318,6 +326,7 @@ public class CarrierRoamingSatelliteSessionStats {
             List<String> satelliteApps, int supportedConnectionMode, int sessionConnectionMode,
             String plmn, @NonNull FeatureFlags featureFlags, boolean isScreenOn,
             boolean isWifiConnected) {
+        logd("onSessionStart:");
         mPhone = phone;
         mContext = mPhone.getContext();
         mCarrierId = carrierId;
@@ -351,9 +360,41 @@ public class CarrierRoamingSatelliteSessionStats {
             } else {
                 mScreenOnStartTimeMillis = 0;
             }
+
+            mBatteryManager = mContext.getSystemService(BatteryManager.class);
+            if (mBatteryManager != null) {
+                mWasChargingDuringSession = mBatteryManager.isCharging();
+                mStartBatteryPropertyCapacity = getBatteryPropertyCapacity();
+                mStartBatteryPropertyEnergyCounter = getBatteryPropertyEnergyCounter();
+            }
         }
         mIsWifiConnected = isWifiConnected;
     }
+
+    /** Returns remaining capacity as an integer percentage of total battery capacity. */
+    private int getBatteryPropertyCapacity() {
+        if (mBatteryManager == null) {
+            return INVALID_BATTERY_PROPERTY_CAPACITY;
+        }
+
+        int batteryPercentage = mBatteryManager.getIntProperty(
+            BatteryManager.BATTERY_PROPERTY_CAPACITY);
+        logd("getBatteryPropertyCapacity: batteryPercentage=" + batteryPercentage);
+        return batteryPercentage;
+    }
+
+    /** Returns battery remaining energy in nanowatt-hours, as a long integer. */
+    private long getBatteryPropertyEnergyCounter() {
+        if (mBatteryManager == null) {
+            return INVALID_BATTERY_PROPERTY_ENERGY_COUNTER;
+        }
+
+        long energyNwh = mBatteryManager.getLongProperty(
+            BatteryManager.BATTERY_PROPERTY_ENERGY_COUNTER);
+        logd("getBatteryPropertyEnergyCouter: energyNwh=" + energyNwh);
+        return energyNwh;
+    }
+
 
     /** Log carrier roaming satellite connection start */
     public void onConnectionStart(Phone phone) {
@@ -579,6 +620,7 @@ public class CarrierRoamingSatelliteSessionStats {
 
     /** Log carrier roaming satellite session end */
     public void onSessionEnd(int subId, List<String> satelliteApps) {
+        logd("onSessionEnd:");
         onConnectionEnd();
         long dataUsageOnSessionEndBytes = getDataUsage();
         logd("update data consumed: " + dataUsageOnSessionEndBytes);
@@ -835,6 +877,16 @@ public class CarrierRoamingSatelliteSessionStats {
         boolean isMultiSim = mSubscriptionManagerService.getActiveSubIdList(true).length > 1;
         updateFinalScreenOnTime();
 
+        // Calculate drop in battery percentage and energy consumed in nanowatt-hours
+        int droppedBatteryLevelPercent = INVALID_BATTERY_PROPERTY_CAPACITY;
+        long consumedBatteryEnergyNwh = INVALID_BATTERY_PROPERTY_ENERGY_COUNTER;
+        if (mFeatureFlags.satelliteMetricsEnhancement()) {
+            droppedBatteryLevelPercent = Math.max(0,
+                mStartBatteryPropertyCapacity - getBatteryPropertyCapacity());
+            consumedBatteryEnergyNwh = Math.max(0,
+                mStartBatteryPropertyEnergyCounter - getBatteryPropertyEnergyCounter());
+        }
+
         SatelliteStats.CarrierRoamingSatelliteSessionParams params =
                 new SatelliteStats.CarrierRoamingSatelliteSessionParams.Builder()
                         .setCarrierId(mCarrierId)
@@ -882,6 +934,9 @@ public class CarrierRoamingSatelliteSessionStats {
                         .setEligibilitySource(
                                 SatelliteServiceUtils.getSatelliteEligibilitySource(subId))
                         .setScreenOnTimeSec(mAccumulatedScreenOnTimeSec)
+                        .setBatteryLevelDropPercent(droppedBatteryLevelPercent)
+                        .setWasChargingDuringSession(mWasChargingDuringSession)
+                        .setEnergyConsumedNwh(consumedBatteryEnergyNwh)
                         .build();
         SatelliteStats.getInstance().onCarrierRoamingSatelliteSessionMetrics(params);
         // Add session duration time to session controller atom when session ends.
@@ -915,6 +970,10 @@ public class CarrierRoamingSatelliteSessionStats {
         mIsWfcEnabled = false;
         mIsWfcRegistered = false;
         mAccumulatedScreenOnTimeSec = 0;
+        mScreenOnStartTimeMillis = 0;
+        mWasChargingDuringSession = false;
+        mStartBatteryPropertyCapacity = 0;
+        mStartBatteryPropertyEnergyCounter = 0L;
         logd("initializeParams");
     }
 
@@ -1093,6 +1152,19 @@ public class CarrierRoamingSatelliteSessionStats {
         }
         logd("onWifiConnectivityStateChanged: isWifiConnected=" + isWifiConnected
                 + ", mIsWifiConnected=" + mIsWifiConnected);
+    }
+
+    /**
+     * Sets a one-way flag to indicate that the device was charged at least once during this
+     * session.
+     */
+    public void setWasChargingDuringSession() {
+        if (!mFeatureFlags.satelliteMetricsEnhancement()) {
+            logd("setWasChargingDuringSession: satelliteMetricsEnhancement is not enabled, ignore"
+                    + ".");
+            return;
+        }
+        mWasChargingDuringSession = true;
     }
 
     /**

@@ -16,6 +16,7 @@
 
 package com.android.internal.telephony.satellite;
 
+import static android.telephony.CarrierConfigManager.CARRIER_ROAMING_NTN_CONNECT_HYBRID;
 import static android.telephony.CarrierConfigManager.SATELLITE_DATA_SUPPORT_BANDWIDTH_CONSTRAINED;
 import static android.telephony.NetworkRegistrationInfo.SERVICE_TYPE_DATA;
 import static android.telephony.NetworkRegistrationInfo.SERVICE_TYPE_SMS;
@@ -91,14 +92,6 @@ public class SatelliteConfigParserTest extends TelephonyTest {
         // version
         satelliteConfigBuilder.setVersion(4);
 
-        // carriersupportedservices
-        TelephonyConfigData.CarrierSupportedSatelliteServicesProto.Builder
-                carrierSupportedSatelliteServiceBuilder =
-                TelephonyConfigData.CarrierSupportedSatelliteServicesProto.newBuilder();
-
-        // carriersupportedservices#carrier_id
-        carrierSupportedSatelliteServiceBuilder.setCarrierId(1);
-
         // carrierroamingconfig
         TelephonyConfigData.CarrierRoamingConfigProto.Builder carrierRoamingConfigBuilder =
                 TelephonyConfigData.CarrierRoamingConfigProto.newBuilder();
@@ -107,8 +100,22 @@ public class SatelliteConfigParserTest extends TelephonyTest {
         carrierRoamingConfigBuilder.addDeviceSatellitePlmn(PLMN_310160);
         carrierRoamingConfigBuilder.addDeviceSatellitePlmn(PLMN_310210);
         carrierRoamingConfigBuilder.addDeviceSatellitePlmn(PLMN_310220);
+        carrierRoamingConfigBuilder.setOverrideWfcRoamingModeWhileUsingNtn(true);
         satelliteConfigBuilder.setCarrierRoamingConfig(carrierRoamingConfigBuilder);
-        carrierRoamingConfigBuilder.clear();
+
+        // carriersupportedservices
+        TelephonyConfigData.CarrierSupportedSatelliteServicesProto.Builder
+                carrierSupportedSatelliteServiceBuilder =
+                TelephonyConfigData.CarrierSupportedSatelliteServicesProto.newBuilder();
+
+        // carriersupportedservices#carrier_id
+        carrierSupportedSatelliteServiceBuilder.setCarrierId(1);
+        carrierSupportedSatelliteServiceBuilder.setAttachSupported(true);
+        carrierSupportedSatelliteServiceBuilder.setDataSupportMode(1);
+        carrierSupportedSatelliteServiceBuilder.setNtnConnectType(0);
+        carrierSupportedSatelliteServiceBuilder.setEmergencyMessagingSupported(true);
+        carrierSupportedSatelliteServiceBuilder.setEntitlementSupported(true);
+        carrierSupportedSatelliteServiceBuilder.setEntitlementServerUrl("http://test.url");
 
         // carriersupportedservices#providercapability
         TelephonyConfigData.SatelliteProviderCapabilityProto.Builder
@@ -118,15 +125,17 @@ public class SatelliteConfigParserTest extends TelephonyTest {
         satelliteProviderCapabilityBuilder.addAllowedServices(SERVICE_TYPE_VOICE);
         satelliteProviderCapabilityBuilder.addAllowedServices(SERVICE_TYPE_DATA);
         satelliteProviderCapabilityBuilder.addAllowedServices(SERVICE_TYPE_SMS);
+        satelliteProviderCapabilityBuilder.setNtnConnectType(CARRIER_ROAMING_NTN_CONNECT_HYBRID);
         carrierSupportedSatelliteServiceBuilder.addSupportedSatelliteProviderCapabilities(
                 satelliteProviderCapabilityBuilder);
-        satelliteProviderCapabilityBuilder.clear();
 
-        satelliteProviderCapabilityBuilder.setCarrierPlmn(PLMN_310220);
-        satelliteProviderCapabilityBuilder.addAllowedServices(SERVICE_TYPE_SMS);
+        TelephonyConfigData.SatelliteProviderCapabilityProto.Builder
+                satelliteProviderCapabilityBuilder2 =
+                TelephonyConfigData.SatelliteProviderCapabilityProto.newBuilder();
+        satelliteProviderCapabilityBuilder2.setCarrierPlmn(PLMN_310220);
+        satelliteProviderCapabilityBuilder2.addAllowedServices(SERVICE_TYPE_SMS);
         carrierSupportedSatelliteServiceBuilder.addSupportedSatelliteProviderCapabilities(
-                satelliteProviderCapabilityBuilder);
-        satelliteProviderCapabilityBuilder.clear();
+                satelliteProviderCapabilityBuilder2);
 
         satelliteConfigBuilder.addCarrierSupportedSatelliteServices(
                 carrierSupportedSatelliteServiceBuilder);
@@ -293,6 +302,7 @@ public class SatelliteConfigParserTest extends TelephonyTest {
 
         SatelliteConfigParser spySatelliteConfigParser =
                 spy(new SatelliteConfigParser(mBytesProtoBuffer));
+        assertNotNull(spySatelliteConfigParser.getDomain());
         assertNotNull(spySatelliteConfigParser.getConfig());
 
         SatelliteConfig mockedSatelliteConfig = mock(SatelliteConfig.class);
@@ -490,13 +500,14 @@ public class SatelliteConfigParserTest extends TelephonyTest {
         satelliteProviderCapabilityBuilder.addAllowedServices(SERVICE_TYPE_SMS);
         carrierSupportedSatelliteServiceBuilder.addSupportedSatelliteProviderCapabilities(
                 satelliteProviderCapabilityBuilder);
-        satelliteProviderCapabilityBuilder.clear();
 
-        satelliteProviderCapabilityBuilder.setCarrierPlmn(PLMN_310220);
-        satelliteProviderCapabilityBuilder.addAllowedServices(SERVICE_TYPE_SMS);
+        TelephonyConfigData.SatelliteProviderCapabilityProto.Builder
+                satelliteProviderCapabilityBuilder2 =
+                TelephonyConfigData.SatelliteProviderCapabilityProto.newBuilder();
+        satelliteProviderCapabilityBuilder2.setCarrierPlmn(PLMN_310220);
+        satelliteProviderCapabilityBuilder2.addAllowedServices(SERVICE_TYPE_SMS);
         carrierSupportedSatelliteServiceBuilder.addSupportedSatelliteProviderCapabilities(
-                satelliteProviderCapabilityBuilder);
-        satelliteProviderCapabilityBuilder.clear();
+                satelliteProviderCapabilityBuilder2);
 
         satelliteConfigBuilder.addCarrierSupportedSatelliteServices(
                 carrierSupportedSatelliteServiceBuilder);
@@ -567,6 +578,7 @@ public class SatelliteConfigParserTest extends TelephonyTest {
         satelliteProviderCapabilityBuilder.addAllowedServices(SERVICE_TYPE_SMS);
         carrierSupportedSatelliteServiceBuilder.addSupportedSatelliteProviderCapabilities(
                 satelliteProviderCapabilityBuilder);
+
         satelliteProviderCapabilityBuilder.clear();
 
         satelliteProviderCapabilityBuilder.setCarrierPlmn(PLMN_310220);
@@ -641,13 +653,14 @@ public class SatelliteConfigParserTest extends TelephonyTest {
             satelliteProviderCapabilityBuilder.addAllowedServices(SERVICE_TYPE_SMS);
             carrierSupportedSatelliteServiceBuilder.addSupportedSatelliteProviderCapabilities(
                     satelliteProviderCapabilityBuilder);
-            satelliteProviderCapabilityBuilder.clear();
 
-            satelliteProviderCapabilityBuilder.setCarrierPlmn(PLMN_310220);
-            satelliteProviderCapabilityBuilder.addAllowedServices(SERVICE_TYPE_SMS);
+            TelephonyConfigData.SatelliteProviderCapabilityProto.Builder
+                    satelliteProviderCapabilityBuilder2 =
+                    TelephonyConfigData.SatelliteProviderCapabilityProto.newBuilder();
+            satelliteProviderCapabilityBuilder2.setCarrierPlmn(PLMN_310220);
+            satelliteProviderCapabilityBuilder2.addAllowedServices(SERVICE_TYPE_SMS);
             carrierSupportedSatelliteServiceBuilder.addSupportedSatelliteProviderCapabilities(
-                    satelliteProviderCapabilityBuilder);
-            satelliteProviderCapabilityBuilder.clear();
+                    satelliteProviderCapabilityBuilder2);
 
             satelliteConfigBuilder.addCarrierSupportedSatelliteServices(
                     carrierSupportedSatelliteServiceBuilder);
@@ -664,7 +677,6 @@ public class SatelliteConfigParserTest extends TelephonyTest {
             carrierRoamingConfigBuilder.addDeviceSatellitePlmn(PLMN_310211);
 
             satelliteConfigBuilder.setCarrierRoamingConfig(carrierRoamingConfigBuilder);
-            carrierRoamingConfigBuilder.clear();
 
         }
 
@@ -862,21 +874,17 @@ public class SatelliteConfigParserTest extends TelephonyTest {
         satelliteConfigParser = new SatelliteConfigParser(mBytesProtoBuffer);
         assertNotNull(satelliteConfigParser);
         assertNotNull(satelliteConfigParser.getConfig());
-        assertFalse(satelliteConfigParser.getConfig()
+        // Since PLMN is missing, the entry should not be added to the map.
+        assertTrue(satelliteConfigParser.getConfig()
                 .getSupportedSatelliteServices(1).isEmpty());
-        assertFalse(satelliteConfigParser.getConfig()
-                .getSupportedSatelliteServices(1).containsKey(PLMN_45005));
 
         setProtoDataOnlyCarrierSupportedSatelliteServicesProto(true, true, false);
         satelliteConfigParser = new SatelliteConfigParser(mBytesProtoBuffer);
         assertNotNull(satelliteConfigParser);
         assertNotNull(satelliteConfigParser.getConfig());
-        assertFalse(satelliteConfigParser.getConfig()
+        // Since allowedServices is empty, the entry should not be added to the map.
+        assertTrue(satelliteConfigParser.getConfig()
                 .getSupportedSatelliteServices(1).isEmpty());
-        assertTrue(satelliteConfigParser.getConfig()
-                .getSupportedSatelliteServices(1).containsKey(PLMN_45005));
-        assertTrue(satelliteConfigParser.getConfig()
-                .getSupportedSatelliteServices(1).get(PLMN_45005).isEmpty());
 
         setProtoDataOnlyCarrierSupportedSatelliteServicesProto(true, true, true);
         satelliteConfigParser = new SatelliteConfigParser(mBytesProtoBuffer);
@@ -915,6 +923,138 @@ public class SatelliteConfigParserTest extends TelephonyTest {
                 Integer.valueOf(CarrierConfigManager.SATELLITE_DATA_SUPPORT_BANDWIDTH_CONSTRAINED),
                 satelliteConfigParser.getConfig().getSatelliteMaxAllowedDataMode());
     }
+
+    @Test
+    public void testNewSatelliteConfigs() {
+        SatelliteConfigParser satelliteConfigParser = new SatelliteConfigParser(mBytesProtoBuffer);
+        SatelliteConfig config = satelliteConfigParser.getConfig();
+        assertNotNull(config);
+
+        assertEquals(true, config.isSatelliteAttachSupported(1));
+        assertEquals(Integer.valueOf(1), config.getSatelliteDataSupportMode(1));
+        assertEquals(Integer.valueOf(0), config.getSatelliteNtnConnectType(1));
+        assertEquals(true, config.isEmergencyMessagingSupported(1));
+        assertEquals(true, config.isSatelliteEntitlementSupported(1));
+        assertEquals("http://test.url", config.getSatelliteEntitlementServerUrl(1));
+
+        List<SatelliteConfig.PlmnConfig> plmnConfigs = config.getSatellitePlmnConfigs(1);
+        assertNotNull(plmnConfigs);
+        assertEquals(1, plmnConfigs.size());
+        assertEquals(PLMN_310160, plmnConfigs.get(0).getPlmn());
+        assertEquals(CARRIER_ROAMING_NTN_CONNECT_HYBRID, plmnConfigs.get(0).getNtnConnectType());
+        assertEquals(CARRIER_ROAMING_NTN_CONNECT_HYBRID,
+                config.getSatellitePlmnConfig(1, PLMN_310160).getNtnConnectType());
+
+        // Test with carrier id that doesn't exist
+        assertNull(config.isSatelliteAttachSupported(2));
+    }
+
+    @Test
+    public void testNewSatelliteConfigsWithMissingFields() {
+        TelephonyConfigData.TelephonyConfigProto.Builder telephonyConfigBuilder =
+                TelephonyConfigData.TelephonyConfigProto.newBuilder();
+        TelephonyConfigData.SatelliteConfigProto.Builder satelliteConfigBuilder =
+                TelephonyConfigData.SatelliteConfigProto.newBuilder();
+
+        satelliteConfigBuilder.setVersion(5);
+
+        // Carrier config with carrier_id but missing other optional fields
+        TelephonyConfigData.CarrierSupportedSatelliteServicesProto.Builder
+                carrierSupportedSatelliteServiceBuilder =
+                TelephonyConfigData.CarrierSupportedSatelliteServicesProto.newBuilder();
+        carrierSupportedSatelliteServiceBuilder.setCarrierId(10);
+
+        satelliteConfigBuilder.addCarrierSupportedSatelliteServices(
+                carrierSupportedSatelliteServiceBuilder);
+
+        // Carrier roaming config - NOT SETTING IT AT ALL to ensure nulls
+        // This ensures the hasCarrierRoamingConfig() check in SatelliteConfig fails.
+
+        telephonyConfigBuilder.setSatellite(satelliteConfigBuilder);
+        byte[] bytes = telephonyConfigBuilder.build().toByteArray();
+
+        SatelliteConfigParser parser = new SatelliteConfigParser(bytes);
+        SatelliteConfig config = parser.getConfig();
+        assertNotNull(config);
+
+        // Should return null for missing optional integer fields
+        assertNull(config.getSatelliteMaxAllowedDataMode());
+
+        assertNull(config.isSatelliteAttachSupported(10));
+        assertNull(config.getSatelliteDataSupportMode(10));
+        assertNull(config.getSatelliteNtnConnectType(10));
+        assertNull(config.isEmergencyMessagingSupported(10));
+        assertNull(config.isSatelliteEntitlementSupported(10));
+        assertNull(config.getSatelliteEntitlementServerUrl(10));
+
+        List<SatelliteConfig.PlmnConfig> plmnConfigs = config.getSatellitePlmnConfigs(10);
+        assertNotNull(plmnConfigs);
+        assertTrue(plmnConfigs.isEmpty());
+    }
+
+    @Test
+    public void testNewSatelliteConfigsWithMissingPlmn() {
+        TelephonyConfigData.TelephonyConfigProto.Builder telephonyConfigBuilder =
+                TelephonyConfigData.TelephonyConfigProto.newBuilder();
+        TelephonyConfigData.SatelliteConfigProto.Builder satelliteConfigBuilder =
+                TelephonyConfigData.SatelliteConfigProto.newBuilder();
+
+        satelliteConfigBuilder.setVersion(6);
+
+        TelephonyConfigData.CarrierSupportedSatelliteServicesProto.Builder
+                carrierSupportedSatelliteServiceBuilder =
+                TelephonyConfigData.CarrierSupportedSatelliteServicesProto.newBuilder();
+        carrierSupportedSatelliteServiceBuilder.setCarrierId(1);
+
+        // Capability without PLMN (Optional in SatelliteProviderCapabilityProto)
+        TelephonyConfigData.SatelliteProviderCapabilityProto.Builder providerCapabilityBuilder =
+                TelephonyConfigData.SatelliteProviderCapabilityProto.newBuilder();
+        providerCapabilityBuilder.addAllowedServices(SERVICE_TYPE_SMS);
+        carrierSupportedSatelliteServiceBuilder
+                .addSupportedSatelliteProviderCapabilities(providerCapabilityBuilder);
+
+        satelliteConfigBuilder.addCarrierSupportedSatelliteServices(
+                carrierSupportedSatelliteServiceBuilder);
+        telephonyConfigBuilder.setSatellite(satelliteConfigBuilder);
+        byte[] bytes = telephonyConfigBuilder.build().toByteArray();
+
+        SatelliteConfigParser parser = new SatelliteConfigParser(bytes);
+        SatelliteConfig config = parser.getConfig();
+        assertNotNull(config);
+
+        // Map should be empty because PLMN key was missing in capability
+        assertTrue(config.getSupportedSatelliteServices(1).isEmpty());
+        // Map should be empty because optional ntn_connect_type was missing in plmnConfig
+        assertTrue(config.getSatellitePlmnConfigs(1).isEmpty());
+
+        // Test case for empty allowed services
+        telephonyConfigBuilder.clear();
+        satelliteConfigBuilder.clear();
+        carrierSupportedSatelliteServiceBuilder.clear();
+        providerCapabilityBuilder.clear();
+
+        satelliteConfigBuilder.setVersion(7);
+        carrierSupportedSatelliteServiceBuilder.setCarrierId(1);
+
+        // PLMN is present, but allowed services is empty
+        providerCapabilityBuilder.setCarrierPlmn(PLMN_310160);
+        // Not adding any services
+        carrierSupportedSatelliteServiceBuilder
+                .addSupportedSatelliteProviderCapabilities(providerCapabilityBuilder);
+
+        satelliteConfigBuilder.addCarrierSupportedSatelliteServices(
+                carrierSupportedSatelliteServiceBuilder);
+        telephonyConfigBuilder.setSatellite(satelliteConfigBuilder);
+        bytes = telephonyConfigBuilder.build().toByteArray();
+
+        parser = new SatelliteConfigParser(bytes);
+        config = parser.getConfig();
+        assertNotNull(config);
+
+        // Should be empty because allowed services count was 0
+        assertTrue(config.getSupportedSatelliteServices(1).isEmpty());
+    }
+
     @Test
     public void testGetDomain() {
         SatelliteConfigParser parser = new SatelliteConfigParser(mBytesProtoBuffer);
