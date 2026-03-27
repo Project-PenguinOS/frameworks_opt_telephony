@@ -384,6 +384,7 @@ public class SatelliteController extends Handler {
     private static final int EVENT_SCREEN_STATE_CHANGED = 95;
     private static final int EVENT_SET_SATELLITE_NETWORK_INFO_DONE = 96;
     private static final int REQUEST_POINTING_UI_APP_LAUNCH_INTENT = 97;
+    private static final int EVENT_CHARGING_STATE_CHANGED = 98;
 
     private static final int TRUE = 1;
     private static final int FALSE = 0;
@@ -1123,6 +1124,7 @@ public class SatelliteController extends Handler {
                 null);
         if (mFeatureFlags.satelliteMetricsEnhancement()) {
             mDSM.registerForScreenStateChanged(this, EVENT_SCREEN_STATE_CHANGED, null);
+            mDSM.registerForChargingStateChanged(this, EVENT_CHARGING_STATE_CHANGED, null);
         }
 
         loadSatelliteSharedPreferences();
@@ -2804,6 +2806,10 @@ public class SatelliteController extends Handler {
 
             case EVENT_SCREEN_STATE_CHANGED:
                 handleEventScreenStateChanged((AsyncResult) msg.obj);
+                break;
+
+            case EVENT_CHARGING_STATE_CHANGED:
+                handleEventChargingStateChangedEvent((AsyncResult) msg.obj);
                 break;
 
             default:
@@ -8374,6 +8380,13 @@ public class SatelliteController extends Handler {
             return;
         }
 
+        if (mIsNotificationShowing.get() == visible) {
+            logd("updateSatelliteSystemNotification: visibility unchanged. "
+                    + "mIsNotificationShowing=" + mIsNotificationShowing.get()
+                    + ", visible=" + visible);
+            return;
+        }
+
         plogd(
                 "updateSatelliteSystemNotification subId="
                         + subId
@@ -11187,6 +11200,26 @@ public class SatelliteController extends Handler {
         mCarrierRoamingSatelliteSessionStatsMap.values().forEach(stats -> {
             stats.onWifiConnectivityStateChanged(isWifiConnected);
         });
+    }
+
+    private void handleEventChargingStateChangedEvent(@Nullable AsyncResult asyncResult) {
+        if (!mFeatureFlags.satelliteMetricsEnhancement()) {
+            logd("handleEventChargingStateChangedEvent: satelliteMetricsEnhancement is not "
+                    + "enabled, ignore.");
+            return;
+        }
+
+        if (asyncResult == null) {
+            ploge("handleEventChargingStateChangedEvent: asyncResult is null");
+            return;
+        }
+        boolean isCharging = (boolean) asyncResult.result;
+        plogd("handleEventChargingStateChangedEvent: " + isCharging);
+        if (isCharging) {
+            mCarrierRoamingSatelliteSessionStatsMap.values().forEach(stats -> {
+                stats.setWasChargingDuringSession();
+            });
+        }
     }
 
     @VisibleForTesting(visibility =  VisibleForTesting.Visibility.PRIVATE)
