@@ -275,6 +275,10 @@ message PersistAtoms {
     repeated OtpRedactionEvent otp_redaction_event = 84;
 
     optional int64 otp_redaction_event_pull_timestamp_millis = 85;
+
+    repeated MessagingReadRestrictionEvent messaging_read_restriction_event = 86;
+
+    optional int64 messaging_read_restriction_event_pull_timestamp_millis = 87;
 }
 
 // The canonical versions of the following enums live in:
@@ -982,3 +986,12 @@ message OtpRedactionEvent {
     optional int32 uid = 1;
     optional int32 count = 4;
 }
+
+message MessagingReadRestrictionEvent {
+    optional int32 caller_uid = 1;
+    optional int32 content_provider = 2;
+    optional int32 event_type = 3;
+    optional int32 read_restricted_messages_app_op_mode = 4;
+    optional int32 count = 5;
+}
+
