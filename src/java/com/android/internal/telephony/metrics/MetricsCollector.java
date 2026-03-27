@@ -1781,7 +1781,11 @@ public class MetricsCollector implements StatsManager.StatsPullAtomCallback {
                 stats.isWifiConnected,
                 stats.countOfNonEmergencyDialerDialogDisplayed,
                 stats.countOfEmergencyDialerButtonDisplayed,
-                stats.countOfSatelliteNotificationDisplayed);
+                stats.countOfSatelliteNotificationDisplayed,
+                stats.totalRxDataBytes,
+                stats.totalTxDataBytes,
+                stats.perAppRxDataBytes,
+                stats.perAppTxDataBytes);
     }
 
     private static StatsEvent buildStatsEvent(CarrierRoamingSatelliteControllerStats stats) {
