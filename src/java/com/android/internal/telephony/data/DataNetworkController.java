@@ -2253,7 +2253,7 @@ public class DataNetworkController extends Handler {
             if (dataNetwork.getTransport() == AccessNetworkConstants.TRANSPORT_TYPE_WWAN
                     && !isInfrastructureSupported(apnSetting)) {
                 evaluation.addDataDisallowedReason(
-                    DataDisallowedReason.DATA_NETWORK_TRANSPORT_NOT_ALLOWED);
+                        DataDisallowedReason.DATA_NETWORK_TRANSPORT_NOT_ALLOWED);
             }
         }
 

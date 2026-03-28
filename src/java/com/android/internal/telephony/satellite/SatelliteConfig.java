@@ -251,14 +251,36 @@ public class SatelliteConfig {
     }
 
     /**
+     * @param subId the subscription identifier.
+     * @return Whether satellite PLMN scan and attachment are supported for the subscription id.
+     * Returns {@code null} if it is not set.
+     */
+    @Nullable
+    public Boolean isSatelliteAttachSupportedBySubId(int subId) {
+        int carrierId = SatelliteServiceUtils.getCarrierIdFromSubscription(subId);
+        return isSatelliteAttachSupportedByCarrierId(carrierId);
+    }
+
+    /**
      * @param carrierId the carrier identifier.
      * @return Whether satellite PLMN scan and attachment are supported for the carrier.
      * Returns {@code null} if it is not set.
      */
     @Nullable
-    public Boolean isSatelliteAttachSupported(int carrierId) {
+    public Boolean isSatelliteAttachSupportedByCarrierId(int carrierId) {
         SatelliteCarrierConfig config = mSatelliteCarrierConfig.get(carrierId);
         return (config != null) ? config.mIsAttachSupported : null;
+    }
+
+    /**
+     * @param subId the subscription identifier.
+     * @return Satellite network data traffic support mode for the subscription id.
+     * Returns {@code null} if it is not set.
+     */
+    @Nullable
+    public Integer getSatelliteDataSupportModeBySubId(int subId) {
+        int carrierId = SatelliteServiceUtils.getCarrierIdFromSubscription(subId);
+        return getSatelliteDataSupportModeByCarrierId(carrierId);
     }
 
     /**
@@ -267,9 +289,20 @@ public class SatelliteConfig {
      * Returns {@code null} if it is not set.
      */
     @Nullable
-    public Integer getSatelliteDataSupportMode(int carrierId) {
+    public Integer getSatelliteDataSupportModeByCarrierId(int carrierId) {
         SatelliteCarrierConfig config = mSatelliteCarrierConfig.get(carrierId);
         return (config != null) ? config.mDataSupportMode : null;
+    }
+
+    /**
+     * @param subId the subscription identifier.
+     * @return Satellite connection method for the subscription id.
+     * Returns {@code null} if it is not set.
+     */
+    @Nullable
+    public Integer getSatelliteNtnConnectTypeBySubId(int subId) {
+        int carrierId = SatelliteServiceUtils.getCarrierIdFromSubscription(subId);
+        return getSatelliteNtnConnectTypeByCarrierId(carrierId);
     }
 
     /**
@@ -278,9 +311,22 @@ public class SatelliteConfig {
      * Returns {@code null} if it is not set.
      */
     @Nullable
-    public Integer getSatelliteNtnConnectType(int carrierId) {
+    public Integer getSatelliteNtnConnectTypeByCarrierId(int carrierId) {
         SatelliteCarrierConfig config = mSatelliteCarrierConfig.get(carrierId);
         return (config != null) ? config.mNtnConnectType : null;
+    }
+
+    /**
+     * Gets the detailed satellite configurations per PLMN for the given subscription id.
+     *
+     * @param subId The subscription id to fetch the configurations for.
+     * @return A list containing detailed configuration values per PLMN string.
+     *         Returns an empty map if no configuration is found for the given subscription id.
+     */
+    @NonNull
+    public List<PlmnConfig> getSatellitePlmnConfigsBySubId(int subId) {
+        int carrierId = SatelliteServiceUtils.getCarrierIdFromSubscription(subId);
+        return getSatellitePlmnConfigsByCarrierId(carrierId);
     }
 
     /**
@@ -291,7 +337,7 @@ public class SatelliteConfig {
      *         Returns an empty map if no configuration is found for the given carrier.
      */
     @NonNull
-    public List<PlmnConfig> getSatellitePlmnConfigs(int carrierId) {
+    public List<PlmnConfig> getSatellitePlmnConfigsByCarrierId(int carrierId) {
         SatelliteCarrierConfig config = mSatelliteCarrierConfig.get(carrierId);
         if (config == null) {
             return Collections.emptyList();
@@ -304,6 +350,20 @@ public class SatelliteConfig {
     }
 
     /**
+     * Gets the satellite configuration for the given subscription id and plmn.
+     *
+     * @param subId The subscription id to fetch the configuration for.
+     * @param plmn The PLMN string to match.
+     * @return The {@link PlmnConfig} for the given subscription id and PLMN, or {@code null} if no
+     *         configuration is found.
+     */
+    @Nullable
+    public PlmnConfig getSatellitePlmnConfigBySubId(int subId, @NonNull String plmn) {
+        int carrierId = SatelliteServiceUtils.getCarrierIdFromSubscription(subId);
+        return getSatellitePlmnConfigByCarrierId(carrierId, plmn);
+    }
+
+    /**
      * Gets the satellite configuration for the given carrier and plmn.
      *
      * @param carrierId The carrier ID to fetch the configuration for.
@@ -312,7 +372,7 @@ public class SatelliteConfig {
      *         configuration is found.
      */
     @Nullable
-    public PlmnConfig getSatellitePlmnConfig(int carrierId, @NonNull String plmn) {
+    public PlmnConfig getSatellitePlmnConfigByCarrierId(int carrierId, @NonNull String plmn) {
         SatelliteCarrierConfig config = mSatelliteCarrierConfig.get(carrierId);
         if (config == null) {
             return null;
@@ -325,15 +385,38 @@ public class SatelliteConfig {
                 .orElse(null);
     }
 
+
+    /**
+     * @param subId the subscription identifier.
+     * @return Whether satellite emergency messaging is supported for the subscription id.
+     * Returns {@code null} if it is not set.
+     */
+    @Nullable
+    public Boolean isEmergencyMessagingSupportedBySubId(int subId) {
+        int carrierId = SatelliteServiceUtils.getCarrierIdFromSubscription(subId);
+        return isEmergencyMessagingSupportedByCarrierId(carrierId);
+    }
+
     /**
      * @param carrierId the carrier identifier.
      * @return Whether satellite emergency messaging is supported for the carrier.
      * Returns {@code null} if it is not set.
      */
     @Nullable
-    public Boolean isEmergencyMessagingSupported(int carrierId) {
+    public Boolean isEmergencyMessagingSupportedByCarrierId(int carrierId) {
         SatelliteCarrierConfig config = mSatelliteCarrierConfig.get(carrierId);
         return (config != null) ? config.mIsEmergencyMessagingSupported : null;
+    }
+
+    /**
+     * @param subId the subscription identifier.
+     * @return Whether to use satellite entitlement check server query for the subscription id.
+     * Returns {@code null} if it is not set.
+     */
+    @Nullable
+    public Boolean isSatelliteEntitlementSupportedBySubId(int subId) {
+        int carrierId = SatelliteServiceUtils.getCarrierIdFromSubscription(subId);
+        return isSatelliteEntitlementSupportedByCarrierId(carrierId);
     }
 
     /**
@@ -342,9 +425,20 @@ public class SatelliteConfig {
      * Returns {@code null} if it is not set.
      */
     @Nullable
-    public Boolean isSatelliteEntitlementSupported(int carrierId) {
+    public Boolean isSatelliteEntitlementSupportedByCarrierId(int carrierId) {
         SatelliteCarrierConfig config = mSatelliteCarrierConfig.get(carrierId);
         return (config != null) ? config.mIsEntitlementSupported : null;
+    }
+
+    /**
+     * @param subId the subscription identifier.
+     * @return The URL of the entitlement server for the subscription id.
+     * Returns {@code null} if it is not set.
+     */
+    @Nullable
+    public String getSatelliteEntitlementServerUrlBySubId(int subId) {
+        int carrierId = SatelliteServiceUtils.getCarrierIdFromSubscription(subId);
+        return getSatelliteEntitlementServerUrlByCarrierId(carrierId);
     }
 
     /**
@@ -353,7 +447,7 @@ public class SatelliteConfig {
      * Returns {@code null} if it is not set.
      */
     @Nullable
-    public String getSatelliteEntitlementServerUrl(int carrierId) {
+    public String getSatelliteEntitlementServerUrlByCarrierId(int carrierId) {
         SatelliteCarrierConfig config = mSatelliteCarrierConfig.get(carrierId);
         return (config != null) ? config.mEntitlementServerUrl : null;
     }

@@ -100,9 +100,42 @@ public class CarrierRoamingSatelliteSessionStats {
     private Context mContext;
     private BatteryManager mBatteryManager;
     private long mSatelliteDataConsumedBytes = 0L;
+    private long mTotalRxDataConsumedBytes = 0L;
+    private long mTotalTxDataConsumedBytes = 0L;
     private long mDataUsageOnSessionStartBytes = 0L;
-    private Map<String, Long> mPerAppDataUsageOnSessionStartMap = new HashMap<>();
+    private long mTotalRxDataOnSessionStartBytes = 0L;
+    private long mTotalTxDataOnSessionStartBytes = 0L;
+    private Map<String, DataUsage> mPerAppDataUsageOnSessionStartMap = new HashMap<>();
+    private Map<String, Long> mPerAppDataUsageOnSessionStartMapLegacy = new HashMap<>();
     private Map<String, Integer> mSatelliteAppUidMap = new HashMap<>();
+
+    @VisibleForTesting
+    public static class DataUsage {
+        private final long mRxBytes;
+        private final long mTxBytes;
+
+        public DataUsage(long rxBytes, long txBytes) {
+            mRxBytes = rxBytes;
+            mTxBytes = txBytes;
+        }
+
+        public long getRxBytes() {
+            return mRxBytes;
+        }
+
+        public long getTxBytes() {
+            return mTxBytes;
+        }
+
+        public long getTotalBytes() {
+            return mRxBytes + mTxBytes;
+        }
+
+        @Override
+        public String toString() {
+            return "DataUsage(" + mRxBytes + " rx, " + mTxBytes + " tx)";
+        }
+    }
     private int[] mLastFailCauses = new int[5];
     private int mCountOfDataConnections = 0;
     private int mCountOfDataDisconnections = 0;
@@ -125,6 +158,8 @@ public class CarrierRoamingSatelliteSessionStats {
     @NonNull private FeatureFlags mFeatureFlags;
     String[] mSatelliteAppsPackageNameArray = null;
     private long[] mPerAppSatelliteDataConsumedBytesArray = new long[]{0L};
+    private long[] mPerAppRxDataConsumedBytesArray = new long[]{0L};
+    private long[] mPerAppTxDataConsumedBytesArray = new long[]{0L};
     private static final int MAX_SATELLITE_TOP_APPS_TRACKED = 5;
     private static final int INVALID_BATTERY_PROPERTY_CAPACITY = -1;
     private static final long INVALID_BATTERY_PROPERTY_ENERGY_COUNTER = -1L;
@@ -338,12 +373,28 @@ public class CarrierRoamingSatelliteSessionStats {
         mSessionStartTimeSec = getElapsedRealtimeInSec();
         mIsNtnRoamingInHomeCountry = false;
         onConnectionStart(mPhone);
-        mDataUsageOnSessionStartBytes = getDataUsage();
-        logd("current data consumed: " + mDataUsageOnSessionStartBytes);
+        mTotalRxDataConsumedBytes = 0L;
+        mTotalTxDataConsumedBytes = 0L;
+        mFeatureFlags = featureFlags;
+
+        if (mFeatureFlags.satelliteDataMetricsEnhancement()) {
+            DataUsage totalUsageOnStart = getDetailedDataUsage();
+            mDataUsageOnSessionStartBytes = totalUsageOnStart.getTotalBytes();
+            mTotalRxDataOnSessionStartBytes = totalUsageOnStart.getRxBytes();
+            mTotalTxDataOnSessionStartBytes = totalUsageOnStart.getTxBytes();
+            logd("current data consumed: " + totalUsageOnStart);
+            mPerAppDataUsageOnSessionStartMap = getPerAppDetailedDataUsage(satelliteApps);
+        } else {
+            mDataUsageOnSessionStartBytes = getDataUsage();
+            mTotalRxDataOnSessionStartBytes = 0L;
+            mTotalTxDataOnSessionStartBytes = 0L;
+            logd("current data consumed: " + mDataUsageOnSessionStartBytes);
+            mPerAppDataUsageOnSessionStartMapLegacy = getPerAppSatelliteDataUsage(satelliteApps);
+        }
+
         mSupportedConnectionMode = supportedConnectionMode;
         mPlmn = plmn;
         mSessionConnectionMode = sessionConnectionMode;
-        mFeatureFlags = featureFlags;
         WifiManager wifiManager = (WifiManager) mContext.getSystemService(Context.WIFI_SERVICE);
         if (wifiManager != null) {
             mIsWifiEnabled = wifiManager.isWifiEnabled();
@@ -355,7 +406,6 @@ public class CarrierRoamingSatelliteSessionStats {
         logd("mIsWifiEnabled: " + mIsWifiEnabled + ", mIsWfcEnabled: " + mIsWfcEnabled
                 + ", mIsWfcRegistered: " + mIsWfcRegistered);
         registerForSatelliteDataNetworkCallback();
-        mPerAppDataUsageOnSessionStartMap = getPerAppSatelliteDataUsage(satelliteApps);
         mAccumulatedScreenOnTimeSec = 0;
         if (mFeatureFlags.satelliteMetricsEnhancement()) {
             if (isScreenOn) {
@@ -452,11 +502,11 @@ public class CarrierRoamingSatelliteSessionStats {
         }
     }
 
-    /** calculate total satellite data consumed at the session */
+        /** calculate total satellite data consumed at the session */
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PROTECTED)
-    protected long getDataUsage() {
+    protected DataUsage getDetailedDataUsage() {
         if (mContext == null) {
-            return 0L;
+            return new DataUsage(0L, 0L);
         }
 
         NetworkStatsManager networkStatsManager =
@@ -476,10 +526,16 @@ public class CarrierRoamingSatelliteSessionStats {
                 final NetworkStats.Bucket ret =
                         networkStatsManager.querySummaryForDevice(
                                 template, 0L, System.currentTimeMillis());
-                return ret.getRxBytes() + ret.getTxBytes();
+                return new DataUsage(ret.getRxBytes(), ret.getTxBytes());
             }
         }
-        return 0L;
+        return new DataUsage(0L, 0L);
+    }
+
+    /** calculate total satellite data consumed at the session */
+    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PROTECTED)
+    protected long getDataUsage() {
+        return getDetailedDataUsage().getTotalBytes();
     }
 
     private void stopDataConnectionTracker() {
@@ -535,6 +591,38 @@ public class CarrierRoamingSatelliteSessionStats {
         }
     }
 
+    private void updatePerAppDetailedDataConsumedMaptoArray(
+            Map<String, DataUsage> appDataUsageMap) {
+        if (appDataUsageMap == null || appDataUsageMap.isEmpty()) {
+            Log.w(TAG, "No satellite data usage found. The app data usage map is null or empty.");
+            return;
+        }
+
+        // Sort by total usage to find top 5
+        List<Map.Entry<String, DataUsage>> sortedList = new ArrayList<>(appDataUsageMap.entrySet());
+        sortedList.sort((e1, e2) -> Long.compare(e2.getValue().getTotalBytes(),
+                e1.getValue().getTotalBytes()));
+
+        int numApps = Math.min(sortedList.size(), MAX_SATELLITE_TOP_APPS_TRACKED);
+        mSatelliteAppsPackageNameArray = new String[numApps];
+        mSatelliteAppsUidArray = new int[numApps];
+        mPerAppSatelliteDataConsumedBytesArray = new long[numApps];
+        mPerAppRxDataConsumedBytesArray = new long[numApps];
+        mPerAppTxDataConsumedBytesArray = new long[numApps];
+
+        for (int i = 0; i < numApps; i++) {
+            Map.Entry<String, DataUsage> entry = sortedList.get(i);
+            mSatelliteAppsPackageNameArray[i] = entry.getKey();
+            mSatelliteAppsUidArray[i] = mSatelliteAppUidMap.getOrDefault(entry.getKey(), -1);
+            mPerAppSatelliteDataConsumedBytesArray[i] = entry.getValue().getTotalBytes();
+            mPerAppRxDataConsumedBytesArray[i] = entry.getValue().getRxBytes();
+            mPerAppTxDataConsumedBytesArray[i] = entry.getValue().getTxBytes();
+        }
+
+        // Log the processed data for verification
+        logSatelliteAppData();
+    }
+
     private void updatePerAppDataConsumedMaptoArray(Map<String, Long> appDataUsageMap) {
         if (appDataUsageMap == null || appDataUsageMap.isEmpty()) {
             Log.w(TAG, "No satellite data usage found. The app data usage map is null or empty.");
@@ -558,6 +646,63 @@ public class CarrierRoamingSatelliteSessionStats {
         logSatelliteAppData();
     }
 
+    private Map<String, DataUsage> computePerAppDetailedDataUsageWithSession(
+            Map<String, DataUsage> currentUsageMap) {
+        Map<String, DataUsage> sessionUsageMap = new HashMap<>();
+
+        for (Map.Entry<String, DataUsage> entry : currentUsageMap.entrySet()) {
+            String key = entry.getKey();
+            DataUsage currentUsage = entry.getValue();
+            long rxUsageDuringSession;
+            long txUsageDuringSession;
+
+            if (mPerAppDataUsageOnSessionStartMap.containsKey(key)) {
+                DataUsage initialUsage = mPerAppDataUsageOnSessionStartMap.get(key);
+                rxUsageDuringSession = currentUsage.getRxBytes() - initialUsage.getRxBytes();
+                txUsageDuringSession = currentUsage.getTxBytes() - initialUsage.getTxBytes();
+            } else {
+                rxUsageDuringSession = currentUsage.getRxBytes();
+                txUsageDuringSession = currentUsage.getTxBytes();
+            }
+
+            if (rxUsageDuringSession + txUsageDuringSession > 0) {
+                sessionUsageMap.put(key, new DataUsage(
+                        Math.max(0, rxUsageDuringSession),
+                        Math.max(0, txUsageDuringSession)));
+            }
+        }
+        return sessionUsageMap;
+    }
+
+    private Map<String, Long> computePerAppSatelliteDataUsageWithSessionLegacy(
+            Map<String, Long> map2) {
+        // The satelliteSessionUsageMap is initialized as a HashMap, and now the method signature
+        // explicitly states that a HashMap will be returned.
+        HashMap<String, Long> satelliteSessionUsageMap = new HashMap<>();
+
+        // Iterate through each entry in Map2
+        for (Map.Entry<String, Long> entry : map2.entrySet()) {
+            String key = entry.getKey();
+            Long currentDataUsageBytes = entry.getValue();
+            long dataUsageDuringSession;
+
+            // Check if the package exists in the session-start map
+            if (mPerAppDataUsageOnSessionStartMapLegacy.containsKey(key)) {
+                long initialDataUsageBytes = mPerAppDataUsageOnSessionStartMapLegacy.get(key);
+                dataUsageDuringSession = currentDataUsageBytes - initialDataUsageBytes;
+            } else {
+                // If not in the start map, usage is the current value
+                dataUsageDuringSession = currentDataUsageBytes;
+            }
+
+            // Only store positive data usage values
+            if (dataUsageDuringSession > 0) {
+                satelliteSessionUsageMap.put(key, dataUsageDuringSession);
+            }
+        }
+        return satelliteSessionUsageMap;
+    }
+
     private Map<String, Long> computePerAppSatelliteDataUsageWithSession(Map<String, Long> map2) {
         // The satelliteSessionUsageMap is initialized as a HashMap, and now the method signature
         // explicitly states that a HashMap will be returned.
@@ -571,7 +716,8 @@ public class CarrierRoamingSatelliteSessionStats {
 
             // Check if the package exists in the session-start map
             if (mPerAppDataUsageOnSessionStartMap.containsKey(key)) {
-                long initialDataUsageBytes = mPerAppDataUsageOnSessionStartMap.get(key);
+                  long initialDataUsageBytes = mPerAppDataUsageOnSessionStartMap
+                      .get(key).getTotalBytes();
                 dataUsageDuringSession = currentDataUsageBytes - initialDataUsageBytes;
             } else {
                 // If not in the start map, usage is the current value
@@ -625,26 +771,58 @@ public class CarrierRoamingSatelliteSessionStats {
     public void onSessionEnd(int subId, List<String> satelliteApps) {
         logd("onSessionEnd:");
         onConnectionEnd();
-        long dataUsageOnSessionEndBytes = getDataUsage();
-        logd("update data consumed: " + dataUsageOnSessionEndBytes);
-        if (dataUsageOnSessionEndBytes > 0L
-                && dataUsageOnSessionEndBytes > mDataUsageOnSessionStartBytes) {
-            mSatelliteDataConsumedBytes =
-                    dataUsageOnSessionEndBytes - mDataUsageOnSessionStartBytes;
-        }
-        logd("satellite data consumed at session: " + mSatelliteDataConsumedBytes);
 
-        Map<String, Long> perAppDataUsageOnSessionEndMap = getPerAppSatelliteDataUsage(
-                satelliteApps);
-        if (!perAppDataUsageOnSessionEndMap.isEmpty()) {
-            Map<String, Long> currSatelliteSessionPerAppDataUsageMap =
-                    computePerAppSatelliteDataUsageWithSession(perAppDataUsageOnSessionEndMap);
-            Map<String, Long> top5PackagesWithMaxDataMap =
-                    findTopNPackagesWithMaxData(currSatelliteSessionPerAppDataUsageMap);
-            logd("top 5 satellite data usage apps:" + top5PackagesWithMaxDataMap);
-            updatePerAppDataConsumedMaptoArray(top5PackagesWithMaxDataMap);
+        if (mFeatureFlags.satelliteDataMetricsEnhancement()) {
+            DataUsage dataUsageOnSessionEnd = getDetailedDataUsage();
+            logd("update data consumed: " + dataUsageOnSessionEnd);
+            if (dataUsageOnSessionEnd.getTotalBytes() > 0L
+                    && dataUsageOnSessionEnd.getTotalBytes() > mDataUsageOnSessionStartBytes) {
+                mSatelliteDataConsumedBytes =
+                        dataUsageOnSessionEnd.getTotalBytes() - mDataUsageOnSessionStartBytes;
+                mTotalRxDataConsumedBytes =
+                        Math.max(0, dataUsageOnSessionEnd.getRxBytes()
+                                - mTotalRxDataOnSessionStartBytes);
+                mTotalTxDataConsumedBytes =
+                        Math.max(0, dataUsageOnSessionEnd.getTxBytes()
+                                - mTotalTxDataOnSessionStartBytes);
+            }
+            logd("satellite data consumed at session: Total=" + mSatelliteDataConsumedBytes
+                    + ", Rx=" + mTotalRxDataConsumedBytes + ", Tx=" + mTotalTxDataConsumedBytes);
+
+            Map<String, DataUsage> perAppDataUsageOnSessionEndMap = getPerAppDetailedDataUsage(
+                    satelliteApps);
+            if (!perAppDataUsageOnSessionEndMap.isEmpty()) {
+                Map<String, DataUsage> currSatelliteSessionPerAppDataUsageMap =
+                        computePerAppDetailedDataUsageWithSession(perAppDataUsageOnSessionEndMap);
+                logd("top satellite data usage apps details:"
+                        + currSatelliteSessionPerAppDataUsageMap);
+                updatePerAppDetailedDataConsumedMaptoArray(currSatelliteSessionPerAppDataUsageMap);
+            } else {
+                loge("per app satellite consumed array is empty");
+            }
         } else {
-            loge("per app satellite consumed array is empty");
+            long dataUsageOnSessionEndBytes = getDataUsage();
+            logd("update data consumed: " + dataUsageOnSessionEndBytes);
+            if (dataUsageOnSessionEndBytes > 0L
+                    && dataUsageOnSessionEndBytes > mDataUsageOnSessionStartBytes) {
+                mSatelliteDataConsumedBytes =
+                        dataUsageOnSessionEndBytes - mDataUsageOnSessionStartBytes;
+            }
+            logd("satellite data consumed at session: " + mSatelliteDataConsumedBytes);
+
+            Map<String, Long> perAppDataUsageOnSessionEndMap = getPerAppSatelliteDataUsage(
+                    satelliteApps);
+            if (!perAppDataUsageOnSessionEndMap.isEmpty()) {
+                Map<String, Long> currSatelliteSessionPerAppDataUsageMap =
+                        computePerAppSatelliteDataUsageWithSessionLegacy(
+                                perAppDataUsageOnSessionEndMap);
+                Map<String, Long> top5PackagesWithMaxDataMap =
+                        findTopNPackagesWithMaxData(currSatelliteSessionPerAppDataUsageMap);
+                logd("top 5 satellite data usage apps:" + top5PackagesWithMaxDataMap);
+                updatePerAppDataConsumedMaptoArray(top5PackagesWithMaxDataMap);
+            } else {
+                loge("per app satellite consumed array is empty");
+            }
         }
 
         if (mSumOfDownlinkBandwidthKbps > 0 && mCountOfDataConnections > 0) {
@@ -664,10 +842,18 @@ public class CarrierRoamingSatelliteSessionStats {
         mSupportedSatelliteServices = new int[0];
         mServiceDataPolicy = SatelliteConstants.SATELLITE_ENTITLEMENT_SERVICE_POLICY_UNKNOWN;
         mSatelliteDataConsumedBytes = 0L;
+        mTotalRxDataConsumedBytes = 0L;
+        mTotalTxDataConsumedBytes = 0L;
         mSatelliteAppsPackageNameArray = null;
         Arrays.fill(mSatelliteAppsUidArray, 0);
         mPerAppSatelliteDataConsumedBytesArray = new long[]{0L};
+        mPerAppRxDataConsumedBytesArray = new long[]{0L};
+        mPerAppTxDataConsumedBytesArray = new long[]{0L};
         mDataUsageOnSessionStartBytes = 0L;
+        mTotalRxDataOnSessionStartBytes = 0L;
+        mTotalTxDataOnSessionStartBytes = 0L;
+        mPerAppDataUsageOnSessionStartMap.clear();
+        mPerAppDataUsageOnSessionStartMapLegacy.clear();
         resetSatelliteDataState();
     }
 
@@ -720,28 +906,32 @@ public class CarrierRoamingSatelliteSessionStats {
         return key;
     }
 
-    private void updateDataUsageMap(NetworkStats networkStats, Map<String, Long> dataUsageMap) {
-        long totalBytes;
+    private void updateDetailedDataUsageMap(NetworkStats networkStats,
+            Map<String, DataUsage> dataUsageMap) {
         NetworkStats.Bucket bucket = new NetworkStats.Bucket();
         while (networkStats.hasNextBucket()) {
-            totalBytes = 0L;
             networkStats.getNextBucket(bucket);
             if (bucket.getUid() != -1 && mSatelliteAppUidMap.containsValue(bucket.getUid())) {
                 String packageName =
                         findKeysByValue(mSatelliteAppUidMap, bucket.getUid());
+                long rxBytes = bucket.getRxBytes();
+                long txBytes = bucket.getTxBytes();
                 if (dataUsageMap.containsKey(packageName)) {
-                    totalBytes = dataUsageMap.getOrDefault(packageName, 0L);
+                    DataUsage existing = dataUsageMap.get(packageName);
+                    rxBytes += existing.getRxBytes();
+                    txBytes += existing.getTxBytes();
                 }
-                totalBytes += bucket.getRxBytes() + bucket.getTxBytes();
-                if (totalBytes > 0) {
-                    dataUsageMap.put(packageName, totalBytes);
+                if (rxBytes + txBytes > 0) {
+                    dataUsageMap.put(packageName, new DataUsage(rxBytes, txBytes));
                 }
             }
         }
     }
 
-    private Map<String, Long> getPerAppSatelliteDataUsage(@NonNull List<String> satelliteApps) {
-        Map<String, Long> dataUsageMap = new HashMap<>();
+    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PROTECTED)
+    protected Map<String, DataUsage> getPerAppDetailedDataUsage(
+            @NonNull List<String> satelliteApps) {
+        Map<String, DataUsage> dataUsageMap = new HashMap<>();
 
         // track satellite data usage of satellite constrained apps
         logd("satellite app List: " + satelliteApps);
@@ -766,7 +956,7 @@ public class CarrierRoamingSatelliteSessionStats {
                         networkStats =
                                 networkStatsManager.querySummary(template, 0,
                                         System.currentTimeMillis());
-                        updateDataUsageMap(networkStats, dataUsageMap);
+                        updateDetailedDataUsageMap(networkStats, dataUsageMap);
                     } catch (SecurityException e) {
                         loge("querying networkstats met with approach:" + e);
                     }
@@ -775,6 +965,16 @@ public class CarrierRoamingSatelliteSessionStats {
             logd("NetworkStats per apps: " + dataUsageMap);
         } else {
             loge("Satellite apps list is empty");
+        }
+        return dataUsageMap;
+    }
+
+    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PROTECTED)
+    protected Map<String, Long> getPerAppSatelliteDataUsage(@NonNull List<String> satelliteApps) {
+        Map<String, Long> dataUsageMap = new HashMap<>();
+        Map<String, DataUsage> detailedMap = getPerAppDetailedDataUsage(satelliteApps);
+        for (Map.Entry<String, DataUsage> entry : detailedMap.entrySet()) {
+            dataUsageMap.put(entry.getKey(), entry.getValue().getTotalBytes());
         }
         return dataUsageMap;
     }
@@ -915,6 +1115,8 @@ public class CarrierRoamingSatelliteSessionStats {
                         .setSupportedSatelliteServices(mSupportedSatelliteServices)
                         .setServiceDataPolicy(mServiceDataPolicy)
                         .setSatelliteDataConsumedBytes(mSatelliteDataConsumedBytes)
+                        .setTotalRxDataBytes(mTotalRxDataConsumedBytes)
+                        .setTotalTxDataBytes(mTotalTxDataConsumedBytes)
                         .setIsMultiSim(isMultiSim)
                         .setIsNbIotNtn(SatelliteServiceUtils.isNbIotNtn(subId))
                         .setCountOfDataConnections(mCountOfDataConnections)
@@ -930,6 +1132,8 @@ public class CarrierRoamingSatelliteSessionStats {
                         .setSatelliteSupportedApps(mSatelliteAppsPackageNameArray)
                         .setSatelliteSupportedUids(mSatelliteAppsUidArray)
                         .setPerAppSatelliteDataConsumedBytes(mPerAppSatelliteDataConsumedBytesArray)
+                        .setPerAppRxDataBytes(mPerAppRxDataConsumedBytesArray)
+                        .setPerAppTxDataBytes(mPerAppTxDataConsumedBytesArray)
                         .setIsWifiEnabled(mIsWifiEnabled)
                         .setIsWifiConnected(mIsWifiConnected)
                         .setIsWfcEnabled(mIsWfcEnabled)
@@ -986,6 +1190,14 @@ public class CarrierRoamingSatelliteSessionStats {
         mCountOfNonEmergencyDialerDialogDisplayed = 0;
         mCountOfEmergencyDialerButtonDisplayed = 0;
         mCountOfSatelliteNotificationDisplayed = 0;
+        mTotalRxDataConsumedBytes = 0L;
+        mTotalTxDataConsumedBytes = 0L;
+        mTotalRxDataOnSessionStartBytes = 0L;
+        mTotalTxDataOnSessionStartBytes = 0L;
+        mPerAppDataUsageOnSessionStartMap = new HashMap<>();
+        mPerAppDataUsageOnSessionStartMapLegacy = new HashMap<>();
+        mPerAppRxDataConsumedBytesArray = new long[]{0L};
+        mPerAppTxDataConsumedBytesArray = new long[]{0L};
         logd("initializeParams");
     }
 

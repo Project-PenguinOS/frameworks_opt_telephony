@@ -911,6 +911,14 @@ message CarrierRoamingSatelliteSession {
     optional int32 count_of_non_emergency_dialer_dialog_displayed = 48;
     optional int32 count_of_emergency_dialer_button_displayed = 49;
     optional int32 count_of_satellite_notification_displayed = 50;
+    /** Total RX data consumed per satellite session. */
+    optional int64 total_rx_data_bytes = 51;
+    /** Total TX data consumed per satellite session. */
+    optional int64 total_tx_data_bytes = 52;
+    /** RX data consumed by top 5 satellite network applications. */
+    repeated int64 per_app_rx_data_bytes = 53;
+    /** TX data consumed by top 5 satellite network applications. */
+    repeated int64 per_app_tx_data_bytes = 54;
 }
 
 message CarrierRoamingSatelliteControllerStats {
