@@ -204,6 +204,7 @@ import com.android.internal.util.FunctionalUtils;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -687,6 +688,15 @@ public class SatelliteController extends Handler {
             new ConcurrentHashMap<>();
     private ConcurrentHashMap<Integer, NtnSignalStrength>
             mLastNotifiedCarrierRoamingNtnSignalStrength = new ConcurrentHashMap<>();
+
+    private static final long SATELLITE_MESSAGE_TRIGGER_WINDOW_MS = Duration.ofHours(2).toMillis();
+    private ConcurrentHashMap<Integer, Long>
+        mLastNonEmergencyDialerDialogDisplayedTimestamp = new ConcurrentHashMap<>();
+    private ConcurrentHashMap<Integer, Long>
+        mLastEmergencyDialerButtonDisplayedTimestamp = new ConcurrentHashMap<>();
+    private ConcurrentHashMap<Integer, Long>
+        mLastAutoConnectSatelliteNotificationDisplayedTimestamp = new ConcurrentHashMap<>();
+
     @NonNull private SharedPreferences mSharedPreferences = null;
 
     @Nullable private PersistentLogger mPersistentLogger = null;
@@ -11517,5 +11527,73 @@ public class SatelliteController extends Handler {
                     + "restriction: " + reason + " for subId=" + subId);
             addAttachRestrictionForCarrier(subId, reason, callback);
         }
+    }
+
+    /** Updates the count of non-emergency dialer dialog displayed. */
+    public void onNonEmergencyDialerDialogDisplayed(Phone phone) {
+        if (phone == null) {
+            return;
+        }
+
+        int subId = phone.getSubId();
+        CarrierRoamingSatelliteSessionStats sessionStats =
+            CarrierRoamingSatelliteSessionStats.getInstance(subId);
+        sessionStats.onNonEmergencyDialerDialogDisplayed();
+        mLastNonEmergencyDialerDialogDisplayedTimestamp.put(subId, getElapsedRealtime());
+    }
+
+    /** Updates the count of emergency dialer button displayed. */
+    public void onEmergencyDialerButtonDisplayed(int subId) {
+        CarrierRoamingSatelliteSessionStats sessionStats =
+            CarrierRoamingSatelliteSessionStats.getInstance(subId);
+        sessionStats.onEmergencyDialerButtonDisplayed();
+        mLastEmergencyDialerButtonDisplayedTimestamp.put(subId, getElapsedRealtime());
+    }
+
+    /** Updates the count of satellite notification displayed. */
+    public void onAutoConnectSatelliteNotificationDisplayed(int subId) {
+        CarrierRoamingSatelliteSessionStats sessionStats =
+            CarrierRoamingSatelliteSessionStats.getInstance(subId);
+        sessionStats.onSatelliteNotificationDisplayed();
+        mLastAutoConnectSatelliteNotificationDisplayedTimestamp.put(subId, getElapsedRealtime());
+    }
+
+    /**
+     * @return The satellite message trigger.
+     */
+    @SatelliteConstants.SatelliteMessageTrigger
+    public int getSatelliteMessageTrigger(Phone phone) {
+        if (phone == null) {
+            return SatelliteConstants.SATELLITE_MESSAGE_TRIGGER_UNKNOWN;
+        }
+
+        int subId = phone.getSubId();
+        long currentTime = getElapsedRealtime();
+
+        Long lastEmergencyDialerButtonDisplayedTimestamp =
+            mLastEmergencyDialerButtonDisplayedTimestamp.get(subId);
+        if (lastEmergencyDialerButtonDisplayedTimestamp != null
+            && ((currentTime - lastEmergencyDialerButtonDisplayedTimestamp)
+            <= SATELLITE_MESSAGE_TRIGGER_WINDOW_MS)) {
+            return SatelliteConstants.SATELLITE_MESSAGE_TRIGGER_EMERGENCY_DIALER_BUTTON;
+        }
+
+        Long lastNonEmergencyDialerDialogDisplayedTimestamp =
+            mLastNonEmergencyDialerDialogDisplayedTimestamp.get(subId);
+        if (lastNonEmergencyDialerDialogDisplayedTimestamp != null
+            && ((currentTime - lastNonEmergencyDialerDialogDisplayedTimestamp)
+            <= SATELLITE_MESSAGE_TRIGGER_WINDOW_MS)) {
+            return SatelliteConstants.SATELLITE_MESSAGE_TRIGGER_NON_EMERGENCY_DIALER_DIALOG;
+        }
+
+        Long lastAutoConnectionNotificationDisplayedTimestamp =
+            mLastAutoConnectSatelliteNotificationDisplayedTimestamp.get(subId);
+        if (lastAutoConnectionNotificationDisplayedTimestamp != null
+            && ((currentTime - lastAutoConnectionNotificationDisplayedTimestamp)
+            <= SATELLITE_MESSAGE_TRIGGER_WINDOW_MS)) {
+            return SatelliteConstants.SATELLITE_MESSAGE_TRIGGER_SYSTEM_NOTIFICATION;
+        }
+
+        return SatelliteConstants.SATELLITE_MESSAGE_TRIGGER_DIRECT_MESSAGES_UI;
     }
 }

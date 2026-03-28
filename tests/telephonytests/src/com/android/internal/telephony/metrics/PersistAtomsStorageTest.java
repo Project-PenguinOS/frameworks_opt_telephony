@@ -1094,6 +1094,7 @@ public class PersistAtomsStorageTest extends TelephonyTest {
         mOutgoingSms1.isEmergency = false;
         mOutgoingSms1.isNtn = false;
         mOutgoingSms1.plmn = "123456";
+        mOutgoingSms1.satelliteMessageTrigger = 0;
 
         mOutgoingSms2 = new OutgoingSms();
         mOutgoingSms2.smsFormat = INCOMING_SMS__SMS_FORMAT__SMS_FORMAT_3GPP2;
@@ -1116,6 +1117,7 @@ public class PersistAtomsStorageTest extends TelephonyTest {
         mOutgoingSms2.isEmergency = true;
         mOutgoingSms2.isNtn = true;
         mOutgoingSms2.plmn = "123456";
+        mOutgoingSms2.satelliteMessageTrigger = 1;
 
         mOutgoingSms = new OutgoingSms[] {mOutgoingSms1, mOutgoingSms2};
 

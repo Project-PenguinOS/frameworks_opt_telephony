@@ -141,6 +141,9 @@ public class CarrierRoamingSatelliteSessionStats {
     private boolean mWasChargingDuringSession;
     private int mStartBatteryPropertyCapacity;
     private long mStartBatteryPropertyEnergyCounter;
+    private int mCountOfNonEmergencyDialerDialogDisplayed;
+    private int mCountOfEmergencyDialerButtonDisplayed;
+    private int mCountOfSatelliteNotificationDisplayed;
 
     private final ConnectivityManager.NetworkCallback mNetworkCallback =
             new ConnectivityManager.NetworkCallback() {
@@ -937,6 +940,12 @@ public class CarrierRoamingSatelliteSessionStats {
                         .setBatteryLevelDropPercent(droppedBatteryLevelPercent)
                         .setWasChargingDuringSession(mWasChargingDuringSession)
                         .setEnergyConsumedNwh(consumedBatteryEnergyNwh)
+                        .setCountOfNonEmergencyDialerDialogDisplayed(
+                             mCountOfNonEmergencyDialerDialogDisplayed)
+                        .setCountOfEmergencyDialerButtonDisplayed(
+                            mCountOfEmergencyDialerButtonDisplayed)
+                        .setCountOfSatelliteNotificationDisplayed(
+                            mCountOfSatelliteNotificationDisplayed)
                         .build();
         SatelliteStats.getInstance().onCarrierRoamingSatelliteSessionMetrics(params);
         // Add session duration time to session controller atom when session ends.
@@ -974,6 +983,9 @@ public class CarrierRoamingSatelliteSessionStats {
         mWasChargingDuringSession = false;
         mStartBatteryPropertyCapacity = 0;
         mStartBatteryPropertyEnergyCounter = 0L;
+        mCountOfNonEmergencyDialerDialogDisplayed = 0;
+        mCountOfEmergencyDialerButtonDisplayed = 0;
+        mCountOfSatelliteNotificationDisplayed = 0;
         logd("initializeParams");
     }
 
@@ -1199,6 +1211,25 @@ public class CarrierRoamingSatelliteSessionStats {
             mAccumulatedScreenOnTimeSec += (int) (durationMillis / 1000);
             mScreenOnStartTimeMillis = 0;
         }
+    }
+
+    /** Updates the count of non-emergency dialer dialog displayed. */
+    public void onNonEmergencyDialerDialogDisplayed() {
+        mCountOfNonEmergencyDialerDialogDisplayed += 1;
+        logd("onNonEmergencyDialerDialogDisplayed: count="
+            + mCountOfNonEmergencyDialerDialogDisplayed);
+    }
+
+    /** Updates the count of emergency dialer button displayed. */
+    public void onEmergencyDialerButtonDisplayed() {
+        mCountOfEmergencyDialerButtonDisplayed += 1;
+        logd("onEmergencyDialerButtonDisplayed: count=" + mCountOfEmergencyDialerButtonDisplayed);
+    }
+
+    /** Updates the count of satellite notification displayed. */
+    public void onSatelliteNotificationDisplayed() {
+        mCountOfSatelliteNotificationDisplayed += 1;
+        logd("onSatelliteNotificationDisplayed: count=" + mCountOfSatelliteNotificationDisplayed);
     }
 
     private void logd(@NonNull String log) {

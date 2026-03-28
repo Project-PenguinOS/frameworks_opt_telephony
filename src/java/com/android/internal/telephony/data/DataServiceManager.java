@@ -318,15 +318,36 @@ public class DataServiceManager extends Handler {
 
             // Handle data stall case on WWAN transport
             if (mTransportType == AccessNetworkConstants.TRANSPORT_TYPE_WWAN) {
-                if (mLastDataCallResponseList.size() != dataCallList.size()
-                        || !mLastDataCallResponseList.containsAll(dataCallList)) {
-                    String message = "RIL reported mismatched data call response list for WWAN: "
-                            + "mLastDataCallResponseList=" + mLastDataCallResponseList
-                            + ", dataCallList=" + dataCallList;
+                List<DataCallResponse> lastDataCallResponseListToCheck = mLastDataCallResponseList;
+                if (mFeatureFlags.ignoreInactiveDataCallsInPoll()) {
+                    lastDataCallResponseListToCheck =
+                            mLastDataCallResponseList.stream()
+                                    .filter(
+                                            response ->
+                                                    response.getLinkStatus()
+                                                            != DataCallResponse
+                                                                    .LINK_STATUS_INACTIVE)
+                                    .collect(Collectors.toList());
+                }
+
+                if (lastDataCallResponseListToCheck.size() != dataCallList.size()
+                        || !lastDataCallResponseListToCheck.containsAll(dataCallList)) {
+                    String message =
+                            "RIL reported mismatched data call response list for WWAN: "
+                                    + "mLastDataCallResponseList="
+                                    + mLastDataCallResponseList
+                                    + ", lastDataCallResponseListToCheck="
+                                    + lastDataCallResponseListToCheck
+                                    + ", dataCallList="
+                                    + dataCallList;
                     loge(message);
-                    if (!dataCallList.stream().map(DataCallResponse::getId)
-                            .collect(Collectors.toSet()).equals(mLastDataCallResponseList.stream()
-                                    .map(DataCallResponse::getId).collect(Collectors.toSet()))) {
+                    if (!dataCallList.stream()
+                            .map(DataCallResponse::getId)
+                            .collect(Collectors.toSet())
+                            .equals(
+                                    lastDataCallResponseListToCheck.stream()
+                                            .map(DataCallResponse::getId)
+                                            .collect(Collectors.toSet()))) {
                         AnomalyReporter.reportAnomaly(
                                 UUID.fromString("150323b2-360a-446b-a158-3ce6425821f6"),
                                 message,

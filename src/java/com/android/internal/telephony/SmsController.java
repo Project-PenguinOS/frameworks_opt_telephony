@@ -803,6 +803,7 @@ public class SmsController extends ISmsImplBase {
     public void sendStoredText(int subId, String callingPkg, String callingAttributionTag,
             Uri messageUri, String scAddress, PendingIntent sentIntent,
             PendingIntent deliveryIntent) {
+        logStoredMessageApiUsage(/* isMultipart= */ false);
         IccSmsInterfaceManager iccSmsIntMgr = getIccSmsInterfaceManager(subId);
         UserHandle callingUser = Binder.getCallingUserHandle();
         final int uid = Binder.getCallingUid();
@@ -839,6 +840,7 @@ public class SmsController extends ISmsImplBase {
     public void sendStoredMultipartText(int subId, String callingPkg, String callingAttributionTag,
             Uri messageUri, String scAddress, List<PendingIntent> sentIntents,
             List<PendingIntent> deliveryIntents) {
+        logStoredMessageApiUsage(/* isMultipart= */ true);
         IccSmsInterfaceManager iccSmsIntMgr = getIccSmsInterfaceManager(subId);
         UserHandle callingUser = Binder.getCallingUserHandle();
         final int uid = Binder.getCallingUid();
@@ -1373,5 +1375,22 @@ public class SmsController extends ISmsImplBase {
             @NonNull String methodName) {
         TelephonyUtils.enforceTelephonyFeatureWithException(callingPackage, mPackageManager,
                 mVendorApiLevel, FEATURE_TELEPHONY_MESSAGING, methodName);
+    }
+
+    /*
+     * Helper function to log sendStored message API usage.
+     */
+    private void logStoredMessageApiUsage(boolean isMultipart) {
+        int callingUid = Binder.getCallingUid();
+        int apiType = isMultipart
+                ? TelephonyStatsLog
+                .STORED_MESSAGE_SEND_REQUESTED__MESSAGE_TYPE__ORIGINAL_MESSAGE_TYPE_SMS_MULTIPART
+                : TelephonyStatsLog
+                        .STORED_MESSAGE_SEND_REQUESTED__MESSAGE_TYPE__ORIGINAL_MESSAGE_TYPE_SMS;
+        TelephonyStatsLog.write(
+                TelephonyStatsLog.STORED_MESSAGE_SEND_REQUESTED,
+                callingUid,
+                apiType
+        );
     }
 }
