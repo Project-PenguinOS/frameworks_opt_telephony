@@ -297,7 +297,8 @@ public class DataServiceManager extends Handler {
             sendCompleteMessage(msg, resultCode);
 
             // Handle data stall case on WWAN transport
-            if (mTransportType == AccessNetworkConstants.TRANSPORT_TYPE_WWAN) {
+            if (mTransportType == AccessNetworkConstants.TRANSPORT_TYPE_WWAN
+                    && resultCode == DataServiceCallback.RESULT_SUCCESS) {
                 List<DataCallResponse> lastDataCallResponseListToCheck = mLastDataCallResponseList;
                 if (mFeatureFlags.ignoreInactiveDataCallsInPoll()) {
                     lastDataCallResponseListToCheck =
