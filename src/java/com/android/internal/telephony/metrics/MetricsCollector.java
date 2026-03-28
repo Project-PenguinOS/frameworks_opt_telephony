@@ -1318,7 +1318,8 @@ public class MetricsCollector implements StatsManager.StatsPullAtomCallback {
                 sms.pduLength,
                 sms.callingPackageName,
                 sms.appUid,
-                sms.plmn);
+                sms.plmn,
+                sms.satelliteMessageTrigger);
     }
 
     private static StatsEvent buildStatsEvent(DataCallSession dataCallSession) {
@@ -1777,7 +1778,10 @@ public class MetricsCollector implements StatsManager.StatsPullAtomCallback {
                 stats.batteryDesignCapacityMah,
                 stats.energyConsumedNwh,
                 stats.eligibilitySource,
-                stats.isWifiConnected);
+                stats.isWifiConnected,
+                stats.countOfNonEmergencyDialerDialogDisplayed,
+                stats.countOfEmergencyDialerButtonDisplayed,
+                stats.countOfSatelliteNotificationDisplayed);
     }
 
     private static StatsEvent buildStatsEvent(CarrierRoamingSatelliteControllerStats stats) {

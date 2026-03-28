@@ -1658,6 +1658,13 @@ public class PhoneSwitcher extends Handler {
 
         mPendingSwitchSubId = INVALID_SUBSCRIPTION_ID;
 
+        if (mFlags.adsRespectOwnersPreference()
+                && switchReason == DataSwitch.Reason.DATA_SWITCH_REASON_CBRS) {
+            logl("mOpportunisticSetDataSubId updated to " + subId);
+            // When setOpportunisticDataSubscription is called, update the persistent preference.
+            mOpportunisticSetDataSubId = subId;
+        }
+
         if (subIdToValidate == mPreferredDataSubId.get()) {
             if (subId == SubscriptionManager.DEFAULT_SUBSCRIPTION_ID) {
                 mAutoSelectedDataSubId = SubscriptionManager.DEFAULT_SUBSCRIPTION_ID;
@@ -1672,13 +1679,6 @@ public class PhoneSwitcher extends Handler {
                 switchReason);
         registerDefaultNetworkChangeCallback(subIdToValidate,
                 switchReason);
-
-        if (mFlags.adsRespectOwnersPreference()
-                && switchReason == DataSwitch.Reason.DATA_SWITCH_REASON_CBRS) {
-            logl("mOpportunisticSetDataSubId updated to " + subId);
-            // When setOpportunisticDataSubscription is called, update the persistent preference.
-            mOpportunisticSetDataSubId = subId;
-        }
 
         // If validation feature is not supported, set it directly. Otherwise,
         // start validation on the subscription first.
