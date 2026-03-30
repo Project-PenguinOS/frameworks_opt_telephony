@@ -67,7 +67,9 @@ import android.telephony.NetworkRegistrationInfo.RegistrationState;
 import android.telephony.ServiceState;
 import android.telephony.SignalStrength;
 import android.telephony.SubscriptionInfo;
+import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyDisplayInfo;
+import android.telephony.TelephonyManager;
 import android.util.ArrayMap;
 import android.util.ArraySet;
 import android.util.IndentingPrintWriter;
@@ -532,8 +534,7 @@ public class AutoDataSwitchController extends Handler {
                 boolean anyCandidateEnabled = false;
                 for (int phoneId = 0; phoneId < mPhonesSignalStatus.length; phoneId++) {
                     if (phoneId != defaultDataPhoneId) {
-                        Phone phone = PhoneFactory.getPhone(phoneId);
-                        if (phone != null && phone.getDataSettingsManager().isDataEnabled()) {
+                        if (isDataEnabledForAutoDataSwitch(phoneId)) {
                             anyCandidateEnabled = true;
                             break;
                         }
@@ -563,6 +564,30 @@ public class AutoDataSwitchController extends Handler {
             }
         }
         return changed;
+    }
+
+    /**
+     * Check if the given phone has data enabled for the purpose of auto data switch.
+     * @param phoneId The phone ID to check.
+     */
+    private boolean isDataEnabledForAutoDataSwitch(int phoneId) {
+        Phone phone = PhoneFactory.getPhone(phoneId);
+        if (phone == null || !phone.getDataSettingsManager().isDataEnabled()) return false;
+
+        // Stand alone opportunistic is always data enabled but not necessarily enabled for auto
+        // data switch. Check the policy enabled state explicitly.
+        if (isStandaloneOpportunistic(phoneId)) {
+            return phone.getDataSettingsManager().isMobileDataPolicyEnabled(
+                    TelephonyManager.MOBILE_DATA_POLICY_AUTO_DATA_SWITCH);
+        }
+        return true;
+    }
+
+    private boolean isStandaloneOpportunistic(int phoneId) {
+        int subId = mSubscriptionManagerService.getSubId(phoneId);
+        SubscriptionInfo subInfo = mSubscriptionManagerService.getSubscriptionInfo(subId);
+
+        return subInfo != null && subInfo.isOpportunistic() && subInfo.getGroupUuid() == null;
     }
 
     /**
@@ -1108,8 +1133,22 @@ public class AutoDataSwitchController extends Handler {
             return invalidResult;
         }
 
-        // check whether primary and secondary signal status are worth switching
-        if (!isRatSignalStrengthBasedSwitchEnabled()
+        // Check whether target phone is actually listening for events to evaluate switch.
+        // Standalone opportunistic is always considered as user data enabled, so we need to check
+        // if ADS is actually eligible at this point even if the flag is disabled.
+        if ((sFeatureFlags.allowNonStandaloneOpportunisticAdsPolicy()
+                || isStandaloneOpportunistic(stickyTargetPhoneId))
+                && !mPhonesSignalStatus[stickyTargetPhoneId].mListeningForEvents) {
+            debugMessage.append(", no candidate as target phone is not listening for events");
+            return invalidResult;
+        }
+
+        // Check whether primary and secondary signal status are worth switching.
+        // Standalone opportunistic phone is more sticky, i.e. excluding from signal based switch.
+        // Because as long as it is set as preferred data by the system, we should keep using it
+        // even though the signal is significantly worse.
+        if ((!isRatSignalStrengthBasedSwitchEnabled()
+                || isPreferredStandaloneOpportunistic(stickyTargetPhoneId))
                 && isHomeService(mPhonesSignalStatus[stickyTargetPhoneId].mDataRegState)) {
             debugMessage.append(", no candidate as target phone is in HOME service");
             return invalidResult;
@@ -1155,6 +1194,21 @@ public class AutoDataSwitchController extends Handler {
         }
         debugMessage.append(", found no qualified candidate.");
         return invalidResult;
+    }
+
+    private boolean isPreferredStandaloneOpportunistic(int phoneId) {
+        if (!isStandaloneOpportunistic(phoneId)) {
+            return false;
+        }
+
+        int opportunisticSetDataSubId = mPhoneSwitcher.getOpportunisticSetDataSubId();
+        if (opportunisticSetDataSubId == SubscriptionManager.DEFAULT_SUBSCRIPTION_ID) {
+            return false;
+        }
+
+        int opportunisticSetDataPhoneId = mSubscriptionManagerService
+                .getPhoneId(opportunisticSetDataSubId);
+        return phoneId == opportunisticSetDataPhoneId;
     }
 
     /**

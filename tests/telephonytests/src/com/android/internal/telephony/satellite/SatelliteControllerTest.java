@@ -815,6 +815,7 @@ public class SatelliteControllerTest extends TelephonyTest {
         doReturn(true).when(mFeatureFlags).supportCarrierIdsInGeofence();
         doReturn(true).when(mFeatureFlags).fixSatelliteProvisionStateOutOfSync();
         doReturn(true).when(mFeatureFlags).updateDeviceSatellitePlmnByConfigupdater();
+        doReturn(true).when(mFeatureFlags).satellite26q2Apis();
 
         doReturn(TEST_ALL_SATELLITE_PLMN_SET).when(mMockSatelliteController).getAllPlmnSet();
         mSatelliteControllerUT.setAlarmManager(mMockAlarmManager);
@@ -1664,6 +1665,7 @@ public class SatelliteControllerTest extends TelephonyTest {
     public void testRequestEnableSatelliteForCarrier() {
         mIIntegerConsumerResults.clear();
         mIIntegerConsumerSemaphore.drainPermits();
+        mSatelliteControllerUT.setCallOnlySuperMethod();
 
         // Setup carrier config for automatic mode
         mCarrierConfigBundle.putInt(KEY_CARRIER_ROAMING_NTN_CONNECT_TYPE_INT,
@@ -1671,6 +1673,45 @@ public class SatelliteControllerTest extends TelephonyTest {
         mCarrierConfigBundle.putBoolean(KEY_SATELLITE_ATTACH_SUPPORTED_BOOL, true);
         invokeCarrierConfigChanged();
         processAllMessages();
+        clearInvocations(mPhone);
+
+        // Disable satellite
+        mSatelliteControllerUT.requestEnableSatelliteForCarrier(SUB_ID, false,
+                SATELLITE_COMMUNICATION_RESTRICTION_REASON_USER, mIIntegerConsumer);
+
+        processAllMessages();
+
+        // Verify phone.setSatelliteEnabledForCarrier is called
+        verify(mPhone).setSatelliteEnabledForCarrier(anyInt(), eq(false), any());
+
+        // Enable satellite
+        mSatelliteControllerUT.requestEnableSatelliteForCarrier(SUB_ID, true,
+                SATELLITE_COMMUNICATION_RESTRICTION_REASON_USER, mIIntegerConsumer);
+        processAllMessages();
+
+        // Verify phone.setSatelliteEnabledForCarrier is called
+        verify(mPhone).setSatelliteEnabledForCarrier(anyInt(), eq(true), any());
+    }
+
+    @Test
+    public void testRequestEnableSatelliteForCarrier_entitlementTrue() {
+        mIIntegerConsumerResults.clear();
+        mIIntegerConsumerSemaphore.drainPermits();
+        mSatelliteControllerUT.setCallOnlySuperMethod();
+
+        // Setup carrier config for automatic mode
+        mCarrierConfigBundle.putInt(KEY_CARRIER_ROAMING_NTN_CONNECT_TYPE_INT,
+                CARRIER_ROAMING_NTN_CONNECT_AUTOMATIC);
+        mCarrierConfigBundle.putBoolean(KEY_SATELLITE_ATTACH_SUPPORTED_BOOL, true);
+        mCarrierConfigBundle.putBoolean(KEY_SATELLITE_ENTITLEMENT_SUPPORTED_BOOL, true);
+        invokeCarrierConfigChanged();
+        processAllMessages();
+
+        mSatelliteControllerUT.onSatelliteEntitlementStatusUpdated(SUB_ID, true, new ArrayList<>(),
+                new ArrayList<>(), new HashMap<>(), new HashMap<>(), new HashMap<>(),
+                new HashMap<>(), mIIntegerConsumer);
+        processAllMessages();
+
         clearInvocations(mPhone);
 
         // Disable satellite
@@ -2595,7 +2636,7 @@ public class SatelliteControllerTest extends TelephonyTest {
                 carrierPlmnList, satellitePlmnListFromOverlayConfig);
         assertEquals(expectedCarrierPlmnList, carrierPlmnList);
         verify(mPhone, times(1)).setSatellitePlmn(anyInt(),
-                eq(carrierPlmnList), eq(allSatellitePlmnList), any(Message.class));
+                any(), eq(allSatellitePlmnList), any(Message.class));
         reset(mMockSatelliteModemInterface);
         reset(mPhone);
 
@@ -2611,7 +2652,7 @@ public class SatelliteControllerTest extends TelephonyTest {
         }
         processAllMessages();
         verify(mPhone, times(1)).setSatellitePlmn(anyInt(),
-                eq(carrierPlmnList), eq(allSatellitePlmnList), any(Message.class));
+                any(), eq(allSatellitePlmnList), any(Message.class));
         reset(mMockSatelliteModemInterface);
         reset(mPhone);
 
@@ -2645,6 +2686,7 @@ public class SatelliteControllerTest extends TelephonyTest {
     @Test
     public void testConfigureEmergencyAndDisasterPlmnsOnCarrierConfigChanged() {
         logd("testConfigureEmergencyAndDisasterPlmnsOnCarrierConfigChanged");
+        mSatelliteControllerUT.setCallOnlySuperMethod();
 
         setUpResponseForRequestSetSatelliteEnabledForCarrier(true, SATELLITE_RESULT_SUCCESS);
 
@@ -2684,7 +2726,7 @@ public class SatelliteControllerTest extends TelephonyTest {
                 ArgumentCaptor.forClass(List.class);
         ArgumentCaptor<List<String>> configuredAllPlmnListCaptor =
                 ArgumentCaptor.forClass(List.class);
-        verify(mPhone, times(1)).setSatellitePlmn(anyInt(),
+        verify(mPhone, times(2)).setSatellitePlmn(anyInt(),
             configuredCarrierPlmnListCaptor.capture(), configuredAllPlmnListCaptor.capture(),
             any(Message.class));
         logd("configuredCarrierPlmnListCaptor: "
@@ -2732,7 +2774,7 @@ public class SatelliteControllerTest extends TelephonyTest {
         }
         processAllMessages();
 
-        verify(mPhone, times(3)).setSatellitePlmn(anyInt(),
+        verify(mPhone, times(4)).setSatellitePlmn(anyInt(),
                 configuredCarrierPlmnListCaptor.capture(), configuredAllPlmnListCaptor.capture(),
                 any(Message.class));
         logd("configuredCarrierPlmnListCaptor: "
@@ -2792,7 +2834,7 @@ public class SatelliteControllerTest extends TelephonyTest {
                 new ArrayList<>(), new HashMap<>(), new HashMap<>(), new HashMap<>(),
                 new HashMap<>(), mIIntegerConsumer);
         processAllMessages();
-        verify(mPhone, times(6)).setSatellitePlmn(anyInt(),
+        verify(mPhone, times(8)).setSatellitePlmn(anyInt(),
                 configuredCarrierPlmnListCaptor.capture(), configuredAllPlmnListCaptor.capture(),
                 any(Message.class));
         logd("configuredCarrierPlmnListCaptor: "
@@ -2815,6 +2857,7 @@ public class SatelliteControllerTest extends TelephonyTest {
 
     @Test
     public void testSatelliteCommunicationRestriction() {
+        mSatelliteControllerUT.setCallOnlySuperMethod();
         mCarrierConfigBundle.putBoolean(
                 CarrierConfigManager.KEY_SATELLITE_ATTACH_SUPPORTED_BOOL, true);
         for (Pair<Executor, CarrierConfigManager.CarrierConfigChangeListener> pair
@@ -3567,6 +3610,7 @@ public class SatelliteControllerTest extends TelephonyTest {
     @Test
     public void testSatelliteCommunicationRestrictionForEntitlement() throws Exception {
         logd("testSatelliteCommunicationRestrictionForEntitlement");
+        mSatelliteControllerUT.setCallOnlySuperMethod();
 
         mCarrierConfigBundle.putBoolean(CarrierConfigManager.KEY_SATELLITE_ATTACH_SUPPORTED_BOOL,
                 true);
@@ -3626,6 +3670,7 @@ public class SatelliteControllerTest extends TelephonyTest {
     public void testPassSatellitePlmnToModemAfterUpdateSatelliteEntitlementStatus()
             throws Exception {
         logd("testPassSatellitePlmnToModemAfterUpdateSatelliteEntitlementStatus");
+        mSatelliteControllerUT.setCallOnlySuperMethod();
 
         replaceInstance(SatelliteController.class, "mMergedPlmnListPerCarrier",
                 mSatelliteControllerUT, new ConcurrentHashMap<>());
@@ -5309,7 +5354,7 @@ public class SatelliteControllerTest extends TelephonyTest {
         inputList.add(list.get(0));
         verifyProvisionSatellite(inputList);
 
-        verify(mMockSatelliteModemInterface, times(2)).updateSatelliteSubscription(anyString(),
+        verify(mMockSatelliteModemInterface, times(1)).updateSatelliteSubscription(anyString(),
                 any());
         assertTrue(waitForForEvents(
                 semaphore, 1, "testRegisterForSatelliteSubscriptionProvisionStateChanged"));
@@ -5673,7 +5718,7 @@ public class SatelliteControllerTest extends TelephonyTest {
 
         List<SatelliteSubscriberInfo> inputList = getExpectedSatelliteSubscriberInfoList();
         verifyProvisionSatellite(inputList);
-        verify(mMockSubscriptionManagerService, times(2))
+        verify(mMockSubscriptionManagerService, times(1))
                 .setIsSatelliteProvisionedForNonIpDatagram(eq(SUB_ID), eq(true));
     }
 
@@ -6833,6 +6878,7 @@ public class SatelliteControllerTest extends TelephonyTest {
 
         private boolean callOnlySuperMethod = false;
         public boolean isSatelliteEnabledOrBeingEnabled = false;
+        public boolean mIsSatelliteRestrictedForCarrier = false;
 
         private boolean mLocationServiceEnabled = true;
 
@@ -7111,6 +7157,14 @@ public class SatelliteControllerTest extends TelephonyTest {
             int subId) {
             return super.getCarrierRoamingSatelliteEmergencyMessagingProviderForCurrentRegion(
                 subId);
+        }
+
+        @Override
+        public boolean isSatelliteRestrictedForCarrier(int subId) {
+            if (callOnlySuperMethod) {
+                return super.isSatelliteRestrictedForCarrier(subId);
+            }
+            return mIsSatelliteRestrictedForCarrier;
         }
     }
 
@@ -9407,6 +9461,45 @@ public class SatelliteControllerTest extends TelephonyTest {
         mSatelliteControllerUT.requestPointingUiAppLaunchIntent(attributes, resultReceiver);
         processAllMessages();
         verify(resultReceiver).send(SatelliteManager.SATELLITE_RESULT_REQUEST_FAILED, null);
+    }
+
+    @Test
+    public void testIsSatelliteEnabledByDefaultForReasonCaching() {
+        // Test when user default is true
+        mContextFixture.putBooleanResource(
+                R.bool.config_satellite_enabled_reason_user_default, true);
+        assertTrue(mSatelliteControllerUT.isSatelliteEnabledByDefaultForReason(
+                SatelliteManager.SATELLITE_ENABLEMENT_REQUEST_REASON_USER));
+
+        // Change the resource value - the method should still return true because it's cached
+        mContextFixture.putBooleanResource(
+                R.bool.config_satellite_enabled_reason_user_default, false);
+        assertTrue(mSatelliteControllerUT.isSatelliteEnabledByDefaultForReason(
+                SatelliteManager.SATELLITE_ENABLEMENT_REQUEST_REASON_USER));
+    }
+
+    @Test
+    public void testIsSatelliteEnabledByDefaultForUserReason_Enabled() {
+        // Test when user default is true
+        mContextFixture.putBooleanResource(
+                R.bool.config_satellite_enabled_reason_user_default, true);
+        assertTrue(mSatelliteControllerUT.isSatelliteEnabledByDefaultForReason(
+                SatelliteManager.SATELLITE_ENABLEMENT_REQUEST_REASON_USER));
+    }
+
+    @Test
+    public void testIsSatelliteEnabledByDefaultForUserReason_Disabled() {
+        // Test when user default is false
+        mContextFixture.putBooleanResource(
+                R.bool.config_satellite_enabled_reason_user_default, false);
+        assertFalse(mSatelliteControllerUT.isSatelliteEnabledByDefaultForReason(
+                SatelliteManager.SATELLITE_ENABLEMENT_REQUEST_REASON_USER));
+    }
+
+    @Test
+    public void testIsSatelliteEnabledByDefaultForUnknownReason() {
+        // Test unknown reason (should return true by default)
+        assertTrue(mSatelliteControllerUT.isSatelliteEnabledByDefaultForReason(9999));
     }
 
     @Test

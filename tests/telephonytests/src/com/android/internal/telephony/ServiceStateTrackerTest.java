@@ -237,6 +237,8 @@ public class ServiceStateTrackerTest extends TelephonyTest {
                 anyInt());
         doReturn(new Pair<>(false, null)).when(mSatelliteController)
                 .isUsingNonTerrestrialNetworkViaCarrier();
+        doReturn(false).when(mSatelliteController)
+                .isUsingNonTerrestrialNetworkViaCarrier(anyInt());
 
         mContextFixture.putResource(R.string.kg_text_message_separator, " \u2014 ");
 
@@ -2963,8 +2965,8 @@ public class ServiceStateTrackerTest extends TelephonyTest {
         sst.mSS = ss;
 
         // Mock auto satellite is connected
-        doReturn(new Pair<>(true, null)).when(mSatelliteController)
-                .isUsingNonTerrestrialNetworkViaCarrier();
+        doReturn(true).when(mSatelliteController)
+                .isUsingNonTerrestrialNetworkViaCarrier(anyInt());
         doReturn(false).when(mSatelliteController).isInCarrierRoamingNbIotNtn(any());
 
         // update the spn
@@ -3540,6 +3542,80 @@ public class ServiceStateTrackerTest extends TelephonyTest {
         sst.updateCarrierDisplayName();
 
         b = getExtrasFromLastSpnUpdateIntent();
+        assertThat(b.getString(TelephonyManager.EXTRA_PLMN)).isEqualTo(SATELLITE_DISPLAY_NAME);
+        assertThat(b.getBoolean(TelephonyManager.EXTRA_SHOW_PLMN)).isTrue();
+    }
+
+    @Test
+    public void testUpdateSpnDisplay_vzwAstSkyloFallback_subscriptionAware_noService()
+            throws Exception {
+        int subId = 1;
+        doReturn(subId).when(mPhone).getSubId();
+        doReturn(true).when(mFeatureFlags).vzwAstSkyloFallback();
+
+        mBundle.putBoolean(
+                CarrierConfigManager.KEY_ENABLE_CARRIER_DISPLAY_NAME_RESOLVER_BOOL, false);
+        sendCarrierConfigUpdate(PHONE_ID);
+
+        // Completely out of service
+        ServiceState ss = new ServiceState();
+        ss.setVoiceRegState(ServiceState.STATE_OUT_OF_SERVICE);
+        ss.setDataRegState(ServiceState.STATE_OUT_OF_SERVICE);
+        ss.setEmergencyOnly(false);
+        sst.mSS = ss;
+
+        // Satellite is used by ANOTHER subscription
+        doReturn(new Pair<>(true, subId + 1)).when(mSatelliteController)
+                .isUsingNonTerrestrialNetworkViaCarrier();
+        // Satellite is used by ANOTHER subscription
+        doReturn(true).when(mSatelliteController)
+                .isUsingNonTerrestrialNetworkViaCarrier(eq(subId + 1));
+        doReturn(false).when(mSatelliteController)
+                .isUsingNonTerrestrialNetworkViaCarrier(eq(subId));
+
+        // update the spn
+        sst.updateCarrierDisplayName();
+
+        // Plmn should be shown, and the string should be "No service" (not "Satellite")
+        Bundle b = getExtrasFromLastSpnUpdateIntent();
+        assertThat(b.getString(TelephonyManager.EXTRA_PLMN))
+                .isEqualTo(CARRIER_NAME_DISPLAY_NO_SERVICE);
+        assertThat(b.getBoolean(TelephonyManager.EXTRA_SHOW_PLMN)).isTrue();
+
+    }
+
+    @Test
+    public void testUpdateSpnDisplay_vzwAstSkyloFallback_subscriptionAware_satellite()
+            throws Exception {
+        int subId = 1;
+        doReturn(subId).when(mPhone).getSubId();
+        doReturn(true).when(mFeatureFlags).vzwAstSkyloFallback();
+
+        mBundle.putBoolean(
+                CarrierConfigManager.KEY_ENABLE_CARRIER_DISPLAY_NAME_RESOLVER_BOOL, false);
+        sendCarrierConfigUpdate(PHONE_ID);
+
+        // Completely out of service
+        ServiceState ss = new ServiceState();
+        ss.setVoiceRegState(ServiceState.STATE_OUT_OF_SERVICE);
+        ss.setDataRegState(ServiceState.STATE_OUT_OF_SERVICE);
+        ss.setEmergencyOnly(false);
+        sst.mSS = ss;
+
+        // Satellite is used by THIS subscription
+        doReturn(new Pair<>(true, subId)).when(mSatelliteController)
+                .isUsingNonTerrestrialNetworkViaCarrier();
+        // Satellite is used by ANOTHER subscription
+        doReturn(false).when(mSatelliteController)
+                .isUsingNonTerrestrialNetworkViaCarrier(eq(subId + 1));
+        doReturn(true).when(mSatelliteController)
+                .isUsingNonTerrestrialNetworkViaCarrier(eq(subId));
+
+        // update the spn
+        sst.updateCarrierDisplayName();
+
+        // Plmn should be shown, and the string should be "Satellite"
+        Bundle b = getExtrasFromLastSpnUpdateIntent();
         assertThat(b.getString(TelephonyManager.EXTRA_PLMN)).isEqualTo(SATELLITE_DISPLAY_NAME);
         assertThat(b.getBoolean(TelephonyManager.EXTRA_SHOW_PLMN)).isTrue();
     }

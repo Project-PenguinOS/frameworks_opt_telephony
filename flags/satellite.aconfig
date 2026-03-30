@@ -280,3 +280,25 @@ flag {
     purpose: PURPOSE_FEATURE
   }
 }
+
+# OWNER=youngtaecha TARGET=26Q2
+flag {
+  name: "config_for_enabling_carrier"
+  namespace: "telephony"
+  description: "This flag controls the satellite configuration via configupdater"
+  bug: "492366993"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}
+
+# OWNER=paulsoumyadeep TARGET=26Q4
+flag {
+  name: "satellite_26q4_apis"
+  namespace: "telephony"
+  description: "This flag controls the changes for the new satellite APIs in 26Q4"
+  bug: "493057859"
+  metadata {
+    purpose: PURPOSE_FEATURE
+  }
+}
