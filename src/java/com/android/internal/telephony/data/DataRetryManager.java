@@ -1200,7 +1200,7 @@ public class DataRetryManager extends Handler {
         // unthrottle request.
         // To avoid this, if we are already on the handler thread, we should execute immediately
         // to ensure the throttle entry is added before the unthrottle message is processed.
-        if (mFlags.fixDataSetupRetryRaceCondition() && getLooper().isCurrentThread()) {
+        if (getLooper().isCurrentThread()) {
             onEvaluateDataSetupRetry(dataProfile, transport, requestList, cause, retryDelayMillis);
         } else {
             post(() -> onEvaluateDataSetupRetry(dataProfile, transport, requestList, cause,
