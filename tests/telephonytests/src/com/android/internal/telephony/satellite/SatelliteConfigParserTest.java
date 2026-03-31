@@ -115,7 +115,7 @@ public class SatelliteConfigParserTest extends TelephonyTest {
         carrierSupportedSatelliteServiceBuilder.setNtnConnectType(0);
         carrierSupportedSatelliteServiceBuilder.setEmergencyMessagingSupported(true);
         carrierSupportedSatelliteServiceBuilder.setEntitlementSupported(true);
-        carrierSupportedSatelliteServiceBuilder.setEntitlementServerUrl("http://test.url");
+        carrierSupportedSatelliteServiceBuilder.setEntitlementServerUrl("https://test.url");
 
         // carriersupportedservices#providercapability
         TelephonyConfigData.SatelliteProviderCapabilityProto.Builder
@@ -926,27 +926,39 @@ public class SatelliteConfigParserTest extends TelephonyTest {
 
     @Test
     public void testNewSatelliteConfigs() {
+        doReturn(1).when(mPhone).getCarrierId();
+
         SatelliteConfigParser satelliteConfigParser = new SatelliteConfigParser(mBytesProtoBuffer);
         SatelliteConfig config = satelliteConfigParser.getConfig();
         assertNotNull(config);
 
-        assertEquals(true, config.isSatelliteAttachSupported(1));
-        assertEquals(Integer.valueOf(1), config.getSatelliteDataSupportMode(1));
-        assertEquals(Integer.valueOf(0), config.getSatelliteNtnConnectType(1));
-        assertEquals(true, config.isEmergencyMessagingSupported(1));
-        assertEquals(true, config.isSatelliteEntitlementSupported(1));
-        assertEquals("http://test.url", config.getSatelliteEntitlementServerUrl(1));
+        assertEquals(true, config.isSatelliteAttachSupportedByCarrierId(1));
+        assertEquals(Integer.valueOf(1), config.getSatelliteDataSupportModeByCarrierId(1));
+        assertEquals(Integer.valueOf(0), config.getSatelliteNtnConnectTypeByCarrierId(1));
+        assertEquals(true, config.isEmergencyMessagingSupportedByCarrierId(1));
+        assertEquals(true, config.isSatelliteEntitlementSupportedByCarrierId(1));
+        assertEquals("https://test.url", config.getSatelliteEntitlementServerUrlByCarrierId(1));
 
-        List<SatelliteConfig.PlmnConfig> plmnConfigs = config.getSatellitePlmnConfigs(1);
+        List<SatelliteConfig.PlmnConfig> plmnConfigs = config.getSatellitePlmnConfigsByCarrierId(1);
         assertNotNull(plmnConfigs);
         assertEquals(1, plmnConfigs.size());
         assertEquals(PLMN_310160, plmnConfigs.get(0).getPlmn());
         assertEquals(CARRIER_ROAMING_NTN_CONNECT_HYBRID, plmnConfigs.get(0).getNtnConnectType());
         assertEquals(CARRIER_ROAMING_NTN_CONNECT_HYBRID,
-                config.getSatellitePlmnConfig(1, PLMN_310160).getNtnConnectType());
+                config.getSatellitePlmnConfigByCarrierId(1, PLMN_310160).getNtnConnectType());
+
+        assertEquals(true, config.isSatelliteAttachSupportedBySubId(0));
+        assertEquals(Integer.valueOf(1), config.getSatelliteDataSupportModeBySubId(0));
+        assertEquals(Integer.valueOf(0), config.getSatelliteNtnConnectTypeBySubId(0));
+        assertEquals(true, config.isEmergencyMessagingSupportedBySubId(0));
+        assertEquals(true, config.isSatelliteEntitlementSupportedBySubId(0));
+        assertEquals("https://test.url", config.getSatelliteEntitlementServerUrlBySubId(0));
+        assertEquals(1, config.getSatellitePlmnConfigsBySubId(0).size());
+        assertEquals(CARRIER_ROAMING_NTN_CONNECT_HYBRID,
+                config.getSatellitePlmnConfigBySubId(0, PLMN_310160).getNtnConnectType());
 
         // Test with carrier id that doesn't exist
-        assertNull(config.isSatelliteAttachSupported(2));
+        assertNull(config.isSatelliteAttachSupportedByCarrierId(2));
     }
 
     @Test
@@ -980,14 +992,15 @@ public class SatelliteConfigParserTest extends TelephonyTest {
         // Should return null for missing optional integer fields
         assertNull(config.getSatelliteMaxAllowedDataMode());
 
-        assertNull(config.isSatelliteAttachSupported(10));
-        assertNull(config.getSatelliteDataSupportMode(10));
-        assertNull(config.getSatelliteNtnConnectType(10));
-        assertNull(config.isEmergencyMessagingSupported(10));
-        assertNull(config.isSatelliteEntitlementSupported(10));
-        assertNull(config.getSatelliteEntitlementServerUrl(10));
+        assertNull(config.isSatelliteAttachSupportedByCarrierId(10));
+        assertNull(config.getSatelliteDataSupportModeByCarrierId(10));
+        assertNull(config.getSatelliteNtnConnectTypeByCarrierId(10));
+        assertNull(config.isEmergencyMessagingSupportedByCarrierId(10));
+        assertNull(config.isSatelliteEntitlementSupportedByCarrierId(10));
+        assertNull(config.getSatelliteEntitlementServerUrlByCarrierId(10));
 
-        List<SatelliteConfig.PlmnConfig> plmnConfigs = config.getSatellitePlmnConfigs(10);
+        List<SatelliteConfig.PlmnConfig> plmnConfigs =
+                config.getSatellitePlmnConfigsByCarrierId(10);
         assertNotNull(plmnConfigs);
         assertTrue(plmnConfigs.isEmpty());
     }
@@ -1025,7 +1038,7 @@ public class SatelliteConfigParserTest extends TelephonyTest {
         // Map should be empty because PLMN key was missing in capability
         assertTrue(config.getSupportedSatelliteServices(1).isEmpty());
         // Map should be empty because optional ntn_connect_type was missing in plmnConfig
-        assertTrue(config.getSatellitePlmnConfigs(1).isEmpty());
+        assertTrue(config.getSatellitePlmnConfigsByCarrierId(1).isEmpty());
 
         // Test case for empty allowed services
         telephonyConfigBuilder.clear();

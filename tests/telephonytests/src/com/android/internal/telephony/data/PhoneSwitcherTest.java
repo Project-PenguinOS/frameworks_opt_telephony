@@ -2062,6 +2062,48 @@ public class PhoneSwitcherTest extends TelephonyTest {
         processAllMessages();
     }
 
+    @Test
+    public void testActiveEmergencyCall_AllowsDataSwitch() throws Exception {
+        doReturn(true).when(mMockRadioConfig).isSetPreferredDataCommandSupported();
+        doReturn(true).when(mDomainSelectionResolver).isDomainSelectionSupported();
+        initialize();
+
+        // Phone 0 has sub 1, phone 1 has sub 2.
+        // Sub 1 is default data sub.
+        setMsimDefaultDataSubId(1);
+        setSlotIndexToSubId(0, 1);
+        setSlotIndexToSubId(1, 2);
+        setAllPhonesInactive();
+
+        // Create an internet network request so PhoneSwitcher has a reason to switch data
+        addInternetNetworkRequest(null, 50);
+
+        // Mock auto data switch conditions being met for both phones
+        doReturn(true).when(mPhone).isUserDataEnabled();
+        doReturn(true).when(mPhone2).isUserDataEnabled();
+
+        // Mock DataSettingsManager returning true for both phones
+        doReturn(true).when(mDataSettingsManager).isDataEnabled();
+        doReturn(true).when(mDataSettingsManager2).isDataEnabled();
+        doReturn(true).when(mDataSettingsManager).isMobileDataPolicyEnabled(
+                TelephonyManager.MOBILE_DATA_POLICY_AUTO_DATA_SWITCH);
+        doReturn(true).when(mDataSettingsManager2).isMobileDataPolicyEnabled(
+                TelephonyManager.MOBILE_DATA_POLICY_AUTO_DATA_SWITCH);
+
+        clearInvocations(mMockRadioConfig);
+
+        // Simulate emergency mode being true
+        doReturn(true).when(mEmergencyStateTracker).isInEmergencyMode();
+
+        // Simulate active emergency call on Phone 1 (the non-DDS phone)
+        notifyPhoneAsInCall(mPhone2);
+        processAllMessages();
+
+        // Verify: DDS switch should happen because there is an active voice call,
+        // effectively bypassing the emergency mode restriction.
+        verify(mMockRadioConfig).setPreferredDataModem(eq(1), any());
+    }
+
     /**
      * Create an internet PDN network request and send it to PhoneSwitcher.
      */

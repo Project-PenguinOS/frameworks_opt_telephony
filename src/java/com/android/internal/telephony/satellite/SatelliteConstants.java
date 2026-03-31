@@ -68,6 +68,11 @@ public class SatelliteConstants {
     public static final int CONFIG_UPDATE_RESULT_IO_ERROR = 11;
     public static final int CONFIG_UPDATE_RESULT_INVALID_SATELLITE_ACCESS_CONFIG_FILE = 12;
     public static final int CONFIG_UPDATE_RESULT_CARRIER_DATA_INVALID_MAX_ALLOWED_DATA_MODE = 13;
+    public static final int CONFIG_UPDATE_RESULT_CARRIER_DATA_INVALID_CONNECT_TYPE_PER_PLMN = 14;
+    public static final int CONFIG_UPDATE_RESULT_CARRIER_DATA_INVALID_CONNECT_TYPE = 15;
+    public static final int CONFIG_UPDATE_RESULT_CARRIER_DATA_INVALID_DATA_SUPPORT_MODE = 16;
+    public static final int CONFIG_UPDATE_RESULT_CARRIER_DATA_INVALID_ENTITLEMENT_URL = 17;
+
 
     @IntDef(
             prefix = {"CONFIG_UPDATE_RESULT_"},
@@ -85,7 +90,11 @@ public class SatelliteConstants {
                 CONFIG_UPDATE_RESULT_DEVICE_DATA_INVALID_S2_CELL_FILE,
                 CONFIG_UPDATE_RESULT_IO_ERROR,
                 CONFIG_UPDATE_RESULT_INVALID_SATELLITE_ACCESS_CONFIG_FILE,
-                CONFIG_UPDATE_RESULT_CARRIER_DATA_INVALID_MAX_ALLOWED_DATA_MODE
+                CONFIG_UPDATE_RESULT_CARRIER_DATA_INVALID_MAX_ALLOWED_DATA_MODE,
+                CONFIG_UPDATE_RESULT_CARRIER_DATA_INVALID_CONNECT_TYPE_PER_PLMN,
+                CONFIG_UPDATE_RESULT_CARRIER_DATA_INVALID_CONNECT_TYPE,
+                CONFIG_UPDATE_RESULT_CARRIER_DATA_INVALID_DATA_SUPPORT_MODE,
+                CONFIG_UPDATE_RESULT_CARRIER_DATA_INVALID_ENTITLEMENT_URL
             })
     @Retention(RetentionPolicy.SOURCE)
     public @interface ConfigUpdateResult {}
@@ -195,6 +204,8 @@ public class SatelliteConstants {
     public static final int SATELLITE_ENTITLEMENT_QUERY_TRIGGER_AIRPLANE_MODE_TOGGLE = 7;
     // Entitlement query retry
     public static final int SATELLITE_ENTITLEMENT_QUERY_TRIGGER_RETRY = 8;
+    // Entitlement refresh triggered on config data updated
+    public static final int SATELLITE_ENTITLEMENT_QUERY_TRIGGER_CONFIG_UPDATED = 9;
     @IntDef(prefix = {"SATELLITE_ENTITLEMENT_QUERY_"}, value = {
             SATELLITE_ENTITLEMENT_QUERY_TRIGGER_UNKNOWN,
             SATELLITE_ENTITLEMENT_QUERY_TRIGGER_BOOTUP,
@@ -204,7 +215,8 @@ public class SatelliteConstants {
             SATELLITE_ENTITLEMENT_QUERY_TRIGGER_FCM_TICKLE,
             SATELLITE_ENTITLEMENT_QUERY_TRIGGER_SIM_REFRESH,
             SATELLITE_ENTITLEMENT_QUERY_TRIGGER_AIRPLANE_MODE_TOGGLE,
-            SATELLITE_ENTITLEMENT_QUERY_TRIGGER_RETRY
+            SATELLITE_ENTITLEMENT_QUERY_TRIGGER_RETRY,
+            SATELLITE_ENTITLEMENT_QUERY_TRIGGER_CONFIG_UPDATED
     })
     @Retention(RetentionPolicy.SOURCE)
     public @interface SatelliteEntitlementQueryTrigger {}
@@ -219,12 +231,15 @@ public class SatelliteConstants {
     public static final int SATELLITE_ELIGIBILITY_SOURCE_ENTITLEMENT = 1;
     // Service is available based on a carrier configuration for the subscription.
     public static final int SATELLITE_ELIGIBILITY_SOURCE_CARRIER_CONFIG = 2;
+    // Service is available based on a configupdater for the subscription.
+    public static final int SATELLITE_ELIGIBILITY_SOURCE_CONFIGUPDATER = 3;
 
     /** @hide */
     @IntDef(prefix = {"SATELLITE_ELIGIBILITY_SOURCE_"}, value = {
             SATELLITE_ELIGIBILITY_SOURCE_UNKNOWN,
             SATELLITE_ELIGIBILITY_SOURCE_ENTITLEMENT,
-            SATELLITE_ELIGIBILITY_SOURCE_CARRIER_CONFIG
+            SATELLITE_ELIGIBILITY_SOURCE_CARRIER_CONFIG,
+            SATELLITE_ELIGIBILITY_SOURCE_CONFIGUPDATER
     })
     @Retention(RetentionPolicy.SOURCE)
     public @interface SatelliteEligibilitySource {}
