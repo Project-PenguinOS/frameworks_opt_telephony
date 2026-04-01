@@ -14,8 +14,9 @@
  * limitations under the License.
  */
 
-/* Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
- * Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+/*
+ * ​​​​​Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -892,6 +893,9 @@ public class ServiceStateTracker extends Handler {
         if (mDeviceShuttingDown == true) return;
         mDeviceShuttingDown = true;
         mDesiredPowerState = false;
+        // Notify SubscriptionManagerService that the device is shutting down so it will not
+        // re-enable a user-disabled SIM when SIM_STATE_ABSENT is received during shutdown.
+        mSubscriptionManagerService.setDeviceShuttingDown(true);
         setPowerStateToDesired();
     }
 
