@@ -9712,6 +9712,8 @@ public class SatelliteControllerTest extends TelephonyTest {
         mSatelliteControllerUT.setCallOnlySuperMethod();
         mCarrierConfigBundle.putBoolean(
                 CarrierConfigManager.KEY_SATELLITE_ENTITLEMENT_SUPPORTED_BOOL, false);
+        mCarrierConfigBundle.putBoolean(
+                CarrierConfigManager.KEY_SATELLITE_ATTACH_SUPPORTED_BOOL, true);
         // Mock default for Mobile as true
         mContextFixture.putBooleanResource(
                 R.bool.config_satellite_enabled_reason_user_default, true);
@@ -9778,6 +9780,8 @@ public class SatelliteControllerTest extends TelephonyTest {
         mSatelliteControllerUT.setCallOnlySuperMethod();
         mCarrierConfigBundle.putBoolean(
                 CarrierConfigManager.KEY_SATELLITE_ENTITLEMENT_SUPPORTED_BOOL, false);
+        mCarrierConfigBundle.putBoolean(
+                CarrierConfigManager.KEY_SATELLITE_ATTACH_SUPPORTED_BOOL, true);
         // Default is true (e.g., mobile), but user disabled it
         mContextFixture.putBooleanResource(
                 R.bool.config_satellite_enabled_reason_user_default, true);
@@ -9800,6 +9804,8 @@ public class SatelliteControllerTest extends TelephonyTest {
         mSatelliteControllerUT.setCallOnlySuperMethod();
         mCarrierConfigBundle.putBoolean(
                 CarrierConfigManager.KEY_SATELLITE_ENTITLEMENT_SUPPORTED_BOOL, false);
+        mCarrierConfigBundle.putBoolean(
+                CarrierConfigManager.KEY_SATELLITE_ATTACH_SUPPORTED_BOOL, true);
         mContextFixture.putBooleanResource(
                 R.bool.config_satellite_enabled_reason_user_default, true);
         mSatelliteControllerUT.clearSatelliteEnabledByDefaultForReasonCache();
@@ -10036,5 +10042,16 @@ public class SatelliteControllerTest extends TelephonyTest {
         private static void increaseCurrentTime(long incTime) {
             sCurrentTime += incTime;
         }
+    }
+
+    @Test
+    public void testIsSatelliteRestrictedForCarrier_attachNotSupported() {
+        mSatelliteControllerUT.setCallOnlySuperMethod();
+        mCarrierConfigBundle.putBoolean(
+                CarrierConfigManager.KEY_SATELLITE_ATTACH_SUPPORTED_BOOL, false);
+        invokeCarrierConfigChanged();
+
+        // Should return true (restricted) because attach is not supported
+        assertTrue(mSatelliteControllerUT.isSatelliteRestrictedForCarrier(SUB_ID));
     }
 }

@@ -7491,6 +7491,7 @@ public class SatelliteController extends Handler {
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PRIVATE)
     protected boolean isSatelliteRestrictedForCarrier(int subId) {
         return !isSatelliteAttachEnabledForCarrierByUser(subId)
+                || !isSatelliteSupportedViaCarrier(subId)
                 || hasReasonToRestrictSatelliteCommunicationForCarrier(subId);
     }
 
