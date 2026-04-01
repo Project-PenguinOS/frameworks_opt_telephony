@@ -30,6 +30,7 @@ import static android.telephony.CarrierConfigManager.KEY_CARRIER_SUPPORTED_SATEL
 import static android.telephony.CarrierConfigManager.KEY_EMERGENCY_CALL_TO_SATELLITE_T911_HANDOVER_TIMEOUT_MILLIS_INT;
 import static android.telephony.CarrierConfigManager.KEY_SATELLITE_ATTACH_SUPPORTED_BOOL;
 import static android.telephony.CarrierConfigManager.KEY_SATELLITE_CONNECTION_HYSTERESIS_SEC_INT;
+import static android.telephony.CarrierConfigManager.KEY_SATELLITE_DATA_SUPPORT_MODE_INT;
 import static android.telephony.CarrierConfigManager.KEY_SATELLITE_ENTITLEMENT_SUPPORTED_BOOL;
 import static android.telephony.CarrierConfigManager.KEY_SATELLITE_ESOS_SUPPORTED_BOOL;
 import static android.telephony.CarrierConfigManager.KEY_SATELLITE_NIDD_APN_NAME_STRING;
@@ -98,12 +99,6 @@ import static com.android.internal.telephony.satellite.SatelliteConstants.SESSIO
 import static com.android.internal.telephony.satellite.SatelliteController.DEFAULT_CARRIER_EMERGENCY_CALL_WAIT_FOR_CONNECTION_TIMEOUT_MILLIS;
 import static com.android.internal.telephony.satellite.SatelliteController.SATELLITE_DATA_PLAN_METERED;
 import static com.android.internal.telephony.satellite.SatelliteController.SATELLITE_DATA_PLAN_UNMETERED;
-
-import android.telephony.satellite.stub.ISatellite;
-import android.telephony.satellite.stub.SatelliteNetworkInfo;
-import android.telephony.satellite.stub.PrioritizedNetworkScanRequest;
-import com.android.internal.telephony.HalVersion;
-import com.android.internal.telephony.satellite.SatelliteModemInterface;
 import static com.android.internal.telephony.satellite.SatelliteController.SATELLITE_MODE_ENABLED_FALSE;
 import static com.android.internal.telephony.satellite.SatelliteController.SATELLITE_MODE_ENABLED_TRUE;
 import static com.android.internal.telephony.satellite.SatelliteController.SatellitePerPlmnConfiguration;
@@ -212,6 +207,7 @@ import android.util.IntArray;
 import android.util.Pair;
 
 import com.android.internal.R;
+import com.android.internal.telephony.HalVersion;
 import com.android.internal.telephony.IBooleanConsumer;
 import com.android.internal.telephony.IIntegerConsumer;
 import com.android.internal.telephony.IVoidConsumer;
@@ -687,6 +683,7 @@ public class SatelliteControllerTest extends TelephonyTest {
         doReturn(SUB_ID1).when(mPhone2).getSubId();
         when(mPhone2.getPhoneId()).thenReturn(1);
         when(mPhone2.getSignalStrengthController()).thenReturn(mSignalStrengthController);
+        when(mPhone.getCarrierId()).thenReturn(CARRIER_ID_1);
 
         doReturn(Context.NETWORK_STATS_SERVICE).when(mContext).getSystemServiceName(
                 NetworkStatsManager.class);
@@ -829,6 +826,11 @@ public class SatelliteControllerTest extends TelephonyTest {
         doNothing().when(mMockAlarmManager).setExact(anyInt(), anyLong(), anyString(),
                 any(Executor.class), any(WorkSource.class), mAlarmListenerCaptor.capture());
         mSatelliteControllerUT.clearCarrierRoamingSatelliteSessionStatsMap();
+
+        doReturn(null).when(mMockConfig).isSatelliteAttachSupportedBySubId(anyInt());
+        doReturn(null).when(mMockConfig).isSatelliteEntitlementSupportedBySubId(anyInt());
+        doReturn(null).when(mMockConfig).getSatelliteDataSupportModeBySubId(anyInt());
+        doReturn(null).when(mMockConfig).getSatelliteNtnConnectTypeBySubId(anyInt());
     }
 
     @After
@@ -3341,6 +3343,93 @@ public class SatelliteControllerTest extends TelephonyTest {
     }
 
     @Test
+    public void testIsSatelliteSupportedViaCarrier_withSatelliteConfig() {
+        when(mFeatureFlags.configForEnablingCarrier()).thenReturn(true);
+        when(mPhone.getCarrierId()).thenReturn(CARRIER_ID_1);
+        when(mMockConfigParser.getConfig()).thenReturn(mMockConfig);
+
+        // 1. SatelliteConfig returns true, CarrierConfig returns false
+        when(mMockConfig.isSatelliteAttachSupportedBySubId(anyInt())).thenReturn(true);
+        when(mMockConfig.isSatelliteAttachSupportedByCarrierId(anyInt())).thenReturn(true);
+        mCarrierConfigBundle.putBoolean(KEY_SATELLITE_ATTACH_SUPPORTED_BOOL, false);
+        invokeCarrierConfigChanged();
+        assertTrue(mSatelliteControllerUT.isSatelliteSupportedViaCarrier(SUB_ID));
+
+        // 2. SatelliteConfig returns false, CarrierConfig returns true
+        when(mMockConfig.isSatelliteAttachSupportedBySubId(anyInt())).thenReturn(false);
+        when(mMockConfig.isSatelliteAttachSupportedByCarrierId(anyInt())).thenReturn(false);
+        mCarrierConfigBundle.putBoolean(KEY_SATELLITE_ATTACH_SUPPORTED_BOOL, true);
+        invokeCarrierConfigChanged();
+        assertFalse(mSatelliteControllerUT.isSatelliteSupportedViaCarrier(SUB_ID));
+
+        // 3. SatelliteConfig returns null, should fallback to CarrierConfig
+        when(mMockConfig.isSatelliteAttachSupportedBySubId(anyInt())).thenReturn(null);
+        when(mMockConfig.isSatelliteAttachSupportedByCarrierId(anyInt())).thenReturn(null);
+        mCarrierConfigBundle.putBoolean(KEY_SATELLITE_ATTACH_SUPPORTED_BOOL, true);
+        invokeCarrierConfigChanged();
+        assertTrue(mSatelliteControllerUT.isSatelliteSupportedViaCarrier(SUB_ID));
+    }
+
+    @Test
+    public void testGetSatelliteDataSupportMode_withSatelliteConfig() {
+        when(mFeatureFlags.configForEnablingCarrier()).thenReturn(true);
+        when(mMockConfigParser.getConfig()).thenReturn(mMockConfig);
+        when(mPhone.getCarrierId()).thenReturn(CARRIER_ID_1);
+        when(mMockConfig.getSatelliteMaxAllowedDataMode()).thenReturn(SATELLITE_DATA_SUPPORT_ALL);
+        when(mMockConfig.getSupportedSatelliteServices(anyInt()))
+                .thenReturn(Map.of(SATELLITE_PLMN_1, Set.of(SERVICE_TYPE_DATA)));
+
+        // 1. SatelliteConfig returns ALL, CarrierConfig returns BANDWIDTH_CONSTRAINED
+        when(mMockConfig.getSatelliteDataSupportModeBySubId(anyInt())).thenReturn(
+                SATELLITE_DATA_SUPPORT_ALL);
+        when(mMockConfig.getSatelliteDataSupportModeByCarrierId(anyInt())).thenReturn(
+                SATELLITE_DATA_SUPPORT_ALL);
+        mCarrierConfigBundle.putInt(KEY_SATELLITE_DATA_SUPPORT_MODE_INT,
+                SATELLITE_DATA_SUPPORT_BANDWIDTH_CONSTRAINED);
+        invokeCarrierConfigChanged();
+        assertEquals(SATELLITE_DATA_SUPPORT_ALL,
+                mSatelliteControllerUT
+                        .getSatelliteDataServicePolicyForPlmn(SUB_ID, SATELLITE_PLMN_1));
+
+        // 2. SatelliteConfig returns null, fallback to CarrierConfig
+        when(mMockConfig.getSatelliteDataSupportModeBySubId(anyInt())).thenReturn(null);
+        when(mMockConfig.getSatelliteDataSupportModeByCarrierId(anyInt())).thenReturn(null);
+        assertEquals(SATELLITE_DATA_SUPPORT_BANDWIDTH_CONSTRAINED,
+                mSatelliteControllerUT
+                        .getSatelliteDataServicePolicyForPlmn(SUB_ID, SATELLITE_PLMN_1));
+    }
+
+    @Test
+    public void testGetCarrierRoamingNtnConnectType_withSatelliteConfig() {
+        when(mMockConfigParser.getConfig()).thenReturn(mMockConfig);
+        when(mPhone.getCarrierId()).thenReturn(CARRIER_ID_1);
+        when(mSubscriptionInfo.getCarrierId()).thenReturn(CARRIER_ID_1);
+        when(mMockConfig.isSatelliteAttachSupportedBySubId(anyInt())).thenReturn(true);
+        when(mMockConfig.isSatelliteAttachSupportedByCarrierId(anyInt())).thenReturn(true);
+        when(mMockSubscriptionManagerService.getSubscriptionInfo(anyInt()))
+                .thenReturn(mSubscriptionInfo);
+
+        // 1. SatelliteConfig returns MANUAL, CarrierConfig returns AUTOMATIC
+        when(mMockConfig.getSatelliteNtnConnectTypeBySubId(anyInt())).thenReturn(
+                CARRIER_ROAMING_NTN_CONNECT_MANUAL);
+        when(mMockConfig.getSatelliteNtnConnectTypeByCarrierId(anyInt())).thenReturn(
+                CARRIER_ROAMING_NTN_CONNECT_MANUAL);
+        mCarrierConfigBundle.putInt(KEY_CARRIER_ROAMING_NTN_CONNECT_TYPE_INT,
+                CARRIER_ROAMING_NTN_CONNECT_AUTOMATIC);
+        invokeCarrierConfigChanged();
+
+        // ConnectType is internal and used by getSupportedConnectTypeMetrics
+        assertEquals(GLOBAL_NTN_CONNECT_TYPE_MANUAL,
+                mSatelliteControllerUT.getSupportedConnectTypeMetrics(SUB_ID));
+
+        // 2. SatelliteConfig returns null, fallback to CarrierConfig
+        when(mMockConfig.getSatelliteNtnConnectTypeBySubId(anyInt())).thenReturn(null);
+        when(mMockConfig.getSatelliteNtnConnectTypeByCarrierId(anyInt())).thenReturn(null);
+        assertEquals(GLOBAL_NTN_CONNECT_TYPE_AUTOMATIC,
+                mSatelliteControllerUT.getSupportedConnectTypeMetrics(SUB_ID));
+    }
+
+    @Test
     public void testCarrierEnabledSatelliteConnectionHysteresisTime() throws Exception {
         when(mServiceState.getState()).thenReturn(ServiceState.STATE_OUT_OF_SERVICE);
         when(mServiceState2.getState()).thenReturn(ServiceState.STATE_OUT_OF_SERVICE);
@@ -3969,6 +4058,8 @@ public class SatelliteControllerTest extends TelephonyTest {
 
     private void setConfigDataPlmnList(List<String> plmnList) {
         doReturn(plmnList).when(mMockConfig).getAllSatellitePlmnsForCarrier(anyInt());
+        doReturn(null).when(mMockConfig).isSatelliteAttachSupportedBySubId(anyInt());
+        doReturn(null).when(mMockConfig).isSatelliteAttachSupportedByCarrierId(anyInt());
         doReturn(mMockConfig).when(mMockConfigParser).getConfig();
     }
 

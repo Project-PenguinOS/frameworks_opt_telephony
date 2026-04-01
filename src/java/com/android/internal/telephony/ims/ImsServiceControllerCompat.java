@@ -32,14 +32,14 @@ import android.telephony.ims.compat.feature.ImsFeature;
 import android.telephony.ims.compat.feature.MMTelFeature;
 import android.util.Log;
 import android.util.SparseArray;
-import java.util.concurrent.ExecutorService;
 
 import com.android.ims.ImsFeatureBinderRepository;
 import com.android.ims.internal.IImsFeatureStatusCallback;
 import com.android.ims.internal.IImsMMTelFeature;
 import com.android.ims.internal.IImsServiceController;
 import com.android.internal.annotations.VisibleForTesting;
-import com.android.internal.telephony.flags.Flags;
+
+import java.util.concurrent.ExecutorService;
 
 /**
  * Manages the Binding lifecycle of one ImsService as well as the relevant ImsFeatures that the
@@ -174,21 +174,16 @@ public class ImsServiceControllerCompat extends ImsServiceController {
 
     @Override
     protected void notifyImsServiceReady() {
-        if (Flags.ensureImsFeatureOrder()) {
-            mExecutor.execute(() -> {
-                Log.d(TAG, "notifyImsServiceReady (Compat Async)");
-                if (mHandler != null) {
-                    mHandler.post(() -> {
-                        if (mImsServiceConnection != null) {
-                            mImsServiceConnection.updateCapabilityAndServiceFeature();
-                        }
-                    });
-                }
-            });
-        } else {
-            Log.d(TAG, "notifyImsServiceReady");
-            // don't do anything for compat impl.
-        }
+        mExecutor.execute(() -> {
+            Log.d(TAG, "notifyImsServiceReady (Compat Async)");
+            if (mHandler != null) {
+                mHandler.post(() -> {
+                    if (mImsServiceConnection != null) {
+                        mImsServiceConnection.updateCapabilityAndServiceFeature();
+                    }
+                });
+            }
+        });
     }
 
     @Override
