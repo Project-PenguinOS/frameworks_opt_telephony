@@ -18,9 +18,10 @@ package com.android.internal.telephony.metrics;
 
 import android.content.Context;
 import com.android.internal.annotations.VisibleForTesting;
-import com.android.internal.telephony.metrics.PersistAtomsStorage;
 import com.android.internal.telephony.PhoneFactory;
 import com.android.internal.telephony.nano.PersistAtomsProto.MessagingReadRestrictionEvent;
+import com.android.telephony.Rlog;
+import java.util.function.Supplier;
 
 import static com.android.internal.telephony.TelephonyStatsLog.MESSAGING_READ_RESTRICTION_REPORTED__READ_RESTRICTED_MESSAGES_APP_OP_MODE__APP_OP_MODE_ALLOWED;
 import static com.android.internal.telephony.TelephonyStatsLog.MESSAGING_READ_RESTRICTION_REPORTED__READ_RESTRICTED_MESSAGES_APP_OP_MODE__APP_OP_MODE_IGNORED;
@@ -35,8 +36,23 @@ import static com.android.internal.telephony.TelephonyStatsLog.MESSAGING_READ_RE
 public class ReadRestrictionStatsLogger {
     private static final String TAG = "ReadRestrictionStatsLogger";
 
-    private final PersistAtomsStorage mAtomsStorage =
-            PhoneFactory.getMetricsCollector().getAtomsStorage();
+    /**
+     * Fetches the atoms storage from the PhoneFactory lazily.
+     *
+     * @return {@code null} if the metrics collector is not available, otherwise the atoms storage
+     * instance.
+     */
+    private Supplier<PersistAtomsStorage> mAtomsStorage = new Supplier<PersistAtomsStorage>() {
+        @Override
+        public PersistAtomsStorage get() {
+            MetricsCollector metricsCollector = PhoneFactory.getMetricsCollector();
+            if (metricsCollector == null) {
+                Rlog.w(TAG, "MetricsCollector is not available. Skipping logging.");
+                return null;
+            }
+            return metricsCollector.getAtomsStorage();
+        }
+    };
 
     private static ReadRestrictionStatsLogger sInstance = null;
 
@@ -62,6 +78,10 @@ public class ReadRestrictionStatsLogger {
     /** Logs a messaging read restriction event to statsd. */
     public void onMessageInserted(ContentProvider contentProvider, int callerUid,
         boolean isMessageReadRestricted) {
+        PersistAtomsStorage atomsStorage = mAtomsStorage.get();
+        if (atomsStorage == null) {
+            return;
+        }
         MessagingReadRestrictionEvent event = new MessagingReadRestrictionEvent();
         event.callerUid = callerUid;
         event.contentProvider = getContentProviderId(contentProvider);
@@ -72,22 +92,30 @@ public class ReadRestrictionStatsLogger {
             event.eventType =
                     MESSAGING_READ_RESTRICTION_REPORTED__EVENT_TYPE__UNRESTRICTED_MESSAGE_INSERTED;
         }
-        mAtomsStorage.addMessagingReadRestrictionEvent(event);
+        atomsStorage.addMessagingReadRestrictionEvent(event);
     }
 
     /** Logs a messaging read restriction event to statsd. */
     public void onMessageUnrestricted(ContentProvider contentProvider, int callerUid) {
+        PersistAtomsStorage atomsStorage = mAtomsStorage.get();
+        if (atomsStorage == null) {
+            return;
+        }
         MessagingReadRestrictionEvent event = new MessagingReadRestrictionEvent();
         event.callerUid = callerUid;
         event.contentProvider = getContentProviderId(contentProvider);
         event.eventType =
                 MESSAGING_READ_RESTRICTION_REPORTED__EVENT_TYPE__UPDATED_MESSAGE_TO_UNRESTRICTED;
-        mAtomsStorage.addMessagingReadRestrictionEvent(event);
+        atomsStorage.addMessagingReadRestrictionEvent(event);
     }
 
     /** Logs a messaging read restriction event to statsd. */
     public void onRestrictedMessagesQueried(ContentProvider contentProvider,
         int callerUid, boolean canReadRestrictedMessages) {
+        PersistAtomsStorage atomsStorage = mAtomsStorage.get();
+        if (atomsStorage == null) {
+            return;
+        }
         MessagingReadRestrictionEvent event = new MessagingReadRestrictionEvent();
         event.callerUid = callerUid;
         event.contentProvider = getContentProviderId(contentProvider);
@@ -96,7 +124,7 @@ public class ReadRestrictionStatsLogger {
         event.readRestrictedMessagesAppOpMode = canReadRestrictedMessages
                 ? MESSAGING_READ_RESTRICTION_REPORTED__READ_RESTRICTED_MESSAGES_APP_OP_MODE__APP_OP_MODE_ALLOWED
                 : MESSAGING_READ_RESTRICTION_REPORTED__READ_RESTRICTED_MESSAGES_APP_OP_MODE__APP_OP_MODE_IGNORED;
-        mAtomsStorage.addMessagingReadRestrictionEvent(event);
+        atomsStorage.addMessagingReadRestrictionEvent(event);
     }
 
     private int getContentProviderId(ContentProvider contentProvider) {
