@@ -484,7 +484,8 @@ public class SatelliteController extends Handler {
     protected AtomicInteger mSelectedSatelliteSubId = new AtomicInteger(
             SubscriptionManager.INVALID_SUBSCRIPTION_ID);
     protected AtomicInteger mResultReceiverTotalCount = new AtomicInteger(0);
-    private final ConcurrentHashMap<Integer, Boolean> mSatelliteEnabledByDefaultForReasonCache =
+    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PRIVATE)
+    protected final ConcurrentHashMap<Integer, Boolean> mSatelliteEnabledByDefaultForReasonCache =
             new ConcurrentHashMap<>();
 
     /** All the variables that require lock are declared here. */
@@ -648,7 +649,8 @@ public class SatelliteController extends Handler {
     private final SubscriptionManager.OnSubscriptionsChangedListener mSubscriptionsChangedListener;
 
     /** Key: Subscription ID, value: set of restriction reasons for satellite communication.*/
-    @NonNull private final ConcurrentHashMap<Integer, Set<Integer>>
+    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PRIVATE)
+    @NonNull protected final ConcurrentHashMap<Integer, Set<Integer>>
             mSatelliteAttachRestrictionForCarrierArray = new ConcurrentHashMap<>();
     /** Key: Subscription ID, value: the actual satellite enabled state in the modem -
      * {@code true} for enabled and {@code false} for disabled. */
@@ -7333,40 +7335,54 @@ public class SatelliteController extends Handler {
         Set<Integer> cachedRestrictionSet =
                 mSatelliteAttachRestrictionForCarrierArray.get(subId);
         if (cachedRestrictionSet != null) {
-            return !cachedRestrictionSet.contains(
+            boolean isEnabled = !cachedRestrictionSet.contains(
                     SATELLITE_COMMUNICATION_RESTRICTION_REASON_USER);
+            plogd("isSatelliteAttachEnabledForCarrierByUser: subId=" + subId
+                    + " returning from cache, isEnabled=" + isEnabled);
+            return isEnabled;
         } else {
-            plogd("isSatelliteAttachEnabledForCarrierByUser() no correspondent cache, "
-                    + "load from persist storage");
+            plogd("isSatelliteAttachEnabledForCarrierByUser: subId=" + subId
+                    + " no cache found, loading from persistent storage");
             try {
-                String enabled =
-                        mSubscriptionManagerService.getSubscriptionProperty(subId,
-                                SATELLITE_ATTACH_ENABLED_FOR_CARRIER,
-                                mContext.getOpPackageName(), mContext.getAttributionTag());
+                String enabled = mSubscriptionManagerService.getSubscriptionProperty(subId,
+                        SATELLITE_ATTACH_ENABLED_FOR_CARRIER,
+                        mContext.getOpPackageName(), mContext.getAttributionTag());
 
+                plogd("isSatelliteAttachEnabledForCarrierByUser: subId=" + subId
+                        + ", enabled=" + enabled);
+
+                boolean result;
                 if (enabled == null) {
-                    ploge("isSatelliteAttachEnabledForCarrierByUser: invalid subId, subId="
-                            + subId);
-                    return isSatelliteEnabledByDefaultForReason(
+                    plogd("isSatelliteAttachEnabledForCarrierByUser: db value is null for"
+                            + " subId=" + subId);
+                    result = isSatelliteEnabledByDefaultForReason(
                             SATELLITE_ENABLEMENT_REQUEST_REASON_USER);
+                } else if (enabled.isEmpty()) {
+                    plogd("isSatelliteAttachEnabledForCarrierByUser: db value is empty for"
+                            + " subId=" + subId);
+                    result = isSatelliteEnabledByDefaultForReason(
+                            SATELLITE_ENABLEMENT_REQUEST_REASON_USER);
+                } else if (enabled.equals("-1")) {
+                    // "-1" indicates the unset state in the database, meaning we should fall back
+                    // to reading the device-specific resource overlay config for the default value.
+                    plogd("isSatelliteAttachEnabledForCarrierByUser: db value is unset for"
+                            + " subId=" + subId);
+                    result = isSatelliteEnabledByDefaultForReason(
+                            SATELLITE_ENABLEMENT_REQUEST_REASON_USER);
+                } else {
+                    result = enabled.equals("1");
                 }
 
-                if (enabled.isEmpty()) {
-                    ploge("isSatelliteAttachEnabledForCarrierByUser: no data for subId(" + subId
-                            + ")");
-                    return isSatelliteEnabledByDefaultForReason(
-                            SATELLITE_ENABLEMENT_REQUEST_REASON_USER);
-                }
-
-                boolean result = enabled.equals("1");
                 if (!result) {
                     mSatelliteAttachRestrictionForCarrierArray.put(subId, new HashSet<>());
                     mSatelliteAttachRestrictionForCarrierArray.get(subId).add(
                             SATELLITE_COMMUNICATION_RESTRICTION_REASON_USER);
+                    plogd("isSatelliteAttachEnabledForCarrierByUser: satellite restricted due to"
+                            + " user reason for subId=" + subId);
                 }
                 return result;
             } catch (IllegalArgumentException | SecurityException ex) {
-                ploge("isSatelliteAttachEnabledForCarrierByUser: ex=" + ex);
+                ploge("isSatelliteAttachEnabledForCarrierByUser: subId=" + subId + " ex=" + ex);
                 return false;
             }
         }
@@ -7380,8 +7396,14 @@ public class SatelliteController extends Handler {
      * @return {@code true} when there is at least on reason, {@code false} otherwise.
      */
     private boolean hasReasonToRestrictSatelliteCommunicationForCarrier(int subId) {
-        return !mSatelliteAttachRestrictionForCarrierArray
-                .getOrDefault(subId, Collections.emptySet()).isEmpty();
+        final Set<Integer> restrictionSet = mSatelliteAttachRestrictionForCarrierArray
+                .getOrDefault(subId, Collections.emptySet());
+        final boolean hasReasonToRestrict = !restrictionSet.isEmpty();
+        if (hasReasonToRestrict) {
+            plogd("hasReasonToRestrictSatelliteCommunicationForCarrier: subId=" + subId
+                    + " is restricted. restriction=" + restrictionSet);
+        }
+        return hasReasonToRestrict;
     }
 
     private void updateRestrictReasonForEntitlementPerCarrier(int subId) {
@@ -7469,6 +7491,7 @@ public class SatelliteController extends Handler {
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PRIVATE)
     protected boolean isSatelliteRestrictedForCarrier(int subId) {
         return !isSatelliteAttachEnabledForCarrierByUser(subId)
+                || !isSatelliteSupportedViaCarrier(subId)
                 || hasReasonToRestrictSatelliteCommunicationForCarrier(subId);
     }
 
@@ -7493,8 +7516,12 @@ public class SatelliteController extends Handler {
     public boolean isSatelliteEnabledByDefaultForReason(
             @SatelliteManager.SatelliteEnablementRequestReason int reason
     ) {
+        plogd("isSatelliteEnabledByDefaultForReason: requesting default enablement status"
+                + " for reason=" + reason);
         Boolean cachedValue = mSatelliteEnabledByDefaultForReasonCache.get(reason);
         if (cachedValue != null) {
+            plogd("isSatelliteEnabledByDefaultForReason: found cached value=" + cachedValue
+                    + " for reason=" + reason);
             return cachedValue;
         }
 
@@ -7504,17 +7531,25 @@ public class SatelliteController extends Handler {
                 resId = R.bool.config_satellite_enabled_reason_user_default;
                 break;
             default:
-                ploge("Unknown satellite enabled reason: " + reason);
-                return true;
+                plogd("isSatelliteEnabledByDefaultForReason: unknown satellite enablement"
+                        + " request reason=" + reason
+                        + ". Returning false.");
+                return false;
         }
 
         try {
             boolean isSatelliteEnabledByDefault = mContext.getResources().getBoolean(resId);
             mSatelliteEnabledByDefaultForReasonCache.put(reason, isSatelliteEnabledByDefault);
+            plogd("isSatelliteEnabledByDefaultForReason: loaded from resources"
+                    + " isSatelliteEnabledByDefault=" + isSatelliteEnabledByDefault
+                    + " for reason=" + reason);
             return isSatelliteEnabledByDefault;
         } catch (Resources.NotFoundException e) {
-            ploge("Resource not found for reason: " + reason);
-            return true; // Default to true if not found
+            ploge("isSatelliteEnabledByDefaultForReason: Resource not found"
+                    + " for reason=" + reason
+                    + ", e=" + e
+                    + ". Returning false.");
+            return false; // Default to false if not found
         }
     }
 
