@@ -150,3 +150,14 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+# OWNER=pmadapurmath TARGET=26Q3
+flag {
+    name: "dsda_adhoc_filtering"
+    namespace: "telephony"
+    description: "Modify the dsda check to enforce that the supported subscription list ids are non-empty to verify enablement"
+    bug:"499042471"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
