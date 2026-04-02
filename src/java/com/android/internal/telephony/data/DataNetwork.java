@@ -1714,7 +1714,11 @@ public class DataNetwork extends StateMachine {
             int apnTypeBitmask = mDataProfile.getApnSetting() != null
                     ? mDataProfile.getApnSetting().getApnTypeBitmask() : ApnSetting.TYPE_NONE;
             int sliceCapability = getSliceCapability(getNetworkCapabilities());
-            mDataCallSessionStats.onSetupDataCall(apnTypeBitmask, mSatellite, sliceCapability);
+            int connectionCapability = trafficDescriptor != null
+                    ? trafficDescriptor.getConnectionCapability() :
+                    TrafficDescriptor.CONNECTION_CAPABILITY_UNKNOWN;
+            mDataCallSessionStats.onSetupDataCall(
+                    apnTypeBitmask, mSatellite, sliceCapability, connectionCapability);
 
             logl("setupData: accessNetwork="
                     + AccessNetworkType.toString(accessNetwork) + ", isSatellite=" + mSatellite
