@@ -3351,7 +3351,8 @@ public class DataNetwork extends StateMachine {
                     transitionTo(mDisconnectedState);
                 }
             }
-        } else if (!(mFlags.supportExplicitDataDisconnect() && requireExplicitDisconnect)) {
+        } else if ((!(mFlags.supportExplicitDataDisconnect() && requireExplicitDisconnect))
+                    || isDisconnecting()) {
             // The data call response is missing from the list. This means the PDN is gone. This
             // is the PDN lost reported by the modem. We don't send another DEACTIVATE_DATA request
             // for that
