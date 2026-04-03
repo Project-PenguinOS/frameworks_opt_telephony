@@ -2062,6 +2062,48 @@ public class PhoneSwitcherTest extends TelephonyTest {
         processAllMessages();
     }
 
+    @Test
+    public void testActiveEmergencyCall_AllowsDataSwitch() throws Exception {
+        doReturn(true).when(mMockRadioConfig).isSetPreferredDataCommandSupported();
+        doReturn(true).when(mDomainSelectionResolver).isDomainSelectionSupported();
+        initialize();
+
+        // Phone 0 has sub 1, phone 1 has sub 2.
+        // Sub 1 is default data sub.
+        setMsimDefaultDataSubId(1);
+        setSlotIndexToSubId(0, 1);
+        setSlotIndexToSubId(1, 2);
+        setAllPhonesInactive();
+
+        // Create an internet network request so PhoneSwitcher has a reason to switch data
+        addInternetNetworkRequest(null, 50);
+
+        // Mock auto data switch conditions being met for both phones
+        doReturn(true).when(mPhone).isUserDataEnabled();
+        doReturn(true).when(mPhone2).isUserDataEnabled();
+
+        // Mock DataSettingsManager returning true for both phones
+        doReturn(true).when(mDataSettingsManager).isDataEnabled();
+        doReturn(true).when(mDataSettingsManager2).isDataEnabled();
+        doReturn(true).when(mDataSettingsManager).isMobileDataPolicyEnabled(
+                TelephonyManager.MOBILE_DATA_POLICY_AUTO_DATA_SWITCH);
+        doReturn(true).when(mDataSettingsManager2).isMobileDataPolicyEnabled(
+                TelephonyManager.MOBILE_DATA_POLICY_AUTO_DATA_SWITCH);
+
+        clearInvocations(mMockRadioConfig);
+
+        // Simulate emergency mode being true
+        doReturn(true).when(mEmergencyStateTracker).isInEmergencyMode();
+
+        // Simulate active emergency call on Phone 1 (the non-DDS phone)
+        notifyPhoneAsInCall(mPhone2);
+        processAllMessages();
+
+        // Verify: DDS switch should happen because there is an active voice call,
+        // effectively bypassing the emergency mode restriction.
+        verify(mMockRadioConfig).setPreferredDataModem(eq(1), any());
+    }
+
     /**
      * Create an internet PDN network request and send it to PhoneSwitcher.
      */
@@ -2107,6 +2149,67 @@ public class PhoneSwitcherTest extends TelephonyTest {
         mPhoneSwitcherUT.onRequestNetwork(new TelephonyNetworkRequest(
                 networkRequest, mPhone, mFeatureFlags));
         return networkRequest;
+    }
+
+    @Test
+    public void testTrySetOpportunisticDataSubscription_updateOpportunisticSet() throws Exception {
+        doReturn(true).when(mFeatureFlags).adsRespectOwnersPreference();
+        initialize();
+
+        // Default data sub is 1
+        setMsimDefaultDataSubId(1);
+
+        // Set sub 2 as preferred sub
+        mPhoneSwitcherUT.trySetOpportunisticDataSubscription(2, false, null);
+        processAllMessages();
+        assertEquals(2, mPhoneSwitcherUT.getOpportunisticSetDataSubId());
+
+        // Now device is on phone 1 as preferred
+        mPhoneSwitcherUT.mValidationCallback.onNetworkAvailable(null, 2);
+        processAllMessages();
+        assertEquals(1, mPhoneSwitcherUT.getPreferredDataPhoneId());
+
+        // Clear preferred sub by setting it to DEFAULT_SUBSCRIPTION_ID.
+        // This will attempt to switch back to primary sub 1.
+        mPhoneSwitcherUT.trySetOpportunisticDataSubscription(
+                SubscriptionManager.DEFAULT_SUBSCRIPTION_ID, false, null);
+        processAllMessages();
+
+        // Even if we are not on sub 1 yet, mOpportunisticSetDataSubId should be cleared.
+        assertEquals(SubscriptionManager.DEFAULT_SUBSCRIPTION_ID,
+                mPhoneSwitcherUT.getOpportunisticSetDataSubId());
+
+        // Finish switch back to sub 1
+        mPhoneSwitcherUT.mValidationCallback.onNetworkAvailable(null, 1);
+        processAllMessages();
+        assertEquals(0, mPhoneSwitcherUT.getPreferredDataPhoneId());
+
+        // Case where it returns early: already on sub 1, then clear again.
+        mPhoneSwitcherUT.trySetOpportunisticDataSubscription(2, false, null);
+        processAllMessages();
+        assertEquals(2, mPhoneSwitcherUT.getOpportunisticSetDataSubId());
+
+        mPhoneSwitcherUT.mValidationCallback.onNetworkAvailable(null, 2);
+        processAllMessages();
+
+        // Switch back to 1
+        mPhoneSwitcherUT.trySetOpportunisticDataSubscription(
+                SubscriptionManager.DEFAULT_SUBSCRIPTION_ID, false, null);
+        processAllMessages();
+        mPhoneSwitcherUT.mValidationCallback.onNetworkAvailable(null, 1);
+        processAllMessages();
+        assertEquals(0, mPhoneSwitcherUT.getPreferredDataPhoneId());
+        assertEquals(SubscriptionManager.DEFAULT_SUBSCRIPTION_ID,
+                mPhoneSwitcherUT.getOpportunisticSetDataSubId());
+
+        // Now we are on sub 1, and mOpportunisticSetDataSubId is DEFAULT.
+        // Call trySetOpportunisticDataSubscription(DEFAULT) again.
+        // It will hit the early return path because subIdToValidate (1) == mPreferredDataSubId (1).
+        mPhoneSwitcherUT.trySetOpportunisticDataSubscription(
+                SubscriptionManager.DEFAULT_SUBSCRIPTION_ID, false, null);
+        processAllMessages();
+        assertEquals(SubscriptionManager.DEFAULT_SUBSCRIPTION_ID,
+                mPhoneSwitcherUT.getOpportunisticSetDataSubId());
     }
 
     /**

@@ -46,6 +46,7 @@ import android.os.AsyncResult;
 import android.os.Binder;
 import android.os.Build;
 import android.os.Handler;
+import android.os.HandlerExecutor;
 import android.os.Looper;
 import android.os.Message;
 import android.os.PersistableBundle;
@@ -65,6 +66,7 @@ import android.telecom.VideoProfile;
 import android.telephony.AccessNetworkConstants;
 import android.telephony.Annotation.SrvccState;
 import android.telephony.CarrierConfigManager;
+import android.telephony.CarrierConfigManager.CarrierConfigChangeListener;
 import android.telephony.CarrierRestrictionRules;
 import android.telephony.CellBroadcastIdRange;
 import android.telephony.CellIdentity;
@@ -390,7 +392,13 @@ public abstract class Phone extends Handler implements PhoneInternalInterface {
     private final AppSmsManager mAppSmsManager;
     private SimActivationTracker mSimActivationTracker;
     private volatile long mTimeLastEmergencySmsSentMs = EMERGENCY_SMS_NO_TIME_RECORDED;
+    private volatile int mEmergencySmsModeTimerMs = 0;
+    private boolean mEmergencySmsModeInitialized = false;
 
+    private final CarrierConfigChangeListener mCarrierConfigChangeListener =
+            (slotIndex, subId, carrierId, specificCarrierId) -> {
+                sendMessage(obtainMessage(EVENT_CARRIER_CONFIG_CHANGED));
+            };
     // Variable to cache the video capability. When RAT changes, we lose this info and are unable
     // to recover from the state. We cache it and notify listeners when they register.
     protected boolean mIsVideoCapable = false;
@@ -727,6 +735,19 @@ public abstract class Phone extends Handler implements PhoneInternalInterface {
         mTelephonyAnalytics = new TelephonyAnalytics(this);
     }
 
+    private void updateEmergencySmsModeTimer() {
+        CarrierConfigManager configManager = mContext.getSystemService(CarrierConfigManager.class);
+        if (configManager != null) {
+            PersistableBundle b = configManager.getConfigForSubId(getSubId(),
+                    CarrierConfigManager.KEY_EMERGENCY_SMS_MODE_TIMER_MS_INT);
+            if (b != null) {
+                mEmergencySmsModeTimerMs = b.getInt(
+                        CarrierConfigManager.KEY_EMERGENCY_SMS_MODE_TIMER_MS_INT, 0);
+                mEmergencySmsModeInitialized = true;
+            }
+        }
+    }
+
     /**
      * Start setup of ImsPhone, which will start trying to connect to the ImsResolver. Will not be
      * called if this device does not support FEATURE_IMS_TELEPHONY.
@@ -864,6 +885,10 @@ public abstract class Phone extends Handler implements PhoneInternalInterface {
 
             case EVENT_ICC_CHANGED:
                 onUpdateIccAvailability();
+                break;
+
+            case EVENT_CARRIER_CONFIG_CHANGED:
+                updateEmergencySmsModeTimer();
                 break;
 
             case EVENT_INITIATE_SILENT_REDIAL:
@@ -1143,20 +1168,27 @@ public abstract class Phone extends Handler implements PhoneInternalInterface {
      * @return true if the device is in emergency SMS mode, false otherwise.
      */
     public boolean isInEmergencySmsMode() {
+        if (!mEmergencySmsModeInitialized) {
+            CarrierConfigManager ccm = mContext.getSystemService(CarrierConfigManager.class);
+            if (ccm != null) {
+                ccm.registerCarrierConfigChangeListener(new HandlerExecutor(this),
+                        mCarrierConfigChangeListener);
+            }
+            try {
+                updateEmergencySmsModeTimer();
+            } catch (IllegalStateException ex) {
+                Rlog.d(mLogTag, "Got exception when loading carrier config, ex=", ex);
+                // Default for KEY_EMERGENCY_SMS_MODE_TIMER_MS_INT is 0 and CarrierConfig isn't
+                // available yet, so return false.
+                return false;
+            }
+        }
         long lastSmsTimeMs = mTimeLastEmergencySmsSentMs;
         if (lastSmsTimeMs == EMERGENCY_SMS_NO_TIME_RECORDED) {
             // an emergency SMS hasn't been sent since the last check.
             return false;
         }
-        CarrierConfigManager configManager = (CarrierConfigManager)
-                getContext().getSystemService(Context.CARRIER_CONFIG_SERVICE);
-        PersistableBundle b = configManager.getConfigForSubId(getSubId());
-        if (b == null) {
-            // default for KEY_EMERGENCY_SMS_MODE_TIMER_MS_INT is 0 and CarrierConfig isn't
-            // available, so return false.
-            return false;
-        }
-        int eSmsTimerMs = b.getInt(CarrierConfigManager.KEY_EMERGENCY_SMS_MODE_TIMER_MS_INT, 0);
+        int eSmsTimerMs = mEmergencySmsModeTimerMs;
         if (eSmsTimerMs == 0) {
             // We do not support this feature for this carrier.
             return false;
@@ -5367,16 +5399,6 @@ public abstract class Phone extends Handler implements PhoneInternalInterface {
      */
     public void setSatelliteNetworkInfo(int simSlot,
             @NonNull SatelliteNetworkInfo satelliteNetworkInfo, Message result) {
-        if (getHalVersion(HAL_SERVICE_NETWORK).less(RIL.RADIO_HAL_VERSION_2_4)) {
-            logd("setSatelliteNetworkInfo: request not supported because HAL version is less "
-                    + "than 2.4");
-            CommandException ex = new CommandException(
-                    CommandException.Error.REQUEST_NOT_SUPPORTED);
-            AsyncResult.forMessage(result, null, ex);
-            result.sendToTarget();
-            return;
-        }
-
         logd("setSatelliteNetworkInfo: simSlot=" + simSlot
                 + " satelliteNetworkInfo=" + satelliteNetworkInfo);
         mCi.setSatelliteNetworkInfo(simSlot, satelliteNetworkInfo, result);

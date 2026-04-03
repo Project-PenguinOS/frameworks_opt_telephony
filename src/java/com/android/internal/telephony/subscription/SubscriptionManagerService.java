@@ -495,6 +495,9 @@ public class SubscriptionManagerService extends ISub.Stub {
     @NonNull
     private final int[] mSimState;
 
+    /** Whether the device is in the process of shutting down. */
+    private volatile boolean mIsDeviceShuttingDown = false;
+
     /** Vendor API level from system property. */
     private final int mVendorApiLevel;
 
@@ -1830,30 +1833,31 @@ public class SubscriptionManagerService extends ISub.Stub {
             }
 
             if (!isSatelliteEnabledOrBeingEnabled) {
-              if (!isDsdsToSsConfigEnabled()) {
                 // Re-enable the pSIM when it's removed, so it will be in enabled state when it gets
-// QTI_BEGIN: 2023-06-11: Telephony: Add dsds_to_ss property check.
                 // re-inserted again. (pre-U behavior)
-// QTI_END: 2023-06-11: Telephony: Add dsds_to_ss property check.
-                List<String> iccIds = getIccIdsOfInsertedPhysicalSims();
-// QTI_BEGIN: 2023-06-11: Telephony: Add dsds_to_ss property check.
-                mSubscriptionDatabaseManager.getAllSubscriptions().stream()
-                        .filter(subInfo -> !iccIds.contains(subInfo.getIccId())
-                                && !subInfo.isEmbedded())
-                        .forEach(subInfo -> {
-                            int subId = subInfo.getSubscriptionId();
-                            log("updateSubscription: Re-enable Uicc application on sub " + subId);
-                            mSubscriptionDatabaseManager.setUiccApplicationsEnabled(subId, true);
-                            // When sim is absent, set the port index to invalid port index.
-                            // (pre-U behavior)
-                            mSubscriptionDatabaseManager.setPortIndex(subId,
-                                    TelephonyManager.INVALID_PORT_INDEX);
-                        });
-// QTI_END: 2023-06-11: Telephony: Add dsds_to_ss property check.
-              }
-// QTI_BEGIN: 2023-06-11: Telephony: Add dsds_to_ss property check.
+                // Skip re-enabling if device is shutting down to preserve the user's
+                // intentionally disabled SIM state across reboots.
+                if (mIsDeviceShuttingDown) {
+                    log("updateSubscription: Skip re-enabling Uicc applications"
+                            + " during device shutdown on phone " + phoneId);
+                } else {
+                    List<String> iccIds = getIccIdsOfInsertedPhysicalSims();
+                    mSubscriptionDatabaseManager.getAllSubscriptions().stream()
+                            .filter(subInfo -> !iccIds.contains(subInfo.getIccId())
+                                    && !subInfo.isEmbedded())
+                            .forEach(subInfo -> {
+                                    int subId = subInfo.getSubscriptionId();
+                                    log("updateSubscription: Re-enable Uicc application on sub "
+                                            + subId);
+                                    mSubscriptionDatabaseManager.
+                                            setUiccApplicationsEnabled(subId, true);
+                                    // When sim is absent, set the port index to invalid port index.
+                                    // (pre-U behavior)
+                                    mSubscriptionDatabaseManager.setPortIndex(subId,
+                                            TelephonyManager.INVALID_PORT_INDEX);
+                            });
+                }
             }
-// QTI_END: 2023-06-11: Telephony: Add dsds_to_ss property check.
 
             if (mSlotIndexToSubId.containsKey(phoneId)) {
                 markSubscriptionsInactive(phoneId);
@@ -2057,12 +2061,19 @@ public class SubscriptionManagerService extends ISub.Stub {
         }
     }
 
-// QTI_BEGIN: 2023-06-11: Telephony: Add dsds_to_ss property check.
-    public boolean isDsdsToSsConfigEnabled() {
-        return false;
+    /**
+     * Set whether the device is in the process of shutting down.
+     *
+     * When {@code true}, the re-enable-on-absent logic in {@link #updateSubscription} will be
+     * skipped so that a user-disabled SIM remains disabled after reboot.
+     *
+     * @param isShuttingDown {@code true} if the device is shutting down.
+     */
+    public void setDeviceShuttingDown(boolean isShuttingDown) {
+        logl("setDeviceShuttingDown: " + isShuttingDown);
+        mIsDeviceShuttingDown = isShuttingDown;
     }
 
-// QTI_END: 2023-06-11: Telephony: Add dsds_to_ss property check.
     /**
      * Calculate the usage setting based on the carrier request.
      *
@@ -6339,8 +6350,21 @@ public class SubscriptionManagerService extends ISub.Stub {
 
     private boolean canManageSubscriptionAsUserInternal(@NonNull SubscriptionInfo subInfo,
             @NonNull String packageName, @NonNull UserHandle user) {
-        // iterate through the active "visible" subs, looking for one that matches
-        for (int subId : getActiveSubIdListAsUser(false, user)) {
+
+        // iterate through the visible subs for the current user or subs that are not assigned
+        // to any user, such as occurs on certain device types / user configurations.
+        // Yes, this approach seems ridiculous, but concatenating primitive arrays is ridiculous.
+        int[] subIdsForCurrentUser = getActiveSubIdListAsUser(
+                false /* visibleOnly */, user);
+        int[] subIdsForNullUser = getActiveSubIdListAsUser(
+                false /* visibleOnly */, new UserHandle(UserHandle.USER_NULL));
+        // Some day we should make a generic concatenate() method
+        int[] activeSubIds = new int[subIdsForCurrentUser.length + subIdsForNullUser.length];
+        System.arraycopy(subIdsForCurrentUser, 0, activeSubIds, 0, subIdsForCurrentUser.length);
+        System.arraycopy(subIdsForNullUser, 0, activeSubIds,
+                subIdsForCurrentUser.length, subIdsForNullUser.length);
+
+        for (int subId : activeSubIds) {
             TelephonyManager tm = mTelephonyManager.createForSubscriptionId(subId);
 
             final boolean hasCarrierPrivilegesOnSub =

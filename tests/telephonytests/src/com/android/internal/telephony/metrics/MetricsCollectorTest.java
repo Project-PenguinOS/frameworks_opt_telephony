@@ -21,6 +21,7 @@ import static com.android.internal.telephony.TelephonyStatsLog.CARRIER_ROAMING_S
 import static com.android.internal.telephony.TelephonyStatsLog.CELLULAR_DATA_SERVICE_SWITCH;
 import static com.android.internal.telephony.TelephonyStatsLog.CELLULAR_SERVICE_STATE;
 import static com.android.internal.telephony.TelephonyStatsLog.DEVICE_TELEPHONY_PROPERTIES;
+import static com.android.internal.telephony.TelephonyStatsLog.MESSAGING_READ_RESTRICTION_REPORTED;
 import static com.android.internal.telephony.TelephonyStatsLog.OUTGOING_SHORT_CODE_SMS;
 import static com.android.internal.telephony.TelephonyStatsLog.SATELLITE_CONFIG_UPDATER;
 import static com.android.internal.telephony.TelephonyStatsLog.SATELLITE_ENTITLEMENT;
@@ -62,6 +63,7 @@ import com.android.internal.telephony.nano.PersistAtomsProto.CarrierRoamingSatel
 import com.android.internal.telephony.nano.PersistAtomsProto.CarrierRoamingSatelliteSession;
 import com.android.internal.telephony.nano.PersistAtomsProto.CellularDataServiceSwitch;
 import com.android.internal.telephony.nano.PersistAtomsProto.CellularServiceState;
+import com.android.internal.telephony.nano.PersistAtomsProto.MessagingReadRestrictionEvent;
 import com.android.internal.telephony.nano.PersistAtomsProto.OtpEvaluationEvent;
 import com.android.internal.telephony.nano.PersistAtomsProto.OtpRedactionEvent;
 import com.android.internal.telephony.nano.PersistAtomsProto.OutgoingShortCodeSms;
@@ -738,6 +740,52 @@ public class MetricsCollectorTest extends TelephonyTest {
         verify(mPersistAtomsStorage, times(1))
                 .getOtpRedactionEventStats(eq(MIN_COOLDOWN_MILLIS));
         verifyNoMoreInteractions(mPersistAtomsStorage);
+    }
+
+    @Test
+    public void onPullAtom_messagingReadRestrictionEvent_empty() {
+        doReturn(new MessagingReadRestrictionEvent[0]).when(mPersistAtomsStorage)
+                .getMessagingReadRestrictionEventStats(anyLong());
+        List<StatsEvent> actualAtoms = new ArrayList<>();
+
+        int result = mMetricsCollector.onPullAtom(MESSAGING_READ_RESTRICTION_REPORTED,
+                actualAtoms);
+
+        assertThat(actualAtoms).hasSize(0);
+        assertThat(result).isEqualTo(StatsManager.PULL_SUCCESS);
+    }
+
+    @Test
+    public void onPullAtom_messagingReadRestrictionEvent_tooFrequent() {
+        doReturn(null).when(mPersistAtomsStorage).getMessagingReadRestrictionEventStats(
+                anyLong());
+        List<StatsEvent> actualAtoms = new ArrayList<>();
+
+        int result = mMetricsCollector.onPullAtom(MESSAGING_READ_RESTRICTION_REPORTED,
+                actualAtoms);
+
+        assertThat(actualAtoms).hasSize(0);
+        assertThat(result).isEqualTo(StatsManager.PULL_SKIP);
+        verify(mPersistAtomsStorage, times(1))
+                .getMessagingReadRestrictionEventStats(eq(MIN_COOLDOWN_MILLIS));
+        verifyNoMoreInteractions(mPersistAtomsStorage);
+    }
+
+    @Test
+    public void onPullAtom_messagingReadRestrictionEvent_multipleAtoms() {
+        MessagingReadRestrictionEvent messagingReadRestrictionEvent =
+                new MessagingReadRestrictionEvent();
+        doReturn(new MessagingReadRestrictionEvent[] {messagingReadRestrictionEvent,
+                messagingReadRestrictionEvent, messagingReadRestrictionEvent})
+                .when(mPersistAtomsStorage)
+                .getMessagingReadRestrictionEventStats(anyLong());
+        List<StatsEvent> actualAtoms = new ArrayList<>();
+
+        int result = mMetricsCollector.onPullAtom(MESSAGING_READ_RESTRICTION_REPORTED,
+                actualAtoms);
+
+        assertThat(actualAtoms).hasSize(3);
+        assertThat(result).isEqualTo(StatsManager.PULL_SUCCESS);
     }
 
     @Test

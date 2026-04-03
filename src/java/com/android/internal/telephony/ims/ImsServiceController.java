@@ -50,7 +50,6 @@ import com.android.ims.ImsFeatureContainer;
 import com.android.ims.internal.IImsFeatureStatusCallback;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.telephony.ExponentialBackoff;
-import com.android.internal.telephony.flags.Flags;
 import com.android.internal.telephony.util.TelephonyUtils;
 import com.android.internal.telephony.util.WorkerThread;
 
@@ -134,9 +133,6 @@ public class ImsServiceController {
                         + "): onServiceConnectedInternal with binder: " + service);
                 setServiceController(service);
                 notifyImsServiceReady();
-                if (!Flags.ensureImsFeatureOrder()) {
-                    updateCapabilityAndServiceFeature();
-                }
             }
         }
 
@@ -716,42 +712,30 @@ public class ImsServiceController {
         }
         if (serviceController != null) {
             final ImsService.Listener listener = mFeatureChangedListener;
-            if (Flags.ensureImsFeatureOrder()) {
-                mExecutor.execute(() -> {
-                    Log.d(LOG_TAG, "notifyImsServiceReady");
-                    try {
-                        serviceController.setListener(listener);
-                        serviceController.notifyImsServiceReadyForFeatureCreation();
-                        Log.d(LOG_TAG, "notifyImsServiceReady(Async) is done.");
-                        mHandler.post(() -> {
-                            if (mImsServiceConnection != null) {
-                                mImsServiceConnection.updateCapabilityAndServiceFeature();
-                            } else {
-                                Log.e(LOG_TAG, "ImsServiceConnection is not available");
-                            }
-                        });
-                    } catch (RemoteException e) {
-                        Log.d(LOG_TAG, "notifyImsServiceReady exception");
-                        mHandler.post(() -> {
-                            if (mImsServiceConnection != null) {
-                                mImsServiceConnection.cleanAndRestart(e);
-                            } else {
-                                Log.e(LOG_TAG, "ImsServiceConnection is not available");
-                            }
-                        });
-                    }
-                });
-            } else {
+            mExecutor.execute(() -> {
+                Log.d(LOG_TAG, "notifyImsServiceReady");
                 try {
                     serviceController.setListener(listener);
                     serviceController.notifyImsServiceReadyForFeatureCreation();
-                    Log.d(LOG_TAG, "notifyImsServiceReady(Sync) is done.");
+                    Log.d(LOG_TAG, "notifyImsServiceReady(Async) is done.");
+                    mHandler.post(() -> {
+                        if (mImsServiceConnection != null) {
+                            mImsServiceConnection.updateCapabilityAndServiceFeature();
+                        } else {
+                            Log.e(LOG_TAG, "ImsServiceConnection is not available");
+                        }
+                    });
                 } catch (RemoteException e) {
-                    if (mImsServiceConnection != null) {
-                        mImsServiceConnection.cleanAndRestart(e);
-                    }
+                    Log.d(LOG_TAG, "notifyImsServiceReady exception");
+                    mHandler.post(() -> {
+                        if (mImsServiceConnection != null) {
+                            mImsServiceConnection.cleanAndRestart(e);
+                        } else {
+                            Log.e(LOG_TAG, "ImsServiceConnection is not available");
+                        }
+                    });
                 }
-            }
+            });
         } else {
             // Call updateCapabilityAndServiceFeature() to keep the existed call flow
             // not required to check ImsServiceConnection as null

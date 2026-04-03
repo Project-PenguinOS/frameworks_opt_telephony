@@ -942,6 +942,33 @@ public class SignalStrengthControllerTest extends TelephonyTest {
     }
 
     @Test
+    public void testNotifySignalStrengthSubIdChanged() {
+        SignalStrength ss = new SignalStrength(
+                new CellSignalStrengthCdma(),
+                new CellSignalStrengthGsm(-53, 0, SignalStrength.INVALID),
+                new CellSignalStrengthWcdma(),
+                new CellSignalStrengthTdscdma(),
+                new CellSignalStrengthLte(),
+                new CellSignalStrengthNr());
+
+        // Initial notification
+        sendSignalStrength(ss);
+        verify(mPhone).notifySignalStrength();
+
+        // Second notification with same SignalStrength and same subId should be suppressed
+        reset(mPhone);
+        when(mPhone.getSubId()).thenReturn(ACTIVE_SUB_ID);
+        sendSignalStrength(ss);
+        verify(mPhone, never()).notifySignalStrength();
+
+        // Third notification with same SignalStrength but different subId should NOT be suppressed
+        reset(mPhone);
+        when(mPhone.getSubId()).thenReturn(ACTIVE_SUB_ID + 1);
+        sendSignalStrength(ss);
+        verify(mPhone).notifySignalStrength();
+    }
+
+    @Test
     public void testSignalStrengthChangedCallback() {
         Handler mockRegistrant = Mockito.mock(Handler.class);
         int ssChangedEvent = 0;

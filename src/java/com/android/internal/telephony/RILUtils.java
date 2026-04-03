@@ -328,6 +328,7 @@ import android.telephony.AccessNetworkConstants.RadioAccessNetworkType;
 import android.telephony.AccessNetworkConstants.TransportType;
 import android.telephony.Annotation;
 import android.telephony.Annotation.DataState;
+import android.telephony.AnomalyReporter;
 import android.telephony.BarringInfo;
 import android.telephony.CarrierInfo;
 import android.telephony.CarrierRestrictionRules;
@@ -439,6 +440,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
@@ -459,6 +461,17 @@ public class RILUtils {
             "316f3801-fa21-4954-a42f-0041eada3b32";
     public static final String RADIO_POWER_FAILURE_NO_RF_CALIBRATION_UUID =
             "316f3801-fa21-4954-a42f-0041eada3b33";
+
+    // UUIDs and messages for anomalies detected during HAL RadioAccessSpecifier conversion.
+    public static final UUID ANOMALY_HAL_SPECIFIER_HAS_BAD_ACCESS_NETWORK_VALUES_UUID =
+            UUID.fromString("b87c4f08-b24d-4f81-8179-5479903f35c6");
+    public static final String ANOMALY_HAL_SPECIFIER_HAS_BAD_ACCESS_NETWORK_VALUES_MSG =
+            "RadioAccessSpecifier has bad RAN type, "
+            + "possibly using HIDL values or unsupported CDMA2000";
+    public static final UUID ANOMALY_HAL_SPECIFIER_USES_PADDING_VALUES_UUID =
+            UUID.fromString("dae80057-b69c-455e-91ec-2c898f0e2566");
+    public static final String ANOMALY_HAL_SPECIFIER_USES_PADDING_VALUES_MSG =
+            "RadioAccessSpecifier channels arrays contained padding values";
 
     private static final Set<Class> WRAPPER_CLASSES = new HashSet(Arrays.asList(
             Boolean.class, Character.class, Byte.class, Short.class, Integer.class, Long.class,
@@ -1293,7 +1306,20 @@ public class RILUtils {
     }
 
     /**
-     * Convert RadioAccessSpecifier defined in RadioAccessSpecifier.aidl to RadioAccessSpecifier
+     * Convert RadioAccessSpecifier defined in RadioAccessSpecifier.aidl to RadioAccessSpecifier.
+     *
+     * Applies defensive conversions for vendor HAL implementations that may send
+     * incorrect values:
+     * <ul>
+     *   <li>accessNetwork: derived from the bands union tag (geranBands → GERAN, etc.)
+     *       instead of trusting specifier.accessNetwork, which may contain incorrect HIDL
+     *       RadioAccessNetworks values (NGRAN=4) from vendor HALs ported from HIDL to AIDL
+     *       without updating enum values.</li>
+     *   <li>channels: negative sentinel values (e.g. -1) stripped, as some vendor HALs
+     *       return a fixed-size 32-element buffer padded with -1 instead of a properly
+     *       sized empty array.</li>
+     * </ul>
+     *
      * @param specifier RadioAccessSpecifier defined in RadioAccessSpecifier.aidl
      * @return The converted RadioAccessSpecifier
      */
@@ -1301,21 +1327,38 @@ public class RILUtils {
             android.hardware.radio.network.RadioAccessSpecifier specifier) {
         if (specifier == null) return null;
         int[] halBands = null;
+        // The bands union tag is the authoritative source for the RAN type.
+        // specifier.accessNetwork may contain incorrect HIDL enum values from
+        // vendor HALs ported from HIDL to AIDL (e.g., HIDL NGRAN=4 instead of
+        // AIDL NGRAN=6). The bands tag is always correct because the union
+        // discriminator is set by the band-specific setter (setNgranBands, etc.).
+        int accessNetwork = AccessNetworkConstants.AccessNetworkType.UNKNOWN;
         switch (specifier.bands.getTag()) {
             case android.hardware.radio.network.RadioAccessSpecifierBands.geranBands:
                 halBands = specifier.bands.getGeranBands();
+                accessNetwork = AccessNetworkConstants.AccessNetworkType.GERAN;
                 break;
             case android.hardware.radio.network.RadioAccessSpecifierBands.utranBands:
                 halBands = specifier.bands.getUtranBands();
+                accessNetwork = AccessNetworkConstants.AccessNetworkType.UTRAN;
                 break;
             case android.hardware.radio.network.RadioAccessSpecifierBands.eutranBands:
                 halBands = specifier.bands.getEutranBands();
+                accessNetwork = AccessNetworkConstants.AccessNetworkType.EUTRAN;
                 break;
             case android.hardware.radio.network.RadioAccessSpecifierBands.ngranBands:
                 halBands = specifier.bands.getNgranBands();
+                accessNetwork = AccessNetworkConstants.AccessNetworkType.NGRAN;
                 break;
         }
-        return new RadioAccessSpecifier(specifier.accessNetwork, halBands, specifier.channels);
+        if (specifier.accessNetwork != accessNetwork) {
+            AnomalyReporter.reportAnomaly(
+                                          ANOMALY_HAL_SPECIFIER_HAS_BAD_ACCESS_NETWORK_VALUES_UUID,
+                                          ANOMALY_HAL_SPECIFIER_HAS_BAD_ACCESS_NETWORK_VALUES_MSG);
+        }
+        // Strip negative sentinel values from channels array.
+        int[] channels = sanitizeChannels(specifier.channels);
+        return new RadioAccessSpecifier(accessNetwork, halBands, channels);
     }
 
     /**
@@ -1739,6 +1782,42 @@ public class RILUtils {
             default:
                 return AccessNetworkConstants.AccessNetworkType.UNKNOWN;
         }
+    }
+
+    /**
+     * Strip negative sentinel values from a channels array.
+     *
+     * <p>Some vendor HAL implementations return a fixed-size 32-element buffer for the
+     * channels array, with unused entries initialized to -1. The framework expects an
+     * empty array when no channels are specified. This method filters out negative values.
+     *
+     * @param channels Raw channels array from HAL response
+     * @return Sanitized channels array with only non-negative values
+     */
+    private static int[] sanitizeChannels(int[] channels) {
+        if (channels == null || channels.length == 0) {
+            return new int[0];
+        }
+
+        // Implementation chosen over using an ArrayList to avoid int <=> Integer boxing/unboxing
+        // overhead.
+        int newLength = 0;
+        for (int channel : channels) {
+            if (channel >= 0) newLength++;
+        }
+        if (newLength == channels.length) return channels;
+
+        // If we get this far then at least one value was padded and needs to be fixed.
+        AnomalyReporter.reportAnomaly(
+                                      ANOMALY_HAL_SPECIFIER_USES_PADDING_VALUES_UUID,
+                                      ANOMALY_HAL_SPECIFIER_USES_PADDING_VALUES_MSG);
+        if (newLength == 0) return new int[0];
+        int[] cleanChannels = new int[newLength];
+        int resultPos = 0;
+        for (int channel : channels) {
+            if (channel >= 0) cleanChannels[resultPos++] = channel;
+        }
+        return cleanChannels;
     }
 
     /**

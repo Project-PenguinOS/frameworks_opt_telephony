@@ -374,7 +374,7 @@ public class DataSettingsManager extends Handler {
                 });
     }
 
-    private void handleSubscriptionChanged(int subId) {
+    protected void handleSubscriptionChanged(int subId) {
         int phoneSubId = mPhone.getSubId();
         if (mSubId != phoneSubId) {
             log("handleSubscriptionChanged: phone sub id changed from " + mSubId + " to "
