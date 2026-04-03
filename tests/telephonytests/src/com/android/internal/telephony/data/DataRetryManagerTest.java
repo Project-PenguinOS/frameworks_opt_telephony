@@ -674,7 +674,6 @@ public class DataRetryManagerTest extends TelephonyTest {
 
     @Test
     public void testRaceConditionSetupRetryAndUnthrottle() throws Exception {
-        doReturn(true).when(mFeatureFlags).fixDataSetupRetryRaceCondition();
         NetworkRequest request = new NetworkRequest.Builder()
                 .addCapability(NetworkCapabilities.NET_CAPABILITY_IMS)
                 .build();
