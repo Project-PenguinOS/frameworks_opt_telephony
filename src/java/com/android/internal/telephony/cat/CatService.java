@@ -127,6 +127,7 @@ public class CatService extends Handler implements AppInterface {
     private RilMessageDecoder mMsgDecoder = null;
     @UnsupportedAppUsage
     private boolean mStkAppInstalled = false;
+    private boolean mSupportSetUpCall = false;
 
     @UnsupportedAppUsage
     private UiccController mUiccController;
@@ -185,6 +186,8 @@ public class CatService extends Handler implements AppInterface {
         mContext = context;
         mSlotId = slotId;
         mFeatureFlags = featureFlags;
+        mSupportSetUpCall = mContext.getResources().getBoolean(
+                com.android.internal.R.bool.config_stk_set_up_call_by_telephony);
 
         // Get the RilMessagesDecoder for decoding the messages.
         mMsgDecoder = RilMessageDecoder.getInstance(this, fh, context, slotId);
@@ -1393,7 +1396,7 @@ public class CatService extends Handler implements AppInterface {
                         mCurrntCmd = null;
                         return;
                     case SET_UP_CALL:
-                        if (Flags.supportStkCommandUssdAndCall()) {
+                        if (mSupportSetUpCall && Flags.supportStkCommandUssdAndCall()) {
                             if (mSetUpCallHandler != null) {
                                 CatLog.d(this, "Already handling another command");
                                 sendTerminalResponse(
@@ -1447,12 +1450,13 @@ public class CatService extends Handler implements AppInterface {
                 break;
             case BACKWARD_MOVE_BY_USER:
             case USER_NOT_ACCEPT:
+                // if the user dismissed the alert dialog for a
+                // setup call/open channel, consider that as the user
+                // rejecting the call. Use dedicated API for this, rather than
+                // sending a terminal response.
                 if (Flags.supportStkCommandUssdAndCall()) {
-                    // if the user dismissed the alert dialog for a
-                    // open channel, consider that as the user
-                    // rejecting the call. Use dedicated API for this, rather than
-                    // sending a terminal response.
-                    if (type == CommandType.OPEN_CHANNEL) {
+                    if ((type == CommandType.SET_UP_CALL && !mSupportSetUpCall)
+                            || type == CommandType.OPEN_CHANNEL) {
                         mCmdIf.handleCallSetupRequestFromSim(false, null);
                         mCurrntCmd = null;
                         return;
@@ -1460,10 +1464,6 @@ public class CatService extends Handler implements AppInterface {
                         resp = null;
                     }
                 } else {
-                    // if the user dismissed the alert dialog for a
-                    // setup call/open channel, consider that as the user
-                    // rejecting the call. Use dedicated API for this, rather than
-                    // sending a terminal response.
                     if (type == CommandType.SET_UP_CALL || type == CommandType.OPEN_CHANNEL) {
                         mCmdIf.handleCallSetupRequestFromSim(false, null);
                         mCurrntCmd = null;
@@ -1474,22 +1474,17 @@ public class CatService extends Handler implements AppInterface {
                 }
                 break;
             case NO_RESPONSE_FROM_USER:
-                if (Flags.supportStkCommandUssdAndCall()) {
-                    if (type == CommandType.SET_UP_CALL) {
-                        sendTerminalResponse(cmdDet, ResultCode.USER_NOT_ACCEPT, false, 0, null);
-                        mCurrntCmd = null;
-                        return;
-                    }
-                    resp = null;
-                    break;
-                } else {
-                    // No need to send terminal response for SET UP CALL on user timeout,
-                    // instead use dedicated API
-                    if (type == CommandType.SET_UP_CALL) {
+                if (type == CommandType.SET_UP_CALL) {
+                    if (mSupportSetUpCall && Flags.supportStkCommandUssdAndCall()) {
+                        sendTerminalResponse(
+                                cmdDet, ResultCode.USER_NOT_ACCEPT, false, 0, null);
+                    } else {
+                        // No need to send terminal response for SET UP CALL on user timeout,
+                        // instead use dedicated API
                         mCmdIf.handleCallSetupRequestFromSim(false, null);
-                        mCurrntCmd = null;
-                        return;
                     }
+                    mCurrntCmd = null;
+                    return;
                 }
             case UICC_SESSION_TERM_BY_USER:
                 resp = null;
