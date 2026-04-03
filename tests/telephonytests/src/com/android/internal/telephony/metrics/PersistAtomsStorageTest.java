@@ -100,6 +100,7 @@ import com.android.internal.telephony.nano.PersistAtomsProto.ImsRegistrationServ
 import com.android.internal.telephony.nano.PersistAtomsProto.ImsRegistrationStats;
 import com.android.internal.telephony.nano.PersistAtomsProto.ImsRegistrationTermination;
 import com.android.internal.telephony.nano.PersistAtomsProto.IncomingSms;
+import com.android.internal.telephony.nano.PersistAtomsProto.MessagingReadRestrictionEvent;
 import com.android.internal.telephony.nano.PersistAtomsProto.OtpEvaluationEvent;
 import com.android.internal.telephony.nano.PersistAtomsProto.OtpRedactionEvent;
 import com.android.internal.telephony.nano.PersistAtomsProto.OutgoingShortCodeSms;
@@ -1094,6 +1095,7 @@ public class PersistAtomsStorageTest extends TelephonyTest {
         mOutgoingSms1.isEmergency = false;
         mOutgoingSms1.isNtn = false;
         mOutgoingSms1.plmn = "123456";
+        mOutgoingSms1.satelliteMessageTrigger = 0;
 
         mOutgoingSms2 = new OutgoingSms();
         mOutgoingSms2.smsFormat = INCOMING_SMS__SMS_FORMAT__SMS_FORMAT_3GPP2;
@@ -1116,6 +1118,7 @@ public class PersistAtomsStorageTest extends TelephonyTest {
         mOutgoingSms2.isEmergency = true;
         mOutgoingSms2.isNtn = true;
         mOutgoingSms2.plmn = "123456";
+        mOutgoingSms2.satelliteMessageTrigger = 1;
 
         mOutgoingSms = new OutgoingSms[] {mOutgoingSms1, mOutgoingSms2};
 
@@ -5896,6 +5899,62 @@ public class PersistAtomsStorageTest extends TelephonyTest {
     private OtpRedactionEvent createOtpRedactionEvent(int uid, int count) {
         OtpRedactionEvent event = new OtpRedactionEvent();
         event.uid = uid;
+        event.count = count;
+        return event;
+    }
+
+    @Test
+    public void addMessagingReadRestrictionEvent_newEntry() throws Exception {
+        doReturn(false).when(mPackageManager).hasSystemFeature(anyString());
+        createEmptyTestFile();
+
+        MessagingReadRestrictionEvent event = createMessagingReadRestrictionEvent(0, 1, 1, 1, 1);
+        MessagingReadRestrictionEvent event2 = createMessagingReadRestrictionEvent(0, 1, 1, 2, 1);
+        mPersistAtomsStorage = new TestablePersistAtomsStorage(mContext);
+        mPersistAtomsStorage.addMessagingReadRestrictionEvent(event);
+        mPersistAtomsStorage.addMessagingReadRestrictionEvent(event2);
+        mPersistAtomsStorage.incTimeMillis(100L);
+
+        // There should be 2 MessagingReadRestrictionEvent
+        verifyCurrentStateSavedToFileOnce();
+        MessagingReadRestrictionEvent[] output =
+                mPersistAtomsStorage.getMessagingReadRestrictionEventStats(0L);
+        assertProtoArrayEqualsIgnoringOrder(new MessagingReadRestrictionEvent[] { event, event2 },
+                output);
+    }
+
+    @Test
+    public void addMessagingReadRestrictionEvent_incrementCountForExistingCombinationOfMetadata()
+        throws Exception {
+        doReturn(false).when(mPackageManager).hasSystemFeature(anyString());
+        createEmptyTestFile();
+
+        MessagingReadRestrictionEvent event = createMessagingReadRestrictionEvent(0, 1, 1, 1, 1);
+        MessagingReadRestrictionEvent mergedEvent
+            = createMessagingReadRestrictionEvent(0, 1, 1, 1, 2);
+        mPersistAtomsStorage = new TestablePersistAtomsStorage(mContext);
+        mPersistAtomsStorage.addMessagingReadRestrictionEvent(event);
+        mPersistAtomsStorage.addMessagingReadRestrictionEvent(event);
+        mPersistAtomsStorage.incTimeMillis(100L);
+
+        // There should be one event, with a count of 2
+        MessagingReadRestrictionEvent[] output =
+                mPersistAtomsStorage.getMessagingReadRestrictionEventStats(0L);
+        assertProtoArrayEqualsIgnoringOrder(
+                new MessagingReadRestrictionEvent[] { mergedEvent }, output);
+    }
+
+    private MessagingReadRestrictionEvent createMessagingReadRestrictionEvent(
+            int callerUid,
+            int contentProvider,
+            int eventType,
+            int readRestrictedMessagesAppOpMode,
+            int count) {
+        MessagingReadRestrictionEvent event = new MessagingReadRestrictionEvent();
+        event.callerUid = callerUid;
+        event.contentProvider = contentProvider;
+        event.eventType = eventType;
+        event.readRestrictedMessagesAppOpMode = readRestrictedMessagesAppOpMode;
         event.count = count;
         return event;
     }

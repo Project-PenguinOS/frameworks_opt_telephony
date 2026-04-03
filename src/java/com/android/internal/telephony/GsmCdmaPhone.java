@@ -79,6 +79,7 @@ import android.telecom.VideoProfile;
 import android.telephony.AccessNetworkConstants.TransportType;
 import android.telephony.Annotation.DataActivityType;
 import android.telephony.Annotation.RadioPowerState;
+import android.telephony.AnomalyReporter;
 import android.telephony.BarringInfo;
 import android.telephony.CarrierConfigManager;
 import android.telephony.CellBroadcastIdRange;
@@ -154,6 +155,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.UUID;
 import java.util.function.Consumer;
 
 /**
@@ -230,6 +232,9 @@ public class GsmCdmaPhone extends Phone {
     private final RegistrantList mVolteSilentRedialRegistrants = new RegistrantList();
     private DialArgs mDialArgs = null;
     private final RegistrantList mEmergencyDomainSelectedRegistrants = new RegistrantList();
+    private static final UUID UUID_INVALID_IMEI_DETECTED =
+            UUID.fromString("0400874e-5c46-444f-83f5-62d4e9c78759");
+
 // QTI_BEGIN: 2023-05-24: Telephony: Fix Primary IMEI not updated after modem SSR
     protected String mImei;
 // QTI_END: 2023-05-24: Telephony: Fix Primary IMEI not updated after modem SSR
@@ -2862,6 +2867,7 @@ public class GsmCdmaPhone extends Phone {
                     mImei = respId[0];
                     mImeiSv = respId[1];
                 }
+                sanitizeImei();
                 mEsn  =  respId[2];
                 mMeid =  respId[3];
                 // some modems return all 0's instead of null/empty string when MEID is unavailable
@@ -2947,6 +2953,7 @@ public class GsmCdmaPhone extends Phone {
                 }
                 // Obtain new radio capabilities from the modem, since some are SIM-dependent
                 mCi.getRadioCapability(obtainMessage(EVENT_GET_RADIO_CAPABILITY));
+                super.handleMessage(msg);
                 break;
 
             case EVENT_SET_ROAMING_PREFERENCE_DONE:
@@ -3415,6 +3422,26 @@ public class GsmCdmaPhone extends Phone {
         return (ar == null || ar.exception == null);
     }
 
+    private void sanitizeImei() {
+        if (TextUtils.isEmpty(mImei)) return;
+
+        boolean allZeros = true;
+        for (int i = 0; i < mImei.length(); i++) {
+            if (mImei.charAt(i) != '0') {
+                allZeros = false;
+                break;
+            }
+        }
+
+        if (allZeros) {
+            loge("Invalid IMEI detected (all zeros). Nulling out.");
+            mImei = null;
+            mImeiSv = null;
+            mImeiType = IMEI_TYPE_UNKNOWN;
+            AnomalyReporter.reportAnomaly(UUID_INVALID_IMEI_DETECTED, "Invalid IMEI (all zeros)");
+        }
+    }
+
     private void parseImeiInfo(Message msg) {
         AsyncResult ar = (AsyncResult)msg.obj;
         if (ar.exception != null || ar.result == null) {
@@ -3429,6 +3456,7 @@ public class GsmCdmaPhone extends Phone {
         } else {
             loge("parseImeiInfo :: IMEI value is empty");
         }
+        sanitizeImei();
     }
 
     /**

@@ -16,12 +16,19 @@
 
 package com.android.internal.telephony.configupdate;
 
+import static android.telephony.CarrierConfigManager.CARRIER_ROAMING_NTN_CONNECT_AUTOMATIC;
+import static android.telephony.CarrierConfigManager.CARRIER_ROAMING_NTN_CONNECT_HYBRID;
+import static android.telephony.CarrierConfigManager.SATELLITE_DATA_SUPPORT_ALL;
+import static android.telephony.CarrierConfigManager.SATELLITE_DATA_SUPPORT_ONLY_RESTRICTED;
+
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.content.Context;
 import android.content.Intent;
 import android.os.FileUtils;
+import android.text.TextUtils;
 import android.util.Log;
+import android.webkit.URLUtil;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.telephony.TelephonyConfigData;
@@ -40,6 +47,7 @@ import libcore.io.IoUtils;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -97,7 +105,6 @@ public class TelephonyConfigUpdateInstallReceiver extends ConfigUpdateInstallRec
             return "";
         }
     };
-
     @NonNull
     private final ConfigUpdaterMetricsStats mConfigUpdaterMetricsStats;
 
@@ -169,6 +176,52 @@ public class TelephonyConfigUpdateInstallReceiver extends ConfigUpdateInstallRec
                         return false;
                     }
                 }
+
+                SatelliteConfig.PlmnConfig plmnConfig =
+                        satelliteConfig.getSatellitePlmnConfigByCarrierId(carrierId, plmn);
+                if (plmnConfig != null) {
+                    if (!isValidNtnConnectType(plmnConfig.getNtnConnectType())) {
+                        Log.e(TAG, "found invalid ntnConnecttype : "
+                                + plmnConfig.getNtnConnectType());
+                        mConfigUpdaterMetricsStats.reportCarrierConfigError(SatelliteConstants
+                                .CONFIG_UPDATE_RESULT_CARRIER_DATA_INVALID_CONNECT_TYPE_PER_PLMN);
+                        return false;
+                    }
+                }
+            }
+
+            Integer ntnConnectType = satelliteConfig
+                    .getSatelliteNtnConnectTypeByCarrierId(carrierId);
+            if (ntnConnectType != null) {
+                if (!isValidNtnConnectType(ntnConnectType)) {
+                    Log.e(TAG, "found invalid ntnConnecttype : " + ntnConnectType);
+                    mConfigUpdaterMetricsStats.reportCarrierConfigError(SatelliteConstants
+                            .CONFIG_UPDATE_RESULT_CARRIER_DATA_INVALID_CONNECT_TYPE);
+                    return false;
+                }
+            }
+
+            Integer dataSupportMode = satelliteConfig
+                    .getSatelliteDataSupportModeByCarrierId(carrierId);
+            if (dataSupportMode != null) {
+                if (!isValidDataSupportMode(dataSupportMode)) {
+                    Log.e(TAG, "found invalid dataSupportMode : " + dataSupportMode);
+                    mConfigUpdaterMetricsStats.reportCarrierConfigError(SatelliteConstants
+                            .CONFIG_UPDATE_RESULT_CARRIER_DATA_INVALID_DATA_SUPPORT_MODE);
+                    return false;
+                }
+            }
+
+            String entitlementUrl = satelliteConfig
+                    .getSatelliteEntitlementServerUrlByCarrierId(carrierId);
+            if (!TextUtils.isEmpty(entitlementUrl)) {
+                if (!isValidEntitlementServerUrl(entitlementUrl)) {
+                    Log.e(TAG, "found not properly formatted entitlement url: "
+                            + entitlementUrl);
+                    mConfigUpdaterMetricsStats.reportCarrierConfigError(SatelliteConstants
+                            .CONFIG_UPDATE_RESULT_CARRIER_DATA_INVALID_ENTITLEMENT_URL);
+                    return false;
+                }
             }
         }
         Log.d(TAG, "the config data is valid");
@@ -204,6 +257,40 @@ public class TelephonyConfigUpdateInstallReceiver extends ConfigUpdateInstallRec
             return false;
         }
         Log.d(TAG, "maxAllowedDataMode is valid");
+        return true;
+    }
+
+
+    private boolean isValidDataSupportMode(int dataSupportMode) {
+        if (dataSupportMode < SATELLITE_DATA_SUPPORT_ONLY_RESTRICTED
+                || dataSupportMode > SATELLITE_DATA_SUPPORT_ALL) {
+            Log.e(TAG, "isValidDataSupportMode: dataSupportMode="
+                    + dataSupportMode + " is not valid");
+            return false;
+        }
+        return true;
+    }
+
+    private boolean isValidNtnConnectType(int ntnConnectType) {
+        if (ntnConnectType < CARRIER_ROAMING_NTN_CONNECT_AUTOMATIC
+                || ntnConnectType > CARRIER_ROAMING_NTN_CONNECT_HYBRID) {
+            Log.e(TAG, "isValidNtnConnectType: ntnConnectType="
+                    + ntnConnectType + " is not valid");
+            return false;
+        }
+        return true;
+    }
+
+    private boolean isValidEntitlementServerUrl(String url) {
+        if (TextUtils.isEmpty(url)) {
+            Log.e(TAG, "isValidEntitlementServerUrl: url is empty");
+            return false;
+        }
+        // Ensure it is a secure HTTPS connection
+        if (!URLUtil.isHttpsUrl(url)) {
+            Log.e(TAG, "isValidEntitlementServerUrl: url is not https connection");
+            return false;
+        }
         return true;
     }
 
@@ -324,6 +411,14 @@ public class TelephonyConfigUpdateInstallReceiver extends ConfigUpdateInstallRec
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PROTECTED)
     public void postInstall(Context context, Intent intent) {
         postInstall();
+    }
+
+    @Override
+    @VisibleForTesting
+    protected void writeUpdate(File dir, File file, InputStream update) throws IOException {
+        // Just call the super implementation.
+        // This override exists to make the method visible to unit tests in this package.
+        super.writeUpdate(dir, file, update);
     }
 
     /**
@@ -709,7 +804,17 @@ public class TelephonyConfigUpdateInstallReceiver extends ConfigUpdateInstallRec
         return true;
     }
 
-    private boolean isFileExists(@NonNull String fileName) {
+    /**
+     * Checks if a specific file exists within the telephony configuration update directory.
+     * This method verifies both the existence of the file and that the path represents
+     * a regular file rather than a directory.
+     *
+     * @param fileName The name of the file to check, relative to the update directory.
+     * @return {@code true} if the file exists and is a regular file; {@code false} otherwise
+     *         or if the fileName is null.
+     */
+    @VisibleForTesting
+    protected boolean isFileExists(@NonNull String fileName) {
         Log.d(TAG, "isFileExists");
         if (fileName == null) {
             Log.d(TAG, "fileName cannot be null");
@@ -721,7 +826,7 @@ public class TelephonyConfigUpdateInstallReceiver extends ConfigUpdateInstallRec
 
     private boolean backupContentData() {
         if (!isFileExists(VALID_CONFIG_CONTENT_PATH)) {
-            Log.d(TAG, VALID_CONFIG_CONTENT_PATH + " is not exit, no need to backup");
+            Log.d(TAG, VALID_CONFIG_CONTENT_PATH + " does not exist, no need to backup");
             return true;
         }
         if (!copySourceFileToTargetFile(VALID_CONFIG_CONTENT_PATH, BACKUP_CONTENT_PATH)) {
@@ -737,9 +842,49 @@ public class TelephonyConfigUpdateInstallReceiver extends ConfigUpdateInstallRec
         return true;
     }
 
-    private boolean restoreContentData() {
+    /**
+     * Helper to write content to a file in the update directory.
+     * Defined here to be easily mockable in unit tests.
+     */
+    @VisibleForTesting
+    protected void writeContentToFile(File dir, File file, byte[] content) throws IOException {
+        writeUpdate(dir, file, new ByteArrayInputStream(content));
+    }
+
+    /**
+     * Restores the telephony configuration data and version metadata from backup files.
+     * <p>
+     * If a backup exists, it replaces the current active configuration and version with
+     * the backed-up data. If no backup is found, it resets the configuration to an
+     * empty state to ensure the system returns to a known default.
+     * <p>
+     * This method triggers {@link #postInstallForRestore()} upon completion to ensure
+     * that all internal maps are updated and downstream listeners (e.g., DataConfigManager)
+     * are notified of the change, even if the resulting configuration is empty or a version
+     * downgrade.
+     *
+     * @return {@code true} if the restoration or reset process completed successfully;
+     *         {@code false} if an I/O error occurred during file operations.
+     */
+    @VisibleForTesting
+    protected boolean restoreContentData() {
         if (!isFileExists(BACKUP_CONTENT_PATH)) {
-            Log.d(TAG, BACKUP_CONTENT_PATH + " is not exit, no need to restore");
+            Log.d(TAG, BACKUP_CONTENT_PATH + " does not exist. Restoring to empty state.");
+
+            // Write empty content to 'new_telephony_config.pb' to simulate an empty update
+            try {
+                // updateContent is the File object for NEW_CONFIG_CONTENT_PATH (from superclass)
+                writeContentToFile(updateDir, updateContent, new byte[0]);
+            } catch (IOException e) {
+                Log.e(TAG, "restoreContentData: Failed to write empty config: " + e);
+                return false;
+            }
+
+            // This ensures:
+            //   - Parsers are re-created with empty data.
+            //   - 'valid_telephony_config.pb' is overwritten with empty data.
+            //   - Listeners (DataConfigManager) are NOTIFIED of the change (crucial!).
+            postInstallForRestore();
             return true;
         }
         if (!copySourceFileToTargetFile(BACKUP_CONTENT_PATH, NEW_CONFIG_CONTENT_PATH)) {
@@ -751,9 +896,52 @@ public class TelephonyConfigUpdateInstallReceiver extends ConfigUpdateInstallRec
             Log.e(TAG, "restoreContentData: fail to restore the version");
             return false;
         }
-        Log.d(TAG, "restoreContentData: populate the data to SatelliteController");
-        postInstall();
+        Log.d(TAG, "restoreContentData: populate the data to Controllers");
+        postInstallForRestore();
         Log.d(TAG, "restoreContentData: success");
         return true;
+    }
+
+    /**
+     * An alternative to postInstall used specifically for the restore/reset flow by CTS.
+     * It bypasses validation (accepting null/empty configs) and version checks (allowing
+     * downgrades).
+     * This is needed because the config before overriding the version can be null or even on lower
+     * version than the current one in the disc. After the CTS we need to force to restore to the
+     * previous version.
+     */
+    @VisibleForTesting
+    protected void postInstallForRestore() {
+        Log.d(TAG, "postInstallForRestore: Force-applying restored config");
+
+        // Note: The file exists because restoreContentData() just copied it there.
+        byte[] content = getContentFromContentPath(updateContent);
+        ConfigParser newSatelliteConfigParser = getNewConfigParser(DOMAIN_SATELLITE, content);
+        ConfigParser newDataConfigParser = getNewConfigParser(DOMAIN_DATA, content);
+
+        if (newSatelliteConfigParser != null) {
+            // DIRECT UPDATE: Skip isValidConfig() and isUpgradableVersion()
+            getInstance().mConfigParsers.put(DOMAIN_SATELLITE, newSatelliteConfigParser);
+
+            mConfigUpdaterMetricsStats.setConfigVersion(newSatelliteConfigParser.getVersion());
+
+            // (Even if the inner config object is null, the parser instance is valid)
+            notifyConfigChanged(newSatelliteConfigParser);
+        }
+
+        // Force Update Data Domain
+        if (newDataConfigParser != null) {
+            // DIRECT UPDATE: Skip isValidConfig() and isUpgradableVersion()
+            getInstance().mConfigParsers.put(DOMAIN_DATA, newDataConfigParser);
+
+            // NOTIFY: This tells DataConfigManager to re-read the config (even if null)
+            notifyConfigChanged(newDataConfigParser);
+        }
+
+        // Since we forced this configuration to be active, we must overwrite the
+        // "valid_telephony_config.pb" on disk to match our memory state.
+        if (!copySourceFileToTargetFile(NEW_CONFIG_CONTENT_PATH, VALID_CONFIG_CONTENT_PATH)) {
+            Log.e(TAG, "postInstallForRestore: failed to copy to valid config path");
+        }
     }
 }

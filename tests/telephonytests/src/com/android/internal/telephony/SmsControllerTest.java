@@ -413,10 +413,11 @@ public class SmsControllerTest extends TelephonyTest {
                 .isSubscriptionAssociatedWithUser(eq(subId), any());
         byte[] pdu = new byte[] {0x01, 0x02};
 
-        mSmsControllerUT.sendRawPduForSubscriber(subId, mCallingPackage, "1234", pdu, null, null);
+        mSmsControllerUT.sendRawPduForSubscriber(subId, mCallingPackage, "1234", "5678", pdu, null,
+                null);
         verify(mIccSmsInterfaceManager, Mockito.times(1))
                 .sendRawPdu(eq(mCallingPackage), eq(mCallingUserId),
-                        eq("1234"), eq(pdu), isNull(), isNull(), anyInt());
+                        eq("1234"), eq("5678"), eq(pdu), isNull(), isNull(), anyInt());
     }
 
     @Test
@@ -428,11 +429,11 @@ public class SmsControllerTest extends TelephonyTest {
         PendingIntent sentIntent = PendingIntent.getBroadcast(mContext, 0,
                 new android.content.Intent("TEST_ACTION"), PendingIntent.FLAG_IMMUTABLE);
 
-        mSmsControllerUT.sendRawPduForSubscriber(subId, mCallingPackage, "1234", null, sentIntent,
-                null);
+        mSmsControllerUT.sendRawPduForSubscriber(subId, mCallingPackage, "1234", "5678", null,
+                sentIntent, null);
 
         verify(mIccSmsInterfaceManager, never()).sendRawPdu(anyString(), anyInt(),
-                anyString(), any(), any(), any(), anyInt());
+                anyString(), anyString(), any(), any(), any(), anyInt());
     }
 
     @Test
@@ -442,7 +443,26 @@ public class SmsControllerTest extends TelephonyTest {
         byte[] pdu = new byte[] {0x01, 0x02};
 
         assertThrows(SecurityException.class, () ->
-                mSmsControllerUT.sendRawPduForSubscriber(1, mCallingPackage, "1234", pdu,
+                mSmsControllerUT.sendRawPduForSubscriber(1, mCallingPackage, "1234", "5678", pdu,
                         null, null));
+    }
+
+    @Test
+    public void sendRawPduForSubscriberTest_enforceModifyPhoneStatePermission() {
+        int subId = 1;
+        doReturn(true).when(mSubscriptionManager)
+                .isSubscriptionAssociatedWithUser(eq(subId), any());
+        doReturn(true).when(mFeatureFlags).skipStkShortCodeCheck();
+
+        byte[] pdu = new byte[] {0x01, 0x02};
+
+        mSmsControllerUT.sendRawPduForSubscriber(subId, mCallingPackage, "1234", "5678", pdu,
+                null, null);
+
+        verify(mContext).enforceCallingOrSelfPermission(
+                eq(android.Manifest.permission.MODIFY_PHONE_STATE), anyString());
+        verify(mIccSmsInterfaceManager, Mockito.times(1))
+                .sendRawPdu(eq(mCallingPackage), eq(mCallingUserId),
+                        eq("1234"), eq("5678"), eq(pdu), isNull(), isNull(), anyInt());
     }
 }

@@ -230,6 +230,7 @@ public class SmsController extends ISmsImplBase {
      * @param subId Subscription Id
      * @param callingPackage the package name of the caller
      * @param destAddr the address to send the message to
+     * @param scAddr the service center address or null to use the current default SMSC
      * @param pdu the raw SMS PDU to send
      * @param sentIntent if not NULL this <code>PendingIntent</code> is
      *  broadcast when the message is successfully sent, or failed.
@@ -244,9 +245,14 @@ public class SmsController extends ISmsImplBase {
      */
     @VisibleForTesting
     public void sendRawPduForSubscriber(int subId, String callingPackage, String destAddr,
-            byte[] pdu, PendingIntent sentIntent, PendingIntent deliveryIntent) {
+            String scAddr, byte[] pdu, PendingIntent sentIntent, PendingIntent deliveryIntent) {
         mContext.enforceCallingOrSelfPermission(android.Manifest.permission.SEND_SMS,
                 "Sending SMS message");
+        if (mFlags.skipStkShortCodeCheck()) {
+            mContext.enforceCallingOrSelfPermission(
+                    android.Manifest.permission.MODIFY_PHONE_STATE,
+                    "Sending SMS message");
+        }
         if (callingPackage == null) {
             callingPackage = getCallingPackage();
         }
@@ -259,7 +265,7 @@ public class SmsController extends ISmsImplBase {
         IccSmsInterfaceManager iccSmsIntMgr = getIccSmsInterfaceManager(subId);
         if (iccSmsIntMgr != null) {
             iccSmsIntMgr.sendRawPdu(callingPackage, Binder.getCallingUserHandle().getIdentifier(),
-                    destAddr, pdu, sentIntent, deliveryIntent, Binder.getCallingUid());
+                    destAddr, scAddr, pdu, sentIntent, deliveryIntent, Binder.getCallingUid());
         } else {
             Rlog.e(LOG_TAG, "sendRawPduForSubscriber iccSmsIntMgr is null for Subscription: "
                     + subId);
@@ -797,6 +803,7 @@ public class SmsController extends ISmsImplBase {
     public void sendStoredText(int subId, String callingPkg, String callingAttributionTag,
             Uri messageUri, String scAddress, PendingIntent sentIntent,
             PendingIntent deliveryIntent) {
+        logStoredMessageApiUsage(/* isMultipart= */ false);
         IccSmsInterfaceManager iccSmsIntMgr = getIccSmsInterfaceManager(subId);
         UserHandle callingUser = Binder.getCallingUserHandle();
         final int uid = Binder.getCallingUid();
@@ -833,6 +840,7 @@ public class SmsController extends ISmsImplBase {
     public void sendStoredMultipartText(int subId, String callingPkg, String callingAttributionTag,
             Uri messageUri, String scAddress, List<PendingIntent> sentIntents,
             List<PendingIntent> deliveryIntents) {
+        logStoredMessageApiUsage(/* isMultipart= */ true);
         IccSmsInterfaceManager iccSmsIntMgr = getIccSmsInterfaceManager(subId);
         UserHandle callingUser = Binder.getCallingUserHandle();
         final int uid = Binder.getCallingUid();
@@ -1367,5 +1375,22 @@ public class SmsController extends ISmsImplBase {
             @NonNull String methodName) {
         TelephonyUtils.enforceTelephonyFeatureWithException(callingPackage, mPackageManager,
                 mVendorApiLevel, FEATURE_TELEPHONY_MESSAGING, methodName);
+    }
+
+    /*
+     * Helper function to log sendStored message API usage.
+     */
+    private void logStoredMessageApiUsage(boolean isMultipart) {
+        int callingUid = Binder.getCallingUid();
+        int apiType = isMultipart
+                ? TelephonyStatsLog
+                .STORED_MESSAGE_SEND_REQUESTED__MESSAGE_TYPE__ORIGINAL_MESSAGE_TYPE_SMS_MULTIPART
+                : TelephonyStatsLog
+                        .STORED_MESSAGE_SEND_REQUESTED__MESSAGE_TYPE__ORIGINAL_MESSAGE_TYPE_SMS;
+        TelephonyStatsLog.write(
+                TelephonyStatsLog.STORED_MESSAGE_SEND_REQUESTED,
+                callingUid,
+                apiType
+        );
     }
 }

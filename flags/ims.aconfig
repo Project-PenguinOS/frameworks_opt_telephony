@@ -121,17 +121,6 @@ flag {
     is_exported: true
 }
 
-# OWNER=donaldahn TARGET=26Q2
-flag {
-    name: "ensure_ims_feature_order"
-    namespace: "telephony"
-    description: "Ensures that ImsService feature creation and modification are executed sequentially to prevent race conditions."
-    bug:"403628336"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
 # OWNER=breadley TARGET=26Q3
 flag {
   name: "init_rcs_provisioning_monitor_async"
@@ -171,6 +160,28 @@ flag {
     namespace: "telephony"
     description: "This flag controls whether the terminal response for STK SMS is sent on send success or delivery success."
     bug:"480768765"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+# OWNER=shashannk TARGET=26Q2
+flag {
+    name: "stk_smsc_address_extraction"
+    namespace: "telephony"
+    description: "Extract and use SMSC Address from STK SEND SHORT MESSAGE command"
+    bug: "480768765"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+# OWNER=shashannk TARGET=26Q2
+flag {
+    name: "skip_stk_short_code_check"
+    namespace: "telephony"
+    description: "Skip premium short code checks for STK SMS"
+    bug: "491386743"
     metadata {
         purpose: PURPOSE_BUGFIX
     }

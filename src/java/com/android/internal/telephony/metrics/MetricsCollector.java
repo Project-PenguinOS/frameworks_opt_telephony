@@ -33,6 +33,7 @@ import static com.android.internal.telephony.TelephonyStatsLog.IMS_REGISTRATION_
 import static com.android.internal.telephony.TelephonyStatsLog.IMS_REGISTRATION_STATS;
 import static com.android.internal.telephony.TelephonyStatsLog.IMS_REGISTRATION_TERMINATION;
 import static com.android.internal.telephony.TelephonyStatsLog.INCOMING_SMS;
+import static com.android.internal.telephony.TelephonyStatsLog.MESSAGING_READ_RESTRICTION_REPORTED;
 import static com.android.internal.telephony.TelephonyStatsLog.OUTGOING_SHORT_CODE_SMS;
 import static com.android.internal.telephony.TelephonyStatsLog.OUTGOING_SMS;
 import static com.android.internal.telephony.TelephonyStatsLog.PER_SIM_STATUS;
@@ -98,6 +99,7 @@ import com.android.internal.telephony.nano.PersistAtomsProto.ImsRegistrationServ
 import com.android.internal.telephony.nano.PersistAtomsProto.ImsRegistrationStats;
 import com.android.internal.telephony.nano.PersistAtomsProto.ImsRegistrationTermination;
 import com.android.internal.telephony.nano.PersistAtomsProto.IncomingSms;
+import com.android.internal.telephony.nano.PersistAtomsProto.MessagingReadRestrictionEvent;
 import com.android.internal.telephony.nano.PersistAtomsProto.NetworkRequestsV2;
 import com.android.internal.telephony.nano.PersistAtomsProto.OtpEvaluationEvent;
 import com.android.internal.telephony.nano.PersistAtomsProto.OtpRedactionEvent;
@@ -259,6 +261,7 @@ public class MetricsCollector implements StatsManager.StatsPullAtomCallback {
             registerAtom(SATELLITE_ACCESS_CONTROLLER);
             registerAtom(SMS_OTP_EVALUATION);
             registerAtom(SMS_OTP_REDACTED);
+            registerAtom(MESSAGING_READ_RESTRICTION_REPORTED);
             Rlog.d(TAG, "registered");
         } else {
             Rlog.e(TAG, "could not get StatsManager, atoms not registered");
@@ -369,6 +372,8 @@ public class MetricsCollector implements StatsManager.StatsPullAtomCallback {
                 return pullOtpEvaluationEvent(data);
             case SMS_OTP_REDACTED:
                 return pullOtpRedactionEvent(data);
+            case MESSAGING_READ_RESTRICTION_REPORTED:
+                return pullMessagingReadRestrictionReported(data);
             default:
                 Rlog.e(TAG, String.format("unexpected atom ID %d", atomTag));
                 return StatsManager.PULL_SKIP;
@@ -1158,6 +1163,19 @@ public class MetricsCollector implements StatsManager.StatsPullAtomCallback {
         return StatsManager.PULL_SUCCESS;
     }
 
+    private int pullMessagingReadRestrictionReported(List<StatsEvent> data) {
+        MessagingReadRestrictionEvent[] messagingReadRestrictionEvents =
+                mStorage.getMessagingReadRestrictionEventStats(MIN_COOLDOWN_MILLIS);
+        if (messagingReadRestrictionEvents != null) {
+            Arrays.stream(messagingReadRestrictionEvents)
+                    .forEach(persistAtom -> data.add(buildStatsEvent(persistAtom)));
+        } else {
+            Rlog.w(TAG, "MESSAGING_READ_RESTRICTION_REPORTED pull too frequent, skipping");
+            return StatsManager.PULL_SKIP;
+        }
+        return StatsManager.PULL_SUCCESS;
+    }
+
     /** Registers a pulled atom ID {@code atomId}. */
     private void registerAtom(int atomId) {
         mStatsManager.setPullAtomCallback(atomId, /* metadata= */ null,
@@ -1318,7 +1336,8 @@ public class MetricsCollector implements StatsManager.StatsPullAtomCallback {
                 sms.pduLength,
                 sms.callingPackageName,
                 sms.appUid,
-                sms.plmn);
+                sms.plmn,
+                sms.satelliteMessageTrigger);
     }
 
     private static StatsEvent buildStatsEvent(DataCallSession dataCallSession) {
@@ -1777,7 +1796,14 @@ public class MetricsCollector implements StatsManager.StatsPullAtomCallback {
                 stats.batteryDesignCapacityMah,
                 stats.energyConsumedNwh,
                 stats.eligibilitySource,
-                stats.isWifiConnected);
+                stats.isWifiConnected,
+                stats.countOfNonEmergencyDialerDialogDisplayed,
+                stats.countOfEmergencyDialerButtonDisplayed,
+                stats.countOfSatelliteNotificationDisplayed,
+                stats.totalRxDataBytes,
+                stats.totalTxDataBytes,
+                stats.perAppRxDataBytes,
+                stats.perAppTxDataBytes);
     }
 
     private static StatsEvent buildStatsEvent(CarrierRoamingSatelliteControllerStats stats) {
@@ -1865,6 +1891,16 @@ public class MetricsCollector implements StatsManager.StatsPullAtomCallback {
                 SMS_OTP_REDACTED__REDACTION_ALGORITHM__REDACTION_ALGORITHM_SMS_RETRIEVER,
                 SMS_OTP_REDACTED__REDACTION_LOCATION__REDACTION_LOCATION_SMS_BROADCAST
         );
+    }
+
+    private static StatsEvent buildStatsEvent(MessagingReadRestrictionEvent event) {
+        return TelephonyStatsLog.buildStatsEvent(
+                MESSAGING_READ_RESTRICTION_REPORTED,
+                event.callerUid,
+                event.contentProvider,
+                event.eventType,
+                event.readRestrictedMessagesAppOpMode,
+                event.count);
     }
 
     /** Returns all phones in {@link PhoneFactory}, or an empty array if phones not made yet. */

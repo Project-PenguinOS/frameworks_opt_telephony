@@ -34,11 +34,14 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 /**
  * SatelliteConfig is utility class for satellite.
@@ -52,7 +55,9 @@ public class SatelliteConfig {
     private static final String SATELLITE_ACCESS_CONFIG_JSON_FILE_NAME =
             "satelltie_access_config.json";
     private int mVersion;
-    private Map<Integer, Map<String, Set<Integer>>> mSupportedServicesPerCarrier;
+    /** Key: carrierId, Value: {@link SatelliteCarrierConfig}. */
+    private final Map<Integer, SatelliteCarrierConfig> mSatelliteCarrierConfig =
+            new ConcurrentHashMap<>();
     private Integer mCarrierRoamingMaxAllowedDataMode;
     private List<String> mSatelliteRegionCountryCodes;
     private Boolean mIsSatelliteRegionAllowed;
@@ -90,23 +95,87 @@ public class SatelliteConfig {
         mConfigData = configData;
         mVersion = mConfigData.getVersion();
         logd("mVersion: " + mVersion);
-        buildCarrierSupportedServicesPerCarrier();
-        buildCarrierRoamingConfig();
+        buildCarrierSpecificConfigs();
+        buildDeviceSpecificCarrierRoamingConfig();
         buildDeviceSatelliteRegion();
     }
 
-    private void buildCarrierSupportedServicesPerCarrier() {
-        logd("buildCarrierSupportedServicesPerCarrier");
-        if (mConfigData.getCarrierSupportedSatelliteServicesCount() == 0) {
-            logd("mSupportedServicesPerCarrier: empty");
-        } else {
-            mSupportedServicesPerCarrier = getCarrierSupportedSatelliteServices();
-            logd("mSupportedServicesPerCarrier: " + mSupportedServicesPerCarrier);
+    /**
+     *  Builds the carrier-specific satellite configuration maps from the raw configuration data.
+     *  This method iterates through CarrierSupportedSatelliteServicesProto in {@code mConfigData}
+     *  and populates the {@code mSatelliteCarrierConfig} map.
+     */
+    private void buildCarrierSpecificConfigs() {
+        List<TelephonyConfigData.CarrierSupportedSatelliteServicesProto>
+                satelliteCarrlierConigList = mConfigData.getCarrierSupportedSatelliteServicesList();
+        for (TelephonyConfigData.CarrierSupportedSatelliteServicesProto carrierProto :
+                satelliteCarrlierConigList) {
+            if (!carrierProto.hasCarrierId()) {
+                loge("carrierProto doesn't have carrierId, continue ");
+                continue;
+            }
+
+            int carrierId = carrierProto.getCarrierId();
+
+            if (mSatelliteCarrierConfig.containsKey(carrierId)) {
+                loge("Duplicate carrierId found: " + carrierId + ". "
+                        + "Skipping further configurations for this ID.");
+                continue;
+            }
+
+            SatelliteCarrierConfig config = new SatelliteCarrierConfig();
+
+            List<TelephonyConfigData.SatelliteProviderCapabilityProto> satelliteCapabilities =
+                    carrierProto.getSupportedSatelliteProviderCapabilitiesList();
+            for (TelephonyConfigData.SatelliteProviderCapabilityProto capabilityProto :
+                    satelliteCapabilities) {
+                if (!capabilityProto.hasCarrierPlmn()) {
+                    loge("no plmn, continue to next");
+                    continue;
+                }
+
+                String carrierPlmn = capabilityProto.getCarrierPlmn();
+
+                Set<Integer> allowedServices =
+                        new HashSet<>(capabilityProto.getAllowedServicesList());
+
+                Integer ntnConnectType = null;
+                if (capabilityProto.hasNtnConnectType()) {
+                    ntnConnectType = capabilityProto.getNtnConnectType();
+                }
+
+                ProviderCapability providerCapability =
+                        new ProviderCapability(ntnConnectType, allowedServices);
+                config.mProviderCapabilities.put(carrierPlmn, providerCapability);
+            }
+
+            if (carrierProto.hasAttachSupported()) {
+                config.mIsAttachSupported = carrierProto.getAttachSupported();
+            }
+            if (carrierProto.hasDataSupportMode()) {
+                config.mDataSupportMode = carrierProto.getDataSupportMode();
+            }
+            if (carrierProto.hasNtnConnectType()) {
+                config.mNtnConnectType = carrierProto.getNtnConnectType();
+            }
+            if (carrierProto.hasEmergencyMessagingSupported()) {
+                config.mIsEmergencyMessagingSupported =
+                        carrierProto.getEmergencyMessagingSupported();
+            }
+            if (carrierProto.hasEntitlementSupported()) {
+                config.mIsEntitlementSupported =
+                        carrierProto.getEntitlementSupported();
+            }
+            if (carrierProto.hasEntitlementServerUrl()) {
+                config.mEntitlementServerUrl =
+                        carrierProto.getEntitlementServerUrl();
+            }
+            mSatelliteCarrierConfig.put(carrierId, config);
         }
+        logd("mSatelliteCarrierConfig: " + mSatelliteCarrierConfig);
     }
 
-    private void buildCarrierRoamingConfig() {
-        logd("buildCarrierRoamingConfig");
+    private void buildDeviceSpecificCarrierRoamingConfig() {
         if (!mConfigData.hasCarrierRoamingConfig()) {
             logd("buildCarrierRoamingConfig: carrierRoamingConfig empty");
         } else {
@@ -168,32 +237,6 @@ public class SatelliteConfig {
     }
 
     /**
-     * @return a Map data with carrier_id, plmns and allowed_services.
-     */
-    private Map<Integer, Map<String, Set<Integer>>> getCarrierSupportedSatelliteServices() {
-        List<TelephonyConfigData.CarrierSupportedSatelliteServicesProto> satelliteServices =
-                mConfigData.getCarrierSupportedSatelliteServicesList();
-        Map<Integer, Map<String, Set<Integer>>> carrierToServicesMap = new HashMap<>();
-        for (TelephonyConfigData.CarrierSupportedSatelliteServicesProto carrierProto :
-                satelliteServices) {
-            List<TelephonyConfigData.SatelliteProviderCapabilityProto> satelliteCapabilities =
-                    carrierProto.getSupportedSatelliteProviderCapabilitiesList();
-            Map<String, Set<Integer>> satelliteCapabilityMap = new HashMap<>();
-            for (TelephonyConfigData.SatelliteProviderCapabilityProto capabilityProto :
-                    satelliteCapabilities) {
-                String carrierPlmn = capabilityProto.getCarrierPlmn();
-                Set<Integer> allowedServices = new HashSet<>();
-                for (int service : capabilityProto.getAllowedServicesList()) {
-                    allowedServices.add(service);
-                }
-                satelliteCapabilityMap.put(carrierPlmn, allowedServices);
-            }
-            carrierToServicesMap.put(carrierProto.getCarrierId(), satelliteCapabilityMap);
-        }
-        return carrierToServicesMap;
-    }
-
-    /**
      * @return An {@link Integer} representing the value of
      * {@code mCarrierRoamingMaxAllowedDataMode}. Returns {@code null} if it is not set,
      * which usually implies missing or incomplete configuration
@@ -205,6 +248,208 @@ public class SatelliteConfig {
         }
         logd("mCarrierRoamingMaxAllowedDataMode : mConfigData is null or no config data");
         return null;
+    }
+
+    /**
+     * @param subId the subscription identifier.
+     * @return Whether satellite PLMN scan and attachment are supported for the subscription id.
+     * Returns {@code null} if it is not set.
+     */
+    @Nullable
+    public Boolean isSatelliteAttachSupportedBySubId(int subId) {
+        int carrierId = SatelliteServiceUtils.getCarrierIdFromSubscription(subId);
+        return isSatelliteAttachSupportedByCarrierId(carrierId);
+    }
+
+    /**
+     * @param carrierId the carrier identifier.
+     * @return Whether satellite PLMN scan and attachment are supported for the carrier.
+     * Returns {@code null} if it is not set.
+     */
+    @Nullable
+    public Boolean isSatelliteAttachSupportedByCarrierId(int carrierId) {
+        SatelliteCarrierConfig config = mSatelliteCarrierConfig.get(carrierId);
+        return (config != null) ? config.mIsAttachSupported : null;
+    }
+
+    /**
+     * @param subId the subscription identifier.
+     * @return Satellite network data traffic support mode for the subscription id.
+     * Returns {@code null} if it is not set.
+     */
+    @Nullable
+    public Integer getSatelliteDataSupportModeBySubId(int subId) {
+        int carrierId = SatelliteServiceUtils.getCarrierIdFromSubscription(subId);
+        return getSatelliteDataSupportModeByCarrierId(carrierId);
+    }
+
+    /**
+     * @param carrierId the carrier identifier.
+     * @return Satellite network data traffic support mode for the carrier.
+     * Returns {@code null} if it is not set.
+     */
+    @Nullable
+    public Integer getSatelliteDataSupportModeByCarrierId(int carrierId) {
+        SatelliteCarrierConfig config = mSatelliteCarrierConfig.get(carrierId);
+        return (config != null) ? config.mDataSupportMode : null;
+    }
+
+    /**
+     * @param subId the subscription identifier.
+     * @return Satellite connection method for the subscription id.
+     * Returns {@code null} if it is not set.
+     */
+    @Nullable
+    public Integer getSatelliteNtnConnectTypeBySubId(int subId) {
+        int carrierId = SatelliteServiceUtils.getCarrierIdFromSubscription(subId);
+        return getSatelliteNtnConnectTypeByCarrierId(carrierId);
+    }
+
+    /**
+     * @param carrierId the carrier identifier.
+     * @return Satellite connection method for the carrier.
+     * Returns {@code null} if it is not set.
+     */
+    @Nullable
+    public Integer getSatelliteNtnConnectTypeByCarrierId(int carrierId) {
+        SatelliteCarrierConfig config = mSatelliteCarrierConfig.get(carrierId);
+        return (config != null) ? config.mNtnConnectType : null;
+    }
+
+    /**
+     * Gets the detailed satellite configurations per PLMN for the given subscription id.
+     *
+     * @param subId The subscription id to fetch the configurations for.
+     * @return A list containing detailed configuration values per PLMN string.
+     *         Returns an empty map if no configuration is found for the given subscription id.
+     */
+    @NonNull
+    public List<PlmnConfig> getSatellitePlmnConfigsBySubId(int subId) {
+        int carrierId = SatelliteServiceUtils.getCarrierIdFromSubscription(subId);
+        return getSatellitePlmnConfigsByCarrierId(carrierId);
+    }
+
+    /**
+     * Gets the detailed satellite configurations per PLMN for the given carrier.
+     *
+     * @param carrierId The carrier ID to fetch the configurations for.
+     * @return A list containing detailed configuration values per PLMN string.
+     *         Returns an empty map if no configuration is found for the given carrier.
+     */
+    @NonNull
+    public List<PlmnConfig> getSatellitePlmnConfigsByCarrierId(int carrierId) {
+        SatelliteCarrierConfig config = mSatelliteCarrierConfig.get(carrierId);
+        if (config == null) {
+            return Collections.emptyList();
+        }
+
+        return config.mProviderCapabilities.entrySet().stream()
+                .filter(e -> e.getValue().getNtnConnectType() != null)
+                .map(e -> new PlmnConfig(e.getKey(), e.getValue().getNtnConnectType()))
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Gets the satellite configuration for the given subscription id and plmn.
+     *
+     * @param subId The subscription id to fetch the configuration for.
+     * @param plmn The PLMN string to match.
+     * @return The {@link PlmnConfig} for the given subscription id and PLMN, or {@code null} if no
+     *         configuration is found.
+     */
+    @Nullable
+    public PlmnConfig getSatellitePlmnConfigBySubId(int subId, @NonNull String plmn) {
+        int carrierId = SatelliteServiceUtils.getCarrierIdFromSubscription(subId);
+        return getSatellitePlmnConfigByCarrierId(carrierId, plmn);
+    }
+
+    /**
+     * Gets the satellite configuration for the given carrier and plmn.
+     *
+     * @param carrierId The carrier ID to fetch the configuration for.
+     * @param plmn The PLMN string to match.
+     * @return The {@link PlmnConfig} for the given carrier and PLMN, or {@code null} if no
+     *         configuration is found.
+     */
+    @Nullable
+    public PlmnConfig getSatellitePlmnConfigByCarrierId(int carrierId, @NonNull String plmn) {
+        SatelliteCarrierConfig config = mSatelliteCarrierConfig.get(carrierId);
+        if (config == null) {
+            return null;
+        }
+
+        return config.mProviderCapabilities.entrySet().stream()
+                .filter(e -> e.getKey().equals(plmn) && e.getValue().getNtnConnectType() != null)
+                .map(e -> new PlmnConfig(e.getKey(), e.getValue().getNtnConnectType()))
+                .findFirst()
+                .orElse(null);
+    }
+
+
+    /**
+     * @param subId the subscription identifier.
+     * @return Whether satellite emergency messaging is supported for the subscription id.
+     * Returns {@code null} if it is not set.
+     */
+    @Nullable
+    public Boolean isEmergencyMessagingSupportedBySubId(int subId) {
+        int carrierId = SatelliteServiceUtils.getCarrierIdFromSubscription(subId);
+        return isEmergencyMessagingSupportedByCarrierId(carrierId);
+    }
+
+    /**
+     * @param carrierId the carrier identifier.
+     * @return Whether satellite emergency messaging is supported for the carrier.
+     * Returns {@code null} if it is not set.
+     */
+    @Nullable
+    public Boolean isEmergencyMessagingSupportedByCarrierId(int carrierId) {
+        SatelliteCarrierConfig config = mSatelliteCarrierConfig.get(carrierId);
+        return (config != null) ? config.mIsEmergencyMessagingSupported : null;
+    }
+
+    /**
+     * @param subId the subscription identifier.
+     * @return Whether to use satellite entitlement check server query for the subscription id.
+     * Returns {@code null} if it is not set.
+     */
+    @Nullable
+    public Boolean isSatelliteEntitlementSupportedBySubId(int subId) {
+        int carrierId = SatelliteServiceUtils.getCarrierIdFromSubscription(subId);
+        return isSatelliteEntitlementSupportedByCarrierId(carrierId);
+    }
+
+    /**
+     * @param carrierId the carrier identifier.
+     * @return Whether to use satellite entitlement check server query for the carrier.
+     * Returns {@code null} if it is not set.
+     */
+    @Nullable
+    public Boolean isSatelliteEntitlementSupportedByCarrierId(int carrierId) {
+        SatelliteCarrierConfig config = mSatelliteCarrierConfig.get(carrierId);
+        return (config != null) ? config.mIsEntitlementSupported : null;
+    }
+
+    /**
+     * @param subId the subscription identifier.
+     * @return The URL of the entitlement server for the subscription id.
+     * Returns {@code null} if it is not set.
+     */
+    @Nullable
+    public String getSatelliteEntitlementServerUrlBySubId(int subId) {
+        int carrierId = SatelliteServiceUtils.getCarrierIdFromSubscription(subId);
+        return getSatelliteEntitlementServerUrlByCarrierId(carrierId);
+    }
+
+    /**
+     * @param carrierId the carrier identifier.
+     * @return The URL of the entitlement server for the carrier.
+     * Returns {@code null} if it is not set.
+     */
+    @Nullable
+    public String getSatelliteEntitlementServerUrlByCarrierId(int carrierId) {
+        SatelliteCarrierConfig config = mSatelliteCarrierConfig.get(carrierId);
+        return (config != null) ? config.mEntitlementServerUrl : null;
     }
 
     /**
@@ -226,14 +471,11 @@ public class SatelliteConfig {
      */
     @NonNull
     public List<String> getAllSatellitePlmnsForCarrier(int carrierId) {
-        if (mSupportedServicesPerCarrier != null) {
-            Map<String, Set<Integer>> satelliteCapabilitiesMap = mSupportedServicesPerCarrier.get(
-                    carrierId);
-            if (satelliteCapabilitiesMap != null) {
-                return new ArrayList<>(satelliteCapabilitiesMap.keySet());
-            }
+        SatelliteCarrierConfig config = mSatelliteCarrierConfig.get(carrierId);
+        if (config != null) {
+            List<String> result = new ArrayList<>(config.mProviderCapabilities.keySet());
+            return result;
         }
-        logd("getAllSatellitePlmnsForCarrier : mConfigData is null or no config data");
         return new ArrayList<>();
     }
 
@@ -246,18 +488,19 @@ public class SatelliteConfig {
      */
     @NonNull
     public Map<String, Set<Integer>> getSupportedSatelliteServices(int carrierId) {
-        if (mSupportedServicesPerCarrier != null) {
-            Map<String, Set<Integer>> satelliteCapaMap =
-                    mSupportedServicesPerCarrier.get(carrierId);
-            if (satelliteCapaMap != null) {
-                return satelliteCapaMap;
-            } else {
-                logd("No supported services found for carrier=" + carrierId);
+        SatelliteCarrierConfig config = mSatelliteCarrierConfig.get(carrierId);
+        Map<String, Set<Integer>> resultMap = new HashMap<>();
+        if (config != null) {
+            for (Map.Entry<String, ProviderCapability> entry :
+                    config.mProviderCapabilities.entrySet()) {
+                String plmn = entry.getKey();
+                Set<Integer> allowedServices = entry.getValue().getAllowedServices();
+                if (!allowedServices.isEmpty()) {
+                    resultMap.put(plmn, allowedServices);
+                }
             }
-        } else {
-            logd("mSupportedServicesPerCarrier is null");
         }
-        return new HashMap<>();
+        return resultMap;
     }
 
     /**
@@ -267,8 +510,10 @@ public class SatelliteConfig {
      */
     @NonNull
     public Set<Integer> getAllSatelliteCarrierIds() {
-        if (mSupportedServicesPerCarrier != null) {
-            return new ArraySet<>(mSupportedServicesPerCarrier.keySet());
+        if (mSatelliteCarrierConfig != null) {
+            Set<Integer> carrierIds = new ArraySet<>(mSatelliteCarrierConfig.keySet());
+            logd("getAllSatelliteCarrierIds: " + carrierIds);
+            return carrierIds;
         }
         return new ArraySet<>();
     }
@@ -494,22 +739,116 @@ public class SatelliteConfig {
     @Override
     public String toString() {
         return "SatelliteConfig{"
-                + "mVersion="
-                + mVersion
-                + ", mSupportedServicesPerCarrier="
-                + mSupportedServicesPerCarrier
-                + ", mCarrierRoamingMaxAllowedDataMode="
-                + mCarrierRoamingMaxAllowedDataMode
-                + ", mSatelliteRegionCountryCodes="
-                + mSatelliteRegionCountryCodes
-                + ", mIsSatelliteRegionAllowed="
-                + mIsSatelliteRegionAllowed
-                + ", mSatS2File="
-                + mSatS2File
-                + ", mSatelliteAccessConfigJsonFile="
-                + mSatelliteAccessConfigJsonFile
-                + ", mConfigData="
-                + mConfigData
+                + "mVersion=" + mVersion
+                + ", mCarrierRoamingMaxAllowedDataMode=" + mCarrierRoamingMaxAllowedDataMode
+                + ", mSatelliteRegionCountryCodes=" + mSatelliteRegionCountryCodes
+                + ", mIsSatelliteRegionAllowed=" + mIsSatelliteRegionAllowed
+                + ", mSatS2File=" + mSatS2File
+                + ", mSatelliteAccessConfigJsonFile=" + mSatelliteAccessConfigJsonFile
+                + ", mSatelliteCarrierConfig=" + mSatelliteCarrierConfig
+                + ", mConfigData=" + mConfigData
                 + "}";
+    }
+
+    /** Represents the satellite configuration(ntnConnectType) for a specific PLMN. */
+    public static class PlmnConfig {
+        /** The Public Land Mobile Network string. */
+        @NonNull private final String mPlmn;
+        /** The Non-Terrestrial Network connect type for this PLMN. */
+        private final int mNtnConnectType;
+
+        /**
+         * @param plmn The PLMN string.
+         * @param ntnConnectType The NTN connect type.
+         */
+        public PlmnConfig(@NonNull String plmn, int ntnConnectType) {
+            this.mPlmn = plmn;
+            this.mNtnConnectType = ntnConnectType;
+        }
+
+        /** @return The PLMN string. */
+        @NonNull
+        public String getPlmn() {
+            return mPlmn;
+        }
+
+        /** @return The NTN connect type. */
+        public int getNtnConnectType() {
+            return mNtnConnectType;
+        }
+    }
+
+    /**
+     * Represents the capabilities of a specific Satellite Provider (PLMN).
+     * Maps to SatelliteProviderCapabilityProto.
+     */
+    private static class ProviderCapability {
+        @Nullable
+        private final Integer mNtnConnectType;
+        @NonNull
+        private final Set<Integer> mAllowedServices;
+
+        ProviderCapability(
+                @Nullable Integer ntnConnectType,
+                @NonNull Set<Integer> allowedServices) {
+            this.mNtnConnectType = ntnConnectType;
+            this.mAllowedServices = allowedServices;
+        }
+
+        @Nullable
+        Integer getNtnConnectType() {
+            return mNtnConnectType;
+        }
+
+        @NonNull
+        Set<Integer> getAllowedServices() {
+            return mAllowedServices;
+        }
+
+        @Override
+        public String toString() {
+            return "ProviderCapability{"
+                    + "mNtnConnectType=" + mNtnConnectType
+                    + ", mAllowedServices=" + mAllowedServices
+                    + "}";
+        }
+    }
+
+    private static class SatelliteCarrierConfig {
+        /** Key: PLMN (String), Value: ProviderCapability object */
+        @NonNull
+        Map<String, ProviderCapability> mProviderCapabilities = new ConcurrentHashMap<>();
+        @Nullable
+        Boolean mIsAttachSupported;
+        @Nullable
+        Integer mDataSupportMode;
+        @Nullable
+        Integer mNtnConnectType;
+        @Nullable
+        Boolean mIsEmergencyMessagingSupported;
+        @Nullable
+        Boolean mIsEntitlementSupported;
+        @Nullable
+        String mEntitlementServerUrl;
+
+        @Override
+        public String toString() {
+            return "SatelliteCarrierConfig{"
+                    + "mProviderCapabilities="
+                    + mProviderCapabilities
+                    + ", mIsAttachSupported="
+                    + mIsAttachSupported
+                    + ", mDataSupportMode="
+                    + mDataSupportMode
+                    + ", mNtnConnectType="
+                    + mNtnConnectType
+                    + ", mIsEmergencyMessagingSupported="
+                    + mIsEmergencyMessagingSupported
+                    + ", mIsEntitlementSupported="
+                    + mIsEntitlementSupported
+                    + ", mEntitlementServerUrl='"
+                    + mEntitlementServerUrl + '\''
+                    + '}';
+        }
     }
 }
