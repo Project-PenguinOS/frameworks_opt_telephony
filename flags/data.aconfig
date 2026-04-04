@@ -150,6 +150,17 @@ flag {
   }
 }
 
+# OWNER=sangyun TARGET=26Q2
+flag {
+  name: "fix_data_setup_retry_race_condition"
+  namespace: "telephony"
+  description: "Fix race condition between setup throttle and unthrottle."
+  bug:"474435447"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}
+
 # OWNER=ysnam TARGET=26Q3
 flag {
   name: "allow_non_standalone_opportunistic_ads_policy"

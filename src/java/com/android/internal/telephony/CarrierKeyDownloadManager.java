@@ -736,6 +736,8 @@ public class CarrierKeyDownloadManager extends Handler {
 
             DownloadManager.Request request = new DownloadManager.Request(Uri.parse(mURL));
 
+            // TODO(b/128550341): Implement the logic to minimize using metered network such as
+            // LTE for downloading a certificate.
             request.setAllowedOverMetered(mAllowedOverMeteredNetwork);
             request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_HIDDEN);
             request.addRequestHeader("Accept-Encoding", "gzip");
