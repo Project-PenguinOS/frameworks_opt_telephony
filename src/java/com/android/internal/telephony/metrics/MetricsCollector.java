@@ -1372,7 +1372,8 @@ public class MetricsCollector implements StatsManager.StatsPullAtomCallback {
                 dataCallSession.isProvisioningProfile,
                 dataCallSession.isNbIotNtn,
                 dataCallSession.sliceCapability,
-                dataCallSession.plmn);
+                dataCallSession.plmn,
+                dataCallSession.connectionCapability);
     }
 
     private static StatsEvent buildStatsEvent(ImsRegistrationStats stats) {
