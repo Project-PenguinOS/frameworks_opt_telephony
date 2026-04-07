@@ -353,6 +353,10 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
                         ImsCallProfile.EXTRA_LOW_BATTERY, false);
                 if (imsCall.isVideoCall() && isLowBattery
                         && !mShouldAllowVtCallsInLowBattery) {
+                    if (DBG) {
+                        log("onIncomingCall : incoming video call auto rejected "
+                                + "due to low battery");
+                    }
                     imsCall.reject(ImsReasonInfo.CODE_USER_DECLINE);
                     conn.setDisconnectCause(DisconnectCause.INCOMING_AUTO_REJECTED);
                 }
@@ -4338,9 +4342,13 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
                     logHoldSwapState("onCallHoldFailed " +
                                      "CODE_LOCAL_CALL_TERMINATED");
 // QTI_END: 2024-03-22: Telephony: Reset holdSwapState to PENDING_SINGLE_HOLD when an incoming call
-                } else if (mPendingMO != null && mPendingMO.isEmergency()) {
+                } else if ((mPendingMO != null && mPendingMO.isEmergency()) || (mPendingMO == null
+                        && mForegroundCall.getFirstConnection() != null
+                        && mForegroundCall.getFirstConnection().isEmergency())) {
                     // If mPendingMO is an emergency call, disconnect the call that we tried to
-                    // hold.
+                    // hold. If mPendingMO is null, then we need to check if the foreground call is
+                    // an emergency call also; it's possible that onCallInitiating is already called
+                    // to process the pending MO call.
                     mBackgroundCall.getImsCall().terminate(ImsReasonInfo.CODE_UNSPECIFIED);
                     if (imsCall != mCallExpectedToResume) {
                         mCallExpectedToResume = null;
@@ -6872,5 +6880,8 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
         }
     }
 
-
+    @VisibleForTesting
+    public void setShouldAllowVtCallsInLowBatteryForTesting(boolean result) {
+        mShouldAllowVtCallsInLowBattery = result;
+    }
 }

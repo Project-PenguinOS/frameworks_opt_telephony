@@ -657,7 +657,7 @@ public class DataNetwork extends StateMachine {
 
     /** The network agent associated with this data network. */
     @NonNull
-    private TelephonyNetworkAgent mNetworkAgent;
+    protected TelephonyNetworkAgent mNetworkAgent;
 
     /** QOS callback tracker. This is only created after network connected on WWAN. */
     @Nullable
@@ -1446,6 +1446,9 @@ public class DataNetwork extends StateMachine {
                     int networkType = getDataNetworkType();
                     mDataCallSessionStats.onDrsOrRatChanged(networkType);
                     if (networkType != TelephonyManager.NETWORK_TYPE_UNKNOWN) {
+                        if (networkType != mLastKnownDataNetworkType) {
+                            updateLingerAndTearDownDelayTimers(networkType);
+                        }
                         mLastKnownDataNetworkType = networkType;
                     }
                     NetworkRegistrationInfo nri =
@@ -1579,6 +1582,7 @@ public class DataNetwork extends StateMachine {
                     logl("Preferred data phone id changed to " + msg.arg1
                             + ", mOnPreferredDataPhone=" + mOnPreferredDataPhone);
                     updateNetworkScore();
+                    updateLingerAndTearDownDelayTimers(mLastKnownDataNetworkType);
                     break;
                 default:
                     loge("Unhandled event " + eventToString(msg.what));
@@ -1612,6 +1616,7 @@ public class DataNetwork extends StateMachine {
 
             notifyPreciseDataConnectionState();
             notifyImsDataNetwork();
+            updateLingerAndTearDownDelayTimers(mLastKnownDataNetworkType);
             if (mTransport == AccessNetworkConstants.TRANSPORT_TYPE_WLAN) {
                 // Defer setupData until we get the PDU session ID response
                 allocatePduSessionId();
@@ -2342,6 +2347,7 @@ public class DataNetwork extends StateMachine {
                 } else {
                     // Let Connectivity release this immediately after linger time expires.
                     log("Unregistering TNA-" + mNetworkAgent.getId());
+                    updateLingerAndTearDownDelayTimers(mLastKnownDataNetworkType);
                     mNetworkAgent.unregister();
                 }
 // QTI_END: 2024-07-15: Telephony: Fix dangling data network issue
@@ -2519,6 +2525,7 @@ public class DataNetwork extends StateMachine {
                     + " capability again. nc=" + mNetworkCapabilities);
             mNetworkAgent.sendNetworkCapabilities(mNetworkCapabilities);
         }
+        updateLingerAndTearDownDelayTimers(mLastKnownDataNetworkType);
     }
 
     /**
@@ -3352,6 +3359,32 @@ public class DataNetwork extends StateMachine {
             // data calls.
             log("onDataStateChanged: PDN disconnected reported by "
                     + AccessNetworkConstants.transportTypeToString(mTransport) + " data service."
+                    + " requireExplicitDisconnect " + requireExplicitDisconnect);
+            mFailCause = mEverConnected ? DataFailCause.LOST_CONNECTION
+                    : DataFailCause.NO_RETRY_FAILURE;
+            mRetryDelayMillis = DataCallResponse.RETRY_DURATION_UNDEFINED;
+            transitionTo(mDisconnectedState);
+        } else if (isDisconnecting()) {
+            // The data call response is missing from the list. This means the PDN is gone. This
+            // is the PDN lost reported by the modem.
+            // Case :
+            // - In new HAL, in case of DDS switch from phone0 to phone1, the deactivate data call
+            // request and response are successful for the phone0 pdns, the state of those DN is
+            // still "disconnecting".
+            // - If now modem reports an empty list for phone0, it indicates modem no longer
+            // has any list of responses related to phone0, so it will no longer able to set the
+            // link status as Inactive, as a result the DN will still always be in "disconnecting"
+            // state until the event EVENT_STUCK_IN_TRANSIENT_STATE is executed.
+            // - But before the transient time can complete, if DDS switches back to Phone0 due to
+            // cases like Temporary DDS switch during voice call on nDDS sub (phone0) or manual DDS
+            // switch to phone0 by user, in those cases no new PDN will be seen on phone0, as all
+            // network request will get attached to the existing DataNetwork which is in
+            // "disconnecting" state. Here the device with DDS as Phone0 will not have any PDN.
+            //  - So when empty list received from modem and if the DN is in "diconnecting"
+            // state, then move the DN to diconnected state to avoid such issues.
+            log("onDataStateChanged: Empty list reported by "
+                    + AccessNetworkConstants.transportTypeToString(mTransport) + " data service."
+                    + "As DataNetwork is in Disconnecting state, move it to disconnected state."
                     + " requireExplicitDisconnect " + requireExplicitDisconnect);
             mFailCause = mEverConnected ? DataFailCause.LOST_CONNECTION
                     : DataFailCause.NO_RETRY_FAILURE;
@@ -4317,6 +4350,25 @@ public class DataNetwork extends StateMachine {
     private void reportAnomaly(@NonNull String anomalyMsg, @NonNull String uuid) {
         logl(anomalyMsg);
         AnomalyReporter.reportAnomaly(UUID.fromString(uuid), anomalyMsg, mPhone.getCarrierId());
+    }
+
+    /**
+     * Hook method for subclasses to update linger and teardown delay timers.
+     *
+     * <p>This method is called to ensure timer updates are dispatched before
+     * the network agent becomes invalid. It is invoked:
+     * <ul>
+     *   <li>When the data network type changes to a new value.</li>
+     *   <li>When the preferred data phone ID changes.</li>
+     *   <li>After the network agent is registered or re-registered.</li>
+     *   <li>Immediately before the network agent is unregistered.</li>
+     * </ul>
+     *
+     * @param networkType the current network type associated with this data
+     *                    network. Subclasses may use this to determine the
+     *                    appropriate linger and teardown delay values to apply.
+     */
+    protected void updateLingerAndTearDownDelayTimers(@NetworkType int networkType) {
     }
 
     /**

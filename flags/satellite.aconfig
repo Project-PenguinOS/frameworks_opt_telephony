@@ -280,3 +280,14 @@ flag {
     purpose: PURPOSE_FEATURE
   }
 }
+
+# OWNER=youngtaecha TARGET=26Q2
+flag {
+  name: "config_for_enabling_carrier"
+  namespace: "telephony"
+  description: "This flag controls the satellite configuration via configupdater"
+  bug: "492366993"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}

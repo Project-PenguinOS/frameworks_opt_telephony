@@ -1689,7 +1689,8 @@ public class PersistAtomsStorage {
                     mAtoms.carrierRoamingSatelliteControllerStats;
             mAtoms.carrierRoamingSatelliteControllerStats =
                     new CarrierRoamingSatelliteControllerStats[0];
-            SatelliteStats.getInstance().resetCarrierRoamingSatelliteControllerStats();
+            mHandler.post(() -> SatelliteStats.getInstance()
+                    .resetCarrierRoamingSatelliteControllerStats());
             saveAtomsToFile(SAVE_TO_FILE_DELAY_FOR_GET_MILLIS);
             return statsArray;
         } else {

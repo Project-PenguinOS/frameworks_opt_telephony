@@ -508,8 +508,10 @@ public final class CellBroadcastConfigTracker extends StateMachine {
             mPhone.mCi.setGsmBroadcastConfig(configs, response);
         } catch (RuntimeException e) {
             log("setGsmConfig: Exception " + e);
-            AsyncResult.forMessage(response, null, e);
-            response.sendToTarget();
+            removeMessages(EVENT_CONFIGURATION_DONE);
+            Message failMsg = obtainMessage(EVENT_CONFIGURATION_DONE, request);
+            AsyncResult.forMessage(failMsg, null, e);
+            failMsg.sendToTarget();
         }
     }
 
@@ -531,8 +533,10 @@ public final class CellBroadcastConfigTracker extends StateMachine {
             mPhone.mCi.setCdmaBroadcastConfig(configs, response);
         } catch (RuntimeException e) {
             log("setCdmaConfig: Exception " + e);
-            AsyncResult.forMessage(response, null, e);
-            response.sendToTarget();
+            removeMessages(EVENT_CONFIGURATION_DONE);
+            Message failMsg = obtainMessage(EVENT_CONFIGURATION_DONE, request);
+            AsyncResult.forMessage(failMsg, null, e);
+            failMsg.sendToTarget();
         }
     }
 
@@ -556,8 +560,10 @@ public final class CellBroadcastConfigTracker extends StateMachine {
             }
         } catch (RuntimeException e) {
             log("setActivation: Exception " + e);
-            AsyncResult.forMessage(response, null, e);
-            response.sendToTarget();
+            removeMessages(EVENT_ACTIVATION_DONE);
+            Message failMsg = obtainMessage(EVENT_ACTIVATION_DONE, request);
+            AsyncResult.forMessage(failMsg, null, e);
+            failMsg.sendToTarget();
         }
     }
 
