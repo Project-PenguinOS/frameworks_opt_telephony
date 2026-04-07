@@ -14,6 +14,12 @@
  * limitations under the License.
  */
 
+/*
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
 package com.android.internal.telephony;
 
 import android.compat.annotation.UnsupportedAppUsage;
@@ -39,6 +45,7 @@ public class CallStateException extends Exception
     public static final int ERROR_DEVICE_IN_SECURE_MODE = 9;
 // QTI_END: 2022-05-09: Telephony: Add Secure Mode specific CallStateException
     public static final int ERROR_FDN_BLOCKED = 10;
+    public static final int ERROR_NARROWBAND_TERRESTRIAL_NETWORK = 11;
 
     public
     CallStateException()
