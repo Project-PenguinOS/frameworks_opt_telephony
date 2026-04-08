@@ -61,6 +61,7 @@ public class CommandParamsFactory extends Handler {
     private String mRequestedLanguage;
     private boolean mNoAlphaUsrCnf = false;
     private boolean mStkSmsSendViaTelephony = false;
+    private boolean mSupportSendUssd = false;
 
     // constants
     static final int MSG_ID_LOAD_ICON_DONE = 1;
@@ -134,6 +135,12 @@ public class CommandParamsFactory extends Handler {
                     com.android.internal.R.bool.config_stk_sms_send_support);
         } catch (NotFoundException e) {
             mStkSmsSendViaTelephony = false;
+        }
+        try {
+            mSupportSendUssd = mContext.getResources().getBoolean(
+                    com.android.internal.R.bool.config_stk_send_ussd_by_telephony);
+        } catch (NotFoundException e) {
+            mSupportSendUssd = false;
         }
     }
 
@@ -235,7 +242,7 @@ public class CommandParamsFactory extends Handler {
                     cmdPending = processEventNotify(cmdDet, ctlvs);
                     break;
                 case SEND_USSD:
-                    cmdPending = Flags.supportStkCommandUssdAndCall()
+                    cmdPending = (mSupportSendUssd && Flags.supportStkCommandUssdAndCall())
                             ? processSendUssd(cmdDet, ctlvs)
                             : processEventNotify(cmdDet, ctlvs);
                     break;

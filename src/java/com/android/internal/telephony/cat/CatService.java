@@ -127,6 +127,7 @@ public class CatService extends Handler implements AppInterface {
     private RilMessageDecoder mMsgDecoder = null;
     @UnsupportedAppUsage
     private boolean mStkAppInstalled = false;
+    private boolean mSupportSendUssd = false;
     private boolean mSupportSetUpCall = false;
 
     @UnsupportedAppUsage
@@ -186,8 +187,20 @@ public class CatService extends Handler implements AppInterface {
         mContext = context;
         mSlotId = slotId;
         mFeatureFlags = featureFlags;
-        mSupportSetUpCall = mContext.getResources().getBoolean(
-                com.android.internal.R.bool.config_stk_set_up_call_by_telephony);
+        try {
+            mSupportSendUssd = mContext.getResources().getBoolean(
+                    com.android.internal.R.bool.config_stk_send_ussd_by_telephony);
+        } catch (NotFoundException e) {
+            CatLog.e(this, "config_stk_send_ussd_by_telephony resource is not found");
+        }
+        try {
+            mSupportSetUpCall = mContext.getResources().getBoolean(
+                    com.android.internal.R.bool.config_stk_set_up_call_by_telephony);
+        } catch (NotFoundException e) {
+            CatLog.e(this, "config_stk_set_up_call_by_telephony resource is not found");
+        }
+        CatLog.d(this, "Support SEND USSD:" + mSupportSendUssd
+                + " Support SET UP CALL:" + mSupportSetUpCall);
 
         // Get the RilMessagesDecoder for decoding the messages.
         mMsgDecoder = RilMessageDecoder.getInstance(this, fh, context, slotId);
@@ -587,7 +600,7 @@ public class CatService extends Handler implements AppInterface {
                 }
                 break;
             case SEND_USSD:
-                if (Flags.supportStkCommandUssdAndCall()) {
+                if (mSupportSendUssd && Flags.supportStkCommandUssdAndCall()) {
                     sendUssd(cmdParams.mCmdDet,
                             ((SendUssdParams) cmdParams).mUssdString,
                             ((SendUssdParams) cmdParams).mCodingScheme);
@@ -1618,7 +1631,16 @@ public class CatService extends Handler implements AppInterface {
                     }
                 };
 
+        SubscriptionInfo subInfo = getSubscriptionInfo(mSlotId);
+        if (subInfo == null
+                || subInfo.getSubscriptionId() == SubscriptionManager.INVALID_SUBSCRIPTION_ID) {
+            CatLog.e(this, "Invalid subscription info");
+            sendTerminalResponse(cmdDet, ResultCode.TERMINAL_CRNTLY_UNABLE_TO_PROCESS,
+                    false, 0x00, null);
+            return;
+        }
         mContext.getSystemService(TelephonyManager.class)
+                .createForSubscriptionId(subInfo.getSubscriptionId())
                 .sendUssdRequest(request, ussdCallback, null);
     }
 }
