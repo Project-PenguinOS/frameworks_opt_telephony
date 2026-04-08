@@ -442,6 +442,7 @@ message DataCallSession {
     optional bool is_nb_iot_ntn = 27;
     optional int32 slice_capability = 28;
     optional string plmn = 29;
+    optional int32 connection_capability = 30;
 }
 
 message CellularServiceState {
