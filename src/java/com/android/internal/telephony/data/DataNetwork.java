@@ -16,8 +16,10 @@
 
 // QTI_BEGIN: 2025-02-06: Telephony: Fix for passing down network score correctly at initialization
 /*
+// QTI_END: 2025-02-06: Telephony: Fix for passing down network score correctly at initialization
  * Changes from Qualcomm Technologies, Inc. are provided under the following license:
  * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+// QTI_BEGIN: 2025-02-06: Telephony: Fix for passing down network score correctly at initialization
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
