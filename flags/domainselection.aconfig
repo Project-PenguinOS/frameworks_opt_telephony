@@ -72,3 +72,14 @@ flag {
     description: "This flag controls the PDN selection for sending emergency SMS while roaming."
     bug:"461740128"
 }
+
+#OWNER=hwangoo TARGET=26Q3
+flag {
+    name: "enforce_emergency_exit_multi_call"
+    namespace: "telephony"
+    description: "Ensures emergency mode exit even when an emergency connection is not properly managed due to a second emergency call."
+    bug:"492062910"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}

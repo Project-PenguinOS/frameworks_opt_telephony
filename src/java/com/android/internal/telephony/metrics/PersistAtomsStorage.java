@@ -47,6 +47,7 @@ import com.android.internal.telephony.nano.PersistAtomsProto.IncomingSms;
 import com.android.internal.telephony.nano.PersistAtomsProto.NetworkRequestsV2;
 import com.android.internal.telephony.nano.PersistAtomsProto.OtpEvaluationEvent;
 import com.android.internal.telephony.nano.PersistAtomsProto.OtpRedactionEvent;
+import com.android.internal.telephony.nano.PersistAtomsProto.MessagingReadRestrictionEvent;
 import com.android.internal.telephony.nano.PersistAtomsProto.OutgoingShortCodeSms;
 import com.android.internal.telephony.nano.PersistAtomsProto.OutgoingSms;
 import com.android.internal.telephony.nano.PersistAtomsProto.PersistAtoms;
@@ -189,6 +190,9 @@ public class PersistAtomsStorage {
 
     private final int mMaxNumOtpStats;
 
+    /** Maximum number of messaging read restriction events to store between pulls. */
+    private final int mMaxNumMessagingReadRestrictionEvent;
+
     /** Stores persist atoms and persist states of the puller. */
     @VisibleForTesting protected PersistAtoms mAtoms;
 
@@ -240,6 +244,7 @@ public class PersistAtomsStorage {
             mMaxNumSatelliteStats = 5;
             mMaxNumDataNetworkValidation = 5;
             mMaxNumOtpStats = 10;
+            mMaxNumMessagingReadRestrictionEvent = 10;
         } else {
             mMaxNumVoiceCallSessions = 50;
             mMaxNumSms = 25;
@@ -266,6 +271,7 @@ public class PersistAtomsStorage {
             mMaxNumSatelliteStats = 15;
             mMaxNumDataNetworkValidation = 15;
             mMaxNumOtpStats = 100;
+            mMaxNumMessagingReadRestrictionEvent = 100;
         }
 
         mAtoms = loadAtomsFromFile();
@@ -977,6 +983,24 @@ public class PersistAtomsStorage {
         }
         mAtoms.otpRedactionEvent = insertAtRandomPlace(mAtoms.otpRedactionEvent, stats,
                 mMaxNumOtpStats);
+        saveAtomsToFile(SAVE_TO_FILE_DELAY_FOR_UPDATE_MILLIS);
+    }
+
+    /** Adds a new {@link MessagingReadRestrictionEvent} to the storage. */
+    public synchronized void addMessagingReadRestrictionEvent(MessagingReadRestrictionEvent event) {
+        for (MessagingReadRestrictionEvent existingStats : mAtoms.messagingReadRestrictionEvent) {
+            if (event.callerUid == existingStats.callerUid
+                && event.contentProvider == existingStats.contentProvider
+                && event.eventType == existingStats.eventType
+                && event.readRestrictedMessagesAppOpMode
+                  == existingStats.readRestrictedMessagesAppOpMode) {
+                    existingStats.count++;
+                    saveAtomsToFile(SAVE_TO_FILE_DELAY_FOR_UPDATE_MILLIS);
+                    return;
+            }
+        }
+        mAtoms.messagingReadRestrictionEvent = insertAtRandomPlace(
+                mAtoms.messagingReadRestrictionEvent, event, mMaxNumMessagingReadRestrictionEvent);
         saveAtomsToFile(SAVE_TO_FILE_DELAY_FOR_UPDATE_MILLIS);
     }
 
@@ -1785,6 +1809,25 @@ public class PersistAtomsStorage {
             mAtoms.otpRedactionEventPullTimestampMillis = getWallTimeMillis();
             OtpRedactionEvent[] statsArray = mAtoms.otpRedactionEvent;
             mAtoms.otpRedactionEvent = new OtpRedactionEvent[0];
+            saveAtomsToFile(SAVE_TO_FILE_DELAY_FOR_GET_MILLIS);
+            return statsArray;
+        } else {
+            return null;
+        }
+    }
+
+    /**
+     * Returns and clears the {@link MessagingReadRestrictionEvent} stats if last pulled longer
+     * than {@code minIntervalMillis} ago, otherwise returns {@code null}.
+     */
+    @Nullable
+    public synchronized MessagingReadRestrictionEvent[] getMessagingReadRestrictionEventStats(
+            long minIntervalMillis) {
+        if (getWallTimeMillis() - mAtoms.messagingReadRestrictionEventPullTimestampMillis
+                > minIntervalMillis) {
+            mAtoms.messagingReadRestrictionEventPullTimestampMillis = getWallTimeMillis();
+            MessagingReadRestrictionEvent[] statsArray = mAtoms.messagingReadRestrictionEvent;
+            mAtoms.messagingReadRestrictionEvent = new MessagingReadRestrictionEvent[0];
             saveAtomsToFile(SAVE_TO_FILE_DELAY_FOR_GET_MILLIS);
             return statsArray;
         } else {

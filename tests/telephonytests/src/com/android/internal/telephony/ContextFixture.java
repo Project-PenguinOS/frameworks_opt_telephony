@@ -408,6 +408,8 @@ public class ContextFixture implements TestFixture<Context> {
                 return Context.NOTIFICATION_SERVICE;
             } else if (serviceClass == DropBoxManager.class) {
                 return Context.DROPBOX_SERVICE;
+            } else if (serviceClass == BatteryManager.class) {
+                return Context.BATTERY_SERVICE;
             } else if (serviceClass == DisplayManager.class) {
                 return Context.DISPLAY_SERVICE;
             }

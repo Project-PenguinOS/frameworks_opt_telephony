@@ -265,21 +265,6 @@ public class QtiImsUtils {
         return isRttUpgradeSupported;
     }
 
-    // Returns true if Carrier supports RTT downgrade
-    public static boolean isRttDowngradeSupported(int phoneId, Context context) {
-        boolean isRttDowngradeSupported = false;
-        PersistableBundle b = getConfigForPhoneId(context, phoneId);
-        if (b != null) {
-// QTI_END: 2019-05-30: Telephony: IMS: Add checks for RTT upgrade and downgrade
-// QTI_BEGIN: 2020-01-23: Telephony: IMS: Replace CarrierConfigs for RTT feature
-            isRttDowngradeSupported = b.getBoolean(
-                    CarrierConfigManager.KEY_RTT_DOWNGRADE_SUPPORTED_BOOL);
-// QTI_END: 2020-01-23: Telephony: IMS: Replace CarrierConfigs for RTT feature
-// QTI_BEGIN: 2019-05-30: Telephony: IMS: Add checks for RTT upgrade and downgrade
-        }
-        return isRttDowngradeSupported;
-    }
-
 // QTI_END: 2019-05-30: Telephony: IMS: Add checks for RTT upgrade and downgrade
 // QTI_BEGIN: 2019-02-08: Telephony: FR53347: RTT June18 update
     // Returns true if Carrier supports RTT Visibility Setting

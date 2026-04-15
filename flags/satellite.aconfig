@@ -213,6 +213,17 @@ flag {
   }
 }
 
+# OWNER=nagendranb TARGET=26Q3
+flag {
+  name: "satellite_data_metrics_enhancement"
+  namespace: "telephony"
+  description: "enhance satellite data metrics to report consumed rx and tx values"
+  bug: "461649453"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}
+
 # OWNER=shilpasatish TARGET=26Q2
 flag {
   name: "satellite_suspend"
@@ -289,5 +300,16 @@ flag {
   bug: "492366993"
   metadata {
     purpose: PURPOSE_BUGFIX
+  }
+}
+
+# OWNER=paulsoumyadeep TARGET=26Q4
+flag {
+  name: "satellite_26q4_apis"
+  namespace: "telephony"
+  description: "This flag controls the changes for the new satellite APIs in 26Q4"
+  bug: "493057859"
+  metadata {
+    purpose: PURPOSE_FEATURE
   }
 }

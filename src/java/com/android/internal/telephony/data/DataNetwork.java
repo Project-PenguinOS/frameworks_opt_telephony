@@ -16,8 +16,8 @@
 
 // QTI_BEGIN: 2025-02-06: Telephony: Fix for passing down network score correctly at initialization
 /*
- * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
- * Copyright (c) 2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -2347,7 +2347,9 @@ public class DataNetwork extends StateMachine {
                 } else {
                     // Let Connectivity release this immediately after linger time expires.
                     log("Unregistering TNA-" + mNetworkAgent.getId());
+// QTI_END: 2024-07-15: Telephony: Fix dangling data network issue
                     updateLingerAndTearDownDelayTimers(mLastKnownDataNetworkType);
+// QTI_BEGIN: 2024-07-15: Telephony: Fix dangling data network issue
                     mNetworkAgent.unregister();
                 }
 // QTI_END: 2024-07-15: Telephony: Fix dangling data network issue
@@ -3349,7 +3351,8 @@ public class DataNetwork extends StateMachine {
                     transitionTo(mDisconnectedState);
                 }
             }
-        } else if (!(mFlags.supportExplicitDataDisconnect() && requireExplicitDisconnect)) {
+        } else if ((!(mFlags.supportExplicitDataDisconnect() && requireExplicitDisconnect))
+                    || isDisconnecting()) {
             // The data call response is missing from the list. This means the PDN is gone. This
             // is the PDN lost reported by the modem. We don't send another DEACTIVATE_DATA request
             // for that
@@ -3402,6 +3405,7 @@ public class DataNetwork extends StateMachine {
         updateBandwidthFromDataConfig();
         updateTcpBufferSizes();
         updateMeteredAndCongested();
+        updateLingerAndTearDownDelayTimers(mLastKnownDataNetworkType);
     }
 
     /**
@@ -4361,6 +4365,7 @@ public class DataNetwork extends StateMachine {
      *   <li>When the data network type changes to a new value.</li>
      *   <li>When the preferred data phone ID changes.</li>
      *   <li>After the network agent is registered or re-registered.</li>
+     *   <li>After carrier config is updated.</li>
      *   <li>Immediately before the network agent is unregistered.</li>
      * </ul>
      *

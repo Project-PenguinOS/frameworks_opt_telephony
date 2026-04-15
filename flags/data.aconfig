@@ -171,3 +171,14 @@ flag {
     purpose: PURPOSE_BUGFIX
   }
 }
+
+# OWNER=jayachandranc TARGET=26Q3
+flag {
+  name: "ignore_inactive_data_calls_in_poll"
+  namespace: "telephony"
+  description: "Ignore inactive data calls when comparing polled data call list with the last known list."
+  bug:"493615414"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}

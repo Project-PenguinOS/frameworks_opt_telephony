@@ -642,6 +642,17 @@ public class EmergencyStateTracker {
     }
 
     /**
+     * Checks whether the specified {@link android.telecom.Connection} object is being managed
+     * as an active call.
+     *
+     * @param c the {@link android.telecom.Connection} object to check
+     * @return {@code true} if the connection is managed as an active call, {@code false} otherwise.
+     */
+    public boolean hasActiveCall(@NonNull android.telecom.Connection c) {
+        return mActiveEmergencyCalls.contains(c);
+    }
+
+    /**
      * Starts the process of an emergency call.
      *
      * <p>

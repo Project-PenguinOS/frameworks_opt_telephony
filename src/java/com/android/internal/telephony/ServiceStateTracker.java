@@ -14,8 +14,9 @@
  * limitations under the License.
  */
 
-/* Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
- * Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+/*
+ * ​​​​​Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -275,7 +276,7 @@ public class ServiceStateTracker extends Handler {
     protected static final int EVENT_IMS_STATE_DONE                    = 47;
     protected static final int EVENT_IMS_CAPABILITY_CHANGED            = 48;
     protected static final int EVENT_ALL_DATA_DISCONNECTED             = 49;
-    protected static final int EVENT_PHONE_TYPE_SWITCHED               = 50;
+    protected static final int EVENT_POLL_STATE_INITIAL                = 50;
     protected static final int EVENT_RADIO_POWER_FROM_CARRIER          = 51;
     protected static final int EVENT_IMS_SERVICE_STATE_CHANGED         = 53;
     protected static final int EVENT_RADIO_POWER_OFF_DONE              = 54;
@@ -758,7 +759,7 @@ public class ServiceStateTracker extends Handler {
         context.registerReceiver(mIntentReceiver, filter);
 
         mCi.setOnRestrictedStateChanged(this, EVENT_RESTRICTED_STATE_CHANGED, null);
-        updatePhoneType();
+        requestInitialPollState();
 
         mCSST = new CarrierServiceStateTracker(phone, this, featureFlags);
 
@@ -811,7 +812,7 @@ public class ServiceStateTracker extends Handler {
     }
 
     @VisibleForTesting
-    public void updatePhoneType() {
+    public void requestInitialPollState() {
 
         // If we are previously voice roaming, we need to notify that roaming status changed before
         // we change back to non-roaming.
@@ -876,9 +877,9 @@ public class ServiceStateTracker extends Handler {
         // information might come late or even never come. This will get the accurate signal
         // strength information displayed on the UI.
         mPhone.getSignalStrengthController().getSignalStrengthFromCi();
-        sendMessage(obtainMessage(EVENT_PHONE_TYPE_SWITCHED));
+        sendMessage(obtainMessage(EVENT_POLL_STATE_INITIAL));
 
-        logPhoneTypeChange();
+        logPhoneType();
 
         // Tell everybody that the registration state and RAT have changed.
         notifyVoiceRegStateRilRadioTechnologyChanged();
@@ -892,6 +893,9 @@ public class ServiceStateTracker extends Handler {
         if (mDeviceShuttingDown == true) return;
         mDeviceShuttingDown = true;
         mDesiredPowerState = false;
+        // Notify SubscriptionManagerService that the device is shutting down so it will not
+        // re-enable a user-disabled SIM when SIM_STATE_ABSENT is received during shutdown.
+        mSubscriptionManagerService.setDeviceShuttingDown(true);
         setPowerStateToDesired();
     }
 
@@ -1345,8 +1349,6 @@ public class ServiceStateTracker extends Handler {
 
             case EVENT_RADIO_STATE_CHANGED:
                 RadioPowerStateStats.onRadioStateChanged(mCi.getRadioState());
-                // fall through, the code above only logs metrics when radio state changes
-            case EVENT_PHONE_TYPE_SWITCHED:
                 // This will do nothing in the 'radio not available' case
                 setPowerStateToDesired();
 // QTI_BEGIN: 2021-10-25: Telephony: Fix data detach isn't informed
@@ -1360,6 +1362,11 @@ public class ServiceStateTracker extends Handler {
                     pollStateInternal(true);
                 }
 // QTI_END: 2021-10-25: Telephony: Fix data detach isn't informed
+                break;
+
+            case EVENT_POLL_STATE_INITIAL:
+                // These events are modem triggered, so pollState() needs to be forced
+                pollStateInternal(true);
                 break;
 
             case EVENT_NETWORK_STATE_CHANGED:
@@ -2681,7 +2688,7 @@ public class ServiceStateTracker extends Handler {
         mAttachLog.log(mSS.toString());
     }
 
-    private void logPhoneTypeChange() {
+    private void logPhoneType() {
         mPhoneTypeLog.log(Integer.toString(mPhone.getPhoneType()));
     }
 

@@ -42,7 +42,6 @@ import android.os.IBinder;
 import android.os.Looper;
 import android.os.RemoteException;
 import android.os.UserHandle;
-import android.platform.test.annotations.EnableFlags;
 import android.telephony.SubscriptionManager;
 import android.telephony.ims.ImsService;
 import android.telephony.ims.aidl.IImsConfig;
@@ -70,8 +69,6 @@ import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 
 import java.util.HashSet;
 import java.util.concurrent.ExecutorService;
@@ -1591,8 +1588,7 @@ public class ImsServiceControllerTest extends ImsTestBase {
     }
 
     @Test
-    @EnableFlags("com.android.internal.telephony.flags.ensure_ims_feature_order")
-    public void testBindAndConnect_flagOn_usesExecutorAndSucceeds() throws Exception {
+    public void testBindAndConnect_usesExecutorAndSucceeds() throws Exception {
         ExecutorService syncExecutor = MoreExecutors.newDirectExecutorService();
         mTestImsServiceController = new ImsServiceController(mMockContext, mTestComponentName,
                 mMockCallbacks, mHandler, REBIND_RETRY, mRepo, syncExecutor);
@@ -1614,8 +1610,7 @@ public class ImsServiceControllerTest extends ImsTestBase {
     }
 
     @Test
-    @EnableFlags("com.android.internal.telephony.flags.ensure_ims_feature_order")
-    public void testBindAndConnect_flagOn_remoteExceptionTriggersCleanup() throws Exception {
+    public void testBindAndConnect_remoteExceptionTriggersCleanup() throws Exception {
         doThrow(new RemoteException("Test Exception")).when(mMockServiceControllerBinder)
                 .notifyImsServiceReadyForFeatureCreation();
 

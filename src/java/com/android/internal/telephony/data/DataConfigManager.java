@@ -57,6 +57,7 @@ import com.android.internal.telephony.Phone;
 import com.android.internal.telephony.configupdate.ConfigParser;
 import com.android.internal.telephony.configupdate.ConfigProviderAdaptor;
 import com.android.internal.telephony.configupdate.TelephonyConfigUpdateInstallReceiver;
+import com.android.internal.telephony.data.DataConfig.DataConfigDiff;
 import com.android.internal.telephony.data.DataNetworkController.HandoverRule;
 import com.android.internal.telephony.data.DataRetryManager.DataHandoverRetryRule;
 import com.android.internal.telephony.data.DataRetryManager.DataSetupRetryRule;
@@ -74,6 +75,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
@@ -411,14 +413,16 @@ public class DataConfigManager extends Handler {
                             DataConfig newDataConfig = (DataConfig) config.getConfig();
                             // Only update and notify if the new data configuration is
                             // functionally different
-                            if (!newDataConfig.equals(mDataConfig)) {
+                            if (!Objects.equals(mDataConfig, newDataConfig)) {
+                                DataConfigDiff diff = DataConfig.calculateDiff(mDataConfig,
+                                        newDataConfig);
                                 mDataConfig = newDataConfig;
                                 log("DataConfig updated: version="
                                         + (mDataConfig != null ? mDataConfig.getVersion()
-                                        : "null"));
+                                        : "null") + ", diff=" + diff);
                                 mDataConfigManagerCallbacks.forEach(callback ->
                                         callback.invokeFromExecutor(
-                                                callback::onDynamicConfigChanged));
+                                                () -> callback.onDynamicConfigChanged(diff)));
                             } else {
                                 log("DataConfig update ignored: version=" + (mDataConfig != null
                                         ? mDataConfig.getVersion() : "null"));
@@ -457,8 +461,10 @@ public class DataConfigManager extends Handler {
 
         /**
          * Called when dynamic data config changed.
+         *
+         * @param diff The difference between the old and new configuration.
          */
-        public void onDynamicConfigChanged() {}
+        public void onDynamicConfigChanged(@NonNull DataConfigDiff diff) {}
     }
 
     /**
