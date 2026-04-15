@@ -1297,7 +1297,11 @@ public class ImsPhoneConnection extends Connection implements
     public void setCurrentRttTextStream(android.telecom.Connection.RttTextStream rttTextStream) {
         synchronized (this) {
             mRttTextStream = rttTextStream;
-            if (mRttTextHandler == null && mIsRttEnabledForCall) {
+            if (mIsRttEnabledForCall) {
+                if (mRttTextHandler != null) {
+                    mRttTextHandler.tearDown();
+                    mRttTextHandler = null;
+                }
                 Rlog.i(LOG_TAG, "setCurrentRttTextStream: Creating a text handler");
                 createRttTextHandler();
             }
@@ -1337,6 +1341,24 @@ public class ImsPhoneConnection extends Connection implements
                 return;
             }
             createRttTextHandler();
+        }
+    }
+
+    /**
+     * Resets the RTT text handler for a conference call. Called when two RTT calls
+     * are merged into a conference so the handler is re-bound to the new IMS session.
+     */
+    public void resetRttTextHandler() {
+        synchronized (this) {
+            if (mRttTextHandler != null) {
+                Rlog.i(LOG_TAG, "resetRttTextHandler: tearing down old RTT handler");
+                mRttTextHandler.tearDown();
+                mRttTextHandler = null;
+            }
+            if (mIsRttEnabledForCall && mRttTextStream != null) {
+                Rlog.i(LOG_TAG, "resetRttTextHandler: re-creating RTT handler for conference");
+                createRttTextHandler();
+            }
         }
     }
 
