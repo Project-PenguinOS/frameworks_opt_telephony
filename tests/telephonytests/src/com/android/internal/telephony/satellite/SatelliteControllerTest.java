@@ -4369,7 +4369,7 @@ public class SatelliteControllerTest extends TelephonyTest {
         // Check don't display again after displayed already a system notification.
         sendServiceStateChangedEvent();
         processAllMessages();
-        verify(mMockNotificationManager, times(1)).notifyAsUser(anyString(), anyInt(), any(),
+        verify(mMockNotificationManager, times(2)).notifyAsUser(anyString(), anyInt(), any(),
                 any());
     }
 
