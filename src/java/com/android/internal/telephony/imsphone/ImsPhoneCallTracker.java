@@ -4433,6 +4433,11 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
             // Notify completion of merge
             if (conn != null) {
                 conn.handleMergeComplete();
+                // If the connection was remotely held before getting merged into a conference,
+                // clear the remotely held state
+                if (conn.isHeldByRemote()) {
+                    conn.setRemotelyUnheld();
+                }
             }
             logState();
         }
