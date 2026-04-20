@@ -6248,8 +6248,7 @@ public class SubscriptionManagerService extends ISub.Stub {
     }
 
     private boolean isMockModemAllowed() {
-        boolean isAllowed = SystemProperties.getBoolean(ALLOW_MOCK_MODEM_PROPERTY, false);
-        return (SystemProperties.getBoolean(ALLOW_MOCK_MODEM_PROPERTY, false)
+        return (SystemProperties.getBoolean(ALLOW_MOCK_MODEM_PROPERTY, true)
                 || SystemProperties.getBoolean(BOOT_ALLOW_MOCK_MODEM_PROPERTY, false));
     }
 
