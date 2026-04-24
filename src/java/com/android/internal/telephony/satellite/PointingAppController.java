@@ -666,7 +666,7 @@ public class PointingAppController extends Handler {
     }
 
     private boolean isMockModemAllowed() {
-        return (DEBUG || SystemProperties.getBoolean(ALLOW_MOCK_MODEM_PROPERTY, false));
+        return (DEBUG || SystemProperties.getBoolean(ALLOW_MOCK_MODEM_PROPERTY, true));
     }
 
     private static void logd(@NonNull String log) {
