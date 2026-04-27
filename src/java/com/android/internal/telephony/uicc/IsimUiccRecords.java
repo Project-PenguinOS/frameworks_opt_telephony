@@ -163,9 +163,7 @@ public class IsimUiccRecords extends IccRecords implements IsimRecords {
     private void fetchEssentialIsimRecords() {
         //NOP: No essential ISim records identified.
 // QTI_END: 2020-01-05: Telephony: Split uicc records loading in two groups.
-// QTI_BEGIN: 2020-02-24: Telephony: Fix SIM can't get loaded after unlocking
         mEssentialRecordsListenerNotified = false;
-// QTI_END: 2020-02-24: Telephony: Fix SIM can't get loaded after unlocking
 // QTI_BEGIN: 2020-01-05: Telephony: Split uicc records loading in two groups.
     }
 

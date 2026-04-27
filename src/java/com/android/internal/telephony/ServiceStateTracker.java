@@ -151,9 +151,7 @@ public class ServiceStateTracker extends Handler {
     private static final String PROP_FORCE_ROAMING = "telephony.test.forceRoaming";
 
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
-// QTI_BEGIN: 2021-02-25: Telephony: Add provision to issue poll requests from subclasses
     protected CommandsInterface mCi;
-// QTI_END: 2021-02-25: Telephony: Add provision to issue poll requests from subclasses
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     private UiccController mUiccController;
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
@@ -316,16 +314,12 @@ public class ServiceStateTracker extends Handler {
     // @GuardedBy("mPendingCellInfoRequests")
     private boolean mIsPendingCellInfoRequest = false;
 
-// QTI_BEGIN: 2025-01-21: Telephony: Change access specifiers of some methods and variables
     protected CarrierDisplayNameResolver mCdnr;
-// QTI_END: 2025-01-21: Telephony: Change access specifiers of some methods and variables
 
     private boolean mImsRegistrationOnOff = false;
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     private boolean mDeviceShuttingDown = false;
-// QTI_BEGIN: 2025-06-05: Telephony: Change access specifiers of mCarrierDisplayNameData for NITZ enhancement am: eddd28da1c
     protected CarrierDisplayNameData mCarrierDisplayNameData =
-// QTI_END: 2025-06-05: Telephony: Change access specifiers of mCarrierDisplayNameData for NITZ enhancement am: eddd28da1c
             new CarrierDisplayNameData.Builder().build();
     /** Keep track of SPN display rules, so we only broadcast intent if something changes. */
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
@@ -355,9 +349,7 @@ public class ServiceStateTracker extends Handler {
     private final LocalLog mCdnrLogs = new LocalLog(64);
 
     @Nullable private Pattern mOperatorNameStringPattern;
-// QTI_BEGIN: 2025-01-21: Telephony: Change access specifiers of some methods and variables
     protected PersistableBundle mCarrierConfig;
-// QTI_END: 2025-01-21: Telephony: Change access specifiers of some methods and variables
 
     @NonNull
     private final FeatureFlags mFeatureFlags;
@@ -393,10 +385,8 @@ public class ServiceStateTracker extends Handler {
                 if (SubscriptionManager.isValidSubscriptionId(mPrevSubId)) {
                     // just went from valid to invalid subId, so notify phone state listeners
                     // with final broadcast
-// QTI_BEGIN: 2024-03-13: Telephony: Notify emergency call only status in service state
                     log("onSubscriptionInfoChanged mEmergencyOnly = " + mEmergencyOnly);
                     mOutOfServiceSS.setEmergencyOnly(mEmergencyOnly);
-// QTI_END: 2024-03-13: Telephony: Notify emergency call only status in service state
                     mPhone.notifyServiceStateChangedForSubId(mOutOfServiceSS,
                             ServiceStateTracker.this.mPrevSubId);
                 }
@@ -718,9 +708,7 @@ public class ServiceStateTracker extends Handler {
 
         mAccessNetworksManager = mPhone.getAccessNetworksManager();
         mOutOfServiceSS = new ServiceState();
-// QTI_BEGIN: 2023-06-12: Telephony: Revert "Removed IWLAN legacy mode support"
         mOutOfServiceSS.setOutOfService(mAccessNetworksManager.isInLegacyMode(), false);
-// QTI_END: 2023-06-12: Telephony: Revert "Removed IWLAN legacy mode support"
 
         for (int transportType : mAccessNetworksManager.getAvailableTransports()) {
             mRegStateManagers.append(transportType, new NetworkRegistrationManager(
@@ -844,13 +832,9 @@ public class ServiceStateTracker extends Handler {
         }
 
         mSS = new ServiceState();
-// QTI_BEGIN: 2023-06-12: Telephony: Revert "Removed IWLAN legacy mode support"
         mSS.setOutOfService(mAccessNetworksManager.isInLegacyMode(), false);
-// QTI_END: 2023-06-12: Telephony: Revert "Removed IWLAN legacy mode support"
         mNewSS = new ServiceState();
-// QTI_BEGIN: 2023-06-12: Telephony: Revert "Removed IWLAN legacy mode support"
         mNewSS.setOutOfService(mAccessNetworksManager.isInLegacyMode(), false);
-// QTI_END: 2023-06-12: Telephony: Revert "Removed IWLAN legacy mode support"
         mLastCellInfoReqTime = 0;
         mNewSS.setStateOutOfService();
         mLastCellInfoList = null;
@@ -1351,7 +1335,6 @@ public class ServiceStateTracker extends Handler {
                 RadioPowerStateStats.onRadioStateChanged(mCi.getRadioState());
                 // This will do nothing in the 'radio not available' case
                 setPowerStateToDesired();
-// QTI_BEGIN: 2021-10-25: Telephony: Fix data detach isn't informed
                 // If SIM isn't powered down, need to trigger poll done immediately
                 // when radio is off to avoid skipping the stale OOS state.
                 if (mCi.getRadioState() == TelephonyManager.RADIO_POWER_OFF) {
@@ -1361,7 +1344,6 @@ public class ServiceStateTracker extends Handler {
                     // be forced.
                     pollStateInternal(true);
                 }
-// QTI_END: 2021-10-25: Telephony: Fix data detach isn't informed
                 break;
 
             case EVENT_POLL_STATE_INITIAL:
@@ -2818,7 +2800,6 @@ public class ServiceStateTracker extends Handler {
                 }
 
             default:
-// QTI_BEGIN: 2021-02-25: Telephony: Add provision to issue poll requests from subclasses
                 issuePollCommands();
                 break;
         }
@@ -2839,10 +2820,8 @@ public class ServiceStateTracker extends Handler {
         mPollingContext[0]++;
         mRegStateManagers.get(AccessNetworkConstants.TRANSPORT_TYPE_WWAN)
                 .requestNetworkRegistrationInfo(NetworkRegistrationInfo.DOMAIN_CS,
-// QTI_END: 2021-02-25: Telephony: Add provision to issue poll requests from subclasses
                         obtainMessage(EVENT_POLL_STATE_CS_CELLULAR_REGISTRATION, mPollingContext));
 
-// QTI_BEGIN: 2021-02-25: Telephony: Add provision to issue poll requests from subclasses
         if (mRegStateManagers.get(AccessNetworkConstants.TRANSPORT_TYPE_WLAN) != null) {
             mPollingContext[0]++;
             mRegStateManagers.get(AccessNetworkConstants.TRANSPORT_TYPE_WLAN)
@@ -2850,7 +2829,6 @@ public class ServiceStateTracker extends Handler {
                             obtainMessage(EVENT_POLL_STATE_PS_IWLAN_REGISTRATION,
                                     mPollingContext));
         }
-// QTI_END: 2021-02-25: Telephony: Add provision to issue poll requests from subclasses
 
         mPollingContext[0]++;
         mCi.getNetworkSelectionMode(obtainMessage(
@@ -2977,7 +2955,6 @@ public class ServiceStateTracker extends Handler {
                 mSS.getState() == ServiceState.STATE_POWER_OFF
                         && mNewSS.getState() != ServiceState.STATE_POWER_OFF;
 
-// QTI_BEGIN: 2023-06-12: Telephony: Revert "Removed IWLAN legacy mode support"
         SparseBooleanArray hasDataAttached = new SparseBooleanArray(
                 mAccessNetworksManager.getAvailableTransports().length);
         SparseBooleanArray hasDataDetached = new SparseBooleanArray(
@@ -2986,7 +2963,6 @@ public class ServiceStateTracker extends Handler {
                 mAccessNetworksManager.getAvailableTransports().length);
         SparseBooleanArray hasDataRegStateChanged = new SparseBooleanArray(
                 mAccessNetworksManager.getAvailableTransports().length);
-// QTI_END: 2023-06-12: Telephony: Revert "Removed IWLAN legacy mode support"
         boolean anyDataRegChanged = false;
         boolean anyDataRatChanged = false;
         boolean hasAlphaRawChanged =
@@ -3152,9 +3128,7 @@ public class ServiceStateTracker extends Handler {
         ServiceState oldMergedSS = new ServiceState(mPhone.getServiceState());
         mSS = new ServiceState(mNewSS);
 
-// QTI_BEGIN: 2023-06-12: Telephony: Revert "Removed IWLAN legacy mode support"
         mNewSS.setOutOfService(mAccessNetworksManager.isInLegacyMode(), false);
-// QTI_END: 2023-06-12: Telephony: Revert "Removed IWLAN legacy mode support"
 
         mCellIdentity = primaryCellIdentity;
         boolean isCsRegistered = mSS.getNetworkRegistrationInfo(NetworkRegistrationInfo.DOMAIN_CS,
@@ -4370,10 +4344,8 @@ public class ServiceStateTracker extends Handler {
         // For some cases like roaming/non-roaming overriding, we need carrier config. So it's
         // important to poll state again when carrier config is ready.
         pollStateInternal(false);
-// QTI_BEGIN: 2024-06-05: Telephony: Fix updating spn delay issue.
         // Sometimes service state may not change after carrier config is ready. But spn may
         // be overrided by carrier config. So it's important to update spn display here.
-// QTI_END: 2024-06-05: Telephony: Fix updating spn delay issue.
         updateCarrierDisplayName();
     }
 
@@ -4678,10 +4650,8 @@ public class ServiceStateTracker extends Handler {
     }
 
     /**
-// QTI_BEGIN: 2023-06-12: Telephony: Revert "Removed IWLAN legacy mode support"
      * This method adds IWLAN registration info for legacy mode devices camped on IWLAN. It also
      * makes some adjustments when the device camps on IWLAN in airplane mode.
-// QTI_END: 2023-06-12: Telephony: Revert "Removed IWLAN legacy mode support"
      */
     private void processIwlanRegistrationInfo() {
         if (mCi.getRadioState() == TelephonyManager.RADIO_POWER_OFF) {
@@ -4695,9 +4665,7 @@ public class ServiceStateTracker extends Handler {
             }
             // operator info should be kept in SS
             String operator = mNewSS.getOperatorAlphaLong();
-// QTI_BEGIN: 2023-06-12: Telephony: Revert "Removed IWLAN legacy mode support"
             mNewSS.setOutOfService(mAccessNetworksManager.isInLegacyMode(), true);
-// QTI_END: 2023-06-12: Telephony: Revert "Removed IWLAN legacy mode support"
             if (resetIwlanRatVal) {
                 mNewSS.setDataRegState(ServiceState.STATE_IN_SERVICE);
                 NetworkRegistrationInfo nri = new NetworkRegistrationInfo.Builder()
@@ -4708,7 +4676,6 @@ public class ServiceStateTracker extends Handler {
                         .setAvailableServices(List.of(NetworkRegistrationInfo.SERVICE_TYPE_DATA))
                         .build();
                 mNewSS.addNetworkRegistrationInfo(nri);
-// QTI_BEGIN: 2023-06-12: Telephony: Revert "Removed IWLAN legacy mode support"
                 if (mAccessNetworksManager.isInLegacyMode()) {
                     // If in legacy mode, simulate the behavior that IWLAN registration info
                     // is reported through WWAN transport.
@@ -4720,7 +4687,6 @@ public class ServiceStateTracker extends Handler {
                             .build();
                     mNewSS.addNetworkRegistrationInfo(nri);
                 }
-// QTI_END: 2023-06-12: Telephony: Revert "Removed IWLAN legacy mode support"
                 mNewSS.setOperatorAlphaLong(operator);
                 // Since it's in airplane mode, cellular must be out of service. The only possible
                 // transport for data to go through is the IWLAN transport. Setting this to true
@@ -4729,7 +4695,6 @@ public class ServiceStateTracker extends Handler {
                 log("pollStateDone: mNewSS = " + mNewSS);
             }
         }
-// QTI_BEGIN: 2023-06-12: Telephony: Revert "Removed IWLAN legacy mode support"
 
         // If the device operates in legacy mode and camps on IWLAN, modem reports IWLAN as a RAT
         // through WWAN registration info. To be consistent with the behavior with AP-assisted mode,
@@ -4755,7 +4720,6 @@ public class ServiceStateTracker extends Handler {
                 mNewSS.addNetworkRegistrationInfo(wlanNri);
             }
         }
-// QTI_END: 2023-06-12: Telephony: Revert "Removed IWLAN legacy mode support"
     }
 
     private void updateNtnCapability() {

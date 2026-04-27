@@ -14,14 +14,12 @@
  * limitations under the License.
  */
 
-// QTI_BEGIN: 2025-02-25: Telephony: Fix license marking
 /*
  * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
  * Copyright (c) 2025 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
-// QTI_END: 2025-02-25: Telephony: Fix license marking
 package com.android.internal.telephony.uicc;
 
 import static com.android.internal.telephony.TelephonyStatsLog.PIN_STORAGE_EVENT;
@@ -340,18 +338,14 @@ public class UiccProfile extends IccCard {
 
         update(c, ci, ics);
         ci.registerForOffOrNotAvailable(mHandler, EVENT_RADIO_OFF_OR_UNAVAILABLE, null);
-// QTI_BEGIN: 2020-06-22: Telephony: UiccProfile: fix the uicc app is not created when updating app type.
 
         Phone phone = PhoneFactory.getPhone(phoneId);
         if (phone != null) {
             setCurrentAppType(phone.getPhoneType() == PhoneConstants.PHONE_TYPE_GSM);
         }
 
-// QTI_END: 2020-06-22: Telephony: UiccProfile: fix the uicc app is not created when updating app type.
         resetProperties();
-// QTI_BEGIN: 2020-06-22: Telephony: UiccProfile: fix the uicc app is not created when updating app type.
         updateIccAvailability(false);
-// QTI_END: 2020-06-22: Telephony: UiccProfile: fix the uicc app is not created when updating app type.
 
         mCarrierConfigManager = c.getSystemService(CarrierConfigManager.class);
         // Listener callback directly handles config change and thus runs on handler thread
@@ -444,9 +438,7 @@ public class UiccProfile extends IccCard {
                 mCurrentAppType = secondaryAppType;
             }
         }
-// QTI_BEGIN: 2020-06-22: Telephony: UiccProfile: fix the uicc app is not created when updating app type.
         log("setCurrentAppType to be " + mCurrentAppType);
-// QTI_END: 2020-06-22: Telephony: UiccProfile: fix the uicc app is not created when updating app type.
     }
 
     /**
@@ -730,21 +722,15 @@ public class UiccProfile extends IccCard {
             case APPSTATE_READY:
                 checkAndUpdateIfAnyAppToBeIgnored();
                 if (areReadyAppsRecordsLoaded() && areCarrierPrivilegeRulesLoaded()) {
-// QTI_BEGIN: 2018-06-13: Telephony: Update external card state based on current app
                     if (VDBG) log("updateExternalState: setting state to LOADED");
                     setExternalState(IccCardConstants.State.LOADED);
-// QTI_END: 2018-06-13: Telephony: Update external card state based on current app
                 } else {
                     if (VDBG) {
-// QTI_BEGIN: 2018-06-13: Telephony: Update external card state based on current app
                         log("updateExternalState: setting state to READY; records loaded "
                             + areReadyAppsRecordsLoaded() + ", carrier privilige rules loaded "
-// QTI_END: 2018-06-13: Telephony: Update external card state based on current app
                             + areCarrierPrivilegeRulesLoaded());
                     }
-// QTI_BEGIN: 2018-06-13: Telephony: Update external card state based on current app
                         setExternalState(IccCardConstants.State.READY);
-// QTI_END: 2018-06-13: Telephony: Update external card state based on current app
                 }
                 break;
         }
@@ -1229,9 +1215,7 @@ public class UiccProfile extends IccCard {
     private void checkAndUpdateIfAnyAppToBeIgnored() {
         boolean[] appReadyStateTracker = new boolean[AppType.APPTYPE_ISIM.ordinal() + 1];
         for (UiccCardApplication app : mUiccApplications) {
-// QTI_BEGIN: 2018-06-13: Telephony: Update external card state based on current app
             if (app != null && isSupportedApplication(app) && app.isReady()) {
-// QTI_END: 2018-06-13: Telephony: Update external card state based on current app
                 appReadyStateTracker[app.getType().ordinal()] = true;
             }
         }
@@ -1253,17 +1237,13 @@ public class UiccProfile extends IccCard {
                     && !app.isAppIgnored()) {
                 IccRecords ir = app.getIccRecords();
                 if (ir == null || !ir.isLoaded()) {
-// QTI_BEGIN: 2018-06-13: Telephony: Update external card state based on current app
                     if (VDBG) log("areReadyAppsRecordsLoaded: return false");
-// QTI_END: 2018-06-13: Telephony: Update external card state based on current app
                     return false;
                 }
             }
         }
         if (VDBG) {
-// QTI_BEGIN: 2018-06-13: Telephony: Update external card state based on current app
             log("areReadyAppsRecordsLoaded: outside loop, return " + (mUiccApplication != null));
-// QTI_END: 2018-06-13: Telephony: Update external card state based on current app
         }
         return mUiccApplication != null;
     }
@@ -1752,7 +1732,6 @@ public class UiccProfile extends IccCard {
      */
     public String getIccId() {
         // ICCID should be same across all the apps.
-// QTI_BEGIN: 2018-11-14: Telephony: Add Null check to getIccId.
         if (mUiccApplications != null) {
             for (UiccCardApplication app : mUiccApplications) {
                 if (app != null) {
@@ -1760,7 +1739,6 @@ public class UiccProfile extends IccCard {
                     if (ir != null && ir.getIccId() != null) {
                         return ir.getIccId();
                     }
-// QTI_END: 2018-11-14: Telephony: Add Null check to getIccId.
                 }
             }
         }

@@ -14,16 +14,12 @@
  * limitations under the License.
  */
 
-// QTI_BEGIN: 2025-02-25: Telephony: Fix license marking
 /*
-// QTI_END: 2025-02-25: Telephony: Fix license marking
  * Changes from Qualcomm Technologies, Inc. are provided under the following license:
  * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
-// QTI_BEGIN: 2025-02-25: Telephony: Fix license marking
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
-// QTI_END: 2025-02-25: Telephony: Fix license marking
 package com.android.internal.telephony.subscription;
 
 import static android.content.pm.PackageManager.FEATURE_TELEPHONY_SUBSCRIPTION;
@@ -1770,9 +1766,7 @@ public class SubscriptionManagerService extends ISub.Stub {
      * @return {@code true} if all the need-to-be-loaded subscriptions from SIM slots are already
      * loaded. {@code false} if more than one are still being loaded.
      */
-// QTI_BEGIN: 2023-07-10: Telephony: Align legacy code to SubscriptionManagerService design
     public boolean areAllSubscriptionsLoaded() {
-// QTI_END: 2023-07-10: Telephony: Align legacy code to SubscriptionManagerService design
         for (int phoneId = 0; phoneId < mTelephonyManager.getActiveModemCount(); phoneId++) {
             UiccSlot slot = mUiccController.getUiccSlotForPhone(phoneId);
             if (slot == null) {
@@ -1812,9 +1806,7 @@ public class SubscriptionManagerService extends ISub.Stub {
      *
      * @param phoneId The phone id (i.e. Logical SIM slot index)
      */
-// QTI_BEGIN: 2023-07-10: Telephony: Align legacy code to SubscriptionManagerService design
     public void updateSubscription(int phoneId) {
-// QTI_END: 2023-07-10: Telephony: Align legacy code to SubscriptionManagerService design
         int simState = mSimState[phoneId];
         log("updateSubscription: phoneId=" + phoneId + ", simState="
                 + TelephonyManager.simStateToString(simState));
@@ -3498,9 +3490,7 @@ public class SubscriptionManagerService extends ISub.Stub {
     /**
      * Update default sub id.
      */
-// QTI_BEGIN: 2023-07-10: Telephony: Align legacy code to SubscriptionManagerService design
     public void updateDefaultSubId() {
-// QTI_END: 2023-07-10: Telephony: Align legacy code to SubscriptionManagerService design
         int subId;
         boolean isVoiceCapable = mTelephonyManager.isVoiceCapable();
 
@@ -3656,11 +3646,9 @@ public class SubscriptionManagerService extends ISub.Stub {
         final long token = Binder.clearCallingIdentity();
         try {
             if (mDefaultDataSubId.set(subId)) {
-// QTI_BEGIN: 2025-02-18: Telephony: Add isFlexMapSupportNeeded method. am: ffd2270edd am: ffd2270edd
                 if (isFlexMapSupportNeeded()) {
                     remapRafIfApplicable();
                 }
-// QTI_END: 2025-02-18: Telephony: Add isFlexMapSupportNeeded method. am: ffd2270edd am: ffd2270edd
                 MultiSimSettingController.getInstance().notifyDefaultDataSubChanged();
 
                 broadcastSubId(TelephonyIntents.ACTION_DEFAULT_DATA_SUBSCRIPTION_CHANGED,
@@ -3676,12 +3664,10 @@ public class SubscriptionManagerService extends ISub.Stub {
         }
     }
 
-// QTI_BEGIN: 2025-02-18: Telephony: Add isFlexMapSupportNeeded method. am: ffd2270edd am: ffd2270edd
     public boolean isFlexMapSupportNeeded() {
         return false;
     }
 
-// QTI_END: 2025-02-18: Telephony: Add isFlexMapSupportNeeded method. am: ffd2270edd am: ffd2270edd
     /**
      * Remap Radio Access Family if needed.
      */

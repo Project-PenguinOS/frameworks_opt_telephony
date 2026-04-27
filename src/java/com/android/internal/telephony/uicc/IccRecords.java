@@ -14,14 +14,12 @@
  * limitations under the License.
  */
 
-// QTI_BEGIN: 2025-02-25: Telephony: Fix license marking
 /*
  * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
  * Copyright (c) 2025 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
-// QTI_END: 2025-02-25: Telephony: Fix license marking
 package com.android.internal.telephony.uicc;
 
 import static com.android.internal.telephony.util.TelephonyUtils.FORCE_VERBOSE_STATE_LOGGING;
@@ -60,12 +58,10 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.nio.charset.Charset;
 import java.util.Arrays;
-// QTI_BEGIN: 2024-04-05: Telephony: Send failure response when disposing IccRecords
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Objects;
-// QTI_END: 2024-04-05: Telephony: Send failure response when disposing IccRecords
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -119,9 +115,7 @@ public abstract class IccRecords extends Handler implements IccConstants {
     protected TelephonyManager mTelephonyManager;
 
     protected RegistrantList mRecordsLoadedRegistrants = new RegistrantList();
-// QTI_BEGIN: 2020-01-05: Telephony: Split uicc records loading in two groups.
     protected RegistrantList mEssentialRecordsLoadedRegistrants = new RegistrantList();
-// QTI_END: 2020-01-05: Telephony: Split uicc records loading in two groups.
     protected RegistrantList mLockedRecordsLoadedRegistrants = new RegistrantList();
     protected RegistrantList mNetworkLockedRecordsLoadedRegistrants = new RegistrantList();
 // QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
@@ -132,12 +126,10 @@ public abstract class IccRecords extends Handler implements IccConstants {
     protected RegistrantList mNetworkSelectionModeAutomaticRegistrants = new RegistrantList();
     protected RegistrantList mRecordsOverrideRegistrants = new RegistrantList();
 
-// QTI_BEGIN: 2020-01-05: Telephony: Split uicc records loading in two groups.
     protected boolean mEssentialRecordsListenerNotified;
 
     protected int mEssentialRecordsToLoad;  // number of pending essential records load requests
 
-// QTI_END: 2020-01-05: Telephony: Split uicc records loading in two groups.
     protected int mRecordsToLoad;  // number of pending load requests
 
     protected AdnRecordCache mAdnCache;
@@ -303,9 +295,7 @@ public abstract class IccRecords extends Handler implements IccConstants {
                 + " mCi=" + mCi
                 + " mFh=" + mFh
                 + " mParentApp=" + mParentApp
-// QTI_BEGIN: 2020-01-05: Telephony: Split uicc records loading in two groups.
                 + " mEssentialRecordsToLoad=" + mEssentialRecordsToLoad
-// QTI_END: 2020-01-05: Telephony: Split uicc records loading in two groups.
                 + " recordsToLoad=" + mRecordsToLoad
                 + " adnCache=" + mAdnCache
                 + " recordsRequested=" + mRecordsRequested
@@ -399,7 +389,6 @@ public abstract class IccRecords extends Handler implements IccConstants {
             mAdnCache.reset();
         }
         mLoaded.set(false);
-// QTI_BEGIN: 2024-04-05: Telephony: Send failure response when disposing IccRecords
 
         // Send a failure response for all pending transactions so as to avoid ANRs
         synchronized (mPendingTransactions) {
@@ -414,7 +403,6 @@ public abstract class IccRecords extends Handler implements IccConstants {
                 iterator.remove();  // Use iterator's remove method to avoid concurrent modification
             }
         }
-// QTI_END: 2024-04-05: Telephony: Send failure response when disposing IccRecords
     }
 
     protected abstract void onReady();
@@ -499,7 +487,6 @@ public abstract class IccRecords extends Handler implements IccConstants {
         return mFullIccId;
     }
 
-// QTI_BEGIN: 2020-01-05: Telephony: Split uicc records loading in two groups.
     public void registerForEssentialRecordsLoaded(Handler h, int what, Object obj) {
         if (mDestroyed.get()) {
             return;
@@ -513,7 +500,6 @@ public abstract class IccRecords extends Handler implements IccConstants {
         }
     }
 
-// QTI_END: 2020-01-05: Telephony: Split uicc records loading in two groups.
     public void registerForRecordsLoaded(Handler h, int what, Object obj) {
         if (mDestroyed.get()) {
             return;
@@ -526,13 +512,11 @@ public abstract class IccRecords extends Handler implements IccConstants {
             r.notifyRegistrant(new AsyncResult(null, null, null));
         }
     }
-// QTI_BEGIN: 2020-01-05: Telephony: Split uicc records loading in two groups.
 
     public void unregisterForEssentialRecordsLoaded(Handler h) {
         mEssentialRecordsLoadedRegistrants.remove(h);
     }
 
-// QTI_END: 2020-01-05: Telephony: Split uicc records loading in two groups.
     public void unregisterForRecordsLoaded(Handler h) {
         mRecordsLoadedRegistrants.remove(h);
     }
@@ -956,12 +940,10 @@ public abstract class IccRecords extends Handler implements IccConstants {
      */
     public abstract void onRefresh(boolean fileChanged, int[] fileList);
 
-// QTI_BEGIN: 2020-01-05: Telephony: Split uicc records loading in two groups.
     public boolean getEssentialRecordsLoaded() {
         return mEssentialRecordsToLoad == 0 && mRecordsRequested;
     }
 
-// QTI_END: 2020-01-05: Telephony: Split uicc records loading in two groups.
     public boolean getRecordsLoaded() {
         return mRecordsToLoad == 0 && mRecordsRequested;
     }
@@ -1007,10 +989,8 @@ public abstract class IccRecords extends Handler implements IccConstants {
                     ar = (AsyncResult) msg.obj;
                     IccRecordLoaded recordLoaded = (IccRecordLoaded) ar.userObj;
                     if (DBG) log(recordLoaded.getEfName() + " LOADED");
-// QTI_BEGIN: 2020-05-07: Telephony: Fix data call issue due to SPN load failure
                     recordLoaded.onRecordLoaded(ar);
                 } catch (RuntimeException exc) {
-// QTI_END: 2020-05-07: Telephony: Fix data call issue due to SPN load failure
                     // I don't want these exceptions to be fatal
                     loge("Exception parsing SIM record: " + exc);
                 } finally {
@@ -1188,10 +1168,8 @@ public abstract class IccRecords extends Handler implements IccConstants {
 
     protected abstract void onRecordLoaded();
 
-// QTI_BEGIN: 2020-01-05: Telephony: Split uicc records loading in two groups.
     protected abstract void onAllEssentialRecordsLoaded();
 
-// QTI_END: 2020-01-05: Telephony: Split uicc records loading in two groups.
     protected abstract void onAllRecordsLoaded();
 
     /**
@@ -1518,14 +1496,12 @@ public abstract class IccRecords extends Handler implements IccConstants {
         pw.println(" mCi=" + mCi);
         pw.println(" mFh=" + mFh);
         pw.println(" mParentApp=" + mParentApp);
-// QTI_BEGIN: 2020-01-05: Telephony: Split uicc records loading in two groups.
         pw.println(" mEssentialRecordsLoadedRegistrants: size="
                 + mEssentialRecordsLoadedRegistrants.size());
         for (int i = 0; i < mEssentialRecordsLoadedRegistrants.size(); i++) {
             pw.println("  mEssentialRecordsLoadedRegistrants[" + i + "]="
                     + ((Registrant)mEssentialRecordsLoadedRegistrants.get(i)).getHandler());
         }
-// QTI_END: 2020-01-05: Telephony: Split uicc records loading in two groups.
         pw.println(" recordsLoadedRegistrants: size=" + mRecordsLoadedRegistrants.size());
         for (int i = 0; i < mRecordsLoadedRegistrants.size(); i++) {
             pw.println("  recordsLoadedRegistrants[" + i + "]="
@@ -1566,9 +1542,7 @@ public abstract class IccRecords extends Handler implements IccConstants {
         }
         pw.println(" mRecordsRequested=" + mRecordsRequested);
         pw.println(" mLockedRecordsReqReason=" + mLockedRecordsReqReason);
-// QTI_BEGIN: 2020-01-05: Telephony: Split uicc records loading in two groups.
         pw.println(" mEssentialRecordsToLoad=" + mEssentialRecordsToLoad);
-// QTI_END: 2020-01-05: Telephony: Split uicc records loading in two groups.
         pw.println(" mRecordsToLoad=" + mRecordsToLoad);
         pw.println(" mRdnCache=" + mAdnCache);
 

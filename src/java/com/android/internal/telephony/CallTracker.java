@@ -26,14 +26,10 @@ import android.os.Message;
 import android.os.PersistableBundle;
 import android.telephony.CarrierConfigManager;
 import android.telephony.ServiceState;
-// QTI_BEGIN: 2020-04-21: Telephony: CS: VoWiFi Dual Voice Call feature for CS Voice
 import android.telephony.TelephonyManager;
-// QTI_END: 2020-04-21: Telephony: CS: VoWiFi Dual Voice Call feature for CS Voice
-// QTI_BEGIN: 2025-01-28: Telephony: Check for simultaneous calling restriction
 import android.telecom.PhoneAccount;
 import android.telecom.PhoneAccountHandle;
 import android.telecom.TelecomManager;
-// QTI_END: 2025-01-28: Telephony: Check for simultaneous calling restriction
 import android.text.TextUtils;
 
 import com.android.internal.telephony.flags.FeatureFlags;

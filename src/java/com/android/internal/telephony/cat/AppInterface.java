@@ -41,9 +41,7 @@ public interface AppInterface {
     //This is used to send ALPHA string from card to STK App.
     public static final String ALPHA_STRING = "alpha_string";
 
-// QTI_BEGIN: 2018-03-07: Telephony: STK application uninstall for NAA Application reset.
     public static final String AID = "aid";
-// QTI_END: 2018-03-07: Telephony: STK application uninstall for NAA Application reset.
     // This is used to send refresh-result when MSG_ID_ICC_REFRESH is received.
     public static final String REFRESH_RESULT = "refresh_result";
     //This is used to send card status from card to STK App.

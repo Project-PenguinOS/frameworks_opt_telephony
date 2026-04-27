@@ -664,10 +664,8 @@ public class ImsPhoneTest extends TelephonyTest {
     }
 
     @Test
-// QTI_BEGIN: 2020-07-15: Telephony: Fix FrameworksTelephonyTests UT failures
     @Ignore
     // TODO: Move this to a separate test class for EcbmHandler
-// QTI_END: 2020-07-15: Telephony: Fix FrameworksTelephonyTests UT failures
     public void testEcbm() throws Exception {
         EcbmHandler.getInstance().setOnEcbModeExitResponse(mTestHandler,
                 EVENT_EMERGENCY_CALLBACK_MODE_EXIT, null);
@@ -818,9 +816,7 @@ public class ImsPhoneTest extends TelephonyTest {
     @Test
     @SmallTest
     public void testRoamingToAirplanModeIwlanInService() throws Exception {
-// QTI_BEGIN: 2023-06-12: Telephony: Revert "Removed IWLAN legacy mode support"
         doReturn(true).when(mAccessNetworksManager).isInLegacyMode();
-// QTI_END: 2023-06-12: Telephony: Revert "Removed IWLAN legacy mode support"
         doReturn(PhoneConstants.State.IDLE).when(mImsCT).getState();
         doReturn(true).when(mPhone).isRadioOn();
 
@@ -848,9 +844,7 @@ public class ImsPhoneTest extends TelephonyTest {
     @Test
     @SmallTest
     public void testRoamingToOutOfService() throws Exception {
-// QTI_BEGIN: 2023-06-12: Telephony: Revert "Removed IWLAN legacy mode support"
         doReturn(true).when(mAccessNetworksManager).isInLegacyMode();
-// QTI_END: 2023-06-12: Telephony: Revert "Removed IWLAN legacy mode support"
         doReturn(PhoneConstants.State.IDLE).when(mImsCT).getState();
         doReturn(true).when(mPhone).isRadioOn();
 
@@ -873,7 +867,6 @@ public class ImsPhoneTest extends TelephonyTest {
         verify(mImsManager, times(1)).setWfcMode(anyInt(), anyBoolean());
     }
 
-// QTI_BEGIN: 2023-06-12: Telephony: Revert "Removed IWLAN legacy mode support"
     @Test
     @SmallTest
     public void testRoamingChangeForLteInLegacyMode() throws Exception {
@@ -951,7 +944,6 @@ public class ImsPhoneTest extends TelephonyTest {
         verify(mImsManager, times(1)).setWfcMode(anyInt(), anyBoolean());
     }
 
-// QTI_END: 2023-06-12: Telephony: Revert "Removed IWLAN legacy mode support"
     @Test
     @SmallTest
     public void testSetWfcModeInRoaming() throws Exception {

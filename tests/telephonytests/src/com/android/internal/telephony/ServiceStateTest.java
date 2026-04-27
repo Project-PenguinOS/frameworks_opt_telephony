@@ -159,9 +159,7 @@ public class ServiceStateTest extends TestCase {
         rats.add(new Pair<Integer, Boolean>(ServiceState.RIL_RADIO_TECHNOLOGY_GSM, false));
         rats.add(new Pair<Integer, Boolean>(ServiceState.RIL_RADIO_TECHNOLOGY_TD_SCDMA, false));
         rats.add(new Pair<Integer, Boolean>(ServiceState.RIL_RADIO_TECHNOLOGY_IWLAN, false));
-// QTI_BEGIN: 2019-05-03: Telephony: Support for NR radio technology
         rats.add(new Pair<Integer, Boolean>(ServiceState.RIL_RADIO_TECHNOLOGY_NR, false));
-// QTI_END: 2019-05-03: Telephony: Support for NR radio technology
 
         for (Pair<Integer, Boolean> rat : rats) {
             boolean isCdma = rat.second;
@@ -483,7 +481,6 @@ public class ServiceStateTest extends TestCase {
         }
     }
 
-// QTI_BEGIN: 2019-05-03: Telephony: Support for NR radio technology
     @SmallTest
     public void testIsPsTech() {
         ArrayList<Pair<Integer, Boolean>> rats = new ArrayList<Pair<Integer, Boolean>>();
@@ -520,5 +517,4 @@ public class ServiceStateTest extends TestCase {
             }
         }
     }
-// QTI_END: 2019-05-03: Telephony: Support for NR radio technology
 }

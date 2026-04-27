@@ -898,10 +898,8 @@ public class SIMRecords extends IccRecords {
 
                 case EVENT_GET_AD_DONE:
                     isRecordLoadResponse = true;
-// QTI_BEGIN: 2020-01-23: Telephony: Fix data call issue due to improper mnc length
                     mEssentialRecordsToLoad -= 1;
 
-// QTI_END: 2020-01-23: Telephony: Fix data call issue due to improper mnc length
                     mMncLength = UNKNOWN;
                     try {
                         if (!mCarrierTestOverride.isInTestMode()) {
@@ -1485,9 +1483,7 @@ public class SIMRecords extends IccRecords {
                 break;
             case EF_MSISDN:
                 mRecordsToLoad++;
-// QTI_BEGIN: 2020-04-14: Telephony: Fix wrong decreasing the ref count of the essential record in SIM refreshing
                 mEssentialRecordsToLoad++;
-// QTI_END: 2020-04-14: Telephony: Fix wrong decreasing the ref count of the essential record in SIM refreshing
                 log("SIM Refresh called for EF_MSISDN");
                 new AdnRecordLoader(mFh).loadFromEF(EF_MSISDN, getExtFromEf(EF_MSISDN), 1,
                         obtainMessage(EVENT_GET_MSISDN_DONE));
@@ -1768,12 +1764,10 @@ public class SIMRecords extends IccRecords {
         mEssentialRecordsToLoad++;
 
 // QTI_END: 2020-01-05: Telephony: Split uicc records loading in two groups.
-// QTI_BEGIN: 2020-01-23: Telephony: Fix data call issue due to improper mnc length
         mFh.loadEFTransparent(EF_AD, obtainMessage(EVENT_GET_AD_DONE));
         mRecordsToLoad++;
         mEssentialRecordsToLoad++;
 
-// QTI_END: 2020-01-23: Telephony: Fix data call issue due to improper mnc length
 // QTI_BEGIN: 2020-03-05: Telephony: Fetch SPN before initiating data attach
         getSpnFsm(true, null);
 // QTI_END: 2020-03-05: Telephony: Fetch SPN before initiating data attach

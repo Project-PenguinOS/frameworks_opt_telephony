@@ -18,9 +18,7 @@ package com.android.internal.telephony.data;
 
 import static com.google.common.truth.Truth.assertThat;
 
-// QTI_BEGIN: 2023-06-12: Telephony: Revert "Removed IWLAN legacy mode support"
 import static org.junit.Assume.assumeFalse;
-// QTI_END: 2023-06-12: Telephony: Revert "Removed IWLAN legacy mode support"
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -161,9 +159,7 @@ public class AccessNetworksManagerTest extends TelephonyTest {
         processAllMessages();
         replaceInstance(AccessNetworksManager.class, "mDataConfigManager",
                 mAccessNetworksManager, mMockedDataConfigManager);
-// QTI_BEGIN: 2023-06-12: Telephony: Revert "Removed IWLAN legacy mode support"
         assumeFalse(mAccessNetworksManager.isInLegacyMode());
-// QTI_END: 2023-06-12: Telephony: Revert "Removed IWLAN legacy mode support"
         logd("-setUp");
     }
 

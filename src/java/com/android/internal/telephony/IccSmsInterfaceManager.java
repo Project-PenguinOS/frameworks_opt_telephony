@@ -57,9 +57,7 @@ import com.android.internal.telephony.uicc.IccFileHandler;
 import com.android.internal.telephony.uicc.IccUtils;
 import com.android.internal.telephony.uicc.UiccController;
 import com.android.internal.telephony.uicc.UiccProfile;
-// QTI_BEGIN: 2018-03-07: Telephony: Get SIM card capacity of SMS
 import com.android.internal.telephony.uicc.IccRecords;
-// QTI_END: 2018-03-07: Telephony: Get SIM card capacity of SMS
 import com.android.internal.util.HexDump;
 import com.android.telephony.Rlog;
 
@@ -164,10 +162,8 @@ public class IccSmsInterfaceManager {
     protected IccSmsInterfaceManager(Phone phone, @NonNull FeatureFlags featureFlags) {
         this(phone, phone.getContext(),
                 (AppOpsManager) phone.getContext().getSystemService(Context.APP_OPS_SERVICE),
-// QTI_BEGIN: 2023-01-25: Telephony: Make SmsDispatchersController injectable
                 TelephonyComponentFactory.getInstance().inject(
                         SmsDispatchersController.class.getName())
-// QTI_END: 2023-01-25: Telephony: Make SmsDispatchersController injectable
                         .makeSmsDispatchersController(phone, featureFlags),
                 new SmsPermissions(phone, phone.getContext(),
                         (AppOpsManager) phone.getContext().getSystemService(
