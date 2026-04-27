@@ -22,9 +22,9 @@ import android.compat.annotation.UnsupportedAppUsage;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.content.pm.ApplicationInfo;
-// QTI_BEGIN: 2018-04-04: Secure Systems: SEEMP: framework instrumentation and SMS security
+// QTI_BEGIN: 2018-04-04: Telephony: SEEMP: framework instrumentation and SMS security
 import android.content.pm.PackageInfo;
-// QTI_END: 2018-04-04: Secure Systems: SEEMP: framework instrumentation and SMS security
+// QTI_END: 2018-04-04: Telephony: SEEMP: framework instrumentation and SMS security
 import android.content.pm.PackageManager.NameNotFoundException;
 import android.content.res.XmlResourceParser;
 import android.database.ContentObserver;
@@ -87,11 +87,11 @@ public class SmsUsageMonitor {
     /** Default number of SMS sent in checking period without user permission. */
     private static final int DEFAULT_SMS_MAX_COUNT = 30;
 
-// QTI_BEGIN: 2018-04-04: Secure Systems: SEEMP: framework instrumentation and SMS security
+// QTI_BEGIN: 2018-04-04: Telephony: SEEMP: framework instrumentation and SMS security
     /** Error code for SmsManager sent PendingIntent **/
     static final int ERROR_CODE_BLOCKED = 191286;
 
-// QTI_END: 2018-04-04: Secure Systems: SEEMP: framework instrumentation and SMS security
+// QTI_END: 2018-04-04: Telephony: SEEMP: framework instrumentation and SMS security
     /** @hide */
     public static int mergeShortCodeCategories(int type1, int type2) {
         if (type1 > type2) return type1;
@@ -607,7 +607,7 @@ public class SmsUsageMonitor {
         }).start();
     }
 
-// QTI_BEGIN: 2018-04-04: Secure Systems: SEEMP: framework instrumentation and SMS security
+// QTI_BEGIN: 2018-04-04: Telephony: SEEMP: framework instrumentation and SMS security
     public interface SmsAuthorizationCallback {
         void onAuthorizationResult(boolean authorized);
     }
@@ -625,7 +625,7 @@ public class SmsUsageMonitor {
                 com.android.internal.R.bool.config_sms_authorization_enabled);
     }
 
-// QTI_END: 2018-04-04: Secure Systems: SEEMP: framework instrumentation and SMS security
+// QTI_END: 2018-04-04: Telephony: SEEMP: framework instrumentation and SMS security
     /**
      * helper method that compares the uid1 to uid2.
      * <p>

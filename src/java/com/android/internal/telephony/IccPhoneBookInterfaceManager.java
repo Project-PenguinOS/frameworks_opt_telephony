@@ -17,21 +17,15 @@
 package com.android.internal.telephony;
 
 import android.compat.annotation.UnsupportedAppUsage;
-// QTI_BEGIN: 2018-03-07: Telephony: SimPhoneBook: Add ANR/EMAIL support for USIM phonebook.
 import android.content.ContentValues;
-// QTI_END: 2018-03-07: Telephony: SimPhoneBook: Add ANR/EMAIL support for USIM phonebook.
 import android.content.pm.PackageManager;
 import android.os.AsyncResult;
 import android.os.Build;
-// QTI_BEGIN: 2018-03-07: Telephony: SimPhoneBook: Add ANR/EMAIL support for USIM phonebook.
 import android.os.HandlerThread;
-// QTI_END: 2018-03-07: Telephony: SimPhoneBook: Add ANR/EMAIL support for USIM phonebook.
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
-// QTI_BEGIN: 2018-03-07: Telephony: SimPhoneBook: Add ANR/EMAIL support for USIM phonebook.
 import android.text.TextUtils;
-// QTI_END: 2018-03-07: Telephony: SimPhoneBook: Add ANR/EMAIL support for USIM phonebook.
 
 import com.android.internal.telephony.uicc.AdnCapacity;
 import com.android.internal.telephony.uicc.AdnRecord;
@@ -395,9 +389,7 @@ public class IccPhoneBookInterfaceManager {
     }
 
     @UnsupportedAppUsage
-// QTI_BEGIN: 2018-03-07: Telephony: SimPhoneBook: Add ANR/EMAIL support for USIM phonebook.
     protected int updateEfForIccType(int efid) {
-// QTI_END: 2018-03-07: Telephony: SimPhoneBook: Add ANR/EMAIL support for USIM phonebook.
         // Check if we are trying to read ADN records
         if (efid == IccConstants.EF_ADN) {
             if (mPhone.getCurrentUiccAppType() == AppType.APPTYPE_USIM) {
@@ -406,7 +398,6 @@ public class IccPhoneBookInterfaceManager {
         }
         return efid;
     }
-// QTI_BEGIN: 2018-03-07: Telephony: SimPhoneBook: Add ANR/EMAIL support for USIM phonebook.
 
     protected String[] getStringArray(String str) {
         if (str != null) {
@@ -415,30 +406,21 @@ public class IccPhoneBookInterfaceManager {
         return null;
     }
 
-// QTI_END: 2018-03-07: Telephony: SimPhoneBook: Add ANR/EMAIL support for USIM phonebook.
     private String[] getEmailStringArray(String str) {
         return str != null ? str.split(",") : null;
     }
 
-// QTI_BEGIN: 2018-03-07: Telephony: SimPhoneBook: Add ANR/EMAIL support for USIM phonebook.
     protected String[] getAnrStringArray(String str) {
-// QTI_END: 2018-03-07: Telephony: SimPhoneBook: Add ANR/EMAIL support for USIM phonebook.
         return str != null ? str.split(":") : null;
-// QTI_BEGIN: 2018-03-07: Telephony: SimPhoneBook: Add ANR/EMAIL support for USIM phonebook.
     }
 
     /**
      * Get the capacity of ADN records
      *
-// QTI_END: 2018-03-07: Telephony: SimPhoneBook: Add ANR/EMAIL support for USIM phonebook.
      * @return AdnCapacity
-// QTI_BEGIN: 2018-03-07: Telephony: SimPhoneBook: Add ANR/EMAIL support for USIM phonebook.
      */
-// QTI_END: 2018-03-07: Telephony: SimPhoneBook: Add ANR/EMAIL support for USIM phonebook.
     public AdnCapacity getAdnRecordsCapacity() {
-// QTI_BEGIN: 2018-03-07: Telephony: SimPhoneBook: Add ANR/EMAIL support for USIM phonebook.
         if (DBG) logd("getAdnRecordsCapacity" );
-// QTI_END: 2018-03-07: Telephony: SimPhoneBook: Add ANR/EMAIL support for USIM phonebook.
         if (mPhone.getContext().checkCallingOrSelfPermission(
                 android.Manifest.permission.READ_CONTACTS)
                 != PackageManager.PERMISSION_GRANTED) {
@@ -480,9 +462,7 @@ public class IccPhoneBookInterfaceManager {
             logd("sim state is not ready when getAdnRecordsCapacity.");
         }
         return null;
-// QTI_BEGIN: 2018-03-07: Telephony: SimPhoneBook: Add ANR/EMAIL support for USIM phonebook.
     }
-// QTI_END: 2018-03-07: Telephony: SimPhoneBook: Add ANR/EMAIL support for USIM phonebook.
 
     private boolean usesPbCache(int efid) {
         return mSimPbRecordCache.isEnabled() &&

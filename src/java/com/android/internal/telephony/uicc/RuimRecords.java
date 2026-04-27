@@ -320,9 +320,7 @@ public class RuimRecords extends IccRecords {
 // QTI_BEGIN: 2012-09-07: Telephony: Remove CdmaLteUicc objects
         public void onRecordLoaded(AsyncResult ar) {
 // QTI_END: 2012-09-07: Telephony: Remove CdmaLteUicc objects
-// QTI_BEGIN: 2020-03-05: Telephony: Fetch SPN before initiating data attach
             mEssentialRecordsToLoad -= 1;
-// QTI_END: 2020-03-05: Telephony: Fetch SPN before initiating data attach
 // QTI_BEGIN: 2020-05-07: Telephony: Fix data call issue due to SPN load failure
             if (ar.exception != null) {
                 loge("Record Load Exception: " + ar.exception);
@@ -993,14 +991,12 @@ public class RuimRecords extends IccRecords {
         mEssentialRecordsToLoad++;
 
 // QTI_END: 2020-01-05: Telephony: Split uicc records loading in two groups.
-// QTI_BEGIN: 2020-03-05: Telephony: Fetch SPN before initiating data attach
         mFh.loadEFTransparent(EF_CSIM_SPN,
                 obtainMessage(EVENT_GET_ICC_RECORD_DONE, new EfCsimSpnLoaded()));
         mRecordsToLoad++;
         mEssentialRecordsToLoad++;
 
 
-// QTI_END: 2020-03-05: Telephony: Fetch SPN before initiating data attach
 // QTI_BEGIN: 2020-01-05: Telephony: Split uicc records loading in two groups.
         if (DBG) log("fetchEssentialRuimRecords " + mRecordsToLoad +
                 " requested: " + mRecordsRequested);

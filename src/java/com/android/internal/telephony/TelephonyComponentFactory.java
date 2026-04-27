@@ -18,9 +18,7 @@
 /*
  * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
 // QTI_END: 2024-11-13: Telephony: Inject TelephonyNetworkProvider class
-// QTI_BEGIN: 2025-02-25: Telephony: Fix license marking
  * Copyright (c) 2024-2025 Qualcomm Innovation Center, Inc. All rights reserved.
-// QTI_END: 2025-02-25: Telephony: Fix license marking
 // QTI_BEGIN: 2024-11-13: Telephony: Inject TelephonyNetworkProvider class
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
@@ -33,56 +31,36 @@ import android.annotation.Nullable;
 import android.content.Context;
 import android.content.res.XmlResourceParser;
 import android.database.Cursor;
-// QTI_BEGIN: 2022-03-04: Telephony: Add support for injecting data sub modules
 import android.net.NetworkAgentConfig;
 import android.net.NetworkProvider;
 import android.net.NetworkScore;
-// QTI_END: 2022-03-04: Telephony: Add support for injecting data sub modules
-// QTI_BEGIN: 2018-01-31: Telephony: Enable vendor Telephony plugin
 import android.os.Looper;
-// QTI_END: 2018-01-31: Telephony: Enable vendor Telephony plugin
 import android.system.ErrnoException;
 import android.system.Os;
 import android.system.OsConstants;
 import android.system.StructStatVfs;
-// QTI_BEGIN: 2022-12-12: Telephony: Fix compilation error with changes brought from T
 import android.telephony.AccessNetworkConstants.TransportType;
-// QTI_END: 2022-12-12: Telephony: Fix compilation error with changes brought from T
 import android.text.TextUtils;
-// QTI_BEGIN: 2022-03-04: Telephony: Add support for injecting data sub modules
 import android.util.SparseArray;
-// QTI_END: 2022-03-04: Telephony: Add support for injecting data sub modules
 
 import com.android.ims.ImsManager;
 import com.android.internal.telephony.data.AccessNetworksManager;
-// QTI_BEGIN: 2025-02-06: Telephony: Telephony-Data: Decouple Qualcomm value adds.
 import com.android.internal.telephony.data.AutoDataSwitchController;
 import com.android.internal.telephony.data.AutoDataSwitchController.AutoDataSwitchControllerCallback;
-// QTI_END: 2025-02-06: Telephony: Telephony-Data: Decouple Qualcomm value adds.
-// QTI_BEGIN: 2022-03-04: Telephony: Add support for injecting data sub modules
 import com.android.internal.telephony.data.DataConfigManager;
-// QTI_END: 2022-03-04: Telephony: Add support for injecting data sub modules
-// QTI_BEGIN: 2025-12-18: Telephony: Inject DataNetwork and add data restriction
 import com.android.internal.telephony.data.DataEvaluation;
-// QTI_END: 2025-12-18: Telephony: Inject DataNetwork and add data restriction
-// QTI_BEGIN: 2022-03-04: Telephony: Add support for injecting data sub modules
 import com.android.internal.telephony.data.DataNetwork;
-// QTI_END: 2022-03-04: Telephony: Add support for injecting data sub modules
 import com.android.internal.telephony.data.DataNetworkController;
-// QTI_BEGIN: 2022-03-04: Telephony: Add support for injecting data sub modules
 import com.android.internal.telephony.data.DataProfileManager;
 import com.android.internal.telephony.data.DataProfileManager.DataProfileManagerCallback;
 import com.android.internal.telephony.data.DataRetryManager;
 import com.android.internal.telephony.data.DataRetryManager.DataRetryManagerCallback;
 import com.android.internal.telephony.data.DataServiceManager;
 import com.android.internal.telephony.data.DataSettingsManager;
-// QTI_END: 2022-03-04: Telephony: Add support for injecting data sub modules
 import com.android.internal.telephony.data.LinkBandwidthEstimator;
 import com.android.internal.telephony.data.PhoneSwitcher;
-// QTI_BEGIN: 2022-03-04: Telephony: Add support for injecting data sub modules
 import com.android.internal.telephony.data.TelephonyNetworkAgent;
 import com.android.internal.telephony.data.TelephonyNetworkAgent.TelephonyNetworkAgentCallback;
-// QTI_END: 2022-03-04: Telephony: Add support for injecting data sub modules
 // QTI_BEGIN: 2024-11-13: Telephony: Inject TelephonyNetworkProvider class
 import com.android.internal.telephony.data.TelephonyNetworkProvider;
 // QTI_END: 2024-11-13: Telephony: Inject TelephonyNetworkProvider class
@@ -94,9 +72,7 @@ import com.android.internal.telephony.imsphone.ImsNrSaModeHandler;
 import com.android.internal.telephony.imsphone.ImsPhone;
 import com.android.internal.telephony.imsphone.ImsPhoneCallTracker;
 import com.android.internal.telephony.nitz.NitzStateMachineImpl;
-// QTI_BEGIN: 2023-03-05: Telephony: Make SubscriptionManagerService injectable
 import com.android.internal.telephony.subscription.SubscriptionManagerService;
-// QTI_END: 2023-03-05: Telephony: Make SubscriptionManagerService injectable
 import com.android.internal.telephony.security.CellularIdentifierDisclosureNotifier;
 import com.android.internal.telephony.security.CellularNetworkSecuritySafetySource;
 import com.android.internal.telephony.security.NullCipherNotifier;
@@ -105,10 +81,8 @@ import com.android.internal.telephony.uicc.UiccCard;
 import com.android.internal.telephony.uicc.UiccProfile;
 import com.android.telephony.Rlog;
 
-// QTI_BEGIN: 2018-01-31: Telephony: Enable vendor Telephony plugin
 import dalvik.system.PathClassLoader;
 
-// QTI_END: 2018-01-31: Telephony: Enable vendor Telephony plugin
 import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserException;
 
@@ -130,9 +104,7 @@ public class TelephonyComponentFactory {
     private static final String TAG = TelephonyComponentFactory.class.getSimpleName();
 
     private static TelephonyComponentFactory sInstance;
-// QTI_BEGIN: 2025-02-06: Telephony: Telephony-Data: Decouple Qualcomm value adds.
     protected final TelephonyFacade mTelephonyFacade = new TelephonyFacade();
-// QTI_END: 2025-02-06: Telephony: Telephony-Data: Decouple Qualcomm value adds.
 
     private InjectedComponents mInjectedComponents;
 
@@ -541,27 +513,19 @@ public class TelephonyComponentFactory {
         return new LocaleTracker(phone, nitzStateMachine, looper, featureFlags);
     }
 
-// QTI_BEGIN: 2018-01-31: Telephony: Enable vendor Telephony plugin
     public Phone makePhone(Context context, CommandsInterface ci, PhoneNotifier notifier,
             int phoneId, int precisePhoneType,
-// QTI_END: 2018-01-31: Telephony: Enable vendor Telephony plugin
             TelephonyComponentFactory telephonyComponentFactory,
             @NonNull FeatureFlags featureFlags) {
-// QTI_BEGIN: 2018-01-31: Telephony: Enable vendor Telephony plugin
         return new GsmCdmaPhone(context, ci, notifier, phoneId, precisePhoneType,
-// QTI_END: 2018-01-31: Telephony: Enable vendor Telephony plugin
                 telephonyComponentFactory, featureFlags);
-// QTI_BEGIN: 2018-01-31: Telephony: Enable vendor Telephony plugin
     }
 
-// QTI_END: 2018-01-31: Telephony: Enable vendor Telephony plugin
     public PhoneSwitcher makePhoneSwitcher(int maxDataAttachModemCount, Context context,
             Looper looper, @NonNull FeatureFlags featureFlags) {
         return PhoneSwitcher.make(maxDataAttachModemCount, context, looper, featureFlags);
-// QTI_BEGIN: 2018-01-31: Telephony: Enable vendor Telephony plugin
     }
 
-// QTI_END: 2018-01-31: Telephony: Enable vendor Telephony plugin
     /**
      * Create a new DisplayInfoController.
      */
@@ -625,7 +589,6 @@ public class TelephonyComponentFactory {
         return new DataNetworkController(phone, looper, featureFlags);
     }
 
-// QTI_BEGIN: 2022-12-06: Telephony: Enable extension of a few data classes for QoS
     /**
      * Create data service manager.
      *
@@ -635,13 +598,10 @@ public class TelephonyComponentFactory {
      * @return The data service manager instance
      */
     public DataServiceManager makeDataServiceManager(Phone phone, Looper looper,
-// QTI_END: 2022-12-06: Telephony: Enable extension of a few data classes for QoS
             @TransportType int transportType, @NonNull FeatureFlags featureFlags) {
         return new DataServiceManager(phone, looper, transportType, featureFlags);
-// QTI_BEGIN: 2022-12-06: Telephony: Enable extension of a few data classes for QoS
     }
 
-// QTI_END: 2022-12-06: Telephony: Enable extension of a few data classes for QoS
     /**
      * Create data profile manager.
      *
@@ -695,22 +655,17 @@ public class TelephonyComponentFactory {
             FeatureFlags featureFlags) {
 // QTI_END: 2024-11-13: Telephony: Inject TelephonyNetworkProvider class
         return new DataConfigManager(phone, looper, featureFlags);
-// QTI_BEGIN: 2022-03-04: Telephony: Add support for injecting data sub modules
     }
 
     public DataRetryManager makeDataRetryManager(Phone phone,
             DataNetworkController dataNetworkController,
             SparseArray<DataServiceManager> dataServiceManagers,
-// QTI_END: 2022-03-04: Telephony: Add support for injecting data sub modules
 // QTI_BEGIN: 2024-11-13: Telephony: Inject TelephonyNetworkProvider class
             Looper looper, FeatureFlags featureFlags,
             DataRetryManager.DataRetryManagerCallback dataRetryManagerCallback) {
 // QTI_END: 2024-11-13: Telephony: Inject TelephonyNetworkProvider class
-// QTI_BEGIN: 2022-03-04: Telephony: Add support for injecting data sub modules
         return new DataRetryManager(phone, dataNetworkController, dataServiceManagers,
-// QTI_END: 2022-03-04: Telephony: Add support for injecting data sub modules
                 looper, featureFlags, dataRetryManagerCallback);
-// QTI_BEGIN: 2022-03-04: Telephony: Add support for injecting data sub modules
     }
 
     public TelephonyNetworkAgent makeTelephonyNetworkAgent(Phone phone, Looper looper,
@@ -720,7 +675,6 @@ public class TelephonyComponentFactory {
         return new TelephonyNetworkAgent(phone, looper, dataNetwork, score, config,
                 provider, callback);
     }
-// QTI_END: 2022-03-04: Telephony: Add support for injecting data sub modules
 
 // QTI_BEGIN: 2024-11-13: Telephony: Inject TelephonyNetworkProvider class
     public TelephonyNetworkProvider makeTelephonyNetworkProvider(@NonNull Looper looper,
@@ -729,16 +683,10 @@ public class TelephonyComponentFactory {
     }
 
 // QTI_END: 2024-11-13: Telephony: Inject TelephonyNetworkProvider class
-// QTI_BEGIN: 2023-03-05: Telephony: Make SubscriptionManagerService injectable
     public SubscriptionManagerService makeSubscriptionManagerService(
-// QTI_END: 2023-03-05: Telephony: Make SubscriptionManagerService injectable
-// QTI_BEGIN: 2024-08-21: Telephony: Pass FeatureFlags to makeSubscriptionManagerService
             @NonNull Context context, @NonNull Looper looper, @NonNull FeatureFlags featureFlags) {
         return new SubscriptionManagerService(context, looper, featureFlags);
-// QTI_END: 2024-08-21: Telephony: Pass FeatureFlags to makeSubscriptionManagerService
-// QTI_BEGIN: 2023-03-05: Telephony: Make SubscriptionManagerService injectable
     }
-// QTI_END: 2023-03-05: Telephony: Make SubscriptionManagerService injectable
 
     /** Create CellularIdentifierDisclosureNotifier. */
     public CellularIdentifierDisclosureNotifier makeIdentifierDisclosureNotifier(
@@ -751,7 +699,6 @@ public class TelephonyComponentFactory {
             CellularNetworkSecuritySafetySource safetySource) {
         return NullCipherNotifier.getInstance(safetySource);
     }
-// QTI_BEGIN: 2025-02-06: Telephony: Telephony-Data: Decouple Qualcomm value adds.
 
     /**
      * Create a new AutoDataSwitchController.
@@ -763,8 +710,6 @@ public class TelephonyComponentFactory {
         return new AutoDataSwitchController(context, looper, phoneSwitcher,
             featureFlags, phoneSwitcherCallback);
     }
-// QTI_END: 2025-02-06: Telephony: Telephony-Data: Decouple Qualcomm value adds.
-// QTI_BEGIN: 2025-12-18: Telephony: Inject DataNetwork and add data restriction
 
     /**
      * Create a new {@link DataNetwork}.
@@ -793,5 +738,4 @@ public class TelephonyComponentFactory {
                 dataProfile, networkRequestList, transport, isSatellite,
                 dataAllowedReason, callback);
     }
-// QTI_END: 2025-12-18: Telephony: Inject DataNetwork and add data restriction
 }

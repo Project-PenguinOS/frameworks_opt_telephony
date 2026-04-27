@@ -283,17 +283,13 @@ public class DataEvaluation {
          * Used when the dynamic mapping rules (DataConfig) are updated via ConfigUpdater.
          */
         DATA_DYNAMIC_CONFIG_CHANGED(true),
-// QTI_BEGIN: 2022-09-09: Telephony: Add Secure Mode specific data evaluation reason
         /** Secure Mode state changed. */
-// QTI_END: 2022-09-09: Telephony: Add Secure Mode specific data evaluation reason
-// QTI_BEGIN: 2023-07-25: Telephony: Evaluate unsatisfied networks after DDS switch
         SECURE_MODE_STATE_CHANGED(true),
         /**
          * After DDS switch is complete, re-evaluate if any unsatisfied network requests
          * are honor.
          */
         DDS_SWITCHED(true);
-// QTI_END: 2023-07-25: Telephony: Evaluate unsatisfied networks after DDS switch
 
         /**
          * {@code true} if the evaluation is due to environmental changes (i.e. SIM removal,
@@ -376,15 +372,11 @@ public class DataEvaluation {
         /** Only one data network is allowed at one time. */
         ONLY_ALLOWED_SINGLE_NETWORK(true),
         /** Data enabled settings are not ready. */
-// QTI_BEGIN: 2022-04-27: Telephony: Make Secure Mode related changes
         DATA_SETTINGS_NOT_READY(true),
         /** Device is in Secure Mode. */
-// QTI_END: 2022-04-27: Telephony: Make Secure Mode related changes
         DATA_RESTRICTED_BY_SECURE_MODE(true),
-// QTI_BEGIN: 2025-12-18: Telephony: Inject DataNetwork and add data restriction
         /** Data restricted on a network type. */
         DATA_RESTRICTED_BY_NETWORK_TYPE(true),
-// QTI_END: 2025-12-18: Telephony: Inject DataNetwork and add data restriction
         /** Handover max retry stopped but network is not on the preferred transport. */
         HANDOVER_RETRY_STOPPED(true),
         /** BootStrap sim data limit reached. */

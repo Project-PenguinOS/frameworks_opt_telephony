@@ -14,14 +14,12 @@
  * limitations under the License.
  */
 
-// QTI_BEGIN: 2025-02-25: Telephony: Fix license marking
 /*
  * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
  * Copyright (c) 2025 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
-// QTI_END: 2025-02-25: Telephony: Fix license marking
 package com.android.internal.telephony.uicc;
 
 import android.compat.annotation.UnsupportedAppUsage;
@@ -127,9 +125,7 @@ public class IccCardApplicationStatus {
         PERSOSUBSTATE_RUIM_HRPD_PUK,
         PERSOSUBSTATE_RUIM_CORPORATE_PUK,
         PERSOSUBSTATE_RUIM_SERVICE_PROVIDER_PUK,
-// QTI_BEGIN: 2018-02-25: Telephony: *Telephony: SIM De-personalization
         PERSOSUBSTATE_RUIM_RUIM_PUK,
-// QTI_END: 2018-02-25: Telephony: *Telephony: SIM De-personalization
         PERSOSUBSTATE_SIM_SPN,
         PERSOSUBSTATE_SIM_SPN_PUK,
         PERSOSUBSTATE_SIM_SP_EHPLMN,
@@ -144,7 +140,6 @@ public class IccCardApplicationStatus {
         PERSOSUBSTATE_SIM_TEMPORARY_UNLOCKED(201),
         PERSOSUBSTATE_SIM_PERMANENT_UNLOCKED(202);
 // QTI_END: 2023-04-10: Telephony: Handle PersoSubState temporarily unlocked for FR76912
-// QTI_BEGIN: 2018-02-25: Telephony: *Telephony: SIM De-personalization
 
         private int State;
 
@@ -156,7 +151,6 @@ public class IccCardApplicationStatus {
             this.State = this.ordinal();
         }
 
-// QTI_END: 2018-02-25: Telephony: *Telephony: SIM De-personalization
         boolean isPersoSubStateUnknown() {
             return this == PERSOSUBSTATE_UNKNOWN;
         }

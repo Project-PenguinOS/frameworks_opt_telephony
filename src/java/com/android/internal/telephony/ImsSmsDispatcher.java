@@ -18,17 +18,13 @@ package com.android.internal.telephony;
 
 import android.annotation.NonNull;
 import android.app.Activity;
-// QTI_BEGIN: 2018-06-29: Telephony: Fix SMS over IMS retry issues.
 import static android.telephony.SmsManager.RESULT_ERROR_GENERIC_FAILURE;
-// QTI_END: 2018-06-29: Telephony: Fix SMS over IMS retry issues.
 
 import static com.android.internal.telephony.SmsResponse.NO_ERROR_CODE;
 
 import android.content.Context;
 import android.os.Binder;
-// QTI_BEGIN: 2018-06-29: Telephony: Fix SMS over IMS retry issues.
 import android.os.Message;
-// QTI_END: 2018-06-29: Telephony: Fix SMS over IMS retry issues.
 import android.os.PersistableBundle;
 import android.os.RemoteException;
 import android.provider.Telephony.Sms.Intents;
@@ -416,14 +412,12 @@ public class ImsSmsDispatcher extends SMSDispatcher {
         getImsManager().onSmsReady();
     }
 
-// QTI_BEGIN: 2021-05-18: Telephony: SMS over IMS on 5G SA
     private boolean isNrFullService() {
         return ((mPhone.getServiceState().getRilDataRadioTechnology() ==
                 ServiceState.RIL_RADIO_TECHNOLOGY_NR) && (mPhone.getServiceState().
                 getDataRegistrationState() == ServiceState.STATE_IN_SERVICE));
     }
 
-// QTI_END: 2021-05-18: Telephony: SMS over IMS on 5G SA
     private boolean isLteService() {
         return ((mPhone.getServiceState().getRilDataRadioTechnology() ==
             ServiceState.RIL_RADIO_TECHNOLOGY_LTE) && (mPhone.getServiceState().
@@ -435,10 +429,8 @@ public class ImsSmsDispatcher extends SMSDispatcher {
             ServiceState.RIL_RADIO_TECHNOLOGY_LTE) && mPhone.getServiceState().isEmergencyOnly());
     }
 
-// QTI_BEGIN: 2021-05-18: Telephony: SMS over IMS on 5G SA
     private boolean allowEmergencySms() {
         return isLteService() || isLimitedLteService() || isNrFullService();
-// QTI_END: 2021-05-18: Telephony: SMS over IMS on 5G SA
     }
 
     public boolean isEmergencySmsSupport(String destAddr) {
@@ -464,19 +456,13 @@ public class ImsSmsDispatcher extends SMSDispatcher {
             }
             eSmsCarrierSupport = b.getBoolean(
                     CarrierConfigManager.KEY_SUPPORT_EMERGENCY_SMS_OVER_IMS_BOOL);
-// QTI_BEGIN: 2021-05-18: Telephony: SMS over IMS on 5G SA
             boolean lteOrLimitedLteOrNr = allowEmergencySms();
-// QTI_END: 2021-05-18: Telephony: SMS over IMS on 5G SA
             logi("isEmergencySmsSupport emergencySmsCarrierSupport: "
                     + eSmsCarrierSupport + " destAddr: " + Rlog.pii(TAG, destAddr)
-// QTI_BEGIN: 2021-05-18: Telephony: SMS over IMS on 5G SA
                     + " mIsImsServiceUp: " + mIsImsServiceUp + " lteOrLimitedLteOrNr: "
                     + lteOrLimitedLteOrNr);
-// QTI_END: 2021-05-18: Telephony: SMS over IMS on 5G SA
 
-// QTI_BEGIN: 2021-05-18: Telephony: SMS over IMS on 5G SA
             return eSmsCarrierSupport && mIsImsServiceUp && lteOrLimitedLteOrNr;
-// QTI_END: 2021-05-18: Telephony: SMS over IMS on 5G SA
         } finally {
             Binder.restoreCallingIdentity(identity);
         }

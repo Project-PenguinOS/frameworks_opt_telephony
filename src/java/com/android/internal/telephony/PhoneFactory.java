@@ -14,14 +14,12 @@
  * limitations under the License.
  */
 
-// QTI_BEGIN: 2024-11-13: Telephony: Inject TelephonyNetworkProvider class
 /*
  * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
  * Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
-// QTI_END: 2024-11-13: Telephony: Inject TelephonyNetworkProvider class
 package com.android.internal.telephony;
 
 import static android.telephony.TelephonyManager.HAL_SERVICE_RADIO;
@@ -163,10 +161,8 @@ public class PhoneFactory {
                 sMetricsCollector = new MetricsCollector(context, sFeatureFlags);
 
                 sPhoneNotifier = new DefaultPhoneNotifier(context, featureFlags);
-// QTI_BEGIN: 2018-01-31: Telephony: Enable vendor Telephony plugin
                 TelephonyComponentFactory telephonyComponentFactory
                         = TelephonyComponentFactory.getInstance();
-// QTI_END: 2018-01-31: Telephony: Enable vendor Telephony plugin
 
                 /* In case of multi SIM mode two instances of Phone, RIL are created,
                    where as in single SIM mode only instance. isMultiSimEnabled() function checks
@@ -183,9 +179,7 @@ public class PhoneFactory {
                     networkModes[i] = RILConstants.PREFERRED_NETWORK_MODE;
 
                     Rlog.i(LOG_TAG, "Network Mode set to " + Integer.toString(networkModes[i]));
-// QTI_BEGIN: 2019-02-10: Telephony: Start using inject framework support
                     sCommandsInterfaces[i] = telephonyComponentFactory.inject(RIL.class.getName()).
-// QTI_END: 2019-02-10: Telephony: Start using inject framework support
                             makeRIL(context,
                                     RadioAccessFamily.getRafFromNetworkType(networkModes[i]),
                                     i, featureFlags);
@@ -287,10 +281,8 @@ public class PhoneFactory {
                         TelephonyNetworkProvider.class.getName())
                         .makeTelephonyNetworkProvider(Looper.myLooper(),
                         context, featureFlags);
-// QTI_BEGIN: 2019-02-10: Telephony: Start using inject framework support
                 telephonyComponentFactory.inject(TelephonyComponentFactory.class.getName()).
                         makeExtTelephonyClasses(context, sPhones, sCommandsInterfaces);
-// QTI_END: 2019-02-10: Telephony: Start using inject framework support
             }
         }
     }

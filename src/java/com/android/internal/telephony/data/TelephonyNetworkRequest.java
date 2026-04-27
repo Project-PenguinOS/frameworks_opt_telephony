@@ -24,9 +24,7 @@ import android.net.NetworkCapabilities;
 import android.net.NetworkRequest;
 import android.net.NetworkSpecifier;
 import android.os.SystemClock;
-// QTI_BEGIN: 2024-08-22: Telephony: Fix for that MMS fails with a null MMSC address
 import android.provider.Telephony;
-// QTI_END: 2024-08-22: Telephony: Fix for that MMS fails with a null MMSC address
 import android.telephony.Annotation.ConnectivityTransport;
 import android.telephony.Annotation.NetCapability;
 import android.telephony.data.ApnSetting;
@@ -446,7 +444,6 @@ public class TelephonyNetworkRequest {
                 apnTypes.remove((Integer) ApnSetting.TYPE_DEFAULT);
             }
 
-// QTI_BEGIN: 2024-08-22: Telephony: Fix for that MMS fails with a null MMSC address
             // Even there is a check for anomaly report on MMSC for built-in APNs, it won't exclude
             // such invalid MMS profile for MMS network request, which will bring up some redundant
             // retry on APN switching. Considering platform should make sure those things work fine,
@@ -460,7 +457,6 @@ public class TelephonyNetworkRequest {
                 return false;
             }
 
-// QTI_END: 2024-08-22: Telephony: Fix for that MMS fails with a null MMSC address
             return apnTypes.stream().allMatch(dataProfile.getApnSetting()::canHandleType);
         }
         return false;

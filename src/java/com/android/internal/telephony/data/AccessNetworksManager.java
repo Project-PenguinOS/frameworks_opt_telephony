@@ -14,26 +14,20 @@
  * limitations under the License.
  */
 
-// QTI_BEGIN: 2025-07-24: Telephony: Change to unbind iwlan service am: f0d96f86c8 am: f0d96f86c8
 /*
  * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
  * Copyright (c) 2025 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
-// QTI_END: 2025-07-24: Telephony: Change to unbind iwlan service am: f0d96f86c8 am: f0d96f86c8
 package com.android.internal.telephony.data;
 
-// QTI_BEGIN: 2023-06-12: Telephony: Revert "Removed IWLAN legacy mode support"
 import static android.telephony.TelephonyManager.HAL_SERVICE_DATA;
 
-// QTI_END: 2023-06-12: Telephony: Revert "Removed IWLAN legacy mode support"
 import android.annotation.CallbackExecutor;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
-// QTI_BEGIN: 2023-06-12: Telephony: Revert "Removed IWLAN legacy mode support"
 import android.annotation.StringDef;
-// QTI_END: 2023-06-12: Telephony: Revert "Removed IWLAN legacy mode support"
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
@@ -49,9 +43,7 @@ import android.os.Registrant;
 import android.os.RegistrantList;
 import android.os.RemoteException;
 import android.preference.PreferenceManager;
-// QTI_BEGIN: 2023-06-12: Telephony: Revert "Removed IWLAN legacy mode support"
 import android.os.SystemProperties;
-// QTI_END: 2023-06-12: Telephony: Revert "Removed IWLAN legacy mode support"
 import android.telephony.AccessNetworkConstants;
 import android.telephony.AccessNetworkConstants.AccessNetworkType;
 import android.telephony.AccessNetworkConstants.RadioAccessNetworkType;
@@ -60,9 +52,7 @@ import android.telephony.Annotation.ApnType;
 import android.telephony.Annotation.NetCapability;
 import android.telephony.AnomalyReporter;
 import android.telephony.CarrierConfigManager;
-// QTI_BEGIN: 2025-07-24: Telephony: Change to unbind iwlan service am: f0d96f86c8 am: f0d96f86c8
 import android.telephony.SubscriptionManager;
-// QTI_END: 2025-07-24: Telephony: Change to unbind iwlan service am: f0d96f86c8 am: f0d96f86c8
 import android.telephony.data.ApnSetting;
 import android.telephony.data.DataServiceCallback;
 import android.telephony.data.IQualifiedNetworksService;
@@ -77,22 +67,16 @@ import android.util.SparseArray;
 
 import com.android.internal.telephony.IIntegerConsumer;
 import com.android.internal.telephony.Phone;
-// QTI_BEGIN: 2025-07-24: Telephony: Change to unbind iwlan service am: f0d96f86c8 am: f0d96f86c8
 import com.android.internal.telephony.PhoneConfigurationManager;
-// QTI_END: 2025-07-24: Telephony: Change to unbind iwlan service am: f0d96f86c8 am: f0d96f86c8
-// QTI_BEGIN: 2023-06-12: Telephony: Revert "Removed IWLAN legacy mode support"
 import com.android.internal.telephony.RIL;
-// QTI_END: 2023-06-12: Telephony: Revert "Removed IWLAN legacy mode support"
 import com.android.internal.telephony.SlidingWindowEventCounter;
 import com.android.internal.telephony.flags.FeatureFlags;
 import com.android.telephony.Rlog;
 
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
-// QTI_BEGIN: 2023-06-12: Telephony: Revert "Removed IWLAN legacy mode support"
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
-// QTI_END: 2023-06-12: Telephony: Revert "Removed IWLAN legacy mode support"
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -114,12 +98,9 @@ public class AccessNetworksManager extends Handler {
 
     /** Event to guide a transport type for initial data connection of emergency data network. */
     private static final int EVENT_GUIDE_TRANSPORT_TYPE_FOR_EMERGENCY = 1;
-// QTI_BEGIN: 2025-07-24: Telephony: Change to unbind iwlan service am: f0d96f86c8 am: f0d96f86c8
     /** Event to multi sim config changes. dsds-ss and ss-dsds. */
     private static final int EVENT_MULTI_SIM_CONFIG_CHANGED       = 2;
 
-// QTI_END: 2025-07-24: Telephony: Change to unbind iwlan service am: f0d96f86c8 am: f0d96f86c8
-// QTI_BEGIN: 2023-06-12: Telephony: Revert "Removed IWLAN legacy mode support"
     public static final String SYSTEM_PROPERTIES_IWLAN_OPERATION_MODE =
             "ro.telephony.iwlan_operation_mode";
 
@@ -149,7 +130,6 @@ public class AccessNetworksManager extends Handler {
      * and network service separately.
      */
     public static final String IWLAN_OPERATION_MODE_AP_ASSISTED = "AP-assisted";
-// QTI_END: 2023-06-12: Telephony: Revert "Removed IWLAN legacy mode support"
 
     /**
      * The counters to detect frequent QNS attempt to change preferred network transport by ApnType.
@@ -250,17 +230,14 @@ public class AccessNetworksManager extends Handler {
                 int transport = (int) ar.result;
                 onEmergencyDataNetworkPreferredTransportChanged(transport);
                 break;
-// QTI_BEGIN: 2025-07-24: Telephony: Change to unbind iwlan service am: f0d96f86c8 am: f0d96f86c8
             case EVENT_MULTI_SIM_CONFIG_CHANGED:
                 unbindService();
                 break;
-// QTI_END: 2025-07-24: Telephony: Change to unbind iwlan service am: f0d96f86c8 am: f0d96f86c8
             default:
                 loge("Unexpected event " + msg.what);
         }
     }
 
-// QTI_BEGIN: 2025-07-24: Telephony: Change to unbind iwlan service am: f0d96f86c8 am: f0d96f86c8
     private synchronized void unbindService() {
         if (mIQualifiedNetworksService != null
                 && mIQualifiedNetworksService.asBinder().isBinderAlive()
@@ -275,14 +252,11 @@ public class AccessNetworksManager extends Handler {
             }
             if (mServiceConnection != null) {
                 mPhone.getContext().unbindService(mServiceConnection);
-// QTI_END: 2025-07-24: Telephony: Change to unbind iwlan service am: f0d96f86c8 am: f0d96f86c8
                 mServiceConnection = null;
-// QTI_BEGIN: 2025-07-24: Telephony: Change to unbind iwlan service am: f0d96f86c8 am: f0d96f86c8
             }
         }
     }
 
-// QTI_END: 2025-07-24: Telephony: Change to unbind iwlan service am: f0d96f86c8 am: f0d96f86c8
     private void handleDisconnectOrDied() {
         if (mIQualifiedNetworksService != null && mDeathRecipient != null) {
             try {
@@ -512,7 +486,6 @@ public class AccessNetworksManager extends Handler {
         mLogTag = "ANM-" + mPhone.getPhoneId();
         mApnTypeToQnsChangeNetworkCounter = new SparseArray<>();
         mFeatureFlags = featureFlags;
-// QTI_BEGIN: 2023-06-12: Telephony: Revert "Removed IWLAN legacy mode support"
 
         if (isInLegacyMode()) {
             log("operates in legacy mode.");
@@ -526,7 +499,6 @@ public class AccessNetworksManager extends Handler {
 
             // bindQualifiedNetworksService posts real work to handler thread. So here we can
             // let the callback execute in binder thread to avoid post twice.
-// QTI_END: 2023-06-12: Telephony: Revert "Removed IWLAN legacy mode support"
             if (mCarrierConfigManager != null) {
                 mCarrierConfigManager.registerCarrierConfigChangeListener(Runnable::run,
                         (slotIndex, subId, carrierId, specificCarrierId) -> {
@@ -540,10 +512,8 @@ public class AccessNetworksManager extends Handler {
                             bindQualifiedNetworksService();
                         });
             }
-// QTI_BEGIN: 2023-06-12: Telephony: Revert "Removed IWLAN legacy mode support"
             bindQualifiedNetworksService();
         }
-// QTI_END: 2023-06-12: Telephony: Revert "Removed IWLAN legacy mode support"
 
         // Using post to delay the registering because data retry manager and data config
         // manager instances are created later than access networks manager.
@@ -575,11 +545,9 @@ public class AccessNetworksManager extends Handler {
             mPhone.registerForEmergencyDomainSelected(
                     this, EVENT_GUIDE_TRANSPORT_TYPE_FOR_EMERGENCY, null);
         });
-// QTI_BEGIN: 2025-07-24: Telephony: Change to unbind iwlan service am: f0d96f86c8 am: f0d96f86c8
         PhoneConfigurationManager.registerForMultiSimConfigChange(
                 this, EVENT_MULTI_SIM_CONFIG_CHANGED, null);
 
-// QTI_END: 2025-07-24: Telephony: Change to unbind iwlan service am: f0d96f86c8 am: f0d96f86c8
     }
 
     /**
@@ -655,10 +623,8 @@ public class AccessNetworksManager extends Handler {
     /**
      * Get the qualified network service package.
      *
-// QTI_BEGIN: 2023-06-12: Telephony: Revert "Removed IWLAN legacy mode support"
      * @return package name of the qualified networks service package. Return empty string when in
      * legacy mode (i.e. Dedicated IWLAN data/network service is not supported).
-// QTI_END: 2023-06-12: Telephony: Revert "Removed IWLAN legacy mode support"
      */
     private String getQualifiedNetworksServicePackageName() {
         // Read package name from the resource
@@ -748,7 +714,6 @@ public class AccessNetworksManager extends Handler {
     }
 
     /**
-// QTI_BEGIN: 2023-06-12: Telephony: Revert "Removed IWLAN legacy mode support"
      * @return {@code true} if the device operates in legacy mode, otherwise {@code false}.
      */
     public boolean isInLegacyMode() {
@@ -771,7 +736,6 @@ public class AccessNetworksManager extends Handler {
      * would be WWAN only. If the device is configured as AP-assisted mode, the available transport
      * will always be WWAN and WLAN (even if the device is not camped on IWLAN).
      * See {@link #isInLegacyMode()} for mode details.
-// QTI_END: 2023-06-12: Telephony: Revert "Removed IWLAN legacy mode support"
      */
     @NonNull
     public synchronized int[] getAvailableTransports() {
@@ -814,13 +778,11 @@ public class AccessNetworksManager extends Handler {
      */
     @TransportType
     public int getPreferredTransport(@ApnType int apnType) {
-// QTI_BEGIN: 2023-06-12: Telephony: Revert "Removed IWLAN legacy mode support"
         // In legacy mode, always preferred on cellular.
         if (isInLegacyMode()) {
             return AccessNetworkConstants.TRANSPORT_TYPE_WWAN;
         }
 
-// QTI_END: 2023-06-12: Telephony: Revert "Removed IWLAN legacy mode support"
         return mPreferredTransports.get(apnType) == null
                 ? AccessNetworkConstants.TRANSPORT_TYPE_WWAN : mPreferredTransports.get(apnType);
     }
@@ -923,11 +885,9 @@ public class AccessNetworksManager extends Handler {
         }
 
         pw.decreaseIndent();
-// QTI_BEGIN: 2023-06-12: Telephony: Revert "Removed IWLAN legacy mode support"
         pw.println("isInLegacy=" + isInLegacyMode());
         pw.println("IWLAN operation mode="
                 + SystemProperties.get(SYSTEM_PROPERTIES_IWLAN_OPERATION_MODE));
-// QTI_END: 2023-06-12: Telephony: Revert "Removed IWLAN legacy mode support"
         pw.println("Local logs=");
         pw.increaseIndent();
         mLocalLog.dump(fd, pw, args);

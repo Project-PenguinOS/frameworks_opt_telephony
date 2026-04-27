@@ -1,7 +1,4 @@
-// QTI_BEGIN: 2018-03-14: Telephony: Update copy right year of newly added file.
 /* Copyright (c) 2018, The Linux Foundation. All rights reserved.
-// QTI_END: 2018-03-14: Telephony: Update copy right year of newly added file.
-// QTI_BEGIN: 2018-03-07: Telephony: Add FLAG_RECEIVER_FOREGROUND to CatService broadcast intents
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -212,4 +209,3 @@ public class CatServiceTest extends TelephonyTest {
         }
     }
 }
-// QTI_END: 2018-03-07: Telephony: Add FLAG_RECEIVER_FOREGROUND to CatService broadcast intents

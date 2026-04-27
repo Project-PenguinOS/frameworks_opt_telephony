@@ -53,15 +53,11 @@ import java.io.FileDescriptor;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.HashMap;
-// QTI_BEGIN: 2019-06-19: Telephony: Add provision for test networks in LocaleTracker
 import java.util.HashSet;
-// QTI_END: 2019-06-19: Telephony: Add provision for test networks in LocaleTracker
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-// QTI_BEGIN: 2019-06-19: Telephony: Add provision for test networks in LocaleTracker
 import java.util.Set;
-// QTI_END: 2019-06-19: Telephony: Add provision for test networks in LocaleTracker
 
 /**
  * The locale tracker keeps tracking the current locale of the phone.
@@ -145,7 +141,6 @@ public class LocaleTracker extends Handler {
 
     private String mTag;
 
-// QTI_BEGIN: 2019-06-19: Telephony: Add provision for test networks in LocaleTracker
     /** MCCs used in test environments */
     public static final Set<String> TEST_MCCS = new HashSet<String>() {{
         add("001");
@@ -162,7 +157,6 @@ public class LocaleTracker extends Handler {
         add("012");
     }};
 
-// QTI_END: 2019-06-19: Telephony: Add provision for test networks in LocaleTracker
     private final Phone mPhone;
 
     private final NitzStateMachine mNitzStateMachine;
