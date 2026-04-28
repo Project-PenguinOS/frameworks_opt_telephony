@@ -14,14 +14,12 @@
  * limitations under the License.
  */
 
-// QTI_BEGIN: 2024-11-11: Telephony: Use a new alarm type for data retry
 /*
  * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
  * Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
-// QTI_END: 2024-11-11: Telephony: Use a new alarm type for data retry
 package com.android.internal.telephony.data;
 
 import android.annotation.CallbackExecutor;
@@ -127,16 +125,12 @@ public class DataRetryManager extends Handler {
                     RESET_REASON_DATA_SERVICE_BOUND,
                     RESET_REASON_DATA_CONFIG_CHANGED,
                     RESET_REASON_TAC_CHANGED,
-// QTI_BEGIN: 2023-04-10: Telephony: Fix for data enabled changed case
                     RESET_REASON_DATA_ENABLED_CHANGED,
-// QTI_END: 2023-04-10: Telephony: Fix for data enabled changed case
             })
     public @interface RetryResetReason {}
 
     /** Reset due to data profiles changed. */
-// QTI_BEGIN: 2022-05-10: Telephony: Change access specifier of members to protected
     protected static final int RESET_REASON_DATA_PROFILES_CHANGED = 1;
-// QTI_END: 2022-05-10: Telephony: Change access specifier of members to protected
 
     /** Reset due to radio on. This could happen after airplane mode off or RIL restarted. */
     private static final int RESET_REASON_RADIO_ON = 2;
@@ -151,18 +145,14 @@ public class DataRetryManager extends Handler {
     private static final int RESET_REASON_DATA_SERVICE_BOUND = 4;
 
     /** Reset due to data config changed. */
-// QTI_BEGIN: 2022-05-10: Telephony: Change access specifier of members to protected
     protected static final int RESET_REASON_DATA_CONFIG_CHANGED = 5;
-// QTI_END: 2022-05-10: Telephony: Change access specifier of members to protected
 
     /** Reset due to tracking area code changed. */
     private static final int RESET_REASON_TAC_CHANGED = 6;
 
-// QTI_BEGIN: 2023-04-10: Telephony: Fix for data enabled changed case
     /** Reset due to data enabled changed. */
     protected static final int RESET_REASON_DATA_ENABLED_CHANGED = 7;
 
-// QTI_END: 2023-04-10: Telephony: Fix for data enabled changed case
     /** The phone instance. */
     @NonNull
     protected final Phone mPhone;
@@ -202,11 +192,9 @@ public class DataRetryManager extends Handler {
     @NonNull
     protected final DataConfigManager mDataConfigManager;
 
-// QTI_BEGIN: 2022-03-30: Telephony: Add support for Telcel feature
     /** Data network controller instance. */
     protected final @NonNull DataNetworkController mDataNetworkController;
 
-// QTI_END: 2022-03-30: Telephony: Add support for Telcel feature
     /** Data profile manager. */
     @NonNull
     private final DataProfileManager mDataProfileManager;
@@ -1057,11 +1045,9 @@ public class DataRetryManager extends Handler {
         mDataRetryManagerCallbacks.add(dataRetryManagerCallback);
 
         mDataServiceManagers = dataServiceManagers;
-// QTI_BEGIN: 2022-03-30: Telephony: Add support for Telcel feature
         mDataNetworkController = dataNetworkController;
         mDataConfigManager = mDataNetworkController.getDataConfigManager();
         mDataProfileManager = mDataNetworkController.getDataProfileManager();
-// QTI_END: 2022-03-30: Telephony: Add support for Telcel feature
         mAlarmManager = mPhone.getContext().getSystemService(AlarmManager.class);
         mDataConfigManager.registerCallback(new DataConfigManagerCallback(this::post) {
             @Override
@@ -1069,12 +1055,10 @@ public class DataRetryManager extends Handler {
                 DataRetryManager.this.onCarrierConfigUpdated();
             }
         });
-// QTI_BEGIN: 2023-06-12: Telephony: Revert "Removed IWLAN legacy mode support"
         mDataServiceManagers.get(AccessNetworkConstants.TRANSPORT_TYPE_WWAN)
                 .registerForApnUnthrottled(this, EVENT_DATA_PROFILE_UNTHROTTLED);
         if (!mPhone.getAccessNetworksManager().isInLegacyMode()) {
             mDataServiceManagers.get(AccessNetworkConstants.TRANSPORT_TYPE_WLAN)
-// QTI_END: 2023-06-12: Telephony: Revert "Removed IWLAN legacy mode support"
                     .registerForApnUnthrottled(this, EVENT_DATA_PROFILE_UNTHROTTLED);
         }
         mDataProfileManager.registerCallback(new DataProfileManagerCallback(this::post) {
@@ -1238,9 +1222,7 @@ public class DataRetryManager extends Handler {
         }
     }
 
-// QTI_BEGIN: 2022-03-30: Telephony: Add support for Telcel feature
     protected void onEvaluateDataSetupRetry(@NonNull DataProfile dataProfile,
-// QTI_END: 2022-03-30: Telephony: Add support for Telcel feature
             @TransportType int transport, @NonNull NetworkRequestList requestList,
             @DataFailureCause int cause, long retryDelayMillis) {
         logl("onEvaluateDataSetupRetry: " + dataProfile + ", transport="
@@ -1451,9 +1433,7 @@ public class DataRetryManager extends Handler {
     }
 
     /** Cancel all retries and throttling entries. */
-// QTI_BEGIN: 2022-05-10: Telephony: Change access specifier of members to protected
     protected void onReset(@RetryResetReason int reason) {
-// QTI_END: 2022-05-10: Telephony: Change access specifier of members to protected
         logl("Remove all retry and throttling entries, reason=" + resetReasonToString(reason));
         removeMessages(EVENT_DATA_SETUP_RETRY);
         removeMessages(EVENT_DATA_HANDOVER_RETRY);
@@ -1567,9 +1547,7 @@ public class DataRetryManager extends Handler {
                             ? EVENT_DATA_SETUP_RETRY : EVENT_DATA_HANDOVER_RETRY, dataRetryEntry),
                     dataRetryEntry.retryDelayMillis);
         } else {
-// QTI_BEGIN: 2024-11-11: Telephony: Use a new alarm type for data retry
             mAlarmManager.setExactAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP,
-// QTI_END: 2024-11-11: Telephony: Use a new alarm type for data retry
                     dataRetryEntry.retryElapsedTime,
                     "dataRetryHash-" + dataRetryEntry.hashCode() /*debug tag*/,
                     Runnable::run,
@@ -1985,14 +1963,12 @@ public class DataRetryManager extends Handler {
                         && entry.dataNetwork == dataNetwork);
     }
 
-// QTI_BEGIN: 2022-04-22: Telephony: Change for Telcel data call success handling
     /**
      * Reset data reject count and reason on data call success
      */
     public void handlePdpRejectCauseSuccess() {
     }
 
-// QTI_END: 2022-04-22: Telephony: Change for Telcel data call success handling
     /**
      * Register the callback for receiving information from {@link DataRetryManager}.
      *
@@ -2035,9 +2011,7 @@ public class DataRetryManager extends Handler {
      * Log debug messages.
      * @param s debug messages
      */
-// QTI_BEGIN: 2022-03-04: Telephony: Add support for injecting data sub modules
     protected void log(@NonNull String s) {
-// QTI_END: 2022-03-04: Telephony: Add support for injecting data sub modules
         Rlog.d(mLogTag, s);
     }
 
@@ -2045,9 +2019,7 @@ public class DataRetryManager extends Handler {
      * Log error messages.
      * @param s error messages
      */
-// QTI_BEGIN: 2022-03-04: Telephony: Add support for injecting data sub modules
     protected void loge(@NonNull String s) {
-// QTI_END: 2022-03-04: Telephony: Add support for injecting data sub modules
         Rlog.e(mLogTag, s);
     }
 
@@ -2055,9 +2027,7 @@ public class DataRetryManager extends Handler {
      * Log verbose messages.
      * @param s debug messages.
      */
-// QTI_BEGIN: 2022-03-04: Telephony: Add support for injecting data sub modules
     protected void logv(@NonNull String s) {
-// QTI_END: 2022-03-04: Telephony: Add support for injecting data sub modules
         if (VDBG) Rlog.v(mLogTag, s);
     }
 

@@ -1588,17 +1588,13 @@ public class SimulatedCommands extends BaseCommands
         resultSuccess(response, null);
     }
 
-// QTI_BEGIN: 2018-07-31: Telephony: CDMA MO SMS follow on DC feature
     /**
      * {@inheritDoc}
      */
     @Override
-// QTI_END: 2018-07-31: Telephony: CDMA MO SMS follow on DC feature
     public void sendCdmaSMSExpectMore(byte[] pdu, Message response){
-// QTI_BEGIN: 2018-07-31: Telephony: CDMA MO SMS follow on DC feature
     }
 
-// QTI_END: 2018-07-31: Telephony: CDMA MO SMS follow on DC feature
     @Override
     public void setCdmaBroadcastActivation(boolean activate, Message response) {
         SimulatedCommandsVerifier.getInstance().setCdmaBroadcastActivation(activate, response);

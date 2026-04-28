@@ -957,9 +957,7 @@ public class GsmCdmaPhoneTest extends TelephonyTest {
                 .getSubId(anyInt());
         assertEquals(false, mPhoneUT.getCallForwardingIndicator());
 
-// QTI_BEGIN: 2023-11-09: Telephony: Remove legacy subscription code
         doReturn(true).when(mPhoneUT).isActiveSubId(anyInt());
-// QTI_END: 2023-11-09: Telephony: Remove legacy subscription code
         // valid subId, sharedPreference not present
         int subId1 = 0;
         int subId2 = 1;
@@ -1145,14 +1143,10 @@ public class GsmCdmaPhoneTest extends TelephonyTest {
         doReturn(iccId).when(mUiccSlot).getIccId(anyInt());
         Message.obtain(mPhoneUT, EVENT_ICC_CHANGED, null).sendToTarget();
         processAllMessages();
-// QTI_BEGIN: 2020-09-14: Telephony: Fix FrameworksTelephonyTests UT failures
         // TODO: Clean code from google.
         // Bug id: 154781677
-// QTI_END: 2020-09-14: Telephony: Fix FrameworksTelephonyTests UT failures
-// QTI_BEGIN: 2023-11-09: Telephony: Remove legacy subscription code
         // verify(mSubscriptionManagerService).getAllSubInfoList(anyString(),
         //        nullable(String.class));
-// QTI_END: 2023-11-09: Telephony: Remove legacy subscription code
         verify(mMockCi, never()).enableUiccApplications(anyBoolean(), any());
     }
 

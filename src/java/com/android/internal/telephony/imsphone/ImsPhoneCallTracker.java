@@ -305,12 +305,10 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
                         ImsPhoneCallTracker.this,
                         (isUnknown ? mForegroundCall : mRingingCall), isUnknown);
 
-// QTI_BEGIN: 2020-02-03: Telephony: IMS: VoWifi & VoLTE Active Switching
                 boolean isPseudoDsdaCall = isPseudoDsdaCall();
                 conn.setActiveCallDisconnectedOnAnswer(isPseudoDsdaCall);
                 // If there is an active call and incoming call is not a Psuedo Dsda call.
                 if (mForegroundCall.hasConnections() && !isPseudoDsdaCall) {
-// QTI_END: 2020-02-03: Telephony: IMS: VoWifi & VoLTE Active Switching
                     ImsCall activeCall = mForegroundCall.getFirstConnection().getImsCall();
                     if (activeCall != null && imsCall != null) {
                         // activeCall could be null if the foreground call is in a disconnected
@@ -322,9 +320,7 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
                     }
                 }
                 conn.setAllowAddCallDuringVideoCall(mAllowAddCallDuringVideoCall);
-// QTI_BEGIN: 2018-03-21: Telephony: IMS-VT: Add support that controls holding a video call
                 conn.setAllowHoldingVideoCall(mAllowHoldingVideoCall);
-// QTI_END: 2018-03-21: Telephony: IMS-VT: Add support that controls holding a video call
 
                 if ((c != null) && (c.getCallProfile() != null)
                         && (c.getCallProfile().getCallExtras() != null)
@@ -603,9 +599,7 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
                         // Once it has connected, startListeningForCalls will apply the config.
                         log("onReceive: caching carrier config until ImsService connects for "
                                 + "subId: " + subId);
-// QTI_BEGIN: 2024-07-03: Telephony: Ims: Don't send turn off ims incorrectly after restarting modem
                         mCarrierConfigLoadedForSubscription = false;
-// QTI_END: 2024-07-03: Telephony: Ims: Don't send turn off ims incorrectly after restarting modem
                     }
                 }
             };
@@ -616,7 +610,6 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
             if (TelecomManager.ACTION_DEFAULT_DIALER_CHANGED.equals(intent.getAction())) {
                 mDefaultDialerUid.set(getPackageUid(context, intent.getStringExtra(
                         TelecomManager.EXTRA_CHANGE_DEFAULT_DIALER_PACKAGE_NAME)));
-// QTI_BEGIN: 2024-04-03: Telephony: IMS: Read carrier configs on essential records
             } else if (intent.getAction().equals(
                     CarrierConfigManager.ACTION_ESSENTIAL_RECORDS_LOADED)) {
                 int subId = intent.getIntExtra(CarrierConfigManager.EXTRA_SUBSCRIPTION_INDEX,
@@ -626,7 +619,6 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
                 log("onReceive:ACTION_ESSENTIAL_RECORDS_LOADED phoneId: " + phoneId);
                 mCarrierConfigChangeListener.onCarrierConfigChanged(phoneId, subId,
                         TelephonyManager.UNKNOWN_CARRIER_ID, TelephonyManager.UNKNOWN_CARRIER_ID);
-// QTI_END: 2024-04-03: Telephony: IMS: Read carrier configs on essential records
             }
         }
     };
@@ -691,9 +683,7 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
 
     private static final int HANDOVER_TO_WIFI_TIMEOUT_MS = 60000; // ms
 
-// QTI_BEGIN: 2019-04-15: Telephony: IMS: Consider emergency service category 0 as valid.
     private static final int TIMEOUT_REDIAL_WIFI_E911_MS = 20000;
-// QTI_END: 2019-04-15: Telephony: IMS: Consider emergency service category 0 as valid.
 
     private static final int TIMEOUT_PARTICIPANT_CONNECT_TIME_CACHE_MS = 60000; //ms
 
@@ -715,10 +705,8 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
         PENDING_RESUME_FOREGROUND_AFTER_FAILURE,
         // Pending holding a call to dial another outgoing call
         HOLDING_TO_DIAL_OUTGOING,
-// QTI_BEGIN: 2019-03-15: Telephony: IMS-VT: Add support that controls holding a video call
         // Pending ending a call to dial another outgoing call (possibly emergency call)
         ENDING_TO_DIAL_OUTGOING,
-// QTI_END: 2019-03-15: Telephony: IMS-VT: Add support that controls holding a video call
         // Pending resuming the foreground call after it has completed an ongoing hold operation.
         PENDING_RESUME_FOREGROUND_AFTER_HOLD
     }
@@ -868,14 +856,12 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
      */
     private boolean mAllowAddCallDuringVideoCall = true;
 
-// QTI_BEGIN: 2018-03-21: Telephony: IMS-VT: Add support that controls holding a video call
     /**
      * Carrier configuration option which determines whether holding a video call
      * should be allowed.
      */
     private boolean mAllowHoldingVideoCall = true;
 
-// QTI_END: 2018-03-21: Telephony: IMS-VT: Add support that controls holding a video call
     /**
      * Carrier configuration option which determines whether to notify the connection if a handover
      * to wifi fails.
@@ -1161,13 +1147,11 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
      */
     private Map<ImsReasonInfoKeyPair, Integer> mImsReasonCodeMap = new ArrayMap<>();
 
-// QTI_BEGIN: 2019-10-03: Telephony: IMS: Fix call cannot be resumed for few operators
      /**
      * Carrier configuration option which indicates whether the carrier supports the hold
      * command while in an IMS call
      */
     private boolean mAllowHoldingCall = true;
-// QTI_END: 2019-10-03: Telephony: IMS: Fix call cannot be resumed for few operators
 
     /**
       * Carrier configuration option which specifies how the carrier handles USSD request.
@@ -1196,14 +1180,12 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
 
     private Pair<Boolean, Integer> mPendingSilentRedialInfo = null;
 
-// QTI_BEGIN: 2021-05-06: Telephony: IMS: Check for roaming for RTT call in automatic mode
     /**
      * Carrier config which determines whether RTT is allowed while roaming.
      * See {@link CarrierConfigManager.KEY_RTT_SUPPORTED_WHILE_ROAMING_BOOL} for more information
      */
     private boolean mAllowRttWhileRoaming = false;
 
-// QTI_END: 2021-05-06: Telephony: IMS: Check for roaming for RTT call in automatic mode
     /**
      * Default implementation for retrieving shared preferences; uses the actual PreferencesManager.
      */
@@ -1479,7 +1461,6 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
 // QTI_END: 2019-04-16: Telephony: Handle ECBM mode for both the SUBs to place calls in ECBM mode
         }
         if (mQtiEmergencyModeTracker.canExitScbm(mPhone.mDefaultPhone)) {
-// QTI_BEGIN: 2022-01-27: Telephony: Exit SCBM if ims connection ready or phone type switched to CDMA
              try {
                  mPhone.mDefaultPhone.exitScbm();
              } catch (Exception e) {
@@ -1487,7 +1468,6 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
              }
          }
 
-// QTI_END: 2022-01-27: Telephony: Exit SCBM if ims connection ready or phone type switched to CDMA
         int mPreferredTtyMode = Settings.Secure.getInt(
                 mPhone.getContext().getContentResolver(),
                 Settings.Secure.PREFERRED_TTY_MODE,
@@ -1715,7 +1695,6 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
         }
     }
 
-// QTI_BEGIN: 2025-01-05: Telephony: FR93902 : Allow dial in concurrent conference
     private boolean isConcurrentEmergency(boolean isEmergencyNumber) {
         ImsPhoneConnection conn = mForegroundCall != null ?
                 mForegroundCall.getFirstConnection() : null;
@@ -1723,36 +1702,27 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
         return isEmergencyNumber && (imsCall != null && imsCall.isCallSessionMergePending());
     }
 
-// QTI_END: 2025-01-05: Telephony: FR93902 : Allow dial in concurrent conference
     private boolean prepareForDialing(ImsPhone.ImsDialArgs dialArgs) throws CallStateException {
         boolean holdBeforeDial = false;
-// QTI_BEGIN: 2021-08-19: Telephony: Place priority when placing e911 call
         boolean isEmergencyNumber = dialArgs.isEmergency;
-// QTI_END: 2021-08-19: Telephony: Place priority when placing e911 call
         // note that this triggers call state changed notif
         clearDisconnected();
         if (mImsManager == null) {
             throw new CallStateException("service not available");
         }
-// QTI_BEGIN: 2021-08-19: Telephony: Place priority when placing e911 call
         // If an emergency call, hang up the ringing call before checking for dial issues
         if (isEmergencyNumber && mRingingCall != null && mRingingCall.isRinging()) {
             rejectCall();
         }
-// QTI_END: 2021-08-19: Telephony: Place priority when placing e911 call
-// QTI_BEGIN: 2025-01-05: Telephony: FR93902 : Allow dial in concurrent conference
         // We need to handle the cases where dial will fail in below use case
         // Conference merge in progress from DUT, User dial an emrgency call
         // For this scenario, we can skip the relevant call checks as this is
         // gracefully handled in lower layers.
         boolean concurrentEmergency = isConcurrentEmergency(isEmergencyNumber);
 
-// QTI_END: 2025-01-05: Telephony: FR93902 : Allow dial in concurrent conference
         // See if there are any issues which preclude placing a call; throw a CallStateException
         // if there is.
-// QTI_BEGIN: 2025-01-05: Telephony: FR93902 : Allow dial in concurrent conference
         checkForDialIssues(concurrentEmergency);
-// QTI_END: 2025-01-05: Telephony: FR93902 : Allow dial in concurrent conference
         int videoState = dialArgs.videoState;
         if (!canAddVideoCallDuringImsAudioCall(videoState)) {
             throw new CallStateException("cannot dial in current state");
@@ -1761,12 +1731,8 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
         // The new call must be assigned to the foreground call.
         // That call must be idle, so place anything that's
         // there on hold
-// QTI_BEGIN: 2025-01-05: Telephony: FR93902 : Allow dial in concurrent conference
         if (mForegroundCall.getState() == ImsPhoneCall.State.ACTIVE && !concurrentEmergency) {
-// QTI_END: 2025-01-05: Telephony: FR93902 : Allow dial in concurrent conference
-// QTI_BEGIN: 2025-01-27: Telephony: Revert "DSDA Telephony Framework Changes"
             if (mBackgroundCall.getState() != ImsPhoneCall.State.IDLE) {
-// QTI_END: 2025-01-27: Telephony: Revert "DSDA Telephony Framework Changes"
                 //we should have failed in checkForDialIssues above before we get here
                 throw new CallStateException(CallStateException.ERROR_TOO_MANY_CALLS,
                         "Already too many ongoing calls.");
@@ -1895,12 +1861,10 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
         synchronized (mSyncHold) {
             mLastDialString = dialString;
             mLastDialArgs = dialArgs;
-// QTI_BEGIN: 2025-01-27: Telephony: Revert "DSDA Telephony Framework Changes"
             mPendingMO = new ImsPhoneConnection(mPhone, dialString, this, mForegroundCall,
                     isEmergencyNumber, isWpsCall, dialArgs);
             mOperationLocalLog.log("dial requested. connId="
                     + System.identityHashCode(mPendingMO));
-// QTI_END: 2025-01-27: Telephony: Revert "DSDA Telephony Framework Changes"
             if (isEmergencyNumber && dialArgs != null && dialArgs.intentExtras != null) {
                 Rlog.i(LOG_TAG, "dial ims emergency dialer: " + dialArgs.intentExtras.getBoolean(
                         TelecomManager.EXTRA_IS_USER_INTENT_EMERGENCY_CALL));
@@ -1913,9 +1877,7 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
                 mPendingMO.setCurrentRttTextStream(dialArgs.rttTextStream);
             }
         }
-// QTI_BEGIN: 2025-01-27: Telephony: Revert "DSDA Telephony Framework Changes"
         addConnection(mPendingMO);
-// QTI_END: 2025-01-27: Telephony: Revert "DSDA Telephony Framework Changes"
 
         if (!holdBeforeDial) {
 // QTI_BEGIN: 2021-12-28: Telephony: Add exit SCBM support
@@ -2007,7 +1969,6 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
         }
     }
 
-// QTI_BEGIN: 2019-10-03: Telephony: IMS: Fix call cannot be resumed for few operators
     /**
      * Determines if the device will respect the value of the
      * {@link CarrierConfigManager#KEY_ALLOW_HOLD_IN_IMS_CALL_BOOL} configuration option.
@@ -2025,7 +1986,6 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
                 com.android.internal.R.bool.config_device_respects_hold_carrier_config);
     }
 
-// QTI_END: 2019-10-03: Telephony: IMS: Fix call cannot be resumed for few operators
     /**
      * Caches frequently used carrier configuration items locally and notifies ImsService of new
      * configuration if the subId is valid (there is an active sub ID loaded).
@@ -2077,9 +2037,7 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
                     + "notification to ImsService.");
             return;
         }
-// QTI_BEGIN: 2022-01-17: Telephony: IMS : Add changes for caching the value based on sim state.
         QtiImsUtils.updateRttConfigCache(mPhone.getContext(),mPhone.getPhoneId(), carrierConfig);
-// QTI_END: 2022-01-17: Telephony: IMS : Add changes for caching the value based on sim state.
 
         // Only update the ImsService configurations for the case where a new subscription has been
         // loaded and is active.
@@ -2110,10 +2068,8 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
         mAllowAddCallDuringVideoCall =
                 carrierConfig.getBoolean(
                         CarrierConfigManager.KEY_ALLOW_ADD_CALL_DURING_VIDEO_CALL_BOOL);
-// QTI_BEGIN: 2018-03-21: Telephony: IMS-VT: Add support that controls holding a video call
         mAllowHoldingVideoCall =
                 carrierConfig.getBoolean(
-// QTI_END: 2018-03-21: Telephony: IMS-VT: Add support that controls holding a video call
                         CarrierConfigManager.KEY_ALLOW_HOLD_VIDEO_CALL_BOOL);
         mNotifyVtHandoverToWifiFail = carrierConfig.getBoolean(
                 CarrierConfigManager.KEY_NOTIFY_VT_HANDOVER_TO_WIFI_FAILURE_BOOL);
@@ -2152,10 +2108,8 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
                 CarrierConfigManager.ImsVoice.KEY_VOICE_RTP_JITTER_THRESHOLD_MILLIS_INT);
         mShouldAllowVtCallsInLowBattery = carrierConfig.getBoolean(
                 CarrierConfigManager.KEY_ALLOW_VIDEO_CALL_IN_LOW_BATTERY_BOOL);
-// QTI_BEGIN: 2019-10-03: Telephony: IMS: Fix call cannot be resumed for few operators
         mAllowHoldingCall = carrierConfig.getBoolean(
                 CarrierConfigManager.KEY_ALLOW_HOLD_IN_IMS_CALL_BOOL);
-// QTI_END: 2019-10-03: Telephony: IMS: Fix call cannot be resumed for few operators
 
         if (mPhone.getContext().getResources().getBoolean(
                 com.android.internal.R.bool.config_allow_ussd_over_ims)) {
@@ -2211,10 +2165,8 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
                     Arrays.stream(srvccType).boxed().collect(Collectors.toList()));
         }
 
-// QTI_BEGIN: 2021-05-06: Telephony: IMS: Check for roaming for RTT call in automatic mode
         mAllowRttWhileRoaming = carrierConfig.getBoolean
                 (CarrierConfigManager.KEY_RTT_SUPPORTED_WHILE_ROAMING_BOOL);
-// QTI_END: 2021-05-06: Telephony: IMS: Check for roaming for RTT call in automatic mode
     }
 
     private void updateMediaThreshold(
@@ -2291,10 +2243,8 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
 
     private void dialInternal(ImsPhoneConnection conn, int clirMode, int videoState,
             int retryCallFailCause, int retryCallFailNetworkType, Bundle intentExtras) {
-// QTI_BEGIN: 2025-01-27: Telephony: Revert "DSDA Telephony Framework Changes"
 
         if (conn == null) {
-// QTI_END: 2025-01-27: Telephony: Revert "DSDA Telephony Framework Changes"
             return;
         }
 
@@ -2347,20 +2297,12 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
                     profile.setCallExtra(ImsCallProfile.EXTRA_CALL_SUBJECT,
                             intentExtras.getString(TelecomManager.EXTRA_CALL_SUBJECT));
                 }
-// QTI_BEGIN: 2021-01-22: Telephony: IMS: Remove RTT related test code
                 boolean isExtraStartRttCall = intentExtras.getBoolean(
-// QTI_END: 2021-01-22: Telephony: IMS: Remove RTT related test code
-// QTI_BEGIN: 2019-09-17: Telephony: IMS: Add check for EXTRA_START_CALL_WITH_RTT
                     android.telecom.TelecomManager.EXTRA_START_CALL_WITH_RTT, true);
-// QTI_END: 2019-09-17: Telephony: IMS: Add check for EXTRA_START_CALL_WITH_RTT
-// QTI_BEGIN: 2021-01-22: Telephony: IMS: Remove RTT related test code
                 boolean isSettingStartRttCall = QtiImsUtils.canStartRttCall(mPhone.getPhoneId(),
                                                                             mPhone.getContext());
-// QTI_END: 2021-01-22: Telephony: IMS: Remove RTT related test code
-// QTI_BEGIN: 2026-01-18: Telephony: RTT : Fix legacy conditions in RTT automatic mode for all RTT supported operators.
 
                 if (DBG) log("dialInternal: isSettingStartRttCall = " + isSettingStartRttCall);
-// QTI_END: 2026-01-18: Telephony: RTT : Fix legacy conditions in RTT automatic mode for all RTT supported operators.
 
                 if (intentExtras.containsKey(android.telecom.TelecomManager.EXTRA_PRIORITY)) {
                     profile.setCallExtraInt(ImsCallProfile.EXTRA_PRIORITY, intentExtras.getInt(
@@ -2382,14 +2324,12 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
                 }
                 if (isExtraStartRttCall && QtiImsUtils.canMakeRttCall(profile, isEmergencyCall,
                     mPhone, mAllowRttWhileRoaming)) {
-// QTI_BEGIN: 2026-01-18: Telephony: RTT : Fix legacy conditions in RTT automatic mode for all RTT supported operators.
                     int mode = isSettingStartRttCall
                             ? QtiImsUtils.getRttOperatingMode(
                             mPhone.getPhoneId(), mPhone.getContext())
                             : ImsStreamMediaProfile.RTT_MODE_DISABLED;
                     if (DBG) log("dialInternal: setting RTT mode :" + mode);
                     profile.getMediaProfile().setRttMode(mode);
-// QTI_END: 2026-01-18: Telephony: RTT : Fix legacy conditions in RTT automatic mode for all RTT supported operators.
                 }
 
                 if (intentExtras.containsKey(ImsCallProfile.EXTRA_IS_CALL_PULL)) {
@@ -2424,9 +2364,7 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
 
             setVideoCallProvider(conn, imsCall);
             conn.setAllowAddCallDuringVideoCall(mAllowAddCallDuringVideoCall);
-// QTI_BEGIN: 2018-03-21: Telephony: IMS-VT: Add support that controls holding a video call
             conn.setAllowHoldingVideoCall(mAllowHoldingVideoCall);
-// QTI_END: 2018-03-21: Telephony: IMS-VT: Add support that controls holding a video call
             mImsCallInfoTracker.addImsCallStatus(conn);
         } catch (ImsException e) {
             loge("dialInternal : " + e);
@@ -2448,16 +2386,12 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
         if (DBG) log("acceptCall");
         mOperationLocalLog.log("accepted incoming call");
 
-// QTI_BEGIN: 2025-01-27: Telephony: Revert "DSDA Telephony Framework Changes"
         if (mForegroundCall.getState().isAlive()
                 && mBackgroundCall.getState().isAlive()) {
-// QTI_END: 2025-01-27: Telephony: Revert "DSDA Telephony Framework Changes"
             throw new CallStateException("cannot accept call");
         }
 
-// QTI_BEGIN: 2018-03-08: Telephony: IMS: RTT feature changes
         ImsStreamMediaProfile mediaProfile = new ImsStreamMediaProfile();
-// QTI_END: 2018-03-08: Telephony: IMS: RTT feature changes
         if ((mRingingCall.getState() == ImsPhoneCall.State.WAITING)
                 && mForegroundCall.getState().isAlive()) {
             setMute(false);
@@ -2478,11 +2412,9 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
                 mForegroundCall.hangup();
                 mPhone.getVoiceCallSessionStats().onImsAcceptCall(mRingingCall.getConnections());
                 try {
-// QTI_BEGIN: 2018-03-08: Telephony: IMS: RTT feature changes
                     mediaProfile = addRttAttributeIfRequired(ringingCall, mediaProfile);
                     ringingCall.accept(ImsCallProfile.getCallTypeFromVideoState(videoState),
                             mediaProfile);
-// QTI_END: 2018-03-08: Telephony: IMS: RTT feature changes
                 } catch (ImsException e) {
                     throw new CallStateException("cannot accept call");
                 }
@@ -2498,11 +2430,9 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
                 if (imsCall != null) {
                     mPhone.getVoiceCallSessionStats().onImsAcceptCall(
                             mRingingCall.getConnections());
-// QTI_BEGIN: 2018-03-08: Telephony: IMS: RTT feature changes
                     mediaProfile = addRttAttributeIfRequired(imsCall, mediaProfile);
                     imsCall.accept(ImsCallProfile.getCallTypeFromVideoState(videoState),
                             mediaProfile);
-// QTI_END: 2018-03-08: Telephony: IMS: RTT feature changes
                 } else {
                     throw new CallStateException("no valid ims call");
                 }
@@ -2548,9 +2478,7 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
 
     private void holdActiveCallForPendingMo() throws CallStateException {
         if (mHoldSwitchingState == HoldSwapState.PENDING_SINGLE_CALL_HOLD
-// QTI_BEGIN: 2025-01-27: Telephony: Revert "DSDA Telephony Framework Changes"
                 || mHoldSwitchingState == HoldSwapState.SWAPPING_ACTIVE_AND_HELD) {
-// QTI_END: 2025-01-27: Telephony: Revert "DSDA Telephony Framework Changes"
             logi("Ignoring hold request while already holding or swapping");
             return;
         }
@@ -2577,9 +2505,7 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
     public void holdActiveCall() throws CallStateException {
         if (mForegroundCall.getState() == ImsPhoneCall.State.ACTIVE) {
             if (mHoldSwitchingState == HoldSwapState.PENDING_SINGLE_CALL_HOLD
-// QTI_BEGIN: 2025-01-27: Telephony: Revert "DSDA Telephony Framework Changes"
                     || mHoldSwitchingState == HoldSwapState.SWAPPING_ACTIVE_AND_HELD) {
-// QTI_END: 2025-01-27: Telephony: Revert "DSDA Telephony Framework Changes"
                 logi("Ignoring hold request while already holding or swapping");
                 return;
             }
@@ -2612,9 +2538,7 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
                 && mRingingCall.getState() == ImsPhoneCall.State.WAITING;
         if (switchingWithWaitingCall) {
             ImsCall callToHold = mForegroundCall.getImsCall();
-// QTI_BEGIN: 2020-01-09: Telephony: Fix to resume held call and answer waiting call
             mCallExpectedToResume = mRingingCall.getImsCall();
-// QTI_END: 2020-01-09: Telephony: Fix to resume held call and answer waiting call
             HoldSwapState oldHoldState = mHoldSwitchingState;
             mHoldSwitchingState = HoldSwapState.HOLDING_TO_ANSWER_INCOMING;
             ImsCall callExpectedToResume = mCallExpectedToResume;
@@ -2648,9 +2572,7 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
             imsCall = fgImsCall;
         }
         if (mHoldSwitchingState == HoldSwapState.PENDING_SINGLE_CALL_UNHOLD
-// QTI_BEGIN: 2025-01-27: Telephony: Revert "DSDA Telephony Framework Changes"
                 || mHoldSwitchingState == HoldSwapState.SWAPPING_ACTIVE_AND_HELD) {
-// QTI_END: 2025-01-27: Telephony: Revert "DSDA Telephony Framework Changes"
             logi("Ignoring unhold request while already unholding or swapping");
             return;
         }
@@ -2883,7 +2805,6 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
             && !mForegroundCall.isFull();
     }
 
-// QTI_BEGIN: 2018-03-21: Telephony: IMS-VT: Add support that controls holding a video call
     private boolean canAddVideoCallDuringImsAudioCall(int videoState) {
         if (mAllowHoldingVideoCall) {
             return true;
@@ -2903,7 +2824,6 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
         return !isImsAudioCallActiveOrHolding || !VideoProfile.isVideo(videoState);
     }
 
-// QTI_END: 2018-03-21: Telephony: IMS-VT: Add support that controls holding a video call
 
     /**
      * Determines if there are issues which would preclude dialing an outgoing call.  Throws a
@@ -2911,7 +2831,6 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
      * @throws CallStateException
      */
     public void checkForDialIssues() throws CallStateException {
-// QTI_BEGIN: 2025-01-05: Telephony: FR93902 : Allow dial in concurrent conference
         checkForDialIssues(false);
     }
 
@@ -2922,15 +2841,12 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
      * @throws CallStateException
      */
     public void checkForDialIssues(boolean isConcurrentEmergency) throws CallStateException {
-// QTI_END: 2025-01-05: Telephony: FR93902 : Allow dial in concurrent conference
         boolean disableCall = TelephonyProperties.disable_call().orElse(false);
         if (disableCall) {
             throw new CallStateException(CallStateException.ERROR_CALLING_DISABLED,
                     "ro.telephony.disable-call has been used to disable calling.");
         }
-// QTI_BEGIN: 2025-01-27: Telephony: Revert "DSDA Telephony Framework Changes"
         if (mPendingMO != null) {
-// QTI_END: 2025-01-27: Telephony: Revert "DSDA Telephony Framework Changes"
             throw new CallStateException(CallStateException.ERROR_ALREADY_DIALING,
                     "Another outgoing call is already being dialed.");
         }
@@ -2938,9 +2854,7 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
             throw new CallStateException(CallStateException.ERROR_CALL_RINGING,
                     "Can't place a call while another is ringing.");
         }
-// QTI_BEGIN: 2025-01-27: Telephony: Revert "DSDA Telephony Framework Changes"
         if (!isConcurrentEmergency && (mForegroundCall.getState().isAlive() & mBackgroundCall.getState().isAlive())) {
-// QTI_END: 2025-01-27: Telephony: Revert "DSDA Telephony Framework Changes"
             throw new CallStateException(CallStateException.ERROR_TOO_MANY_CALLS,
                     "Already an active foreground and background call.");
         }
@@ -3063,12 +2977,10 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
         if (DBG) log("sendDtmf");
 
         ImsCall imscall = mForegroundCall.getImsCall();
-// QTI_BEGIN: 2021-03-01: Telephony: IMS: Support DTMF for RINGING call
         if (imscall == null) {
             log("sendDtmf : ring call");
             imscall =  mRingingCall.getImsCall();
         }
-// QTI_END: 2021-03-01: Telephony: IMS: Support DTMF for RINGING call
         if (imscall != null) {
             imscall.sendDtmf(c, result);
         }
@@ -3079,18 +2991,14 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
         if (DBG) log("startDtmf");
 
         ImsCall imscall = mForegroundCall.getImsCall();
-// QTI_BEGIN: 2021-03-01: Telephony: IMS: Support DTMF for RINGING call
         if (imscall == null) {
             log("startDtmf : ring call");
             imscall =  mRingingCall.getImsCall();
         }
-// QTI_END: 2021-03-01: Telephony: IMS: Support DTMF for RINGING call
         if (imscall != null) {
             imscall.startDtmf(c);
         } else {
-// QTI_BEGIN: 2021-03-01: Telephony: IMS: Support DTMF for RINGING call
             loge("startDtmf : no foreground or ringing call");
-// QTI_END: 2021-03-01: Telephony: IMS: Support DTMF for RINGING call
         }
     }
 
@@ -3099,36 +3007,28 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
         if (DBG) log("stopDtmf");
 
         ImsCall imscall = mForegroundCall.getImsCall();
-// QTI_BEGIN: 2021-03-01: Telephony: IMS: Support DTMF for RINGING call
         if (imscall == null) {
             log("stopDtmf : ring call");
             imscall =  mRingingCall.getImsCall();
         }
-// QTI_END: 2021-03-01: Telephony: IMS: Support DTMF for RINGING call
         if (imscall != null) {
             imscall.stopDtmf();
         } else {
-// QTI_BEGIN: 2021-03-01: Telephony: IMS: Support DTMF for RINGING call
             loge("stopDtmf : no foreground or ringing call");
-// QTI_END: 2021-03-01: Telephony: IMS: Support DTMF for RINGING call
         }
     }
 
     //***** Called from ImsPhoneConnection
 
     public void hangup (ImsPhoneConnection conn) throws CallStateException {
-// QTI_BEGIN: 2025-01-27: Telephony: Revert "DSDA Telephony Framework Changes"
         if (DBG) log("hangup connection");
-// QTI_END: 2025-01-27: Telephony: Revert "DSDA Telephony Framework Changes"
 
         if (conn.getOwner() != this) {
             throw new CallStateException ("ImsPhoneConnection " + conn
                     + "does not belong to ImsPhoneCallTracker " + this);
         }
-// QTI_BEGIN: 2025-01-27: Telephony: Revert "DSDA Telephony Framework Changes"
 
         hangup(conn.getCall());
-// QTI_END: 2025-01-27: Telephony: Revert "DSDA Telephony Framework Changes"
     }
 
     //***** Called from ImsPhoneCall
@@ -3144,11 +3044,9 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
         if (call.getConnectionsCount() == 0) {
             throw new CallStateException("no connections");
         }
-// QTI_BEGIN: 2025-01-27: Telephony: Revert "DSDA Telephony Framework Changes"
 
         ImsCall imsCall = call.getImsCall();
         ImsPhoneConnection conn = findConnection(imsCall);
-// QTI_END: 2025-01-27: Telephony: Revert "DSDA Telephony Framework Changes"
         boolean rejectCall = false;
 
         if (imsCall != null && imsCall.isCallSessionMergePending()) {
@@ -3678,20 +3576,16 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
             case ImsReasonInfo.CODE_DIAL_VIDEO_MODIFIED_TO_USSD:
                 return DisconnectCause.DIAL_VIDEO_MODIFIED_TO_USSD;
 
-// QTI_BEGIN: 2019-03-07: Telephony: IMS: Redial RTT ECC as IMS ECC.
             case QtiImsUtils.CODE_RETRY_ON_IMS_WITHOUT_RTT:
                 return QtiImsUtils.RETRY_ON_IMS_WITHOUT_RTT;
 
-// QTI_END: 2019-03-07: Telephony: IMS: Redial RTT ECC as IMS ECC.
             case ImsReasonInfo.CODE_UNOBTAINABLE_NUMBER:
                 return DisconnectCause.UNOBTAINABLE_NUMBER;
 
             case ImsReasonInfo.CODE_MEDIA_NO_DATA:
                 return DisconnectCause.MEDIA_TIMEOUT;
 
-// QTI_BEGIN: 2018-11-05: Telephony: IMS: Update disconnect reason for IMS calls.
             case ImsReasonInfo.CODE_RADIO_INTERNAL_ERROR:
-// QTI_END: 2018-11-05: Telephony: IMS: Update disconnect reason for IMS calls.
             case ImsReasonInfo.CODE_UNSPECIFIED:
                 if (mPhone.getDefaultPhone().getServiceStateTracker().mRestrictedState
                         .isCsRestricted()) {
@@ -3723,10 +3617,8 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
             case ImsReasonInfo.CODE_REJECT_ONGOING_CALL_UPGRADE:
             case ImsReasonInfo.CODE_REJECT_ONGOING_CS_CALL:
                 return DisconnectCause.INCOMING_AUTO_REJECTED;
-// QTI_BEGIN: 2021-08-12: Telephony: IMS: Add support for additional call information
             case ImsReasonInfo.CODE_CONCURRENT_CALLS_NOT_POSSIBLE:
                 return DisconnectCause.CONCURRENT_CALLS_NOT_POSSIBLE;
-// QTI_END: 2021-08-12: Telephony: IMS: Add support for additional call information
             default:
         }
 
@@ -4031,14 +3923,10 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
                 conn.setImsReasonInfo(reasonInfo);
             }
 
-// QTI_BEGIN: 2023-07-02: Telephony: Ims: Check ims call profile is null in onCallTerminated
             boolean isEmergencySrvCategoryPresent = imsCall.getCallProfile() != null
                     && !TextUtils.isEmpty(imsCall.getCallProfile()
-// QTI_END: 2023-07-02: Telephony: Ims: Check ims call profile is null in onCallTerminated
-// QTI_BEGIN: 2019-04-15: Telephony: IMS: Consider emergency service category 0 as valid.
                     .getCallExtra(QtiImsUtils.EXTRA_EMERGENCY_SERVICE_CATEGORY));
 
-// QTI_END: 2019-04-15: Telephony: IMS: Consider emergency service category 0 as valid.
             if (reasonInfo.getCode() == ImsReasonInfo.CODE_SIP_ALTERNATE_EMERGENCY_CALL
                     && DomainSelectionResolver.getInstance().isDomainSelectionSupported()
                     && isEmergencySrvCategoryPresent) {
@@ -4066,13 +3954,9 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
                 mgr.setAirplaneMode(false);
                 return;
             } else if (reasonInfo.getCode() == ImsReasonInfo.CODE_RETRY_ON_IMS_WITHOUT_RTT) {
-// QTI_BEGIN: 2019-03-07: Telephony: IMS: Redial RTT ECC as IMS ECC.
                 Pair<ImsCall, ImsReasonInfo> callInfo = new Pair<>(imsCall, reasonInfo);
-// QTI_END: 2019-03-07: Telephony: IMS: Redial RTT ECC as IMS ECC.
                 sendMessage(obtainMessage(EVENT_REDIAL_WITHOUT_RTT, callInfo));
-// QTI_BEGIN: 2019-03-07: Telephony: IMS: Redial RTT ECC as IMS ECC.
                 return;
-// QTI_END: 2019-03-07: Telephony: IMS: Redial RTT ECC as IMS ECC.
             } else {
                 processCallStateChange(imsCall, ImsPhoneCall.State.DISCONNECTED, cause);
             }
@@ -4092,14 +3976,11 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
                 // If we are the in midst of swapping FG and BG calls and the call that was
                 // terminated was the one that we expected to resume, we need to swap the FG and
                 // BG calls back.
-// QTI_BEGIN: 2020-01-09: Telephony: IMS: Fix Call Resume error after Call Swap failure.
                 log("onCallTerminated: foreground call in state : " + mForegroundCall.getState() +
                         " , background call in state : " + mBackgroundCall.getState() +
                         " and ringing call in state : " + (mRingingCall == null ? "null" :
                         mRingingCall.getState().toString()));
-// QTI_END: 2020-01-09: Telephony: IMS: Fix Call Resume error after Call Swap failure.
                 if (imsCall == mCallExpectedToResume) {
-// QTI_BEGIN: 2020-01-09: Telephony: IMS: Fix Call Resume error after Call Swap failure.
                     if (!mBackgroundCall.getImsCall().isPendingHold()) {
                         //Switch the calls only if the background call is not in a PENDING_HOLD
                         //state. Otherwise resuming the background call will anyways fail
@@ -4114,12 +3995,8 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
                         mForegroundCall.switchWith(mBackgroundCall);
                         sendEmptyMessage(EVENT_RESUME_NOW_FOREGROUND_CALL);
                         mHoldSwitchingState = HoldSwapState.INACTIVE;
-// QTI_END: 2020-01-09: Telephony: IMS: Fix Call Resume error after Call Swap failure.
-// QTI_BEGIN: 2024-03-22: Telephony: Reset holdSwapState to PENDING_SINGLE_HOLD when an incoming call
                         logHoldSwapState("onCallTerminated: call terminated " +
                                          "in the midst of a switch");
-// QTI_END: 2024-03-22: Telephony: Reset holdSwapState to PENDING_SINGLE_HOLD when an incoming call
-// QTI_BEGIN: 2020-01-09: Telephony: IMS: Fix Call Resume error after Call Swap failure.
                     } else {
                         log("onCallTerminated: backgroung call has a PENDING_HOLD action in " +
                                 "progress and cannot be resumed. Avoid switching the fg and bg "+
@@ -4127,26 +4004,19 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
                         //Since the foreground call has ended and the background call
                         //is in PENDING_HOLD state
                         mHoldSwitchingState = HoldSwapState.PENDING_SINGLE_CALL_HOLD;
-// QTI_END: 2020-01-09: Telephony: IMS: Fix Call Resume error after Call Swap failure.
                     }
-// QTI_BEGIN: 2020-01-09: Telephony: IMS: Fix Call Resume error after Call Swap failure.
                 } else {
                     // The call which was put on hold and not expected to resume got terminated.
                     // Just resume the foreground call as is done currently.
                     sendEmptyMessage(EVENT_RESUME_NOW_FOREGROUND_CALL);
                     mHoldSwitchingState = HoldSwapState.INACTIVE;
-// QTI_END: 2020-01-09: Telephony: IMS: Fix Call Resume error after Call Swap failure.
-// QTI_BEGIN: 2024-03-22: Telephony: Reset holdSwapState to PENDING_SINGLE_HOLD when an incoming call
                     logHoldSwapState("onCallTerminated: Held call that not" +
                                      "expected to resume got terminated.");
-// QTI_END: 2024-03-22: Telephony: Reset holdSwapState to PENDING_SINGLE_HOLD when an incoming call
                 }
                 mCallExpectedToResume = null;
                 logHoldSwapState("onCallTerminated swap active and hold case");
             } else if (mHoldSwitchingState == HoldSwapState.PENDING_SINGLE_CALL_UNHOLD
-// QTI_BEGIN: 2025-01-27: Telephony: Revert "DSDA Telephony Framework Changes"
                     || mHoldSwitchingState == HoldSwapState.PENDING_SINGLE_CALL_HOLD) {
-// QTI_END: 2025-01-27: Telephony: Revert "DSDA Telephony Framework Changes"
                 mCallExpectedToResume = null;
                 mHoldSwitchingState = HoldSwapState.INACTIVE;
                 logHoldSwapState("onCallTerminated single call case");
@@ -4154,18 +4024,15 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
                 // Check to see which call got terminated. If it's the one that was gonna get held,
                 // ignore it. If it's the one that was gonna get answered, restore the one that
                 // possibly got held.
-// QTI_BEGIN: 2020-01-09: Telephony: Fix to resume held call and answer waiting call
                 // If holding the active call is still in progress when the waiting call terminates
                 // resume the held call in onCallHeld. Else resume the call here.
                 if ((imsCall == mCallExpectedToResume) &&
                             mBackgroundCall.getState() == ImsPhoneCall.State.HOLDING) {
-// QTI_END: 2020-01-09: Telephony: Fix to resume held call and answer waiting call
                     mForegroundCall.switchWith(mBackgroundCall);
                     mCallExpectedToResume = null;
                     mHoldSwitchingState = HoldSwapState.INACTIVE;
                     logHoldSwapState("onCallTerminated hold to answer case");
                     sendEmptyMessage(EVENT_RESUME_NOW_FOREGROUND_CALL);
-// QTI_BEGIN: 2020-02-14: Telephony: IMS: Trigger answer for waiting call only if HOLD success
                 } else if (!mBackgroundCall.getState().isAlive() &&
                         mRingingCall.getState() == ImsPhoneCall.State.WAITING) {
                     // Answer ringing call only if user accepted the waiting call received on top
@@ -4178,36 +4045,25 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
                     // HOLD call will be ended first so need to check for background call here
                     // explicitly to avoid sending ANSWER for third incoming call before ACTIVE call
                     // becomes HELD.
-// QTI_END: 2020-02-14: Telephony: IMS: Trigger answer for waiting call only if HOLD success
-// QTI_BEGIN: 2020-01-09: Telephony: Fix to resume held call and answer waiting call
                     sendEmptyMessage(EVENT_ANSWER_WAITING_CALL);
-// QTI_END: 2020-01-09: Telephony: Fix to resume held call and answer waiting call
-// QTI_BEGIN: 2024-03-22: Telephony: Reset holdSwapState to PENDING_SINGLE_HOLD when an incoming call
                 } else if (imsCall == mCallExpectedToResume &&
                          mBackgroundCall.getState() == ImsPhoneCall.State.ACTIVE) {
                     mForegroundCall.switchWith(mBackgroundCall);
                     mHoldSwitchingState = HoldSwapState.PENDING_SINGLE_CALL_HOLD;
                     logHoldSwapState("onCallTerminated Active BG call case.");
-// QTI_END: 2024-03-22: Telephony: Reset holdSwapState to PENDING_SINGLE_HOLD when an incoming call
                 }
-// QTI_BEGIN: 2019-03-15: Telephony: IMS-VT: Add support that controls holding a video call
             } else if (mHoldSwitchingState == HoldSwapState.HOLDING_TO_DIAL_OUTGOING ||
                     mHoldSwitchingState == HoldSwapState.ENDING_TO_DIAL_OUTGOING) {
                 // The call that we were gonna hold or end might've gotten terminated.
                 // If that's the case, dial mPendingMo if present.
-// QTI_END: 2019-03-15: Telephony: IMS-VT: Add support that controls holding a video call
                 if (mPendingMO == null
                         || mPendingMO.getDisconnectCause() != DisconnectCause.NOT_DISCONNECTED) {
                     mHoldSwitchingState = HoldSwapState.INACTIVE;
-// QTI_BEGIN: 2019-03-15: Telephony: IMS-VT: Add support that controls holding a video call
                     logHoldSwapState("onCallTerminated hold/end to dial but no pendingMo");
-// QTI_END: 2019-03-15: Telephony: IMS-VT: Add support that controls holding a video call
                 } else if (imsCall != mPendingMO.getImsCall()) {
                     sendEmptyMessage(EVENT_DIAL_PENDINGMO);
                     mHoldSwitchingState = HoldSwapState.INACTIVE;
-// QTI_BEGIN: 2019-03-15: Telephony: IMS-VT: Add support that controls holding a video call
                     logHoldSwapState("onCallTerminated hold/end to dial, dial pendingMo");
-// QTI_END: 2019-03-15: Telephony: IMS-VT: Add support that controls holding a video call
                 }
             }
 
@@ -4249,10 +4105,8 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
                     sendEmptyMessage(EVENT_RESUME_NOW_FOREGROUND_CALL);
                     mHoldSwitchingState = HoldSwapState.INACTIVE;
                     mCallExpectedToResume = null;
-// QTI_BEGIN: 2024-03-22: Telephony: Reset holdSwapState to PENDING_SINGLE_HOLD when an incoming call
                     logHoldSwapState("onCallHeld " +
                                      "PENDING_RESUME_FOREGROUND_AFTER_HOLD");
-// QTI_END: 2024-03-22: Telephony: Reset holdSwapState to PENDING_SINGLE_HOLD when an incoming call
                 } else if (oldState == ImsPhoneCall.State.ACTIVE) {
                     // Note: This case comes up when we have just held a call in response to a
                     // switchWaitingOrHoldingAndActive.  We now need to resume the background call.
@@ -4267,7 +4121,6 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
                         dialPendingMO();
                         mHoldSwitchingState = HoldSwapState.INACTIVE;
                         logHoldSwapState("onCallHeld hold to dial");
-// QTI_BEGIN: 2019-10-03: Telephony: IMS: Fix call cannot be resumed for few operators
                     }  else if (mHoldSwitchingState == HoldSwapState.PENDING_SINGLE_CALL_HOLD
                             && doesDeviceRespectHoldCarrierConfig() && !mAllowHoldingCall) {
                         // In this case since holding/unholding call is not allowed from UI we are
@@ -4279,8 +4132,6 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
                         sendEmptyMessage(EVENT_RESUME_NOW_FOREGROUND_CALL);
                         mHoldSwitchingState = HoldSwapState.INACTIVE;
                         logHoldSwapState("onCallHeld auto resume");
-// QTI_END: 2019-10-03: Telephony: IMS: Fix call cannot be resumed for few operators
-// QTI_BEGIN: 2020-01-09: Telephony: Fix to resume held call and answer waiting call
                     } else if (mRingingCall.getState() == ImsPhoneCall.State.IDLE
                               && mHoldSwitchingState == HoldSwapState.HOLDING_TO_ANSWER_INCOMING) {
                         //Handle the case where waiting call gets terminated while HOLDING of ACTIVE
@@ -4291,7 +4142,6 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
                         mHoldSwitchingState = HoldSwapState.INACTIVE;
                         mCallExpectedToResume = null;
                         logHoldSwapState("onCallHeld premature termination of waiting call");
-// QTI_END: 2020-01-09: Telephony: Fix to resume held call and answer waiting call
                     } else {
                         // In this case there will be no call resumed, so we can assume that we
                         // are done switching fg and bg calls now.
@@ -4325,10 +4175,8 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
                 if (mHoldSwitchingState
                         == HoldSwapState.PENDING_RESUME_FOREGROUND_AFTER_HOLD) {
                     mHoldSwitchingState = HoldSwapState.INACTIVE;
-// QTI_BEGIN: 2024-03-22: Telephony: Reset holdSwapState to PENDING_SINGLE_HOLD when an incoming call
                     logHoldSwapState("onCallHoldFailed " +
                                      "PENDING_RESUME_FOREGROUND_AFTER_HOLD");
-// QTI_END: 2024-03-22: Telephony: Reset holdSwapState to PENDING_SINGLE_HOLD when an incoming call
                 } else if (reasonInfo.getCode() == ImsReasonInfo.CODE_LOCAL_CALL_TERMINATED) {
                     // disconnected while processing hold
                     if (mPendingMO != null) {
@@ -4338,10 +4186,8 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
                         sendEmptyMessage(EVENT_ANSWER_WAITING_CALL);
                     }
                     mHoldSwitchingState = HoldSwapState.INACTIVE;
-// QTI_BEGIN: 2024-03-22: Telephony: Reset holdSwapState to PENDING_SINGLE_HOLD when an incoming call
                     logHoldSwapState("onCallHoldFailed " +
                                      "CODE_LOCAL_CALL_TERMINATED");
-// QTI_END: 2024-03-22: Telephony: Reset holdSwapState to PENDING_SINGLE_HOLD when an incoming call
                 } else if ((mPendingMO != null && mPendingMO.isEmergency()) || (mPendingMO == null
                         && mForegroundCall.getFirstConnection() != null
                         && mForegroundCall.getFirstConnection().isEmergency())) {
@@ -4373,16 +4219,10 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
                         mCallExpectedToResume = null;
                     }
                     mHoldSwitchingState = HoldSwapState.INACTIVE;
-// QTI_BEGIN: 2024-03-22: Telephony: Reset holdSwapState to PENDING_SINGLE_HOLD when an incoming call
                     logHoldSwapState("onCallHoldFailed active bg call");
-// QTI_END: 2024-03-22: Telephony: Reset holdSwapState to PENDING_SINGLE_HOLD when an incoming call
-// QTI_BEGIN: 2025-01-27: Telephony: Revert "DSDA Telephony Framework Changes"
                 } else if (mHoldSwitchingState == HoldSwapState.PENDING_SINGLE_CALL_HOLD) {
-// QTI_END: 2025-01-27: Telephony: Revert "DSDA Telephony Framework Changes"
                     mHoldSwitchingState = HoldSwapState.INACTIVE;
-// QTI_BEGIN: 2024-03-22: Telephony: Reset holdSwapState to PENDING_SINGLE_HOLD when an incoming call
                     logHoldSwapState("onCallHoldFailed pending call hold");
-// QTI_END: 2024-03-22: Telephony: Reset holdSwapState to PENDING_SINGLE_HOLD when an incoming call
                 }
                 ImsPhoneConnection conn = findConnection(imsCall);
                 if (conn != null && conn.getState() != ImsPhoneCall.State.DISCONNECTED) {
@@ -4427,11 +4267,9 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
 
         @Override
         public void onCallResumeFailed(ImsCall imsCall, ImsReasonInfo reasonInfo) {
-// QTI_BEGIN: 2021-04-06: Telephony: IMS: Restore proper FG, BG calls after resume failure.
             log("onCallResumeFailed : mHoldSwitchingState = " + mHoldSwitchingState
                     + " fg state = " + mForegroundCall.getState() + " bg state = "
                     + mBackgroundCall.getState());
-// QTI_END: 2021-04-06: Telephony: IMS: Restore proper FG, BG calls after resume failure.
             if (mHoldSwitchingState == HoldSwapState.SWAPPING_ACTIVE_AND_HELD
                     || mHoldSwitchingState
                     == HoldSwapState.PENDING_RESUME_FOREGROUND_AFTER_FAILURE) {
@@ -4467,7 +4305,6 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
                     Rlog.w(LOG_TAG, "onCallResumeFailed: got a resume failed for a different call"
                             + " in the single call unhold case");
                 }
-// QTI_BEGIN: 2021-04-06: Telephony: IMS: Restore proper FG, BG calls after resume failure.
             } else if (mHoldSwitchingState == HoldSwapState.INACTIVE &&
                     mForegroundCall.getState() == ImsPhoneCall.State.HOLDING &&
                     mBackgroundCall.getState() == ImsPhoneCall.State.IDLE) {
@@ -4476,7 +4313,6 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
                     log("onCallResumeFailed: resume failed. switch fg and bg calls");
                 }
                 mForegroundCall.switchWith(mBackgroundCall);
-// QTI_END: 2021-04-06: Telephony: IMS: Restore proper FG, BG calls after resume failure.
             }
             ImsPhoneConnection conn = findConnection(imsCall);
             // Send connection event so that Telecom can unhold the call the bg call that was held
@@ -4708,13 +4544,9 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
                 if (conn.getDisconnectCause() == DisconnectCause.NOT_DISCONNECTED) {
                     if (isHandoverToWifi) {
                         removeMessages(EVENT_CHECK_FOR_WIFI_HANDOVER);
-// QTI_BEGIN: 2018-04-02: Telephony: IMS: Do not remove local video capabilities for Wifi call when mobile data is off
                         if (mIsViLteDataMetered) {
-// QTI_END: 2018-04-02: Telephony: IMS: Do not remove local video capabilities for Wifi call when mobile data is off
                             conn.setLocalVideoCapable(true);
-// QTI_BEGIN: 2018-04-02: Telephony: IMS: Do not remove local video capabilities for Wifi call when mobile data is off
                         }
-// QTI_END: 2018-04-02: Telephony: IMS: Do not remove local video capabilities for Wifi call when mobile data is off
 
                         if (mNotifyHandoverVideoFromLTEToWifi && mHasAttemptedStartOfCallHandover) {
                             // This is a handover which happened mid-call (ie not the start of call
@@ -4738,15 +4570,11 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
                 }
 
                 if (isHandoverFromWifi && imsCall.isVideoCall()) {
-// QTI_BEGIN: 2018-04-02: Telephony: IMS: Do not remove local video capabilities for Wifi call when mobile data is off
                     if (mIsViLteDataMetered) {
-// QTI_END: 2018-04-02: Telephony: IMS: Do not remove local video capabilities for Wifi call when mobile data is off
                         conn.setLocalVideoCapable(mIsDataEnabled);
-// QTI_BEGIN: 2018-04-02: Telephony: IMS: Do not remove local video capabilities for Wifi call when mobile data is off
                     }
 
                     if (mNotifyHandoverVideoFromWifiToLTE && mIsDataEnabled) {
-// QTI_END: 2018-04-02: Telephony: IMS: Do not remove local video capabilities for Wifi call when mobile data is off
                         if (conn.getDisconnectCause() == DisconnectCause.NOT_DISCONNECTED) {
                             log("onCallHandover :: notifying of WIFI to LTE handover.");
                             conn.onConnectionEvent(
@@ -5248,9 +5076,7 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
         mIsInEmergencyCall = false;
         mPhone.setEcmCanceledForEmergency(false);
         mHoldSwitchingState = HoldSwapState.INACTIVE;
-// QTI_BEGIN: 2024-03-22: Telephony: Reset holdSwapState to PENDING_SINGLE_HOLD when an incoming call
         logHoldSwapState("resetState");
-// QTI_END: 2024-03-22: Telephony: Reset holdSwapState to PENDING_SINGLE_HOLD when an incoming call
     }
 
     @VisibleForTesting
@@ -5423,9 +5249,7 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
                 ImsPhoneConnection oldConnection = findConnection(callInfo.first);
                 if (oldConnection == null) {
                     sendCallStartFailedDisconnect(callInfo.first, callInfo.second);
-// QTI_BEGIN: 2019-03-07: Telephony: IMS: Redial RTT ECC as IMS ECC.
                     loge("EVENT_REDIAL_WIFI_E911_CALL: null oldConnection");
-// QTI_END: 2019-03-07: Telephony: IMS: Redial RTT ECC as IMS ECC.
                     break;
                 }
                 mForegroundCall.detach(oldConnection);
@@ -5456,30 +5280,21 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
                 break;
             }
             case EVENT_REDIAL_WITHOUT_RTT: {
-// QTI_BEGIN: 2019-03-07: Telephony: IMS: Redial RTT ECC as IMS ECC.
                 Pair<ImsCall, ImsReasonInfo> callInfo = (Pair<ImsCall, ImsReasonInfo>) msg.obj;
-// QTI_END: 2019-03-07: Telephony: IMS: Redial RTT ECC as IMS ECC.
                 removeMessages(EVENT_REDIAL_WITHOUT_RTT);
-// QTI_BEGIN: 2019-03-07: Telephony: IMS: Redial RTT ECC as IMS ECC.
 
                 ImsPhoneConnection oldConnection = findConnection(callInfo.first);
                 if (oldConnection == null) {
                     sendCallStartFailedDisconnect(callInfo.first, callInfo.second);
-// QTI_END: 2019-03-07: Telephony: IMS: Redial RTT ECC as IMS ECC.
                     loge("EVENT_REDIAL_WITHOUT_RTT: null oldConnection");
-// QTI_BEGIN: 2019-03-07: Telephony: IMS: Redial RTT ECC as IMS ECC.
                     return;
                 }
                 mForegroundCall.detach(oldConnection);
                 removeConnection(oldConnection);
                 try {
-// QTI_END: 2019-03-07: Telephony: IMS: Redial RTT ECC as IMS ECC.
                     mPendingMO = null;
-// QTI_BEGIN: 2019-03-07: Telephony: IMS: Redial RTT ECC as IMS ECC.
                     mLastDialArgs.intentExtras.putBoolean(
                             android.telecom.TelecomManager.EXTRA_START_CALL_WITH_RTT, false);
-// QTI_END: 2019-03-07: Telephony: IMS: Redial RTT ECC as IMS ECC.
-// QTI_BEGIN: 2019-11-19: Telephony: Ims: Pack <retryCallFailreason> and <retryCallFailRadioTech> in extras
 
                     mLastDialArgs.intentExtras.putInt(
                             QtiImsUtils.EXTRA_RETRY_CALL_FAIL_REASON,
@@ -5490,17 +5305,13 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
                     mLastDialArgs.intentExtras.putInt(
                             QtiImsUtils.EXTRA_RETRY_CALL_FAIL_RADIOTECH, callRadioTech);
 
-// QTI_END: 2019-11-19: Telephony: Ims: Pack <retryCallFailreason> and <retryCallFailRadioTech> in extras
-// QTI_BEGIN: 2019-06-28: Telephony: IMS-VT: Disable RTT text stream
                     mLastDialArgs = ImsPhone.ImsDialArgs.Builder.from(mLastDialArgs)
-// QTI_END: 2019-06-28: Telephony: IMS-VT: Disable RTT text stream
                             .setRttTextStream(null)
                             .setRetryCallFailCause(ImsReasonInfo.CODE_RETRY_ON_IMS_WITHOUT_RTT)
                             .setRetryCallFailNetworkType(
                                     ServiceState.rilRadioTechnologyToNetworkType(
                                     oldConnection.getCallRadioTech()))
                             .build();
-// QTI_BEGIN: 2019-03-07: Telephony: IMS: Redial RTT ECC as IMS ECC.
                     Connection newConnection =
                             mPhone.getDefaultPhone().dial(mLastDialString, mLastDialArgs);
                     oldConnection.onOriginalConnectionReplaced(newConnection);
@@ -5519,7 +5330,6 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
 
                 break;
             }
-// QTI_END: 2019-03-07: Telephony: IMS: Redial RTT ECC as IMS ECC.
 
             case EVENT_START_IMS_TRAFFIC_DONE: // fallthrough
             case EVENT_CONNECTION_SETUP_FAILURE: {
@@ -5996,7 +5806,6 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
         return new ImsException("no ims manager", ImsReasonInfo.CODE_LOCAL_ILLEGAL_STATE);
     }
 
-// QTI_BEGIN: 2018-03-21: Telephony: IMS-VT: Add support that controls holding a video call
     private boolean shouldDisconnectActiveCallOnDial(boolean isEmergencyNumber) {
         if (mAllowHoldingVideoCall) {
             return false;
@@ -6013,7 +5822,6 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
        return (isActiveVideoCall && isEmergencyNumber);
     }
 
-// QTI_END: 2018-03-21: Telephony: IMS-VT: Add support that controls holding a video call
     /**
      * Determines if answering an incoming call will cause the active call to be disconnected.
      * <p>
@@ -6112,9 +5920,7 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
         // Inform connections that data has been disabled to ensure we turn off video capability
         // if this is an LTE call.
         for (ImsPhoneConnection conn : mConnections) {
-// QTI_BEGIN: 2018-04-02: Telephony: IMS: Do not remove local video capabilities for Wifi call when mobile data is off
             ImsCall imsCall = conn.getImsCall();
-// QTI_END: 2018-04-02: Telephony: IMS: Do not remove local video capabilities for Wifi call when mobile data is off
             boolean isLocalVideoCapable = enabled || (imsCall != null && imsCall.isWifiCall());
             conn.setLocalVideoCapable(isLocalVideoCapable);
         }
@@ -6435,30 +6241,21 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
     public void setAlwaysPlayRemoteHoldTone(boolean shouldPlayRemoteHoldTone) {
         mAlwaysPlayRemoteHoldTone = shouldPlayRemoteHoldTone;
     }
-// QTI_BEGIN: 2018-03-08: Telephony: IMS: RTT feature changes
 
     // Accept the call as RTT if incoming call as RTT attribute set
     private ImsStreamMediaProfile addRttAttributeIfRequired(ImsCall call,
             ImsStreamMediaProfile mediaProfile) {
 
-// QTI_END: 2018-03-08: Telephony: IMS: RTT feature changes
         if (!QtiImsUtils.isRttSupported(mPhone.getPhoneId(), mPhone.getContext())) {
-// QTI_BEGIN: 2021-01-22: Telephony: IMS: Remove RTT related test code
             if (DBG) log("addRttAttributeIfRequired: RTT is not supported");
-// QTI_END: 2021-01-22: Telephony: IMS: Remove RTT related test code
-// QTI_BEGIN: 2018-03-08: Telephony: IMS: RTT feature changes
             return mediaProfile;
         }
 
         ImsCallProfile profile = call.getCallProfile();
         if (profile.mMediaProfile != null && profile.mMediaProfile.isRttCall() &&
-// QTI_END: 2018-03-08: Telephony: IMS: RTT feature changes
-// QTI_BEGIN: 2021-01-22: Telephony: IMS: Remove RTT related test code
                 (!call.getCallProfile().isVideoCall() ||
                         QtiImsUtils.isRttSupportedOnVtCalls(mPhone.getPhoneId(),
                                                             mPhone.getContext()))) {
-// QTI_END: 2021-01-22: Telephony: IMS: Remove RTT related test code
-// QTI_BEGIN: 2018-03-08: Telephony: IMS: RTT feature changes
             if (DBG) log("RTT: addRttAttributeIfRequired = " +
                     profile.mMediaProfile.isRttCall());
             // If RTT UI option is on, then incoming RTT call should always be accepted
@@ -6467,7 +6264,6 @@ public class ImsPhoneCallTracker extends CallTracker implements ImsPullCall {
         }
         return mediaProfile;
     }
-// QTI_END: 2018-03-08: Telephony: IMS: RTT feature changes
 
     @Override
     public ImsPhone getPhone() {

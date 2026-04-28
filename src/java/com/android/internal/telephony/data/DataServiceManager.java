@@ -80,27 +80,19 @@ import java.util.stream.Collectors;
  * Cellular data service, IWLAN data service).
  */
 public class DataServiceManager extends Handler {
-// QTI_BEGIN: 2022-12-06: Telephony: Enable extension of a few data classes for QoS
     protected static final boolean DBG = true;
-// QTI_END: 2022-12-06: Telephony: Enable extension of a few data classes for QoS
 
     static final String DATA_CALL_RESPONSE = "data_call_response";
 
     private static final int EVENT_BIND_DATA_SERVICE = 1;
 
-// QTI_BEGIN: 2022-12-06: Telephony: Enable extension of a few data classes for QoS
     protected static final int EVENT_WATCHDOG_TIMEOUT = 2;
-// QTI_END: 2022-12-06: Telephony: Enable extension of a few data classes for QoS
 
     private static final long CHANGE_PERMISSION_TIMEOUT_MS = 15 * SECOND_IN_MILLIS; // 15 secs
 
-// QTI_BEGIN: 2022-12-06: Telephony: Enable extension of a few data classes for QoS
     protected final Phone mPhone;
-// QTI_END: 2022-12-06: Telephony: Enable extension of a few data classes for QoS
 
-// QTI_BEGIN: 2022-12-06: Telephony: Enable extension of a few data classes for QoS
     protected String mTag;
-// QTI_END: 2022-12-06: Telephony: Enable extension of a few data classes for QoS
 
     private final AppOpsManager mAppOps;
     private final LegacyPermissionManager mPermissionManager;
@@ -109,19 +101,13 @@ public class DataServiceManager extends Handler {
 
     private final FeatureFlags mFeatureFlags;
 
-// QTI_BEGIN: 2022-12-06: Telephony: Enable extension of a few data classes for QoS
     protected boolean mBound;
-// QTI_END: 2022-12-06: Telephony: Enable extension of a few data classes for QoS
 
-// QTI_BEGIN: 2022-12-06: Telephony: Enable extension of a few data classes for QoS
     protected IDataService mIDataService;
-// QTI_END: 2022-12-06: Telephony: Enable extension of a few data classes for QoS
 
     private final RegistrantList mServiceBindingChangedRegistrants = new RegistrantList();
 
-// QTI_BEGIN: 2022-12-06: Telephony: Enable extension of a few data classes for QoS
     protected final Map<IBinder, Message> mMessageMap = new ConcurrentHashMap<>();
-// QTI_END: 2022-12-06: Telephony: Enable extension of a few data classes for QoS
 
     private final RegistrantList mDataCallListChangedRegistrants = new RegistrantList();
 
@@ -250,15 +236,11 @@ public class DataServiceManager extends Handler {
         }
     }
 
-// QTI_BEGIN: 2022-12-06: Telephony: Enable extension of a few data classes for QoS
     protected class DataServiceCallbackWrapper extends IDataServiceCallback.Stub {
-// QTI_END: 2022-12-06: Telephony: Enable extension of a few data classes for QoS
 
         private final String mTag;
 
-// QTI_BEGIN: 2022-12-06: Telephony: Enable extension of a few data classes for QoS
         protected DataServiceCallbackWrapper(String tag) {
-// QTI_END: 2022-12-06: Telephony: Enable extension of a few data classes for QoS
             mTag = tag;
         }
 
@@ -666,9 +648,7 @@ public class DataServiceManager extends Handler {
         return className;
     }
 
-// QTI_BEGIN: 2022-12-06: Telephony: Enable extension of a few data classes for QoS
     protected void sendCompleteMessage(Message msg, @DataServiceCallback.ResultCode int code) {
-// QTI_END: 2022-12-06: Telephony: Enable extension of a few data classes for QoS
         if (msg != null) {
             msg.arg1 = code;
             msg.sendToTarget();
@@ -1013,7 +993,6 @@ public class DataServiceManager extends Handler {
         }
     }
 
-// QTI_BEGIN: 2022-12-06: Telephony: Enable extension of a few data classes for QoS
     /**
      * Append QoS parameters to DataCallResponse if needed. Overridden in subclasses.
      *
@@ -1038,7 +1017,6 @@ public class DataServiceManager extends Handler {
     }
 
     protected void log(String s) {
-// QTI_END: 2022-12-06: Telephony: Enable extension of a few data classes for QoS
         Rlog.d(mTag, s);
     }
     /**
@@ -1169,9 +1147,7 @@ public class DataServiceManager extends Handler {
         }
     }
 
-// QTI_BEGIN: 2022-12-06: Telephony: Enable extension of a few data classes for QoS
     protected void loge(String s) {
-// QTI_END: 2022-12-06: Telephony: Enable extension of a few data classes for QoS
         Rlog.e(mTag, s);
     }
 }

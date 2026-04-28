@@ -55,9 +55,7 @@ import android.os.SystemProperties;
 // QTI_BEGIN: 2025-02-03: Telephony: Decouple Qualcomm value adds.
 import android.os.UserHandle;
 // QTI_END: 2025-02-03: Telephony: Decouple Qualcomm value adds.
-// QTI_BEGIN: 2019-03-21: Telephony: IMS: Use AOSP RTT_CALLING_MODE key for RTT settings.
 import android.provider.Settings;
-// QTI_END: 2019-03-21: Telephony: IMS: Use AOSP RTT_CALLING_MODE key for RTT settings.
 // QTI_BEGIN: 2019-02-07: Telephony: IMS: Decouple ims-ext-common from boot jars
 import android.telephony.CarrierConfigManager;
 // QTI_END: 2019-02-07: Telephony: IMS: Decouple ims-ext-common from boot jars
@@ -116,19 +114,15 @@ public class QtiImsUtils {
     public static final String EXTRA_EMERGENCY_SERVICE_CATEGORY = "EmergencyServiceCategory";
 // QTI_END: 2019-04-15: Telephony: IMS: Consider emergency service category 0 as valid.
 
-// QTI_BEGIN: 2022-01-04: Telephony: IMS : Add changes for caching the value based on sim state.
     public static final String SIMLESS_RTT_SUPPORTED = "simless_rtt_supported";
     public static final String SIMLESS_RTT_DOWNGRADE_SUPPORTED = "simless_rtt_downgrade_supported";
 
-// QTI_END: 2022-01-04: Telephony: IMS : Add changes for caching the value based on sim state.
 // QTI_BEGIN: 2019-02-07: Telephony: IMS: Decouple ims-ext-common from boot jars
     // RTT Off
     public static final int RTT_MODE_DISABLED = 0;
 // QTI_END: 2019-02-07: Telephony: IMS: Decouple ims-ext-common from boot jars
-// QTI_BEGIN: 2019-09-10: Telephony: Support for MSIM RTT
     public static final int RTT_DEFAULT_PHONE_ID = 0;
     public static final String EXTRA_PHONE_ID = "slotId";
-// QTI_END: 2019-09-10: Telephony: Support for MSIM RTT
 
 // QTI_BEGIN: 2021-01-22: Telephony: IMS: Remove RTT related test code
     // Call Type RTT
@@ -144,14 +138,12 @@ public class QtiImsUtils {
     public static final int RTT_AUTOMATIC_MODE = 1;
 // QTI_END: 2021-01-22: Telephony: IMS: Remove RTT related test code
 
-// QTI_BEGIN: 2022-01-04: Telephony: IMS : Add changes for caching the value based on sim state.
     /*RTT not supported */
     public static final int RTT_SUPPORTED = 1;
     public static final int RTT_NOT_SUPPORTED = 0;
     public static final int RTT_DOWNGRADE_SUPPORTED = 1;
     public static final int RTT_DOWNGRADE_NOT_SUPPORTED = 0;
 
-// QTI_END: 2022-01-04: Telephony: IMS : Add changes for caching the value based on sim state.
 // QTI_BEGIN: 2019-02-07: Telephony: IMS: Decouple ims-ext-common from boot jars
     /**
 // QTI_END: 2019-02-07: Telephony: IMS: Decouple ims-ext-common from boot jars
@@ -183,14 +175,12 @@ public class QtiImsUtils {
     public static final String QTI_IMS_CAN_START_RTT_CALL = "qti.settings.can_start_rtt_call";
 // QTI_END: 2021-01-22: Telephony: IMS: Remove RTT related test code
 
-// QTI_BEGIN: 2019-02-08: Telephony: FR53347: RTT June18 update
     /* Config to determine if Carrier supports RTT Visibility Setting
      * true - if supported else false
      */
     public static final String KEY_SHOW_RTT_VISIBILITY_SETTING =
             "show_rtt_visibility_setting_bool";
 
-// QTI_END: 2019-02-08: Telephony: FR53347: RTT June18 update
 // QTI_BEGIN: 2019-02-07: Telephony: IMS: Decouple ims-ext-common from boot jars
     // Returns true if global setting has stored value as true
     public static boolean isRttOn(Context context) {
@@ -198,38 +188,28 @@ public class QtiImsUtils {
 // QTI_BEGIN: 2021-01-22: Telephony: IMS: Remove RTT related test code
         return isRttOn(RTT_DEFAULT_PHONE_ID, context);
 // QTI_END: 2021-01-22: Telephony: IMS: Remove RTT related test code
-// QTI_BEGIN: 2019-09-10: Telephony: Support for MSIM RTT
     }
 
-// QTI_END: 2019-09-10: Telephony: Support for MSIM RTT
 // QTI_BEGIN: 2021-01-22: Telephony: IMS: Remove RTT related test code
     public static boolean isRttOn(int phoneId, Context context) {
 // QTI_END: 2021-01-22: Telephony: IMS: Remove RTT related test code
-// QTI_BEGIN: 2019-09-10: Telephony: Support for MSIM RTT
         return getRttMode(context, phoneId) != RTT_MODE_DISABLED;
-// QTI_END: 2019-09-10: Telephony: Support for MSIM RTT
 // QTI_BEGIN: 2019-02-07: Telephony: IMS: Decouple ims-ext-common from boot jars
     }
 
     // Returns value of RTT mode
     public static int getRttMode(Context context) {
 // QTI_END: 2019-02-07: Telephony: IMS: Decouple ims-ext-common from boot jars
-// QTI_BEGIN: 2019-09-10: Telephony: Support for MSIM RTT
         return getRttMode(context, RTT_DEFAULT_PHONE_ID);
     }
 
     public static int getRttMode(Context context, int phoneId) {
-// QTI_END: 2019-09-10: Telephony: Support for MSIM RTT
-// QTI_BEGIN: 2019-03-21: Telephony: IMS: Use AOSP RTT_CALLING_MODE key for RTT settings.
         return android.provider.Settings.Secure.getInt(context.getContentResolver(),
-// QTI_END: 2019-03-21: Telephony: IMS: Use AOSP RTT_CALLING_MODE key for RTT settings.
-// QTI_BEGIN: 2019-09-10: Telephony: Support for MSIM RTT
                 Settings.Secure.RTT_CALLING_MODE + convertRttPhoneId(phoneId), RTT_MODE_DISABLED);
     }
 
     private static String convertRttPhoneId(int phoneId) {
         return phoneId != 0 ? Integer.toString(phoneId) : "";
-// QTI_END: 2019-09-10: Telephony: Support for MSIM RTT
 // QTI_BEGIN: 2019-02-07: Telephony: IMS: Decouple ims-ext-common from boot jars
     }
 
@@ -239,34 +219,25 @@ public class QtiImsUtils {
         PersistableBundle b = getConfigForPhoneId(context, phoneId);
         if (b != null) {
 // QTI_END: 2019-02-07: Telephony: IMS: Decouple ims-ext-common from boot jars
-// QTI_BEGIN: 2020-01-23: Telephony: IMS: Replace CarrierConfigs for RTT feature
             isRttSupportedOnVtCall = b.getBoolean(
                     CarrierConfigManager.KEY_RTT_SUPPORTED_FOR_VT_BOOL);
-// QTI_END: 2020-01-23: Telephony: IMS: Replace CarrierConfigs for RTT feature
 // QTI_BEGIN: 2019-02-07: Telephony: IMS: Decouple ims-ext-common from boot jars
         }
         return isRttSupportedOnVtCall;
     }
 
 // QTI_END: 2019-02-07: Telephony: IMS: Decouple ims-ext-common from boot jars
-// QTI_BEGIN: 2019-05-30: Telephony: IMS: Add checks for RTT upgrade and downgrade
     // Returns true if Carrier supports RTT upgrade
     public static boolean isRttUpgradeSupported(int phoneId, Context context) {
         boolean isRttUpgradeSupported = false;
         PersistableBundle b = getConfigForPhoneId(context, phoneId);
         if (b != null) {
-// QTI_END: 2019-05-30: Telephony: IMS: Add checks for RTT upgrade and downgrade
-// QTI_BEGIN: 2020-01-23: Telephony: IMS: Replace CarrierConfigs for RTT feature
             isRttUpgradeSupported = b.getBoolean(
                     CarrierConfigManager.KEY_RTT_UPGRADE_SUPPORTED_BOOL);
-// QTI_END: 2020-01-23: Telephony: IMS: Replace CarrierConfigs for RTT feature
-// QTI_BEGIN: 2019-05-30: Telephony: IMS: Add checks for RTT upgrade and downgrade
         }
         return isRttUpgradeSupported;
     }
 
-// QTI_END: 2019-05-30: Telephony: IMS: Add checks for RTT upgrade and downgrade
-// QTI_BEGIN: 2019-02-08: Telephony: FR53347: RTT June18 update
     // Returns true if Carrier supports RTT Visibility Setting
     public static boolean shallShowRttVisibilitySetting(int phoneId, Context context) {
         boolean showRttVisibilitySetting = false;
@@ -277,7 +248,6 @@ public class QtiImsUtils {
         return showRttVisibilitySetting;
     }
 
-// QTI_END: 2019-02-08: Telephony: FR53347: RTT June18 update
 // QTI_BEGIN: 2019-02-07: Telephony: IMS: Decouple ims-ext-common from boot jars
     // Returns true if Carrier supports RTT
     public static boolean isRttSupported(int phoneId, Context context) {
@@ -291,7 +261,6 @@ public class QtiImsUtils {
     }
 
 // QTI_END: 2019-02-07: Telephony: IMS: Decouple ims-ext-common from boot jars
-// QTI_BEGIN: 2022-01-04: Telephony: IMS : Add changes for caching the value based on sim state.
     // Returns true if Previous Carrier supported RTT
     public static boolean isSimLessRttSupported(int phoneId, Context context) {
         int simLessRttSupportedValue = android.provider.Settings.Secure.getInt(
@@ -300,7 +269,6 @@ public class QtiImsUtils {
         return simLessRttSupportedValue != RTT_NOT_SUPPORTED;
     }
 
-// QTI_END: 2022-01-04: Telephony: IMS : Add changes for caching the value based on sim state.
 // QTI_BEGIN: 2019-02-07: Telephony: IMS: Decouple ims-ext-common from boot jars
     private static PersistableBundle getConfigForPhoneId(Context context, int phoneId) {
         SubscriptionManager subManager = (SubscriptionManager) context.getSystemService(
@@ -333,7 +301,6 @@ public class QtiImsUtils {
     }
 
 // QTI_END: 2019-02-07: Telephony: IMS: Decouple ims-ext-common from boot jars
-// QTI_BEGIN: 2022-01-04: Telephony: IMS : Add changes for caching the value based on sim state.
     public static void updateRttConfigCache(Context context, int phoneId,
             PersistableBundle carrierConfig) {
         android.provider.Settings.Secure.putInt(context.getContentResolver(),
@@ -348,7 +315,6 @@ public class QtiImsUtils {
                 : RTT_DOWNGRADE_NOT_SUPPORTED);
     }
 
-// QTI_END: 2022-01-04: Telephony: IMS : Add changes for caching the value based on sim state.
 // QTI_BEGIN: 2019-02-07: Telephony: IMS: Decouple ims-ext-common from boot jars
     // Utility to get the RTT Mode that is set through adb property
     // Mode can be either RTT_MODE_DISABLED or RTT_MODE_FULL
@@ -367,10 +333,8 @@ public class QtiImsUtils {
                 QTI_IMS_RTT_OPERATING_MODE + convertRttPhoneId(phoneId),
                 RTT_UPON_REQUEST_MODE);
 // QTI_END: 2021-01-22: Telephony: IMS: Remove RTT related test code
-// QTI_BEGIN: 2019-09-10: Telephony: Support for MSIM RTT
     }
 
-// QTI_END: 2019-09-10: Telephony: Support for MSIM RTT
 // QTI_BEGIN: 2021-01-22: Telephony: IMS: Remove RTT related test code
     // Returns true if we can start RTT call
     public static boolean canStartRttCall(int phoneId, Context context) {

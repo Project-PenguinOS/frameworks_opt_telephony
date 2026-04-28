@@ -1467,7 +1467,6 @@ public class AutoDataSwitchControllerTest extends TelephonyTest {
         verify(mMockedPhoneSwitcherCallback).onRequireValidation(anyInt(), anyBoolean());
     }
 
-// QTI_BEGIN: 2025-10-14: Telephony: Google Auto DDS FR changes
     @Test
     public void testAutoDdsValueAddedEvaluation() {
       // Set up initial conditions: Policy is DISABLED. Primary is OOS.
@@ -1504,7 +1503,6 @@ public class AutoDataSwitchControllerTest extends TelephonyTest {
               EVALUATION_REASON_DATA_SETTINGS_CHANGED);
     }
 
-// QTI_END: 2025-10-14: Telephony: Google Auto DDS FR changes
     /**
      * Trigger conditions
      * 1. service state changes

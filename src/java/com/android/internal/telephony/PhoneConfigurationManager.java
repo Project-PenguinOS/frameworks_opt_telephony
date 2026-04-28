@@ -387,18 +387,12 @@ public class PhoneConfigurationManager {
                         break;
                     }
                     ar = (AsyncResult) msg.obj;
-// QTI_BEGIN: 2025-02-18: Telephony: Don't use multi_sim_voice_capability when unset
                     // check if simultaneous calling values should be generated with property
                     // to ensure that property values are used in cases where lower layers
                     // don't support simultaneous calling API(s)
-// QTI_END: 2025-02-18: Telephony: Don't use multi_sim_voice_capability when unset
-// QTI_BEGIN: 2025-01-28: Telephony: Use MultiSimVoiceCapability to support simultaneous calling
                     boolean generateSimultaneousCallingSupport =
                             TelephonyProperties.multi_sim_voice_capability().orElse(
-// QTI_END: 2025-01-28: Telephony: Use MultiSimVoiceCapability to support simultaneous calling
-// QTI_BEGIN: 2025-02-18: Telephony: Don't use multi_sim_voice_capability when unset
                             TelephonyManager.MultiSimVoiceCapability.UNSUPPORTED) !=
-// QTI_END: 2025-02-18: Telephony: Don't use multi_sim_voice_capability when unset
                             TelephonyManager.MultiSimVoiceCapability.UNSUPPORTED &&
                             // To support mockmodem tests, bypass multi_sim_voice_capability
                             // property and use the values from the radioconfig hal if RadioConfig
@@ -407,11 +401,9 @@ public class PhoneConfigurationManager {
                             (mRadioConfig != null && mRadioConfig.getRadioConfigProxy(null)
                             .getVersion().less(RIL.RADIO_HAL_VERSION_2_3));
 
-// QTI_BEGIN: 2025-01-28: Telephony: Use MultiSimVoiceCapability to support simultaneous calling
                     if ((ar != null && ar.exception == null) ||
                             generateSimultaneousCallingSupport) {
                         List<Integer> returnedArrayList = generateSimultaneousCallingSupport ?
-// QTI_END: 2025-01-28: Telephony: Use MultiSimVoiceCapability to support simultaneous calling
                                 mQtiMultiSimVoiceCallTracker.generateSimultaneousCallingSupport() :
                                 (List<Integer>) ar.result;
                         if (!mSlotsSupportingSimultaneousCellularCalls.isEmpty()) {

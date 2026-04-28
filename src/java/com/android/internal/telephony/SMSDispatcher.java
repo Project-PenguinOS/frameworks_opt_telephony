@@ -94,9 +94,9 @@ import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.telephony.GsmAlphabet.TextEncodingDetails;
 import com.android.internal.telephony.analytics.TelephonyAnalytics;
 import com.android.internal.telephony.analytics.TelephonyAnalytics.SmsMmsAnalytics;
-// QTI_BEGIN: 2018-04-04: Secure Systems: SEEMP: framework instrumentation and SMS security
+// QTI_BEGIN: 2018-04-04: Telephony: SEEMP: framework instrumentation and SMS security
 import com.android.internal.telephony.SmsUsageMonitor.SmsAuthorizationCallback;
-// QTI_END: 2018-04-04: Secure Systems: SEEMP: framework instrumentation and SMS security
+// QTI_END: 2018-04-04: Telephony: SEEMP: framework instrumentation and SMS security
 import com.android.internal.telephony.cdma.sms.UserData;
 import com.android.internal.telephony.flags.FeatureFlags;
 import com.android.internal.telephony.satellite.SatelliteController;
@@ -2279,18 +2279,18 @@ public abstract class SMSDispatcher extends Handler {
                                 tracker.onFailed(mContext, SmsManager.RESULT_ERROR_GENERIC_FAILURE,
                                         SmsUsageMonitor.ERROR_CODE_BLOCKED);
                             }
-// QTI_BEGIN: 2018-04-04: Secure Systems: SEEMP: framework instrumentation and SMS security
+// QTI_BEGIN: 2018-04-04: Telephony: SEEMP: framework instrumentation and SMS security
                         }
-// QTI_END: 2018-04-04: Secure Systems: SEEMP: framework instrumentation and SMS security
+// QTI_END: 2018-04-04: Telephony: SEEMP: framework instrumentation and SMS security
                     };
                    mSmsDispatchersController.getUsageMonitor().authorizeOutgoingSms(tracker.mAppInfo,
                             tracker.mDestAddress,tracker.mFullMessageText, callback, this);
                 } else {
                     sendSms(tracker);
                 }
-// QTI_BEGIN: 2018-04-04: Secure Systems: SEEMP: framework instrumentation and SMS security
+// QTI_BEGIN: 2018-04-04: Telephony: SEEMP: framework instrumentation and SMS security
             }
-// QTI_END: 2018-04-04: Secure Systems: SEEMP: framework instrumentation and SMS security
+// QTI_END: 2018-04-04: Telephony: SEEMP: framework instrumentation and SMS security
         }
 
         if (mPhone.hasCalling() && mTelephonyManager.isEmergencyNumber(trackers[0].mDestAddress)) {

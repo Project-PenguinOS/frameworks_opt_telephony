@@ -1,9 +1,6 @@
-// QTI_BEGIN: 2025-03-02: Telephony: Fix license marking in QtiSimUtils
 /*
  * Copyright (c) 2025 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
-// QTI_END: 2025-03-02: Telephony: Fix license marking in QtiSimUtils
-// QTI_BEGIN: 2025-02-10: Telephony: Decouple Qualcomm value adds
  */
 
 package com.android.internal.telephony;
@@ -59,4 +56,3 @@ public class QtiSimUtils {
 
 
 }
-// QTI_END: 2025-02-10: Telephony: Decouple Qualcomm value adds

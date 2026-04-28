@@ -76,9 +76,7 @@ import android.telephony.DomainSelectionService;
 import android.telephony.ImsiEncryptionInfo;
 import android.telephony.LinkCapacityEstimate;
 import android.telephony.NetworkRegistrationInfo;
-// QTI_BEGIN: 2018-03-07: Telephony: Emergency Number Implementation for SS & DS
 import android.telephony.PhoneNumberUtils;
-// QTI_END: 2018-03-07: Telephony: Emergency Number Implementation for SS & DS
 import android.telephony.PhoneStateListener;
 import android.telephony.PhysicalChannelConfig;
 import android.telephony.PreciseDataConnectionState;
@@ -322,7 +320,6 @@ public abstract class Phone extends Handler implements PhoneInternalInterface {
     public static final int ALREADY_IN_AUTO_SELECTION = 1;
 // QTI_END: 2022-09-19: Telephony: CAG and SNPN feature
 
-// QTI_BEGIN: 2021-10-25: Telephony: Add Support for Smart DDS switch during voice call
     //Used to indicate smart DDS switch during voice call is supported or not.
     protected boolean mSmartTempDdsSwitchSupported = false;
 
@@ -330,7 +327,6 @@ public abstract class Phone extends Handler implements PhoneInternalInterface {
     //when smart DDS switch is enabled in modem.
     protected boolean mTelephonyTempDdsSwitch = true;
 
-// QTI_END: 2021-10-25: Telephony: Add Support for Smart DDS switch during voice call
     public static final String PREF_NULL_CIPHER_AND_INTEGRITY_ENABLED =
             "pref_null_cipher_and_integrity_enabled";
     private final TelephonyAdminReceiver m2gAdminUpdater;
@@ -429,9 +425,7 @@ public abstract class Phone extends Handler implements PhoneInternalInterface {
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     protected Phone mImsPhone = null;
 
-// QTI_BEGIN: 2018-01-25: Telephony: Enable vendor Telephony plugin: MSIM Changes
     protected final AtomicReference<RadioCapability> mRadioCapability =
-// QTI_END: 2018-01-25: Telephony: Enable vendor Telephony plugin: MSIM Changes
             new AtomicReference<RadioCapability>();
 
     protected TelephonyComponentFactory mTelephonyComponentFactory;
@@ -704,9 +698,7 @@ public abstract class Phone extends Handler implements PhoneInternalInterface {
         // Initialize SMS stats
         mSmsStats = new SmsStats(this);
 
-// QTI_BEGIN: 2023-11-09: Telephony: Remove legacy subscription code
         mSubscriptionManagerService = SubscriptionManagerService.getInstance();
-// QTI_END: 2023-11-09: Telephony: Remove legacy subscription code
         m2gAdminUpdater = new TelephonyAdminReceiver(context, this);
 
         if (getPhoneType() == PhoneConstants.PHONE_TYPE_IMS) {
@@ -765,11 +757,9 @@ public abstract class Phone extends Handler implements PhoneInternalInterface {
                         this, EVENT_INITIATE_SILENT_REDIAL, null);
             }
         }
-// QTI_BEGIN: 2020-02-12: Telephony: IMS: update ImsPhone to EcbmHandler
         if (mEcbmHandler != null) {
             mEcbmHandler.updateImsPhone(mImsPhone, mPhoneId);
         }
-// QTI_END: 2020-02-12: Telephony: IMS: update ImsPhone to EcbmHandler
     }
 
     /**
@@ -2547,12 +2537,10 @@ public abstract class Phone extends Handler implements PhoneInternalInterface {
      */
     public void loadAllowedNetworksFromSubscriptionDatabase() {
         String result = null;
-// QTI_BEGIN: 2023-11-09: Telephony: Remove legacy subscription code
         SubscriptionInfoInternal subInfo = mSubscriptionManagerService
                 .getSubscriptionInfoInternal(getSubId());
         if (subInfo != null) {
             result = subInfo.getAllowedNetworkTypesForReasons();
-// QTI_END: 2023-11-09: Telephony: Remove legacy subscription code
         }
 
         // After fw load network type from DB, do unlock if subId is valid.
@@ -3848,7 +3836,6 @@ public abstract class Phone extends Handler implements PhoneInternalInterface {
     }
 
     /**
-// QTI_BEGIN: 2021-10-25: Telephony: Add Support for Smart DDS switch during voice call
      * Sets smart DDS switch is supported.
      */
     public void setSmartTempDdsSwitchSupported(boolean smartDdsSwitch) {
@@ -3878,7 +3865,6 @@ public abstract class Phone extends Handler implements PhoneInternalInterface {
         return true;
     }
 
-// QTI_END: 2021-10-25: Telephony: Add Support for Smart DDS switch during voice call
     /**
      * Deletes all the keys for a given Carrier from the device keystore.
      * @param carrierId : the carrier ID which needs to be matched in the delete query
@@ -3996,7 +3982,6 @@ public abstract class Phone extends Handler implements PhoneInternalInterface {
     public void queryCLIP(Message onComplete) {
     }
 
-// QTI_BEGIN: 2024-01-11: Telephony: Add Support for MSIM CIWLAN feature
     /**
      * Set C_IWLAN timer use to delay deactivating data call when mobile data UI is off or
      * roaming UI is off when device is in roaming.
@@ -4012,15 +3997,12 @@ public abstract class Phone extends Handler implements PhoneInternalInterface {
         return -1;
     }
 
-// QTI_END: 2024-01-11: Telephony: Add Support for MSIM CIWLAN feature
     /*
      * Returns the subscription id.
      */
     @UnsupportedAppUsage
     public int getSubId() {
-// QTI_BEGIN: 2023-11-09: Telephony: Remove legacy subscription code
         return mSubscriptionManagerService.getSubId(mPhoneId);
-// QTI_END: 2023-11-09: Telephony: Remove legacy subscription code
     }
 
     /**
@@ -4352,12 +4334,10 @@ public abstract class Phone extends Handler implements PhoneInternalInterface {
 
     private int getResolvedUsageSetting(int subId) {
         SubscriptionInfo subInfo = null;
-// QTI_BEGIN: 2023-11-09: Telephony: Remove legacy subscription code
         SubscriptionInfoInternal subInfoInternal = mSubscriptionManagerService
                 .getSubscriptionInfoInternal(subId);
         if (subInfoInternal != null) {
             subInfo = subInfoInternal.toSubscriptionInfo();
-// QTI_END: 2023-11-09: Telephony: Remove legacy subscription code
         }
 
         if (subInfo == null) {
@@ -5286,11 +5266,9 @@ public abstract class Phone extends Handler implements PhoneInternalInterface {
 // QTI_BEGIN: 2023-04-09: Telephony: Fix data call set-up issue
     protected boolean isActiveSubId(int subId) {
 // QTI_END: 2023-04-09: Telephony: Fix data call set-up issue
-// QTI_BEGIN: 2023-11-09: Telephony: Remove legacy subscription code
         SubscriptionInfoInternal subInfo = SubscriptionManagerService.getInstance()
                 .getSubscriptionInfoInternal(subId);
         return (subInfo != null && subInfo.isActive());
-// QTI_END: 2023-11-09: Telephony: Remove legacy subscription code
 // QTI_BEGIN: 2023-03-27: Telephony: Make SubscriptionManagerService related changes
     }
 
@@ -5762,11 +5740,9 @@ public abstract class Phone extends Handler implements PhoneInternalInterface {
         Rlog.e(mLogTag, "[" + mPhoneId + "] " + s);
     }
 
-// QTI_BEGIN: 2018-03-07: Telephony: Emergency Number Implementation for SS & DS
     public boolean isEmergencyNumber(String address) {
         return PhoneNumberUtils.isEmergencyNumber(getSubId(), address);
     }
-// QTI_END: 2018-03-07: Telephony: Emergency Number Implementation for SS & DS
 
 // QTI_BEGIN: 2021-12-28: Telephony: Add exit SCBM support
     public void exitScbm() {
