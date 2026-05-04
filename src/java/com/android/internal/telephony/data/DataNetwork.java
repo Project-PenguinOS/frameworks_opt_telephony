@@ -16,8 +16,10 @@
 
 // QTI_BEGIN: 2025-02-06: Telephony: Fix for passing down network score correctly at initialization
 /*
+// QTI_END: 2025-02-06: Telephony: Fix for passing down network score correctly at initialization
  * Changes from Qualcomm Technologies, Inc. are provided under the following license:
  * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+// QTI_BEGIN: 2025-02-06: Telephony: Fix for passing down network score correctly at initialization
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -1738,7 +1740,11 @@ public class DataNetwork extends StateMachine {
             int apnTypeBitmask = mDataProfile.getApnSetting() != null
                     ? mDataProfile.getApnSetting().getApnTypeBitmask() : ApnSetting.TYPE_NONE;
             int sliceCapability = getSliceCapability(getNetworkCapabilities());
-            mDataCallSessionStats.onSetupDataCall(apnTypeBitmask, mSatellite, sliceCapability);
+            int connectionCapability = trafficDescriptor != null
+                    ? trafficDescriptor.getConnectionCapability() :
+                    TrafficDescriptor.CONNECTION_CAPABILITY_UNKNOWN;
+            mDataCallSessionStats.onSetupDataCall(
+                    apnTypeBitmask, mSatellite, sliceCapability, connectionCapability);
 
             logl("setupData: accessNetwork="
                     + AccessNetworkType.toString(accessNetwork) + ", isSatellite=" + mSatellite
