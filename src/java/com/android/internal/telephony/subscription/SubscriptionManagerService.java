@@ -940,26 +940,7 @@ public class SubscriptionManagerService extends ISub.Stub {
                      */
                     @Override
                     public void onSubscriptionChanged(int subId) {
-                        updateUserIdToAvailableSubs();
-
-                        mSubscriptionManagerServiceCallbacks.forEach(
-                                callback -> callback.invokeFromExecutor(
-                                        () -> callback.onSubscriptionChanged(subId)));
-
-                        MultiSimSettingController.getInstance().notifySubscriptionInfoChanged();
-
-                        TelephonyRegistryManager telephonyRegistryManager =
-                                mContext.getSystemService(TelephonyRegistryManager.class);
-                        if (telephonyRegistryManager != null) {
-                            telephonyRegistryManager.notifySubscriptionInfoChanged();
-                        }
-
-                        SubscriptionInfoInternal subInfo =
-                                mSubscriptionDatabaseManager.getSubscriptionInfoInternal(subId);
-                        if (subInfo != null && subInfo.isOpportunistic()
-                                && telephonyRegistryManager != null) {
-                            telephonyRegistryManager.notifyOpportunisticSubscriptionInfoChanged();
-                        }
+                        notifySubscriptionChanged(subId);
                     }
                 });
 
@@ -2612,6 +2593,34 @@ public class SubscriptionManagerService extends ISub.Stub {
                 .filter(subInfo -> subInfo.isActive() || iccIds.contains(subInfo.getIccId())
                         || (mEuiccManager != null && mEuiccManager.isEnabled()
                         && subInfo.isEmbedded()));
+    }
+
+    /**
+     * Notify that a subscription has changed.
+     *
+     * @param subId The subscription id.
+     */
+    private void notifySubscriptionChanged(int subId) {
+        updateUserIdToAvailableSubs();
+
+        mSubscriptionManagerServiceCallbacks.forEach(
+                callback -> callback.invokeFromExecutor(
+                        () -> callback.onSubscriptionChanged(subId)));
+
+        MultiSimSettingController.getInstance().notifySubscriptionInfoChanged();
+
+        TelephonyRegistryManager telephonyRegistryManager =
+                mContext.getSystemService(TelephonyRegistryManager.class);
+        if (telephonyRegistryManager != null) {
+            telephonyRegistryManager.notifySubscriptionInfoChanged();
+        }
+
+        SubscriptionInfoInternal subInfo =
+                mSubscriptionDatabaseManager.getSubscriptionInfoInternal(subId);
+        if (subInfo != null && subInfo.isOpportunistic()
+                && telephonyRegistryManager != null) {
+            telephonyRegistryManager.notifyOpportunisticSubscriptionInfoChanged();
+        }
     }
 
     /**
@@ -4605,7 +4614,12 @@ public class SubscriptionManagerService extends ISub.Stub {
      * for the current IMS session.
      */
     public void setImsNumberUpdateStatus(int subId, boolean success) {
-        mImsNumberUpdateStatus.put(subId, success);
+        Boolean oldStatus = mImsNumberUpdateStatus.put(subId, success);
+        if (oldStatus == null || oldStatus != success) {
+            log("setImsNumberUpdateStatus: subId=" + subId + " status changed to " + success
+                    + ". notifying.");
+            notifySubscriptionChanged(subId);
+        }
     }
 
     /**
@@ -4614,7 +4628,10 @@ public class SubscriptionManagerService extends ISub.Stub {
      * from a previous session.
      */
     public void clearImsNumberUpdateStatus(int subId) {
-        mImsNumberUpdateStatus.remove(subId);
+        if (mImsNumberUpdateStatus.remove(subId) != null) {
+            log("clearImsNumberUpdateStatus: subId=" + subId + ". notifying.");
+            notifySubscriptionChanged(subId);
+        }
     }
 
     /**
@@ -6277,8 +6294,7 @@ public class SubscriptionManagerService extends ISub.Stub {
     }
 
     private boolean isMockModemAllowed() {
-        boolean isAllowed = SystemProperties.getBoolean(ALLOW_MOCK_MODEM_PROPERTY, false);
-        return (SystemProperties.getBoolean(ALLOW_MOCK_MODEM_PROPERTY, false)
+        return (SystemProperties.getBoolean(ALLOW_MOCK_MODEM_PROPERTY, true)
                 || SystemProperties.getBoolean(BOOT_ALLOW_MOCK_MODEM_PROPERTY, false));
     }
 

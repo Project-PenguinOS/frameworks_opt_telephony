@@ -6285,7 +6285,7 @@ public class SatelliteController extends Handler {
     }
 
     private boolean isMockModemAllowed() {
-        return (DEBUG || SystemProperties.getBoolean(ALLOW_MOCK_MODEM_PROPERTY, false));
+        return (DEBUG || SystemProperties.getBoolean(ALLOW_MOCK_MODEM_PROPERTY, true));
     }
 
     private void configureSatellitePlmnForCarrier(int subId) {
@@ -8689,13 +8689,6 @@ public class SatelliteController extends Handler {
         if (carrierRoamingNtnConnectType != -1
                 && !isSatelliteSystemNotificationsEnabled(carrierRoamingNtnConnectType)) {
             plogd("updateSatelliteSystemNotification: satellite notifications are not enabled.");
-            return;
-        }
-
-        if (mIsNotificationShowing.get() == visible) {
-            logd("updateSatelliteSystemNotification: visibility unchanged. "
-                    + "mIsNotificationShowing=" + mIsNotificationShowing.get()
-                    + ", visible=" + visible);
             return;
         }
 

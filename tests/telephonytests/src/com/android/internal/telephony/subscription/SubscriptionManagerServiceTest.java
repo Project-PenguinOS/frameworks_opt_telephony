@@ -5521,5 +5521,44 @@ public class SubscriptionManagerServiceTest extends TelephonyTest {
         assertThat(mSubscriptionManagerServiceUT
                 .getEnrollableSubscriptionPlans(subId, CALLING_PACKAGE)).isNull();
     }
+
+    @Test
+    @EnableCompatChanges({TelephonyManager.ENABLE_FEATURE_MAPPING})
+    public void testNotifyOnImsNumberChange() {
+        int subId = 1;
+        insertSubscription(new SubscriptionInfoInternal.Builder()
+                .setId(subId).setIccId(FAKE_ICCID1).setSimSlotIndex(0).build());
+        processAllMessages();
+
+        // 1. Initial success - should notify
+        clearInvocations(mMockedSubscriptionManagerServiceCallback);
+        mSubscriptionManagerServiceUT.setImsNumberUpdateStatus(subId, true);
+        processAllMessages();
+        verify(mMockedSubscriptionManagerServiceCallback).onSubscriptionChanged(eq(subId));
+
+        // 2. Setting same status - should NOT notify
+        clearInvocations(mMockedSubscriptionManagerServiceCallback);
+        mSubscriptionManagerServiceUT.setImsNumberUpdateStatus(subId, true);
+        processAllMessages();
+        verify(mMockedSubscriptionManagerServiceCallback, never()).onSubscriptionChanged(anyInt());
+
+        // 3. Status changed to failed - should notify
+        clearInvocations(mMockedSubscriptionManagerServiceCallback);
+        mSubscriptionManagerServiceUT.setImsNumberUpdateStatus(subId, false);
+        processAllMessages();
+        verify(mMockedSubscriptionManagerServiceCallback).onSubscriptionChanged(eq(subId));
+
+        // 4. Status cleared - should notify
+        clearInvocations(mMockedSubscriptionManagerServiceCallback);
+        mSubscriptionManagerServiceUT.clearImsNumberUpdateStatus(subId);
+        processAllMessages();
+        verify(mMockedSubscriptionManagerServiceCallback).onSubscriptionChanged(eq(subId));
+
+        // 5. Status cleared again (was already gone) - should NOT notify
+        clearInvocations(mMockedSubscriptionManagerServiceCallback);
+        mSubscriptionManagerServiceUT.clearImsNumberUpdateStatus(subId);
+        processAllMessages();
+        verify(mMockedSubscriptionManagerServiceCallback, never()).onSubscriptionChanged(anyInt());
+    }
 }
 
