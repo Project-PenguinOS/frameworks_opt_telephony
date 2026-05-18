@@ -903,7 +903,7 @@ public class SatelliteSOSMessageRecommender extends Handler {
     }
 
     private static boolean isMockModemAllowed() {
-        return (SystemProperties.getBoolean(ALLOW_MOCK_MODEM_PROPERTY, false)
+        return (SystemProperties.getBoolean(ALLOW_MOCK_MODEM_PROPERTY, true)
                 || SystemProperties.getBoolean(BOOT_ALLOW_MOCK_MODEM_PROPERTY, false));
     }
 

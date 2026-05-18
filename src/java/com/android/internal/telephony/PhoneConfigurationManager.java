@@ -809,7 +809,7 @@ public class PhoneConfigurationManager {
         log("setModemService: " + serviceName);
         boolean statusRadioConfig = false;
         boolean statusRil = false;
-        final boolean isAllowed = SystemProperties.getBoolean(ALLOW_MOCK_MODEM_PROPERTY, false);
+        final boolean isAllowed = SystemProperties.getBoolean(ALLOW_MOCK_MODEM_PROPERTY, true);
         final boolean isAllowedForBoot =
                 SystemProperties.getBoolean(BOOT_ALLOW_MOCK_MODEM_PROPERTY, false);
 
