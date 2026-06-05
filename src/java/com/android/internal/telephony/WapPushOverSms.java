@@ -83,17 +83,28 @@ public class WapPushOverSms implements ServiceConnection {
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     private volatile IWapPushManager mWapPushManager;
 
-    private void bindWapPushManagerService(Context context) {
+    /** Flag to track if binding is in progress */
+    private volatile boolean mBindingInProgress = false;
+
+    /** Lock for synchronizing service binding */
+    private final Object mBindLock = new Object();
+
+    /** Timeout for waiting for service connection (in milliseconds) */
+    private static final long BIND_TIMEOUT_MS = 5000;
+
+    private boolean bindWapPushManagerService(Context context) {
         Intent intent = new Intent(IWapPushManager.class.getName());
         ComponentName comp = resolveSystemService(context.getPackageManager(), intent);
         intent.setComponent(comp);
         if (comp == null || !context.bindService(intent, this, Context.BIND_AUTO_CREATE)) {
             Rlog.e(TAG, "bindService() for wappush manager failed");
+            return false;
         } else {
             synchronized (this) {
                 mWapPushManagerPackage = comp.getPackageName();
             }
             if (DBG) Rlog.v(TAG, "bindService() for wappush manager succeeded");
+            return true;
         }
     }
 
@@ -126,14 +137,21 @@ public class WapPushOverSms implements ServiceConnection {
 
     @Override
     public void onServiceConnected(ComponentName name, IBinder service) {
-        mWapPushManager = IWapPushManager.Stub.asInterface(service);
-        if (DBG) Rlog.v(TAG, "wappush manager connected to " + hashCode());
+        synchronized (mBindLock) {
+            mWapPushManager = IWapPushManager.Stub.asInterface(service);
+            mBindingInProgress = false;
+            mBindLock.notifyAll();  // Wake up any threads waiting for connection
+            if (DBG) Rlog.v(TAG, "wappush manager connected to " + hashCode());
+        }
     }
 
     @Override
     public void onServiceDisconnected(ComponentName name) {
-        mWapPushManager = null;
-        if (DBG) Rlog.v(TAG, "wappush manager disconnected.");
+        synchronized (mBindLock) {
+            mWapPushManager = null;
+            mBindingInProgress = false;
+            if (DBG) Rlog.v(TAG, "wappush manager disconnected.");
+        }
     }
 
     public WapPushOverSms(Context context, FeatureFlags featureFlags) {
@@ -142,15 +160,25 @@ public class WapPushOverSms implements ServiceConnection {
         mPowerWhitelistManager = mContext.getSystemService(PowerWhitelistManager.class);
         mUserManager = mContext.getSystemService(UserManager.class);
 
-        bindWapPushManagerService(mContext);
+        // LAZY BINDING: Don't bind at construction - bind only when WAP Push message arrives
     }
 
     public void dispose() {
-        if (mWapPushManager != null) {
-            if (DBG) Rlog.v(TAG, "dispose: unbind wappush manager");
-            mContext.unbindService(this);
-        } else {
-            Rlog.e(TAG, "dispose: not bound to a wappush manager");
+        synchronized (mBindLock) {
+            if (mWapPushManager != null || mBindingInProgress) {
+                if (DBG) Rlog.v(TAG, "dispose: unbind wappush manager");
+                try {
+                    mContext.unbindService(this);
+                } catch (IllegalArgumentException e) {
+                    // Service was not bound, ignore
+                    if (DBG) Rlog.v(TAG, "dispose: service was not bound");
+                }
+                mWapPushManager = null;
+                mBindingInProgress = false;
+                mBindLock.notifyAll(); // Wake up any threads waiting in ensureWapPushManagerBound()
+            } else {
+                if (DBG) Rlog.v(TAG, "dispose: not bound to a wappush manager");
+            }
         }
     }
 
@@ -324,6 +352,68 @@ public class WapPushOverSms implements ServiceConnection {
     }
 
     /**
+     * Ensures WapPushManager service is bound and connected.
+     * Uses lazy binding - only binds when first WAP Push message with app ID arrives.
+     *
+     * @return true if service is connected or successfully bound, false otherwise
+     */
+    private boolean ensureWapPushManagerBound() {
+        // Fast path: already connected
+        if (mWapPushManager != null) {
+            return true;
+        }
+
+        synchronized (mBindLock) {
+            // Double-check after acquiring lock
+            if (mWapPushManager != null) {
+                return true;
+            }
+
+            // If binding is already in progress, wait for it
+            if (mBindingInProgress) {
+                try {
+                    mBindLock.wait(BIND_TIMEOUT_MS);
+                    return mWapPushManager != null;
+                } catch (InterruptedException e) {
+                    Rlog.e(TAG, "Interrupted while waiting for service binding");
+                    Thread.currentThread().interrupt();
+                    return false;
+                }
+            }
+
+            // Start binding
+            mBindingInProgress = true;
+            if (DBG) Rlog.v(TAG, "Lazy binding to WapPushManager service");
+
+            if (!bindWapPushManagerService(mContext)) {
+                mBindingInProgress = false;
+                return false;
+            }
+
+            // Wait for connection with timeout
+            try {
+                long startTime = System.currentTimeMillis();
+                while (mWapPushManager == null && mBindingInProgress) {
+                    long elapsed = System.currentTimeMillis() - startTime;
+                    long remaining = BIND_TIMEOUT_MS - elapsed;
+                    if (remaining <= 0) {
+                        Rlog.e(TAG, "Timeout waiting for WapPushManager service connection");
+                        mBindingInProgress = false;
+                        return false;
+                    }
+                    mBindLock.wait(remaining);
+                }
+                return mWapPushManager != null;
+            } catch (InterruptedException e) {
+                Rlog.e(TAG, "Interrupted while waiting for service connection");
+                Thread.currentThread().interrupt();
+                mBindingInProgress = false;
+                return false;
+            }
+        }
+    }
+
+    /**
      * Dispatches inbound messages that are in the WAP PDU format. See
      * wap-230-wsp-20010705-a section 8 for details on the WAP PDU format.
      *
@@ -349,34 +439,40 @@ public class WapPushOverSms implements ServiceConnection {
         if (result.wapAppId != null) {
             try {
                 boolean processFurther = true;
-                IWapPushManager wapPushMan = mWapPushManager;
 
-                if (wapPushMan == null) {
-                    if (DBG) Rlog.w(TAG, "wap push manager not found!");
+                if (!ensureWapPushManagerBound()) {
+                    if (DBG) Rlog.w(TAG, "Failed to bind to WapPushManager service");
+                    // Fall through to legacy processing
                 } else {
-                    synchronized (this) {
-                        mPowerWhitelistManager.whitelistAppTemporarilyForEvent(
-                                mWapPushManagerPackage, PowerWhitelistManager.EVENT_MMS,
-                                REASON_EVENT_MMS, "mms-mgr");
-                    }
+                    IWapPushManager wapPushMan = mWapPushManager;
 
-                    Intent intent = new Intent();
-                    intent.putExtra("transactionId", result.transactionId);
-                    intent.putExtra("pduType", result.pduType);
-                    intent.putExtra("header", result.header);
-                    intent.putExtra("data", result.intentData);
-                    intent.putExtra("contentTypeParameters", result.contentTypeParameters);
-                    SubscriptionManager.putPhoneIdAndSubIdExtra(intent, result.phoneId);
-                    if (!TextUtils.isEmpty(address)) {
-                        intent.putExtra("address", address);
-                    }
+                    if (wapPushMan == null) {
+                        if (DBG) Rlog.w(TAG, "wap push manager not found!");
+                    } else {
+                        synchronized (this) {
+                            mPowerWhitelistManager.whitelistAppTemporarilyForEvent(
+                                    mWapPushManagerPackage, PowerWhitelistManager.EVENT_MMS,
+                                    REASON_EVENT_MMS, "mms-mgr");
+                        }
 
-                    int procRet = wapPushMan.processMessage(
-                        result.wapAppId, result.contentType, intent);
-                    if (DBG) Rlog.v(TAG, "procRet:" + procRet);
-                    if ((procRet & WapPushManagerParams.MESSAGE_HANDLED) > 0
-                            && (procRet & WapPushManagerParams.FURTHER_PROCESSING) == 0) {
-                        processFurther = false;
+                        Intent intent = new Intent();
+                        intent.putExtra("transactionId", result.transactionId);
+                        intent.putExtra("pduType", result.pduType);
+                        intent.putExtra("header", result.header);
+                        intent.putExtra("data", result.intentData);
+                        intent.putExtra("contentTypeParameters", result.contentTypeParameters);
+                        SubscriptionManager.putPhoneIdAndSubIdExtra(intent, result.phoneId);
+                        if (!TextUtils.isEmpty(address)) {
+                            intent.putExtra("address", address);
+                        }
+
+                        int procRet = wapPushMan.processMessage(
+                            result.wapAppId, result.contentType, intent);
+                        if (DBG) Rlog.v(TAG, "procRet:" + procRet);
+                        if ((procRet & WapPushManagerParams.MESSAGE_HANDLED) > 0
+                                && (procRet & WapPushManagerParams.FURTHER_PROCESSING) == 0) {
+                            processFurther = false;
+                        }
                     }
                 }
                 if (!processFurther) {

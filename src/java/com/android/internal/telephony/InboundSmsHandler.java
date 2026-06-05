@@ -1166,30 +1166,49 @@ public abstract class InboundSmsHandler extends StateMachine {
         }
 
         if (isWapPush) {
-            int result = mWapPush.dispatchWapPdu(output.toByteArray(), resultReceiver,
-                    this, address, tracker.getSubId(), tracker.getMessageId());
-            if (DBG) {
-                log("processMessagePart: dispatchWapPdu() returned " + result,
-                        tracker.getMessageId());
-            }
-            // Add result of WAP-PUSH into metrics. RESULT_SMS_HANDLED indicates that the WAP-PUSH
-            // needs to be ignored, so treating it as a success case.
-            boolean wapPushResult =
-                    result == Activity.RESULT_OK || result == Intents.RESULT_SMS_HANDLED;
-            int pduLength = wapPushResult ? output.size() : 0;
-            mPhone.getSmsStats().onIncomingSmsWapPush(tracker.getSource(), messageCount,
-                    result, tracker.getMessageId(), isEmergencyNumber(tracker.getAddress()),
-                    pduLength);
-            // result is Activity.RESULT_OK if an ordered broadcast was sent
-            if (result == Activity.RESULT_OK) {
-                return true;
-            } else {
-                deleteFromRawTable(tracker.getDeleteWhere(), tracker.getDeleteWhereArgs(),
-                        MARK_DELETED);
-                loge("processMessagePart: returning false as the ordered broadcast for WAP push "
-                        + "was not sent", tracker.getMessageId());
-                return false;
-            }
+            // Post WAP push processing to background thread to avoid blocking the main thread.
+            // WapPushManager service binding (ensureWapPushManagerBound) may wait up to 5 seconds
+            // for onServiceConnected(), which is delivered on the main thread. Blocking the main
+            // thread would prevent onServiceConnected() from firing, causing a deadlock/timeout.
+            final byte[] wapPduBytes = output.toByteArray();
+            final SmsBroadcastReceiver finalReceiver = resultReceiver;
+            final String finalAddress = address;
+            final InboundSmsTracker finalTracker = tracker;
+            final int finalMessageCount = messageCount;
+
+            mBackgroundExecutor.execute(() -> {
+                int result = mWapPush.dispatchWapPdu(wapPduBytes, finalReceiver,
+                        InboundSmsHandler.this, finalAddress,
+                        finalTracker.getSubId(), finalTracker.getMessageId());
+                if (DBG) {
+                    log("processMessagePart: dispatchWapPdu() returned " + result,
+                            finalTracker.getMessageId());
+                }
+                // Add result of WAP-PUSH into metrics. RESULT_SMS_HANDLED indicates that the
+                // WAP-PUSH needs to be ignored, so treating it as a success case.
+                boolean wapPushResult =
+                        result == Activity.RESULT_OK || result == Intents.RESULT_SMS_HANDLED;
+                int pduLength = wapPushResult ? wapPduBytes.length : 0;
+                mPhone.getSmsStats().onIncomingSmsWapPush(finalTracker.getSource(),
+                        finalMessageCount, result, finalTracker.getMessageId(),
+                        isEmergencyNumber(finalTracker.getAddress()), pduLength);
+                if (result != Activity.RESULT_OK) {
+                    // No ordered broadcast was sent. Clean up raw table and signal the state
+                    // machine to exit WaitingState.
+                    deleteFromRawTable(finalTracker.getDeleteWhere(),
+                            finalTracker.getDeleteWhereArgs(), MARK_DELETED);
+                    loge("processMessagePart: WAP push broadcast not sent, result=" + result,
+                            finalTracker.getMessageId());
+                    sendMessage(EVENT_BROADCAST_COMPLETE);
+                }
+                // If result == Activity.RESULT_OK, an ordered broadcast was sent.
+                // SmsBroadcastReceiver.onReceive() will send EVENT_BROADCAST_COMPLETE
+                // when the broadcast completes.
+            });
+
+            // Return true immediately so the state machine transitions to WaitingState.
+            // The background thread will signal completion via EVENT_BROADCAST_COMPLETE.
+            return true;
         }
 
         // All parts of SMS are received. Update metrics for incoming SMS.
