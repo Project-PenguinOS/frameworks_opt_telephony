@@ -1035,8 +1035,8 @@ public class ImsPhone extends ImsPhoneBase {
         // Need to make sure dialString gets parsed properly.
         newDialString = PhoneNumberUtils.stripSeparators(dialString);
 
-        // handle in-call MMI first if applicable
-        if (!dialArgs.isEmergency) {
+        // If not emergency number, handle in-call MMI first if applicable
+        if (!dialArgs.isEmergency && wrappedCallback == null) {
             if (mFeatureFlags.ignoreIncallMmiForEmergency() && mCT.isInEmergencyCall()) {
                 logd("dialInternal: ignore InCall MMI command during emergency call");
                 return null;
