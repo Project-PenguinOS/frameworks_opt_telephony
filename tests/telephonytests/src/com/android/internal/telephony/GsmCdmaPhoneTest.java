@@ -14,6 +14,12 @@
  * limitations under the License.
  */
 
+/*
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
 package com.android.internal.telephony;
 
 import static com.android.internal.telephony.CommandsInterface.CF_ACTION_ENABLE;
@@ -25,6 +31,7 @@ import static com.android.internal.telephony.Phone.EVENT_SET_IDENTIFIER_DISCLOSU
 import static com.android.internal.telephony.Phone.EVENT_SET_NULL_CIPHER_AND_INTEGRITY_DONE;
 import static com.android.internal.telephony.Phone.EVENT_SET_SECURITY_ALGORITHMS_UPDATED_ENABLED_DONE;
 import static com.android.internal.telephony.Phone.EVENT_SRVCC_STATE_CHANGED;
+import static com.android.internal.telephony.Phone.EVENT_PRECISE_CALL_STATE_CHANGED_FOR_UICC;
 import static com.android.internal.telephony.Phone.EVENT_UICC_APPS_ENABLEMENT_STATUS_CHANGED;
 import static com.android.internal.telephony.TelephonyTestUtils.waitForMs;
 import static com.android.internal.telephony.SimulatedCommands.FAKE_IMEI;
@@ -1243,6 +1250,59 @@ public class GsmCdmaPhoneTest extends TelephonyTest {
         processAllMessages();
         verify(mMockCi, never()).enableUiccApplications(eq(true), messageCaptor.capture());
         clearInvocations(mMockCi);
+    }
+
+    @Test
+    @SmallTest
+    public void testReapplyUiccApplicationEnablementSuppressedDuringVoiceCall() throws Exception {
+        mPhoneUT.mCi = mMockCi;
+        // Set SIM to be present, with a fake iccId, and notify enablement being false.
+        doReturn(mUiccSlot).when(mUiccController).getUiccSlotForPhone(anyInt());
+        doReturn(IccCardStatus.CardState.CARDSTATE_PRESENT).when(mUiccSlot).getCardState();
+        String iccId = "Fake iccId";
+        doReturn(iccId).when(mUiccSlot).getIccId(anyInt());
+
+        // Simulate an active voice call on this phone.
+        mCT.mState = PhoneConstants.State.OFFHOOK;
+
+        Message.obtain(mPhoneUT, EVENT_UICC_APPS_ENABLEMENT_STATUS_CHANGED,
+                new AsyncResult(null, false, null)).sendToTarget();
+        processAllMessages();
+
+        // Should NOT try to enable uicc applications because there is an active voice call.
+        verify(mMockCi, never()).enableUiccApplications(anyBoolean(), any());
+    }
+
+    @Test
+    @SmallTest
+    public void testReapplyUiccApplicationEnablementReappliedAfterCallEnds() throws Exception {
+        mPhoneUT.mCi = mMockCi;
+        // Set SIM to be present, with a fake iccId, and notify enablement being false.
+        doReturn(mUiccSlot).when(mUiccController).getUiccSlotForPhone(anyInt());
+        doReturn(IccCardStatus.CardState.CARDSTATE_PRESENT).when(mUiccSlot).getCardState();
+        String iccId = "Fake iccId";
+        doReturn(iccId).when(mUiccSlot).getIccId(anyInt());
+
+        // Simulate an active voice call on this phone.
+        mCT.mState = PhoneConstants.State.OFFHOOK;
+
+        Message.obtain(mPhoneUT, EVENT_UICC_APPS_ENABLEMENT_STATUS_CHANGED,
+                new AsyncResult(null, false, null)).sendToTarget();
+        processAllMessages();
+
+        // Should NOT try to enable uicc applications because there is an active voice call.
+        verify(mMockCi, never()).enableUiccApplications(anyBoolean(), any());
+
+        // Simulate call ending.
+        mCT.mState = PhoneConstants.State.IDLE;
+
+        // Send EVENT_PRECISE_CALL_STATE_CHANGED_FOR_UICC to simulate call state change.
+        Message.obtain(mPhoneUT, EVENT_PRECISE_CALL_STATE_CHANGED_FOR_UICC,
+                new AsyncResult(null, null, null)).sendToTarget();
+        processAllMessages();
+
+        // Should now try to enable uicc applications since the call has ended.
+        verify(mMockCi, times(1)).enableUiccApplications(eq(true), any());
     }
 
     @Test

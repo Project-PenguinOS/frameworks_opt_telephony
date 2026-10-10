@@ -2473,8 +2473,27 @@ public class DataNetwork extends StateMachine {
                             linkAddress -> new LinkAddressKey(linkAddress));
             log("isLinkPropertiesCompatible: old=" + oldLinkProperties
                     + " new=" + newLinkProperties + " result=" + result);
-            for (LinkAddress added : result.added) {
-                for (LinkAddress removed : result.removed) {
+
+            List<LinkAddress> addedList = new ArrayList<>(result.added);
+            List<LinkAddress> removedList = new ArrayList<>(result.removed);
+
+            // Filter out compatible same-prefix IPv6 address updates (e.g. SLAAC/IID changes)
+            addedList.removeIf(added -> {
+                for (java.util.Iterator<LinkAddress> remIter = removedList.iterator();
+                        remIter.hasNext(); ) {
+                    LinkAddress removed = remIter.next();
+                    if (isSameIpv6Prefix(removed, added)) {
+                        remIter.remove(); // Remove matching IPv6 from removedList
+                        return true;      // Remove the corresponding added from addedList
+                    }
+                }
+                return false;
+            });
+
+            // If there are still matching address types between remaining added and removed,
+            // we must recreate the agent.
+            for (LinkAddress added : addedList) {
+                for (LinkAddress removed : removedList) {
                     if (NetUtils.addressTypeMatches(removed.getAddress(), added.getAddress())) {
                         return false;
                     }
@@ -2483,6 +2502,21 @@ public class DataNetwork extends StateMachine {
         }
 
         return true;
+    }
+
+    /**
+     * Checks if two IPv6 LinkAddresses share the same network prefix.
+     */
+    private static boolean isSameIpv6Prefix(
+            @NonNull LinkAddress addr1, @NonNull LinkAddress addr2) {
+        if (addr1.isIpv6() && addr2.isIpv6()) {
+            android.net.IpPrefix p1 = new android.net.IpPrefix(
+                    addr1.getAddress(), addr1.getPrefixLength());
+            android.net.IpPrefix p2 = new android.net.IpPrefix(
+                    addr2.getAddress(), addr2.getPrefixLength());
+            return p1.equals(p2);
+        }
+        return false;
     }
 
 
@@ -3329,8 +3363,7 @@ public class DataNetwork extends StateMachine {
                     transitionTo(mDisconnectedState);
                 }
             }
-        } else if ((!(mFlags.supportExplicitDataDisconnect() && requireExplicitDisconnect))
-                    || isDisconnecting()) {
+        } else if (!(mFlags.supportExplicitDataDisconnect() && requireExplicitDisconnect)) {
             // The data call response is missing from the list. This means the PDN is gone. This
             // is the PDN lost reported by the modem. We don't send another DEACTIVATE_DATA request
             // for that

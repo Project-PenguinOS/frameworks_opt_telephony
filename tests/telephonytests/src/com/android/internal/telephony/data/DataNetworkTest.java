@@ -2187,18 +2187,152 @@ public class DataNetworkTest extends TelephonyTest {
                         new Pair<>(List.of(response), true), null)).sendToTarget();
         processAllMessages();
 
+        // Under correct behavior, changing only the IID (same /64 prefix) is compatible.
+        // Agent should NOT be re-created, so register should be called only once.
+        verify(mConnectivityManager, times(1)).registerNetworkAgent(any(), any(NetworkInfo.class),
+                any(LinkProperties.class), any(NetworkCapabilities.class), any(), any(),
+                anyInt());
+
+        assertThat(mDataNetworkUT.getLinkProperties().getAllAddresses()).containsExactly(
+                InetAddresses.parseNumericAddress(IPV6_ADDRESS1));
+    }
+
+    @Test
+    public void testIpChangedV6DifferentPrefix() throws Exception {
+        testCreateDataNetwork();
+
+        final String IPV6_ADDRESS_DIFF_PREFIX = "2001:db8:a00:1::1";
+        DataCallResponse response = new DataCallResponse.Builder()
+                .setCause(0)
+                .setRetryDurationMillis(-1L)
+                .setId(123)
+                .setLinkStatus(2)
+                .setProtocolType(ApnSetting.PROTOCOL_IPV4V6)
+                .setInterfaceName("ifname")
+                .setAddresses(Arrays.asList(new LinkAddress(IPV6_ADDRESS_DIFF_PREFIX + "/64")))
+                .setDnsAddresses(Arrays.asList(InetAddresses.parseNumericAddress("10.0.2.3"),
+                        InetAddresses.parseNumericAddress("fd00:976a::9")))
+                .setGatewayAddresses(Arrays.asList(
+                        InetAddresses.parseNumericAddress("10.0.2.15"),
+                        InetAddresses.parseNumericAddress("fe80::2")))
+                .setPcscfAddresses(Arrays.asList(
+                        InetAddresses.parseNumericAddress("fd00:976a:c305:1d::8"),
+                        InetAddresses.parseNumericAddress("fd00:976a:c202:1d::7"),
+                        InetAddresses.parseNumericAddress("fd00:976a:c305:1d::5")))
+                .setMtuV4(1234)
+                .setMtuV6(5678)
+                .setPduSessionId(1)
+                .setQosBearerSessions(new ArrayList<>())
+                .setTrafficDescriptors(Collections.emptyList())
+                .build();
+
+        // IP changes
+        mDataNetworkUT.obtainMessage(8/*EVENT_DATA_STATE_CHANGED*/,
+                new AsyncResult(AccessNetworkConstants.TRANSPORT_TYPE_WWAN,
+                        new Pair<>(List.of(response), true), null)).sendToTarget();
+        processAllMessages();
+
         ArgumentCaptor<LinkProperties> linkPropertiesCaptor =
                 ArgumentCaptor.forClass(LinkProperties.class);
 
-        // Agent re-created, so register should be called twice.
+        // Prefix has changed, which is an incompatible update.
+        // Agent should be re-created, so registerNetworkAgent should be called twice.
         verify(mConnectivityManager, times(2)).registerNetworkAgent(any(), any(NetworkInfo.class),
                 linkPropertiesCaptor.capture(), any(NetworkCapabilities.class), any(), any(),
                 anyInt());
-        // The new agent should have the new IP address.
-        assertThat(linkPropertiesCaptor.getValue().getAllAddresses()).containsExactly(
-                InetAddresses.parseNumericAddress(IPV6_ADDRESS1));
 
-        assertThat(linkPropertiesCaptor.getValue()).isEqualTo(mDataNetworkUT.getLinkProperties());
+        assertThat(linkPropertiesCaptor.getValue().getAllAddresses()).containsExactly(
+                InetAddresses.parseNumericAddress(IPV6_ADDRESS_DIFF_PREFIX));
+    }
+
+    @Test
+    public void testIpChangedV6MultipleAddressesCompatible() throws Exception {
+        testCreateDataNetwork();
+
+        // Use multiple IPv6 addresses under different prefixes
+        final String IPV6_ADDR1_OLD = "2001:db8:a00:1::1";
+        final String IPV6_ADDR1_NEW = "2001:db8:a00:1::2"; // same prefix as 1_OLD
+        final String IPV6_ADDR2_OLD = "fe80::1";
+        final String IPV6_ADDR2_NEW = "fe80::2"; // same prefix as 2_OLD
+
+        // Setup the initial state with two IPv6 addresses
+        DataCallResponse responseInit = new DataCallResponse.Builder()
+                .setCause(0)
+                .setRetryDurationMillis(-1L)
+                .setId(123)
+                .setLinkStatus(2)
+                .setProtocolType(ApnSetting.PROTOCOL_IPV4V6)
+                .setInterfaceName("ifname")
+                .setAddresses(Arrays.asList(
+                        new LinkAddress(IPV6_ADDR1_OLD + "/64"),
+                        new LinkAddress(IPV6_ADDR2_OLD + "/64")))
+                .setDnsAddresses(Arrays.asList(InetAddresses.parseNumericAddress("10.0.2.3"),
+                        InetAddresses.parseNumericAddress("fd00:976a::9")))
+                .setGatewayAddresses(Arrays.asList(
+                        InetAddresses.parseNumericAddress("10.0.2.15"),
+                        InetAddresses.parseNumericAddress("fe80::2")))
+                .setPcscfAddresses(Arrays.asList(
+                        InetAddresses.parseNumericAddress("fd00:976a:c305:1d::8"),
+                        InetAddresses.parseNumericAddress("fd00:976a:c202:1d::7"),
+                        InetAddresses.parseNumericAddress("fd00:976a:c305:1d::5")))
+                .setMtuV4(1234)
+                .setMtuV6(5678)
+                .setPduSessionId(1)
+                .setQosBearerSessions(new ArrayList<>())
+                .setTrafficDescriptors(Collections.emptyList())
+                .build();
+
+        // Apply initial state
+        mDataNetworkUT.obtainMessage(8/*EVENT_DATA_STATE_CHANGED*/,
+                new AsyncResult(AccessNetworkConstants.TRANSPORT_TYPE_WWAN,
+                        new Pair<>(List.of(responseInit), true), null)).sendToTarget();
+        processAllMessages();
+
+        // Reset our mock to clean up register call counts
+        org.mockito.Mockito.reset(mConnectivityManager);
+
+        // Update the state where both addresses get their IID rotated (same prefix)
+        DataCallResponse responseUpdate = new DataCallResponse.Builder()
+                .setCause(0)
+                .setRetryDurationMillis(-1L)
+                .setId(123)
+                .setLinkStatus(2)
+                .setProtocolType(ApnSetting.PROTOCOL_IPV4V6)
+                .setInterfaceName("ifname")
+                .setAddresses(Arrays.asList(
+                        new LinkAddress(IPV6_ADDR1_NEW + "/64"),
+                        new LinkAddress(IPV6_ADDR2_NEW + "/64")))
+                .setDnsAddresses(Arrays.asList(InetAddresses.parseNumericAddress("10.0.2.3"),
+                        InetAddresses.parseNumericAddress("fd00:976a::9")))
+                .setGatewayAddresses(Arrays.asList(
+                        InetAddresses.parseNumericAddress("10.0.2.15"),
+                        InetAddresses.parseNumericAddress("fe80::2")))
+                .setPcscfAddresses(Arrays.asList(
+                        InetAddresses.parseNumericAddress("fd00:976a:c305:1d::8"),
+                        InetAddresses.parseNumericAddress("fd00:976a:c202:1d::7"),
+                        InetAddresses.parseNumericAddress("fd00:976a:c305:1d::5")))
+                .setMtuV4(1234)
+                .setMtuV6(5678)
+                .setPduSessionId(1)
+                .setQosBearerSessions(new ArrayList<>())
+                .setTrafficDescriptors(Collections.emptyList())
+                .build();
+
+        // Apply IP changes
+        mDataNetworkUT.obtainMessage(8/*EVENT_DATA_STATE_CHANGED*/,
+                new AsyncResult(AccessNetworkConstants.TRANSPORT_TYPE_WWAN,
+                        new Pair<>(List.of(responseUpdate), true), null)).sendToTarget();
+        processAllMessages();
+
+        // Multiple compatible SLAAC updates should NOT trigger recreation of the agent.
+        // Therefore, registerNetworkAgent should NOT be called on this update (0 times).
+        verify(mConnectivityManager, times(0)).registerNetworkAgent(
+                any(), any(NetworkInfo.class), any(LinkProperties.class),
+                any(NetworkCapabilities.class), any(), any(), anyInt());
+
+        assertThat(mDataNetworkUT.getLinkProperties().getAllAddresses()).containsExactly(
+                InetAddresses.parseNumericAddress(IPV6_ADDR1_NEW),
+                InetAddresses.parseNumericAddress(IPV6_ADDR2_NEW));
     }
 
     @Test

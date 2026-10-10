@@ -15,8 +15,8 @@
  */
 
 /*
- * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
- * Copyright (c) 2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -392,7 +392,11 @@ public class GsmCdmaPhone extends Phone {
                 this::post) {
             @Override
             public void onUiccApplicationsEnabledChanged(int subId) {
-                reapplyUiccAppsEnablementIfNeeded(ENABLE_UICC_APPS_MAX_RETRIES);
+                final int phoneSubId = getSubId();
+                if (!SubscriptionManager.isValidSubscriptionId(phoneSubId)
+                        || subId == phoneSubId) {
+                    reapplyUiccAppsEnablementIfNeeded(ENABLE_UICC_APPS_MAX_RETRIES);
+                }
             }
         });
 
@@ -487,6 +491,8 @@ public class GsmCdmaPhone extends Phone {
         if (hasCalling()) {
             mCT = mTelephonyComponentFactory.inject(GsmCdmaCallTracker.class.getName())
                     .makeGsmCdmaCallTracker(this, mFeatureFlags);
+            registerForPreciseCallStateChanged(this, EVENT_PRECISE_CALL_STATE_CHANGED_FOR_UICC,
+                    null);
         }
         mIccPhoneBookIntManager = mTelephonyComponentFactory
                 .inject(IccPhoneBookInterfaceManager.class.getName())
@@ -652,6 +658,15 @@ public class GsmCdmaPhone extends Phone {
     @Override
     public void getCellIdentity(WorkSource workSource, Message rspMsg) {
         mSST.requestCellIdentity(workSource, rspMsg);
+    }
+
+    @Override
+    public void createImsPhone() {
+        super.createImsPhone();
+        if (mImsPhone != null) {
+            mImsPhone.registerForPreciseCallStateChanged(this,
+                    EVENT_PRECISE_CALL_STATE_CHANGED_FOR_UICC, null);
+        }
     }
 
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
@@ -3159,6 +3174,11 @@ public class GsmCdmaPhone extends Phone {
                 }
                 break;
             }
+            case EVENT_PRECISE_CALL_STATE_CHANGED_FOR_UICC:
+                if (getState() == PhoneConstants.State.IDLE) {
+                    reapplyUiccAppsEnablementIfNeeded(ENABLE_UICC_APPS_MAX_RETRIES);
+                }
+                break;
             case EVENT_RESET_CARRIER_KEY_IMSI_ENCRYPTION: {
                 resetCarrierKeysForImsiEncryption();
                 break;
@@ -4066,6 +4086,15 @@ public class GsmCdmaPhone extends Phone {
     }
 
     protected void reapplyUiccAppsEnablementIfNeeded(int retries) {
+        // Suppress UICC apps enablement/disablement during voice call on this SUB.
+        // The modem rejects ENABLE_UICC_APPLICATIONS with GENERIC_FAILURE during a call,
+        // which would exhaust all retries. Suppress the command and re-apply after call ends.
+        if (getState() != PhoneConstants.State.IDLE) {
+            logd("reapplyUiccAppsEnablementIfNeeded: suppressed during voice call on phone "
+                    + mPhoneId);
+            return;
+        }
+
         UiccSlot slot = mUiccController.getUiccSlotForPhone(mPhoneId);
 
         // If no card is present or we don't have mUiccApplicationsEnabled yet, do nothing.

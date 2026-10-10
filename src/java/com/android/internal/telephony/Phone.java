@@ -16,9 +16,8 @@
 
 // QTI_BEGIN: 2022-09-19: Telephony: CAG and SNPN feature
 /*
- * Changes from Qualcomm Innovation Center are provided under the following license:
- *
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -289,7 +288,8 @@ public abstract class Phone extends Handler implements PhoneInternalInterface {
     protected static final int EVENT_SET_SECURITY_ALGORITHMS_UPDATED_ENABLED_DONE = 75;
     protected static final int EVENT_NETWORK_SECURITY_EVENTS = 76;
     protected static final int EVENT_SET_ALLOWED_NETWORK_TYPES_FOR_2G_DISABLED_DONE = 77;
-    protected static final int EVENT_LAST = EVENT_SET_ALLOWED_NETWORK_TYPES_FOR_2G_DISABLED_DONE;
+    protected static final int EVENT_PRECISE_CALL_STATE_CHANGED_FOR_UICC = 78;
+    protected static final int EVENT_LAST = EVENT_PRECISE_CALL_STATE_CHANGED_FOR_UICC;
 
     // For shared prefs.
     private static final String GSM_ROAMING_LIST_OVERRIDE_PREFIX = "gsm_roaming_list_";
